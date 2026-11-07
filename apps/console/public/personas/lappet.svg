@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Lappet, the Mender">
+<style>.p{fill:#a5e060}.s{stroke:#a5e060}@media (prefers-color-scheme:light){.p{fill:#478416}.s{stroke:#478416}}</style>
+<rect class="p" x="2.5" y="13" width="19" height="14" rx="7" transform="rotate(-18 12 20)"/>
+<rect class="p" x="10.5" y="5" width="19" height="14" rx="7" transform="rotate(-18 20 12)" stroke="#fff" stroke-opacity=".55" stroke-width="1.6"/>
+<circle cx="15" cy="9" r="1.8" fill="#fff" opacity=".45"/>
+</svg>
