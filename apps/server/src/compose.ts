@@ -1,5 +1,6 @@
 // Composition root: config → stores (Convex or memory) → engine → effect handlers → HTTP app.
 import { mkdir, readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Hono } from "hono";
 import {
@@ -23,6 +24,15 @@ import { NotOrganicSignIn } from "./auth/notorganic.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { ConvexAuthStore, MemoryAuthStore } from "./auth/store.ts";
 import { createApp } from "./http/app.ts";
+import { consoleRoutes } from "./http/console.ts";
+import { consoleStatic, hasConsole } from "./http/static.ts";
+import { activity } from "./activity.ts";
+import { ConvexDraftStore, DraftService, MemoryDraftStore } from "./drafts.ts";
+import { PolicyDocs } from "./docs.ts";
+import { ConvexUsageStore, MemoryUsageStore, UsageRecorder, type BilledTo, type UsageStore } from "./usage.ts";
+import {
+  AnthropicDraftModel, FakeDraftModel, NotOrganicDraftModel, OpenAiDraftModel, Velum, type DraftModel,
+} from "./velum.ts";
 import { ConvexAudit, ConvexOperationLedger, ConvexRuntimeStore, ConvexSignalStore, convexClient } from "./convex/stores.ts";
 import { MemoryOperationLedger } from "./orchestrator/effects.ts";
 import type { EffectHandlers } from "./orchestrator.ts";
@@ -42,6 +52,10 @@ export type Composed = {
   signIn: NotOrganicSignIn | null;
   mode: "memory" | "convex";
   ctx: ServerContext;
+  usage: UsageStore;
+  drafts: DraftService;
+  /** The model behind Velum, or null when EPHYRA_DRAFT=none. */
+  draftModel: DraftModel | null;
   engine: Engine;
   jobs: JobLoop;
   health(): Promise<{ store: "ok" | "unavailable" | "memory" }>;
@@ -101,12 +115,13 @@ function contextFn(autonomy: AutonomyPolicy) {
   };
 }
 
-function backends(config: Config): { extract: ExtractBackend | null; decide: DecideBackend | null } {
+function backends(config: Config, usage: UsageRecorder): { extract: ExtractBackend | null; decide: DecideBackend | null } {
   let extract: ExtractBackend | null = null;
   if (config.EPHYRA_EXTRACT === "parser") extract = new ParserExtract();
   if (config.EPHYRA_EXTRACT === "workers-ai") {
     extract = new WorkersAiClairicExtract({
       alias: "clairic", accountId: config.CLOUDFLARE_ACCOUNT_ID!, credential: config.CLOUDFLARE_AI_API_TOKEN!,
+      onUsage: usage.modelHook("byok"),
     });
   }
   let decide: DecideBackend | null = null;
@@ -114,15 +129,23 @@ function backends(config: Config): { extract: ExtractBackend | null; decide: Dec
     decide = new TypeSafeDecide({
       alias: "jev", endpoint: "https://api.typesafe.ai", credential: config.TYPESAFE_API_KEY!, model: config.TYPESAFE_MODEL,
       supports: ["noul", "choice", "score"], purpose: "decide.triage",
+      onUsage: usage.modelHook("byok"),
     });
   }
   if (config.EPHYRA_DECIDE === "systemone") {
     decide = new SystemOneHttpDecide({
       alias: "systemone", endpoint: config.EPHYRA_SYSTEMONE_URL!, credential: config.EPHYRA_SYSTEMONE_KEY ?? "",
       model: config.EPHYRA_SYSTEMONE_MODEL!, supports: ["noul", "choice", "score"], purpose: "decide.triage",
+      // A keyed endpoint is someone's account; an unkeyed one could be self-hosted or not, so it stays unknown.
+      onUsage: usage.modelHook(config.EPHYRA_SYSTEMONE_KEY ? "byok" : "unknown"),
     }, "systemone");
   }
   return { extract, decide };
+}
+
+function agentBilledTo(config: Config): BilledTo {
+  if (config.EPHYRA_AGENT === "amp") return config.EPHYRA_AMP_EXECUTOR === "local" ? "local" : "byok";
+  return config.EPHYRA_AGENT === "none" ? "unknown" : "local";
 }
 
 function agentFor(config: Config, ampThreads: AmpThreadStore): CodingAgent | null {
@@ -148,6 +171,16 @@ function ampThreadsFrom(store: RuntimeStore): AmpThreadStore {
   };
 }
 
+function draftModelFor(config: Config, signIn: NotOrganicSignIn | null, billingDid: string | undefined): DraftModel | null {
+  switch (config.EPHYRA_DRAFT) {
+    case "notorganic": return signIn && billingDid ? new NotOrganicDraftModel(signIn, billingDid, config.EPHYRA_DRAFT_MODEL) : null;
+    case "anthropic": return new AnthropicDraftModel(config.EPHYRA_DRAFT_ANTHROPIC_API_KEY!, config.EPHYRA_DRAFT_MODEL);
+    case "openai": return new OpenAiDraftModel(config.EPHYRA_DRAFT_OPENAI_API_KEY!, config.EPHYRA_DRAFT_MODEL);
+    case "fake": return new FakeDraftModel();
+    default: return null;
+  }
+}
+
 /** Token bucket per ingest key. */
 function quota(perMinute: number) {
   const buckets = new Map<string, { tokens: number; at: number }>();
@@ -171,6 +204,8 @@ export type ComposeOverrides = {
   agent?: CodingAgent;
   runner?: Runner;
   decide?: DecideBackend;
+  /** Replaces the configured Velum model (tests: nothing here may touch the network). */
+  draftModel?: DraftModel;
 };
 
 export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
@@ -180,6 +215,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const store: RuntimeStore & { recoverRunning?(): Promise<unknown> } = client ? new ConvexRuntimeStore(client, secret) : new MemoryStore();
   const signals: SignalStore = client ? new ConvexSignalStore(client, secret) : new MemorySignalStore();
   const ledger = client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger();
+  const usageStore: UsageStore = client ? new ConvexUsageStore(client, secret) : new MemoryUsageStore();
+  const usage = new UsageRecorder(usageStore, log);
   const memoryAudit = new MemoryAudit();
   const audit: AuditSink = client ? new ConvexAudit(client, secret) : { append: async (i) => memoryAudit.append(i) };
 
@@ -217,7 +254,11 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       {
         issuer: config.NOTORGANIC_ISSUER, authorizationUrl: config.NOTORGANIC_AUTHORIZATION_URL,
         publicOrigin: config.EPHYRA_PUBLIC_ORIGIN, product: config.NOTORGANIC_PRODUCT,
-        scopes: ["wallet:read", "usage:read", "judgement:evaluate", "extraction:run"],
+        scopes: [
+          "wallet:read", "usage:read", "judgement:evaluate", "extraction:run",
+          // Velum on Not Organic chat needs the model's inference scope; asked for only when it is in use.
+          ...(config.EPHYRA_DRAFT === "notorganic" ? [`infer:${config.EPHYRA_DRAFT_MODEL ?? "balanced"}`] : []),
+        ],
       },
       client ? new ConvexAuthStore(client, secret) : new MemoryAuthStore(),
       await SecretBox.fromBase64(config.EPHYRA_SESSION_KEY),
@@ -225,9 +266,12 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     );
   }
   const billingDid = config.EPHYRA_BILLING_DID ?? [...approvers][0];
-  const configured = backends(config);
-  const extract = config.EPHYRA_EXTRACT === "notorganic" && signIn && billingDid ? new HostedExtract(signIn, billingDid) : configured.extract;
-  const decide = opts.decide ?? (config.EPHYRA_DECIDE === "notorganic" && signIn && billingDid ? new HostedDecide(signIn, billingDid) : configured.decide);
+  const configured = backends(config, usage);
+  const hosted = usage.modelHook("notorganic");
+  const extract = config.EPHYRA_EXTRACT === "notorganic" && signIn && billingDid ? new HostedExtract(signIn, billingDid, hosted) : configured.extract;
+  const decide = opts.decide
+    ?? (config.EPHYRA_DECIDE === "notorganic" && signIn && billingDid ? new HostedDecide(signIn, billingDid, hosted) : configured.decide);
+  const draftModel = opts.draftModel ?? draftModelFor(config, signIn, billingDid);
   const profile: ServiceProfile = {
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
@@ -242,7 +286,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const slices = [
     intakeHandlers(ctx),
     humanHandlers(ctx),
-    agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S }),
+    agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
+      usage, agentBilledTo: agentBilledTo(config) }),
     landingHandlers(ctx, {
       adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
@@ -273,14 +318,27 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   port.ops = async () => ({
     deadJobs: await store.deadJobs(),
     reconciliations: client ? await (ledger as ConvexOperationLedger).reconciliations() : engine.reconciliations,
-    backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null },
+    backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, draft: draftModel?.kind ?? null },
     repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
     signIn: signIn ? { provider: "notorganic", product: config.NOTORGANIC_PRODUCT, approvers: approvers.size } : null,
+  });
+  const docs = new PolicyDocs({
+    git: g, baseRef: repo.baseRef,
+    ...(config.EPHYRA_AUTONOMY_FILE ? { autonomyFile: config.EPHYRA_AUTONOMY_FILE } : {}),
+    ...(config.EPHYRA_THRESHOLDS_FILE ? { thresholdsFile: config.EPHYRA_THRESHOLDS_FILE } : {}),
+  });
+  const now = () => new Date();
+  const drafts = new DraftService({
+    store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, git: g, audit, baseRef: repo.baseRef, now, id: randomUUID, log,
+    velum: new Velum({ model: draftModel, usage, now, id: randomUUID }),
   });
   const api = createApp(
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
     { requireSignIn: Boolean(signIn), approvers },
+    (approval) => consoleRoutes({
+      usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
+    }, approval),
   );
   const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {
@@ -293,6 +351,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
   });
   if (signIn) app.route("/auth", authRoutes(signIn, approvers));
+  if (hasConsole(config.EPHYRA_CONSOLE_DIR)) app.route("/", consoleStatic(config.EPHYRA_CONSOLE_DIR));
   app.route("/", api);
 
   if (opts.startJobs !== false) {
@@ -301,7 +360,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   }
   log("composed", {
     mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id,
-    signIn: Boolean(signIn), approvers: approvers.size,
+    signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
-  return { app, decide, signIn, mode, ctx, engine, jobs, health, close: async () => { jobs.stop(); } };
+  return { app, decide, signIn, mode, ctx, usage: usageStore, drafts, draftModel, engine, jobs, health, close: async () => { jobs.stop(); } };
 }

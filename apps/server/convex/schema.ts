@@ -45,6 +45,8 @@ export default defineSchema({
     runAtMs: v.number(),
     attempts: v.number(),
     lastError: v.optional(v.string()),
+    /** When the current attempt was claimed; shown as "running since" in the activity feed. */
+    startedMs: v.optional(v.number()),
   })
     .index("by_key", ["key"])
     .index("by_status_run_at", ["status", "runAtMs"]),
@@ -73,6 +75,11 @@ export default defineSchema({
     .index("by_challenge", ["challenge"]),
 
   usage: defineTable({ key: v.string(), json: v.string() }).index("by_key", ["key"]),
+
+  /** Console policy drafts: the full Draft JSON, indexed by id and status. */
+  drafts: defineTable({ draftId: v.string(), status: v.string(), json: v.string(), updatedMs: v.number() })
+    .index("by_draft_id", ["draftId"])
+    .index("by_status_updated", ["status", "updatedMs"]),
 
   /** Hash-chained audit log; the chain is extended inside a serializable mutation. */
   audit: defineTable({ seq: v.number(), auditId: v.string(), json: v.string(), prevHash: v.string(), hash: v.string() })
