@@ -129,33 +129,35 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange }
         </div>
       )}
       <fieldset className="account-fields" disabled={write.locked}>
-        <Field label="Repository clone URL" hint="Use the HTTPS clone URL from your git host." error={urlError}>
-          <input
-            type="url"
-            required
-            maxLength={2048}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            value={url}
-            placeholder="https://git.example.org/team/project.git"
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setUrlError(undefined);
-            }}
-          />
-        </Field>
-        <Field label="Branch" hint="Ephyra checks that this branch can be fetched before saving.">
-          <input
-            required
-            maxLength={200}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-          />
-        </Field>
+        <div className="account-repository-fields">
+          <Field label="Repository clone URL" hint="Use the HTTPS clone URL from your git host." error={urlError}>
+            <input
+              type="url"
+              required
+              maxLength={2048}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={url}
+              placeholder="https://git.example.org/team/project.git"
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setUrlError(undefined);
+              }}
+            />
+          </Field>
+          <Field label="Branch">
+            <input
+              required
+              maxLength={200}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+            />
+          </Field>
+        </div>
         <details className="account-advanced">
           <summary>Private repository access</summary>
           <div className="account-advanced-fields">
@@ -285,7 +287,7 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
       }}
     >
       <fieldset className="account-fields" disabled={write.locked}>
-        <Field label="Model provider" hint="Choose an option with the arrow keys. Bringing your own key is optional.">
+        <Field label="Model provider" hint={providerDescriptions[provider]}>
           <div className="account-provider-choices">
             {(["notorganic", "openai", "anthropic", "compatible", "none"] as const).map((value) => (
               <label
@@ -303,7 +305,6 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
                 />
                 <span>
                   <strong>{providers[value]}</strong>
-                  <span>{providerDescriptions[value]}</span>
                 </span>
               </label>
             ))}
@@ -324,8 +325,8 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
             label={savedKey ? "Replace API key" : "API key"}
             hint={
               savedKey
-                ? "A key is saved for this endpoint. Leave this blank to keep it. The saved key cannot be displayed."
-                : "Your key is sent to the server and is never displayed or saved in browser storage. Changing endpoints requires a new key."
+                ? "A key is saved for this endpoint. Leave blank to keep it, or enter a replacement."
+                : "Encrypted on the server, never saved in browser storage. A new endpoint needs a new key."
             }
           >
             <input
@@ -398,18 +399,14 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
           </details>
         )}
       </fieldset>
-      {provider === "none" ? (
-        <p className="account-hint">
-          You can write and edit policy documents now. Agent assistance will wait until model access is configured.
-        </p>
-      ) : provider === "notorganic" ? (
+      {provider === "none" ? null : provider === "notorganic" ? (
         <p className="account-hint">
           Uses your signed-in Not Organic account. Save your choice first. If access needs permission, sign in again
           using the link below.
         </p>
       ) : (
         <p className="account-hint">
-          Saving does not run a paid model request. A saved key is not proof that model requests will succeed.
+          No paid model request runs when you save. Check the saved access status below before using agents.
         </p>
       )}
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
@@ -428,19 +425,21 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
             : "Save model access"}
         </Button>
       </div>
-      <div className="account-current">
-        <span className="account-label">Saved model access</span>
-        <div className="account-saved">
-          <strong>{providers[settings.model.provider]}</strong>
-          <Tag>{statusNames[settings.model.status]}</Tag>
-          {settings.model.keyConfigured && <span>Key saved</span>}
+      {settings.model.provider !== "none" && (
+        <div className="account-current">
+          <span className="account-label">Saved model access</span>
+          <div className="account-saved">
+            <strong>{providers[settings.model.provider]}</strong>
+            <Tag>{statusNames[settings.model.status]}</Tag>
+            {settings.model.keyConfigured && <span>Key saved</span>}
+          </div>
+          {settings.model.model && <code>{settings.model.model}</code>}
+          {settings.model.detail && <p className="account-hint">{settings.model.detail}</p>}
+          {settings.model.provider === "notorganic" && settings.model.status === "needs_sign_in" && (
+            <a href="/auth/login?setup=1">Sign in to allow model access</a>
+          )}
         </div>
-        {settings.model.model && <code>{settings.model.model}</code>}
-        {settings.model.detail && <p className="account-hint">{settings.model.detail}</p>}
-        {settings.model.provider === "notorganic" && settings.model.status === "needs_sign_in" && (
-          <a href="/auth/login?setup=1">Sign in to allow model access</a>
-        )}
-      </div>
+      )}
     </form>
   );
 }

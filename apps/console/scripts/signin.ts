@@ -118,6 +118,7 @@ try {
     await page.getByRole("combobox", { name: "Find a page or command" }).fill("settings");
     await page.getByRole("combobox", { name: "Find a page or command" }).press("Enter");
     await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Model access" }).click();
     assert.equal(await page.getByLabel("Replace API key", { exact: true }).inputValue(), "");
     await page.screenshot({ path: join(artifacts, `settings-${width}.png`), fullPage: true });
     const apiKeyField = page.getByLabel("Replace API key", { exact: true });
