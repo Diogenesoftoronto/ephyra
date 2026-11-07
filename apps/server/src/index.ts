@@ -19,3 +19,7 @@ export * from "./velum.ts";
 export * from "./http/console.ts";
 export * from "./http/static.ts";
 export * from "./runs.ts";
+export * from "./voice.ts";
+export * from "./voice-provider.ts";
+export * from "./voice-context.ts";
+export * from "./http/voice.ts";

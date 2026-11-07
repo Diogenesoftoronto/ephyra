@@ -27,8 +27,10 @@ const MAX_TOKENS = 4096;
 async function postJson(fetcher: Fetch, label: string, url: string, headers: Record<string, string>, body: unknown, signal?: AbortSignal) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  signal?.addEventListener("abort", () => controller.abort(), { once: true });
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
   try {
+    signal?.throwIfAborted();
     const res = await fetcher(url, {
       method: "POST", redirect: "manual", signal: controller.signal, body: JSON.stringify(body),
       headers: { "content-type": "application/json", ...headers },
@@ -44,6 +46,7 @@ async function postJson(fetcher: Fetch, label: string, url: string, headers: Rec
     throw new Unverified(`${label} could not be reached (${controller.signal.aborted ? "timed out" : "network error"})`);
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
   }
 }
 
