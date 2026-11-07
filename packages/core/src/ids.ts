@@ -4,7 +4,14 @@ import type { IdGen } from "./ports.ts";
 let lastMs = 0;
 let seq = 0;
 export function uuidv7(nowMs: number = Date.now()): string {
-  if (nowMs <= lastMs) { seq = (seq + 1) & 0xfff; if (seq === 0) lastMs += 1; nowMs = lastMs; } else { seq = crypto.getRandomValues(new Uint16Array(1))[0]! & 0x7ff; lastMs = nowMs; }
+  if (nowMs <= lastMs) {
+    seq = (seq + 1) & 0xfff;
+    if (seq === 0) lastMs += 1;
+    nowMs = lastMs;
+  } else {
+    seq = crypto.getRandomValues(new Uint16Array(1))[0]! & 0x7ff;
+    lastMs = nowMs;
+  }
   const b = new Uint8Array(16);
   crypto.getRandomValues(b);
   const ms = BigInt(nowMs);
