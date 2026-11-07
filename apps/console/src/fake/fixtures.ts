@@ -252,15 +252,37 @@ watch: 2h
 decide: judgement
 
 ## area: payments
+<!-- level: propose -->
 paths: src/payments/**, src/checkout/**
 risk: critical
 user_facing: true
-Nothing lands here without a named human approving C.
+mode: enforce
+checkpoints: A=blocking B=blocking C=blocking
+landing: trail_ref
+watch: 2h
+Checkout and refunds. Money moves here, so nothing lands without a named human approving.
 
 ## area: cart
+<!-- level: patch -->
 paths: src/cart/**
 risk: medium
-Agents may reproduce and patch. C is blocking unless the change is small.
+user_facing: true
+mode: enforce
+checkpoints: A=advisory B=advisory C=blocking
+landing: trail_ref
+watch: 2h
+The basket and coupons. Agents may reproduce and patch; a person approves landing.
+
+## area: marketing-site
+<!-- level: auto -->
+paths: apps/site/**
+risk: low
+user_facing: true
+mode: enforce
+checkpoints: A=advisory B=advisory C=advisory
+landing: trail_ref, devenv_live, auto_land
+watch: 1h
+The public site. Loose edge: small fixes can land alone and roll back on any new error.
 `;
 
 export const THRESHOLDS_YAML = `"judgement-jev/jev-1.14":
