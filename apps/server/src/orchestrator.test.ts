@@ -19,7 +19,7 @@ describe("local orchestration", () => {
     let calls = 0;
     const handlers = {stop_agent: async () => { calls++; throw new Error("timeout"); }} as unknown as EffectHandlers;
     const engine = new LocalOrchestrator((t) => ({ok:true, trail:t, effects:[]}), policy, handlers);
-    await expect(engine.execute(effect, trail)).rejects.toThrow("timeout");
+    await expect(engine.execute(effect, trail)).rejects.toBeInstanceOf(ReconciliationRequired);
     await expect(engine.execute(effect, trail)).rejects.toBeInstanceOf(ReconciliationRequired);
     expect(calls).toBe(1);
   });
