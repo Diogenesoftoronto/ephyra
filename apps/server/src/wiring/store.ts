@@ -5,6 +5,9 @@ import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
 export type StoredInboxItem = InboxItem & { id: string };
 export type JobRow = { kind: string; key: string; payload: unknown; runAt: Date; attempts: number };
 
+/** A queued or running job, for the console's activity feed. */
+export type ActiveJob = { kind: string; key: string; payload: unknown; status: "queued" | "running"; runAt: Date; startedAt?: Date };
+
 export interface RuntimeStore {
   getTrail(id: string): Promise<Trail | null>;
   /** Insert or replace the projection. */
@@ -25,6 +28,8 @@ export interface RuntimeStore {
   /** Failed attempt: retry at `runAt`, or dead-letter when `dead` is true. */
   fail(key: string, error: string, runAt: Date, dead: boolean): Promise<void>;
   deadJobs(): Promise<{ key: string; kind: string; error: string }[]>;
+  /** Queued and running jobs (bounded). Optional: a store without it just shows no live jobs in the activity feed. */
+  activeJobs?(): Promise<ActiveJob[]>;
 }
 
 export class MemoryStore implements RuntimeStore {
@@ -32,7 +37,7 @@ export class MemoryStore implements RuntimeStore {
   private eventLog = new Map<string, TrailEvent[]>();
   private seen = new Set<string>();
   private items = new Map<string, StoredInboxItem>();
-  private jobs = new Map<string, JobRow & { status: "queued" | "running" | "done" | "dead"; error?: string }>();
+  private jobs = new Map<string, JobRow & { status: "queued" | "running" | "done" | "dead"; error?: string; startedAt?: Date }>();
 
   async getTrail(id: string) { return structuredClone(this.trails.get(id) ?? null); }
   async putTrail(trail: Trail) { this.trails.set(trail.id, structuredClone(trail)); }
@@ -58,7 +63,7 @@ export class MemoryStore implements RuntimeStore {
       .filter((j) => j.status === "queued" && j.runAt <= now)
       .sort((a, b) => a.runAt.getTime() - b.runAt.getTime())
       .slice(0, n);
-    for (const j of due) { j.status = "running"; j.attempts += 1; }
+    for (const j of due) { j.status = "running"; j.attempts += 1; j.startedAt = now; }
     return due.map(({ kind, key, payload, runAt, attempts }) => ({ kind, key, payload, runAt, attempts }));
   }
   async finish(key: string) { const j = this.jobs.get(key); if (j) j.status = "done"; }
@@ -68,6 +73,12 @@ export class MemoryStore implements RuntimeStore {
     j.error = error;
     j.runAt = runAt;
     j.status = dead ? "dead" : "queued";
+  }
+  async activeJobs(): Promise<ActiveJob[]> {
+    return [...this.jobs.values()].filter((j) => j.status === "queued" || j.status === "running").map((j) => ({
+      kind: j.kind, key: j.key, payload: structuredClone(j.payload), status: j.status as "queued" | "running", runAt: j.runAt,
+      ...(j.startedAt && j.status === "running" ? { startedAt: j.startedAt } : {}),
+    }));
   }
   async deadJobs() {
     return [...this.jobs.values()].filter((j) => j.status === "dead").map((j) => ({ key: j.key, kind: j.kind, error: j.error ?? "" }));

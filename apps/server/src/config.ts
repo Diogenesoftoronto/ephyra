@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { z } from "zod";
 
 const optional = z.string().min(1).optional();
@@ -44,6 +45,15 @@ const Config = z.object({
   CLOUDFLARE_ACCOUNT_ID: optional,
   CLOUDFLARE_AI_API_TOKEN: optional,
 
+  // Velum, the policy scribe in the web console. `none` leaves the console's chat answering that Velum is not configured.
+  // notorganic is paid from the billing account (needs sign-in); anthropic and openai are bring-your-own-key.
+  EPHYRA_DRAFT: z.enum(["none", "notorganic", "anthropic", "openai", "fake"]).default("none"),
+  EPHYRA_DRAFT_MODEL: optional,
+  EPHYRA_DRAFT_ANTHROPIC_API_KEY: optional,
+  EPHYRA_DRAFT_OPENAI_API_KEY: optional,
+  /** Built web console, served at /app/ when the directory exists. */
+  EPHYRA_CONSOLE_DIR: z.string().default(join(import.meta.dir, "../../console/dist")),
+
   // Agents. `none` keeps trails at the human checkpoints; `claude-code` / `codex` need the CLI in the image.
   EPHYRA_AGENT: z.enum(["none", "claude-code", "codex", "amp"]).default("none"),
   /** amp agent: where turns run (local CLI, Amp orb, or an `amp --no-tui` runner). Needs AMP_API_KEY for orb/runner. */
@@ -77,7 +87,11 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   if (config.EPHYRA_PUBLIC_ORIGIN && new URL(config.EPHYRA_PUBLIC_ORIGIN).origin !== config.EPHYRA_PUBLIC_ORIGIN) {
     throw new Error("EPHYRA_PUBLIC_ORIGIN must be a bare origin (scheme://host[:port]) with no path");
   }
-  const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic";
+  if (config.EPHYRA_DRAFT === "anthropic" && !config.EPHYRA_DRAFT_ANTHROPIC_API_KEY) {
+    throw new Error("EPHYRA_DRAFT=anthropic needs EPHYRA_DRAFT_ANTHROPIC_API_KEY");
+  }
+  if (config.EPHYRA_DRAFT === "openai" && !config.EPHYRA_DRAFT_OPENAI_API_KEY) throw new Error("EPHYRA_DRAFT=openai needs EPHYRA_DRAFT_OPENAI_API_KEY");
+  const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic";
   if (hosted && !signIn) throw new Error("hosted Not Organic models need sign-in configured (EPHYRA_PUBLIC_ORIGIN, EPHYRA_SESSION_KEY)");
   if (hosted && !(config.EPHYRA_BILLING_DID || approverDids(config).length)) {
     throw new Error("hosted Not Organic models need EPHYRA_BILLING_DID or EPHYRA_APPROVER_DIDS");

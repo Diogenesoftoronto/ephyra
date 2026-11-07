@@ -5,6 +5,7 @@ import { Unverified, type AgentResult, type AgentTask, type CodingAgent, type Ru
 import { renderPrompt } from "./prompts";
 import { execute } from "./execute";
 import { collectSessions } from "./sessions";
+import { LineFeed, claudeStreamNormalizer, type AgentRunOptions, type ExecutorInfo } from "./run-events";
 
 export type AmpExecutor =
   | { kind: "local" }
@@ -112,11 +113,22 @@ export function parseAmpStream(stdout: string): AmpTurn {
   };
 }
 
+/** The Amp thread's page, from its id. */
+export const ampThreadUrl = (threadId: string): string | undefined => (THREAD_ID.test(threadId) ? `https://ampcode.com/threads/${threadId}` : undefined);
+
 export class AmpAgent implements CodingAgent {
   readonly name = "amp";
   constructor(private readonly options: AmpOptions) {}
 
-  async run(task: AgentTask, runner: Runner, handle: RunnerHandle): Promise<AgentResult> {
+  /** Where this agent's turns execute, for the console's run view. Thread and portal URLs arrive later through `onExecutor`. */
+  executor(): ExecutorInfo {
+    const ex = this.options.executor;
+    if (ex.kind === "orb") return { kind: "orb", ...(ex.project ? { project: ex.project } : {}) };
+    if (ex.kind === "runner") return { kind: "runner", id: ex.runnerId };
+    return { kind: "local" };
+  }
+
+  async run(task: AgentTask, runner: Runner, handle: RunnerHandle, opts: AgentRunOptions = {}): Promise<AgentResult> {
     const end = Date.now() + task.budget.wallclockS * 1000;
     const remaining = () => {
       const ms = end - Date.now();
@@ -131,7 +143,12 @@ export class AmpAgent implements CodingAgent {
     if (before && before.exit !== 0) throw new Unverified("agent base commit");
 
     const threadId = await this.options.threads.get(task.trail.id);
-    const run = await execute(runner, handle, ampArgs(task, this.options, threadId), remaining());
+    const feed = opts.onEvent
+      ? new LineFeed(claudeStreamNormalizer({ ...(opts.onExecutor ? { onExecutor: opts.onExecutor } : {}), ...(opts.secrets ? { secrets: opts.secrets } : {}),
+        threadUrl: ampThreadUrl }), opts.onEvent)
+      : null;
+    const run = await execute(runner, handle, ampArgs(task, this.options, threadId), remaining(), undefined, feed ? (c) => feed.write(c) : undefined);
+    await feed?.finish();
     const turn = parseAmpStream(run.stdout);
     if (!threadId) await this.options.threads.set(task.trail.id, turn.threadId);
     const transcript = `artefacts/amp/${task.step}.json`;
