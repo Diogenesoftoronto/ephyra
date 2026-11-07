@@ -62,3 +62,37 @@ test.skipIf(!enabled)("postgres ledger and signals persist", async () => {
   expect((await store.upsert({ ...signal, id: crypto.randomUUID() })).signal.count).toBe(2);
   expect(await store.countSince(signal.fingerprint, new Date("2025-01-01"))).toBe(2);
 });
+
+test.skipIf(!enabled)("postgres outbox publishes before dispatch and deduplicates", async () => {
+  const { PgOrchestrator } = await import("./pg-orchestrator.ts");
+  const { EffectExecutor, MemoryOperationLedger } = await import("../orchestrator/effects.ts");
+  const { Trail, TrailEvent } = await import("@ephyra/core");
+  const at = "2026-01-01T00:00:00Z";
+  const trail = Trail.parse({
+    schema: 1, id: crypto.randomUUID(), short: "T-test", repo: "r", title: "t", rev: 1, state: "sensed",
+    signals: [], area: "a", risk: "low", route: "auto_fix", severity: 1, base: { ref: "main", sha: "a".repeat(40) },
+    checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 1 },
+    budget: { tokensUsed: 0, tokensMax: 1, wallclockMaxS: 1, spendMicrousdUsed: 0, spendMicrousdMax: 0 },
+    mirrors: {}, createdAt: at, updatedAt: at,
+  });
+  const event = TrailEvent.parse({ schema: 1, id: crypto.randomUUID(), trail: trail.id, rev: 1, at,
+    actor: { kind: "system", id: "test" }, type: "new_signal", data: { signalId: crypto.randomUUID() } });
+  let acknowledged = false;
+  let calls = 0;
+  const handlers = { stop_agent: async () => { expect(acknowledged).toBe(true); calls++; } };
+  const executor = new EffectExecutor(new MemoryOperationLedger(), handlers as never, { record: async () => {} });
+  const journal = {
+    read: async () => null,
+    create: async () => { acknowledged = true; return "head"; },
+  } as unknown as import("@ephyra/core").Journal;
+  const policy = { context: async () => ({ now: at, blocking: { A: true, B: true, C: true }, landingModes: [] }) };
+  const orchestrator = new PgOrchestrator(sql, (t) => ({ ok: true, trail: t,
+    effects: [{ type: "stop_agent", key: "test-effect", releaseLease: true }] }), policy, journal, executor);
+  await orchestrator.seed(trail);
+  await orchestrator.apply(event);
+  await orchestrator.apply(event);
+  expect(calls).toBe(0);
+  await orchestrator.publish(event.id);
+  await orchestrator.publish(event.id);
+  expect(calls).toBe(1);
+});
