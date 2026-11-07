@@ -188,7 +188,7 @@ export function describe(e: TrailEvent): { text: string; tone: Mood } {
 			return { text: `regressed: ${e.data.criterion}`, tone: "bad" };
 		case "rollback_completed":
 			return {
-				text: `rolled back: ${MODE[e.data.receipt.mode]} → ${e.data.receipt.target}`,
+				text: `rolled back: ${MODE[e.data.receipt.mode]} → ${e.data.receipt.target} ${e.data.receipt.newOid.slice(0, 7)}`,
 				tone: "bad",
 			};
 		case "human_comment":

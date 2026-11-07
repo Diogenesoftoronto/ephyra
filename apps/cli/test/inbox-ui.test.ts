@@ -245,7 +245,7 @@ test("trail and trails views", () => {
 		),
 	);
 	expect(text).toContain("Radicle patch → refs/heads/main a71c3e5");
-	expect(text).toContain("watch    2h · 1 fingerprint · 2 probes");
+	expect(text).toContain("watch     2h · 1 fingerprint · 2 probes");
 	const rb = plain(
 		trailView(DEMO_ROLLBACK.trail, DEMO_ROLLBACK.events, {}, 100),
 	);
@@ -469,4 +469,18 @@ test("the example autonomy policy parses with the real policy parser", async () 
 		landing: ["auto_land"],
 		watch: "1h",
 	});
+});
+
+test("the walkthrough export renders every step at its exact size", async () => {
+	const out = `${process.env.TMPDIR ?? "/tmp"}/ephyra-walkthrough-${process.pid}.json`;
+	const proc = Bun.spawn(["bun", "run", `${import.meta.dir}/../scripts/walkthrough.ts`, out, "96", "30"], { stdout: "pipe", stderr: "pipe" });
+	expect(await proc.exited).toBe(0);
+	const data = (await Bun.file(out).json()) as { steps: { id: string; wide: [string, string][][]; narrow: [string, string][][] }[] };
+	expect(data.steps.map((s) => s.id)).toEqual(["triaged", "hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback"]);
+	for (const s of data.steps) {
+		expect(s.wide).toHaveLength(30);
+		for (const row of s.wide) expect(width(row.map((x) => x[0]).join(""))).toBe(96);
+		for (const row of s.narrow) expect(width(row.map((x) => x[0]).join(""))).toBe(46);
+	}
+	await Bun.file(out).delete();
 });

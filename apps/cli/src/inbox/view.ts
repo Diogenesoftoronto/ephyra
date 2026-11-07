@@ -79,7 +79,7 @@ function fact(
 	w: number,
 	labelTone: Tone = "muted",
 ): Line[] {
-	const lw = Math.max(9, label.length + 1);
+	const lw = Math.max(10, label.length + 1);
 	const v = typeof value === "string" ? [g(value)] : value;
 	const text = v.map((x) => x.text).join("");
 	if (lineWidth(v) <= w - lw || v.length > 1)
@@ -644,6 +644,9 @@ function trailBody(
 ): Line[] {
 	const out: Line[] = [];
 	const t = story.triage;
+	// For a trail that has landed, where it is now comes first: the landing, the watch, any rollback.
+	const landed = landingLines(story, trail, w);
+	if (ask === "trail" && story.landings.length) out.push(...landed, []);
 	if (ask === "checkpoint" && checkpoint === "A") {
 		out.push(...fileBlock("hypothesis.md", artefact, w), []);
 	}
@@ -753,8 +756,7 @@ function trailBody(
 			[],
 		);
 	}
-	const landed = landingLines(story, trail, w);
-	if (landed.length && (ask === "trail" || checkpoint === "C"))
+	if (landed.length && ((ask === "trail" && !story.landings.length) || checkpoint === "C"))
 		out.push(...landed, []);
 	return out;
 }
@@ -897,7 +899,7 @@ function evidenceLines(
 	return out;
 }
 
-const KEYS: [string, string][] = [
+export const KEYS: [string, string][] = [
 	["j k", "move between items"],
 	["a", "approve the checkpoint, or the spend"],
 	["r", "send it back with a note"],
