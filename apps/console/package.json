@@ -1,0 +1,16 @@
+{
+  "name": "@ephyra/console",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ephyra/core": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/bun": "1.4.4"
+  }
+}
