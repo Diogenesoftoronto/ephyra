@@ -3,11 +3,13 @@
 (async () => {
   const $ = (selector) => document.querySelector(selector);
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
   const key = (value) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true }));
   assert($(".tour.live"), "Walkthrough did not load");
   await document.fonts.ready;
   const data = await fetch(new URL("walkthrough.json", document.baseURI)).then((r) => r.json());
+  $("#tui-choice").click();
+  await settle();
   const ids = data.steps.map((step) => step.id);
   const active = () => $(".step.is-on")?.dataset.step;
   $(".term-next").focus({ preventScroll: true });
