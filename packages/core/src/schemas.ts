@@ -254,6 +254,8 @@ export const Trail = z.object({
   attempts: z.object({ proof: z.number().int().nonnegative(), maxProof: z.number().int().positive() }),
   budget: Budget,
   parent: z.string().uuid().optional(),
+  pendingSpend: z.object({ purpose: z.string(), microusd: z.number().int().positive() }).optional(),
+  watchEvidence: z.string().optional(),
   mirrors: z.object({ radicleCob: z.string().optional(), tangledUri: z.string().optional(), saplingStack: z.string().optional() }).default({}),
   createdAt: IsoTime,
   updatedAt: IsoTime,
