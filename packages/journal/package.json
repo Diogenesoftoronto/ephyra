@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/journal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Git-backed trail journal under refs/ephyra/trails/*.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Control plane: HTTP API, DBOS workflows, Postgres projections, outbox.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}
