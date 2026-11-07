@@ -1,3 +1,6 @@
 /screens/
 .screens/
 storybook-static/
+.sb-style/
+.screens/
+storybook-static/
