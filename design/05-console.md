@@ -2,7 +2,7 @@
 
 Status: contract for the first web application people use day to day. Written 7 November 2026. The shared types live in `packages/core/src/console.ts`; this document explains them and fixes the HTTP API, the generative-UI catalog and who builds what.
 
-The terminal inbox (`ephyra inbox`) stays. The console is the same control plane in a browser, plus two things the terminal can't do well: **seeing what the agents spend and do**, and **drafting policy with an agent**.
+The console is a React application. The terminal inbox (`ephyra inbox`) stays. The console is the same control plane in a browser, plus two things the terminal can't do well: **seeing what the agents spend and do**, and **drafting policy with an agent**.
 
 ## Personas
 
@@ -99,3 +99,25 @@ Boundary map (`test/boundaries.test.ts`): `packages/genui` → `core`; `apps/con
 ## Storybook rule
 
 Every component in `apps/console/src/components/**` and every page has a `*.stories.tsx` with deterministic fictional fixtures (no network, no live auth). A test fails if a component file has no stories. Interactive states (typing to Velum, applying a form, approving a checkpoint, empty and error states, unknown-cost rows) are stories, not screenshots.
+
+## Revision 7 November 2026: assistant-ui, live runs, and the application map
+
+**Stack.** The whole console is React 19 + Vite + TypeScript. Every conversational or agent-transcript surface uses **assistant-ui** (`@assistant-ui/react`, pinned exact, with `@assistant-ui/react-markdown`) through an `ExternalStoreRuntime` adapter over Ephyra's own data. No assistant-ui cloud, no direct model calls from the browser. json-render specs render inside assistant-ui messages as generative-UI parts.
+
+**Live runs (the pluggable harness).** Each agent step is an `AgentRun` with a stream of `AgentRunEvent`s (types in `packages/core/src/console.ts`): messages, reasoning, tool calls and results, plugin policy decisions, status and portal links. Amp runs come from its stream-json (`parseAmpStream` in `packages/agent/src/amp.ts`), which is Claude Code compatible, so Claude Code uses the same normalizer; Codex JSON maps to the same events. The executor says where it ran: an Amp **orb**, an Amp **runner** on your own box, a local process, a Railway or Not Organic sandbox, with the orb or sandbox id, the Amp thread URL and the live portal URL when known. Policy decisions come from the Ephyra harness plugin (design/03 §plugin: `tool.call` allow/reject/modify) and show inline in the transcript.
+
+| Route | Returns |
+|---|---|
+| `GET /v1/runs?trail&status&limit` | `AgentRun[]`, running first |
+| `GET /v1/runs/:id` | `AgentRun` |
+| `GET /v1/runs/:id/events?after=<seq>` | `AgentRunEvent[]`; with `Accept: text/event-stream`, a live SSE stream that resumes from `after` |
+
+Screens: **Runs** (all running and recent agent runs across orbs and sandboxes, filter by trail, persona, executor) and a **Run view** that renders the event stream as an assistant-ui thread (read-only, with tool calls as collapsible tool UIs, policy decisions as badges, portal link and "open in Amp" when present). Trail detail embeds its runs.
+
+**The application map (drafting at a higher level).** The Workspace opens on a map of your application, not on markdown. Each area is an `AreaSketch`: a plain-language intent, paths, risk, whether it is user-facing, and an autonomy level on a five-step ladder (Watch, Research, Propose, Patch, Auto-land; `AUTONOMY_LEVELS`). The policy package maps levels to concrete checkpoints, landing modes and watch windows (`sketchToArea` / `areaToSketch`, round-trip tested), and `renderAutonomy` produces the document. You can:
+
+- edit areas as cards (level slider, risk, paths, intent);
+- ask Velum in plain language ("payments should never land without me; the marketing site can fix itself") and get a proposal with `sketches`, shown as a before/after map;
+- drop into the generated markdown or the threshold and intent documents for detail.
+
+Publishing is unchanged: a commit to `refs/ephyra/policy/<draft-id>`, never a hot swap.
