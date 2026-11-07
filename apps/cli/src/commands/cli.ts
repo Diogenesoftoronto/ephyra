@@ -2,6 +2,10 @@ import { Client } from "../client";
 import { loadCredentials, login, logout } from "../login";
 import { terminal } from "../inbox/run";
 import { init } from "../init";
+import type { Trail } from "@ephyra/core";
+import type { FileEntry } from "../inbox/reducer";
+import { toAnsi } from "../inbox/paint";
+import { plain, trailView, trailsView, type Line } from "../inbox/view";
 
 export async function main(args: string[]) {
 	const json = args.includes("--json");
@@ -23,13 +27,19 @@ export async function main(args: string[]) {
 		env: process.env,
 		open: (url: string) => {
 			try {
-				Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], { stdout: "ignore", stderr: "ignore" });
-			} catch { /* printing the link is enough */ }
+				Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
+					stdout: "ignore",
+					stderr: "ignore",
+				});
+			} catch {
+				/* printing the link is enough */
+			}
 		},
 	};
 	if (cmd === "login") {
 		const url = args[0] ?? process.env.EPHYRA_URL;
-		if (!url) throw new Error("Usage: ephyra login <server-url> (or set EPHYRA_URL)");
+		if (!url)
+			throw new Error("Usage: ephyra login <server-url> (or set EPHYRA_URL)");
 		await login(url, io);
 		return;
 	}
@@ -39,28 +49,75 @@ export async function main(args: string[]) {
 	const url = process.env.EPHYRA_URL ?? creds?.url;
 	let client: Client;
 	if (process.env.EPHYRA_API_TOKEN && url) {
-		if (!process.env.EPHYRA_PRINCIPAL) throw new Error("EPHYRA_API_TOKEN needs EPHYRA_PRINCIPAL");
-		client = new Client(url, process.env.EPHYRA_API_TOKEN, fetch, process.env.EPHYRA_PRINCIPAL);
+		if (!process.env.EPHYRA_PRINCIPAL)
+			throw new Error("EPHYRA_API_TOKEN needs EPHYRA_PRINCIPAL");
+		client = new Client(
+			url,
+			process.env.EPHYRA_API_TOKEN,
+			fetch,
+			process.env.EPHYRA_PRINCIPAL,
+		);
 	} else if (creds && url === creds.url) {
 		client = new Client(creds.url, creds.token, fetch, "");
 	} else {
 		throw new Error("Not signed in. Run `ephyra login <server-url>`.");
 	}
 	if (cmd === "whoami") {
-		const res = await fetch(new URL("/auth/me", client.url), { headers: { Authorization: `Bearer ${client.token}` } });
-		console.log(res.ok ? JSON.stringify(await res.json(), null, json ? 0 : 2) : "Not signed in (or the session expired).");
+		const res = await fetch(new URL("/auth/me", client.url), {
+			headers: { Authorization: `Bearer ${client.token}` },
+		});
+		console.log(
+			res.ok
+				? JSON.stringify(await res.json(), null, json ? 0 : 2)
+				: "Not signed in (or the session expired).",
+		);
 		return;
 	}
 	let result: unknown;
+	// Human output is drawn by the same view as the inbox; --json keeps the raw API shape for scripts.
+	const paint = (lines: Line[]) =>
+		console.log(
+			process.stdout.isTTY && !process.env.NO_COLOR
+				? toAnsi(lines)
+				: plain(lines),
+		);
+	const cols = process.stdout.columns || 100;
 	if (cmd === "status") result = await client.health();
 	else if (cmd === "trails") {
 		const i = args.indexOf("--state");
 		result = await client.trails(i < 0 ? undefined : args[i + 1]);
+		if (!json) return paint(trailsView(result as Trail[], cols));
 	} else if (cmd === "inbox") {
 		if (!json) return terminal(client);
 		result = await client.inbox();
-	} else if (cmd === "show" && args[0]) result = await client.show(args[0]);
-	else if (
+	} else if (cmd === "show" && args[0]) {
+		const detail = await client.show(args[0]);
+		if (json) result = detail;
+		else {
+			const read = async (path: string): Promise<FileEntry> => {
+				try {
+					const text = await client.file(detail.trail.id, path);
+					return text === null
+						? { status: "missing" }
+						: { status: "ready", text };
+				} catch {
+					return { status: "error", message: "couldn't fetch it" };
+				}
+			};
+			const [hypothesis, plan] = await Promise.all([
+				read("hypothesis.md"),
+				read("plan.md"),
+			]);
+			return paint(
+				trailView(
+					detail.trail,
+					detail.events,
+					{ hypothesis, plan },
+					Math.min(cols, 110),
+				),
+			);
+		}
+	} else if (
 		cmd === "decide" &&
 		args[0] &&
 		["A", "B", "C"].includes(args[1] ?? "") &&

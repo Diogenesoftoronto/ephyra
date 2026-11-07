@@ -19,6 +19,7 @@
     "ephyra": "./src/main.ts"
   },
   "devDependencies": {
-    "textbook-sh": "^0.2.0"
+    "textbook-sh": "^0.2.0",
+    "@ephyra/policy": "workspace:*"
   }
 }
