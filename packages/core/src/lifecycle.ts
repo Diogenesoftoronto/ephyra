@@ -1,4 +1,5 @@
 import type { Trail, Signal, TriageResult, Budget, TrailState, Decision, LandingMode } from './schemas.ts';
+import { proofDigest } from './digest.ts';
 import { shortId } from './ids.ts';
 import { z } from 'zod';
 import type { TrailEvent, Effect, TransitionContext, TransitionResult } from './events.ts';
@@ -169,6 +170,10 @@ class Machine {
   proof_completed(e: EventOf<'proof_completed'>) {
     const bundle = e.data.bundle;
     if (this.trail.state !== 'proving' || bundle.trail !== this.trail.id || bundle.rev !== this.trail.rev) return false;
+    // A proof only counts for the exact code it ran on, and only under the digest it was pinned with.
+    if (!this.trail.head || bundle.base !== this.trail.base.sha || bundle.head !== this.trail.head) return false;
+    if (bundle.risk !== this.trail.risk) return false;
+    if (e.data.digest !== proofDigest(bundle)) return false;
     if (bundle.passed && this.ctx.proofSufficient !== false) {
       this.trail.state = 'ready';
       this.checkpoint('C');

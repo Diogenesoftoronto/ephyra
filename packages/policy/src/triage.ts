@@ -10,6 +10,16 @@ import type {
 } from "@ephyra/core";
 import type { Area } from "./autonomy";
 import type { Thresholds } from "./thresholds";
+
+/** Wrap untrusted text as data. Angle brackets are escaped so the content can never close (or open) a tag. */
+export function untrustedText(label: string, text: string): string {
+  return `<untrusted_${label}>\n${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}\n</untrusted_${label}>`;
+}
+/** Same for JSON payloads: `<`, `>` and `&` become \u escapes, which keeps the JSON valid and identical once parsed. */
+export function untrustedJson(label: string, value: unknown): string {
+  const json = JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+  return `<untrusted_${label}>${json}</untrusted_${label}>`;
+}
 export function buildPolicyQuestion(
   area: Area,
   checkpoint: Checkpoint,
@@ -18,8 +28,8 @@ export function buildPolicyQuestion(
   return {
     allow_fallback: false,
     state: {
-      policy: `<untrusted_policy>\n${area.prose}\n</untrusted_policy>`,
-      facts: `<untrusted_facts>\n${JSON.stringify(facts)}\n</untrusted_facts>`,
+      policy: untrustedText("policy", area.prose),
+      facts: untrustedJson("facts", facts),
       checkpoint,
     },
     questions: {
@@ -59,7 +69,7 @@ export function interpretPolicyAnswer(
 }
 export function buildExtractionRequest(signal: Signal): ExtractionRequest {
   return {
-    state: `<untrusted_signal>\n${signal.message}\n</untrusted_signal>`,
+    state: untrustedText("signal", signal.message),
     fields: {
       exception_type: {
         type: "text",
@@ -107,9 +117,9 @@ export function buildTriageRequest(
   return {
     allow_fallback: false,
     state: {
-      signal: `<untrusted_signal>${JSON.stringify(signal)}</untrusted_signal>`,
-      extracted: `<untrusted_extraction>${JSON.stringify(extracted.answers)}</untrusted_extraction>`,
-      candidates: `<untrusted_candidates>${JSON.stringify(candidates)}</untrusted_candidates>`,
+      signal: untrustedJson("signal", signal),
+      extracted: untrustedJson("extraction", extracted.answers),
+      candidates: untrustedJson("candidates", candidates),
       policy: JSON.stringify({ area: area.name, risk: area.risk }),
     },
     questions: {
