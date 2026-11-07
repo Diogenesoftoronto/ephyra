@@ -1,0 +1,4 @@
+.trail-panel { min-width: 0; }
+.trail-checkpoints { display: grid; gap: 1rem; }
+.trail-evidence { display: grid; gap: .4rem; }
+.trail-evidence li { overflow-wrap: anywhere; }

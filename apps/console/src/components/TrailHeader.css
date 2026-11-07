@@ -1,0 +1,7 @@
+.trail-head { display: grid; gap: .75rem; }
+.trail-head-top { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; }
+.trail-head-title { margin: 0; overflow-wrap: anywhere; }
+.trail-head-facts { display: grid; gap: .5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); margin: 0; }
+.trail-head-facts dt { font-size: .82rem; color: var(--muted); }
+.trail-head-facts dd { margin: 0; overflow-wrap: anywhere; }
+.trail-head-budget { display: grid; gap: .5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }

@@ -6,8 +6,12 @@
     "typecheck": "tsc --noEmit",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build -o storybook-static",
+    "test": "bun test src",
+    "smoke": "env -u LD_LIBRARY_PATH bun scripts/smoke.ts",
+    "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.32",

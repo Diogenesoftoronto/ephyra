@@ -1,0 +1,4 @@
+.waiting { display: grid; gap: .25rem; }
+.waiting-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .75rem; align-items: center; padding: .5rem 0; text-decoration: none; }
+.waiting-title { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .waiting-link { grid-template-columns: auto minmax(0, 1fr); } .waiting-link > :last-child { display: none; } }

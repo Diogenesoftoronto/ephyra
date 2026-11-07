@@ -1,0 +1,24 @@
+/* Layout only: the assistant-ui threads. */
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p { margin: .5em 0; overflow-wrap: anywhere; }
+.md pre { overflow-x: auto; max-width: 100%; }
+.md ul, .md ol { padding-left: 1.25rem; list-style: revert; }
+.thread { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .75rem; min-height: 0; }
+.thread-viewport { overflow-y: auto; display: grid; align-content: start; gap: .9rem; padding-right: .25rem; max-height: var(--thread-max, 70vh); min-height: 8rem; }
+.thread-msg { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .6rem; align-items: start; }
+.thread-msg-user { grid-template-columns: minmax(0, 1fr); justify-items: end; }
+.thread-bubble { min-width: 0; display: grid; gap: .6rem; max-width: 100%; }
+.thread-system { justify-self: center; text-align: center; }
+.thread-composer { display: grid; gap: .5rem; }
+.thread-composer textarea { width: 100%; resize: vertical; min-height: 3.2rem; }
+.thread-composer-row { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; }
+.thread-working { display: flex; align-items: center; gap: .6rem; }
+.thread-working img { width: 48px; height: 48px; object-fit: contain; }
+.thread-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.tool-card { display: block; }
+.tool-card > summary { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; cursor: pointer; }
+.tool-card pre { margin: .4rem 0 0; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; }
+.tool-policy { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; margin-top: .4rem; }
+.run-line { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.reasoning > summary { cursor: pointer; }

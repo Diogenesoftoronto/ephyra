@@ -1,0 +1,8 @@
+/* Layout helpers shared by pages: spacing between blocks and responsive grids. No colours, radii or type. */
+.stack { display: grid; gap: 1rem; min-width: 0; }
+.stack-sm { display: grid; gap: .5rem; min-width: 0; }
+.cluster { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.grid-cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+.grid-stats { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.sb-frame { padding: 1rem; max-width: 100%; }
+.page { display: grid; gap: 1.25rem; min-width: 0; }

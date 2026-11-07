@@ -1,0 +1,8 @@
+.run-list { display: grid; gap: .5rem; }
+.run-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .75rem; align-items: center; padding: .6rem .75rem; text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.run-noface { width: 32px; height: 32px; }
+.run-main { display: grid; gap: .25rem; min-width: 0; }
+.run-top, .run-where { display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: center; }
+.run-error { font-size: .88rem; overflow-wrap: anywhere; }
+.run-side { display: grid; gap: .2rem; justify-items: end; }
+@media (max-width: 480px) { .run-row { grid-template-columns: auto minmax(0, 1fr); } .run-side { grid-column: 2; justify-items: start; display: flex; gap: .5rem; } }

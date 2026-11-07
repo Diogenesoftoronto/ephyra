@@ -1,0 +1,2 @@
+.app-user { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
+.gate { max-width: 34rem; margin: 3rem auto; padding: 0 var(--gutter); display: grid; gap: 1rem; }

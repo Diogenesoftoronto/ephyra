@@ -1,0 +1,3 @@
+.overview-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.overview-running { grid-row: span 2; }
+@media (max-width: 900px) { .overview-grid { grid-template-columns: minmax(0, 1fr); } .overview-running { grid-row: auto; } }

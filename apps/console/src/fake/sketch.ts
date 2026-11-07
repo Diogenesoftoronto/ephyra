@@ -67,6 +67,3 @@ export function replaceAreas(md: string, sketches: readonly AreaSketch[]): strin
   const rest = trailing.join("\n").trim();
   return `${head}\n\n${sketches.map(renderSketch).join("\n")}${rest ? `\n${rest}\n` : ""}`.replace(/\n{3,}/g, "\n\n");
 }
-
-export const MAP_PREFIX = "Apply this application map:";
-export const mapMessage = (sketches: readonly AreaSketch[]): string => `${MAP_PREFIX}\n${JSON.stringify(sketches)}`;
