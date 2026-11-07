@@ -15,7 +15,17 @@ export interface HttpPort {
   action(id: string, action: string, input: unknown, principal: string): Promise<void>;
   /** Operator view: dead-lettered jobs and effects needing reconciliation. */
   ops?(): Promise<unknown>;
+  /** A file from the trail's journal tree (hypothesis.md, plan.md, …), so the inbox can show what it asks you to judge. */
+  file?(id: string, path: string): Promise<Uint8Array | null>;
 }
+
+/**
+ * Journal files a reader may fetch. An allow-list, not a sanitiser: anything else is refused before it reaches
+ * the journal, so no path can climb out of the trail's tree. Contents are agent-written, untrusted text.
+ */
+export const READABLE_FILE = /^(?:(?:hypothesis|plan|intent)\.md|evidence\/index\.json|proof\/manifest\.json|artefacts\/[a-z][a-z_-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
+/** Largest file served, in bytes. Bigger files are refused rather than truncated, so nobody judges half a document. */
+export const MAX_FILE_BYTES = 256 * 1024;
 export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string };
 const decision = z.object({ checkpoint: z.enum(["A", "B", "C"]), verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
 const spendDecision = z.object({ verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
@@ -49,6 +59,19 @@ export function createApp(
   app.get("/v1/trails/:id", async (c) => {
     const result = await port.trail(c.req.param("id"));
     return result ? c.json(result) : c.json({ error: "not found" }, 404);
+  });
+  app.get("/v1/trails/:id/file", async (c) => {
+    const path = c.req.query("path") ?? "";
+    if (!READABLE_FILE.test(path) || path.includes("..")) return c.json({ error: "path not readable" }, 400);
+    if (!port.file) return c.json({ error: "not supported" }, 501);
+    const data = await port.file(c.req.param("id"), path);
+    if (!data) return c.json({ error: "not found" }, 404);
+    if (data.byteLength > MAX_FILE_BYTES) return c.json({ error: "file too large" }, 413);
+    const type = path.endsWith(".json") ? "application/json" : path.endsWith(".md") ? "text/markdown" : "text/plain";
+    // Copy into a plain ArrayBuffer: Hono's body overloads don't accept a view over a shared or foreign buffer.
+    const bytes = new Uint8Array(data.byteLength);
+    bytes.set(data);
+    return c.body(bytes.buffer, 200, { "Content-Type": `${type}; charset=utf-8`, "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" });
   });
   app.post("/v1/trails/:id/decide", async (c) => {
     const parsed = decision.safeParse(await c.req.json().catch(() => null));
