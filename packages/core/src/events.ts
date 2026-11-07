@@ -9,7 +9,7 @@ const e = <T extends string, S extends z.ZodRawShape>(type: T, data: S) =>
   z.object({ type: z.literal(type), data: z.object(data) });
 
 export const TrailEventBody = z.discriminatedUnion("type", [
-  e("trail_created", { signalId: z.string().uuid(), title: z.string(), baseRef: z.string(), baseSha: Sha }),
+  e("trail_created", { signalId: z.string().uuid(), title: z.string(), baseRef: z.string(), baseSha: Sha, fingerprint: z.string().optional() }),
   e("new_signal", { signalId: z.string().uuid(), severity: z.number().min(0).max(4).optional() }),
   e("triage_completed", { result: TriageResult }),
   e("research_completed", { hypothesis: z.string() /* path in journal tree */ }),
@@ -98,6 +98,8 @@ export type TransitionContext = {
   proofSufficient?: boolean;
   /** Policy-computed C decision when C is advisory (auto-land path), absent when blocking. */
   autoDecisionC?: Decision;
+  /** Decisions for advisory checkpoints; C falls back to autoDecisionC. */
+  autoDecision?: Partial<Record<"A" | "B" | "C", Decision>>;
 };
 
 export type TransitionResult =
