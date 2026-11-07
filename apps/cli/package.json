@@ -4,7 +4,20 @@
   "private": true,
   "type": "module",
   "description": "ephyra CLI and the terminal inbox.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit -p ." },
-  "dependencies": { "@ephyra/core": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@ephyra/core": "workspace:*",
+    "@opentui/core": "^0.5.11"
+  },
+  "bin": {
+    "ephyra": "./src/main.ts"
+  },
+  "devDependencies": {
+    "textbook-sh": "^0.2.0"
+  }
 }
