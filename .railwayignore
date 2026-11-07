@@ -1,0 +1,10 @@
+.git
+.lanes
+.devenv
+.direnv
+**/node_modules
+site
+research
+design
+.env
+.env.*
