@@ -10,3 +10,10 @@ export function redact(text: string, secrets: string[] = [], limit = 16_384): st
   for (const secret of secrets.filter(Boolean)) result = result.split(secret).join("[REDACTED]");
   return result.length > limit ? result.slice(0, limit) + "\n[truncated]" : result;
 }
+
+const SECRET_NAME = /(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS|CREDENTIALS?|DSN|PRIVATE)(?:_|$)/i;
+/** Values of environment variables whose names mark them as secrets (EPHYRA_CONVEX_SECRET, *_API_KEY, …), at least 8 chars. */
+export function secretEnvValues(env: Record<string, string | undefined> = process.env): string[] {
+  return Object.entries(env).filter(([k, v]) => SECRET_NAME.test(k) && typeof v === "string" && v.length >= 8).map(([, v]) => v!)
+    .sort((a, b) => b.length - a.length);
+}
