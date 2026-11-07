@@ -24,10 +24,10 @@ export type CreateTrailResult = { trail: Trail | null; effects: Effect[] };
 function keyed(id: string, rev: number, eventId: string, commands: Command[]): Effect[] {
   const counts = new Map<string, number>();
   return commands.map((command) => {
-    const identity = JSON.stringify(command);
+    const identity = command.type;
     const count = counts.get(identity) ?? 0;
     counts.set(identity, count + 1);
-    return { ...command, key: `${id}:${rev}:${command.type}:${eventId}:${identity}:${count}` } as Effect;
+    return { ...command, key: `${id}:${rev}:${command.type}:${eventId}:${count}` } as Effect;
   });
 }
 
@@ -57,7 +57,7 @@ export function createTrail(input: CreateTrailInput): CreateTrailResult {
   const trail: Trail = {
     schema: 1, id: input.id, short: shortId(input.id), repo: input.repo, title: input.title,
     rev: 1, state, ...(state === 'parked' ? { resumeTo: 'researching' as const } : {}),
-    signals: [signal.id], area: triage.area, risk: triage.risk,
+    signals: [signal.id], signalFingerprint: signal.fingerprint, area: triage.area, risk: triage.risk,
     route: triage.route === 'ignore' ? 'human' : triage.route, severity: triage.severity,
     base: input.base, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
     budget: input.budget, mirrors: {}, ...(triage.conflictsWith ? { parent: triage.conflictsWith, waitingForParent: true } : {}),
@@ -122,6 +122,7 @@ class Machine {
     this.trail.severity = Math.max(this.trail.severity, e.data.severity ?? 0);
     if (this.trail.state === 'proving' || this.trail.state === 'ready') {
       this.trail.state = 'proving';
+      delete this.trail.checkpoints.C;
       this.commands.push({ type: 'run_proof' });
     }
     return true;
@@ -147,6 +148,7 @@ class Machine {
   }
   patch_completed(e: EventOf<'patch_completed'>) {
     if (this.trail.state !== 'patching' || e.data.revision < this.trail.rev) return false;
+    delete this.trail.checkpoints.C;
     this.trail.rev = e.data.revision;
     this.trail.head = e.data.head;
     this.trail.state = 'proving';
@@ -193,6 +195,7 @@ class Machine {
   }
   base_moved(e: EventOf<'base_moved'>) {
     if (!['proving', 'ready', 'landing'].includes(this.trail.state)) return false;
+    delete this.trail.checkpoints.C;
     this.trail.base.sha = e.data.newSha;
     this.trail.state = 'patching';
     this.commands.push({ type: 'rebase', onto: e.data.newSha });
@@ -237,6 +240,7 @@ class Machine {
   }
   human_revision(e: EventOf<'human_revision'>) {
     if (this.trail.state !== 'handed_off') this.claimed_by_human({} as EventOf<'claimed_by_human'>);
+    delete this.trail.checkpoints.C;
     if (this.trail.head !== e.data.head) this.trail.rev++;
     this.trail.head = e.data.head;
     this.trail.resumeTo = 'proving';
@@ -308,6 +312,7 @@ class Machine {
   }
   trail_created(e: EventOf<'trail_created'>) {
     if (this.trail.state !== 'sensed') return false;
+    if (e.data.fingerprint) this.trail.signalFingerprint = e.data.fingerprint;
     this.commands.push({ type: 'run_triage', signalId: e.data.signalId });
     return true;
   }
@@ -327,8 +332,9 @@ class Machine {
       // Reopening requires the closed trail; use createTrail with regressionTrail instead.
       return false;
     } else if (result.route === 'ignore') {
-      // Fingerprints live on signals, not the trail header; creation handles muting.
+      if (!this.trail.signalFingerprint) return false;
       this.trail.state = 'abandoned';
+      this.commands.push({ type: 'mute_fingerprint', fingerprint: this.trail.signalFingerprint, forS: 86400 });
     } else if (result.conflictsWith) {
       this.trail.parent = result.conflictsWith;
       this.trail.waitingForParent = true;
