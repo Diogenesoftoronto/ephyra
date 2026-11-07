@@ -1,5 +1,12 @@
 # Runner
 
-Profile hashing and capability-based runner selection are implemented and tested. No sandbox adapter is implemented yet; running local, Railway, or Not Organic workloads is unverified.
+Profile hashing, capability selection with rejection reasons, and a SHA-256 content-addressed artifact store are implemented and tested locally. The store verifies content on retrieval.
 
-Railway documents its TypeScript SDK as [`railway`](https://www.npmjs.com/package/railway) and its [sandbox lifecycle](https://docs.railway.com/sandboxes). ISOLATED permits internet egress and therefore cannot satisfy a no-network profile.
+| Capability | Status |
+| --- | --- |
+| Profile hashing, selection and CAS | Verified by local tests |
+| Local runner | Unverified; not implemented |
+| Railway runner | Unverified; not implemented |
+| Not Organic runner | Unverified; not implemented |
+
+Railway documents the TypeScript SDK as `railway` and its [sandbox lifecycle](https://docs.railway.com/sandboxes) and [code-execution guide](https://docs.railway.com/guides/code-execution-sandboxes). ISOLATED permits internet egress and cannot satisfy a no-network profile.
