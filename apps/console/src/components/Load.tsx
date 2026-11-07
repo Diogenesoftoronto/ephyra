@@ -8,14 +8,26 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   return (
     <Card tone="alert" title={d.title}>
       <p role="alert">{d.body}</p>
-      {onRetry && <Button size="sm" onClick={onRetry}>Try again</Button>}
+      {onRetry && (
+        <Button size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      )}
     </Card>
   );
 }
 
 /** Loading skeleton, error card, or the loaded data. Old data stays visible while refreshing. */
-export function Load<T>({ state, retry, children, skeleton }: {
-  state: AsyncState<T>; retry?: () => void; children: (data: T) => ReactNode; skeleton?: ReactNode;
+export function Load<T>({
+  state,
+  retry,
+  children,
+  skeleton,
+}: {
+  state: AsyncState<T>;
+  retry?: () => void;
+  children: (data: T) => ReactNode;
+  skeleton?: ReactNode;
 }) {
   if (state.status === "loading") return <>{skeleton ?? <Skeleton lines={4} />}</>;
   if (state.status === "error") return <ErrorState error={state.error} onRetry={retry} />;

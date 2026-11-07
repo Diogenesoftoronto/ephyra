@@ -1,8 +1,36 @@
 /* Layout only. Colours for added and removed lines come from the Badge tones and theme tokens. */
-.diff { margin: 0; display: grid; gap: .5rem; min-width: 0; }
-.diff-body { margin: 0; overflow-x: auto; display: grid; font-size: .85rem; line-height: 1.45; border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.diff-line { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); white-space: pre; padding-right: .5rem; }
-.diff-line > i { text-align: center; font-style: normal; }
-.diff-add { background: var(--add); }
-.diff-del { background: var(--del); }
-.diff-skip { padding: .1rem .5rem; color: var(--muted); }
+.diff {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.diff-body {
+  margin: 0;
+  overflow-x: auto;
+  display: grid;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.diff-line {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  white-space: pre;
+  padding-right: 0.5rem;
+}
+.diff-line > i {
+  text-align: center;
+  font-style: normal;
+}
+.diff-add {
+  background: var(--add);
+}
+.diff-del {
+  background: var(--del);
+}
+.diff-skip {
+  padding: 0.1rem 0.5rem;
+  color: var(--muted);
+}

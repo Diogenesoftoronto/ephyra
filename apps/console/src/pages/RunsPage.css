@@ -1,1 +1,5 @@
-.runs-summary { display: flex; flex-wrap: wrap; gap: .5rem; }
+.runs-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+}

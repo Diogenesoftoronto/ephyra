@@ -2,19 +2,40 @@ import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import type { UsageEntry } from "@ephyra/core";
 import { lineDiff, diffStats, withContext } from "./diff.ts";
-import { formatMicrousd, formatTotalCost, formatDuration, safeHref, relativeTime, percent } from "./format.ts";
+import {
+  formatMicrousd,
+  formatTotalCost,
+  formatDuration,
+  safeHref,
+  relativeTime,
+  percent,
+} from "./format.ts";
 import { addEntry, emptyTotals, summarize, totalsOf } from "./usage.ts";
 import { hasBlocking, splitWarnings } from "./warnings.ts";
 
-const text = fc.array(fc.constantFrom("a", "b", "c", "", "d d", "e"), { maxLength: 14 }).map((l) => l.join("\n"));
+const text = fc
+  .array(fc.constantFrom("a", "b", "c", "", "d d", "e"), { maxLength: 14 })
+  .map((l) => l.join("\n"));
 
 describe("lineDiff", () => {
   test("same + del rebuilds the old text and same + add rebuilds the new text", () => {
-    fc.assert(fc.property(text, text, (a, b) => {
-      const ops = lineDiff(a, b);
-      expect(ops.filter((o) => o.kind !== "add").map((o) => o.text).join("\n")).toBe(a);
-      expect(ops.filter((o) => o.kind !== "del").map((o) => o.text).join("\n")).toBe(b);
-    }));
+    fc.assert(
+      fc.property(text, text, (a, b) => {
+        const ops = lineDiff(a, b);
+        expect(
+          ops
+            .filter((o) => o.kind !== "add")
+            .map((o) => o.text)
+            .join("\n"),
+        ).toBe(a);
+        expect(
+          ops
+            .filter((o) => o.kind !== "del")
+            .map((o) => o.text)
+            .join("\n"),
+        ).toBe(b);
+      }),
+    );
   });
   test("identical text has no changes and context folds unchanged runs", () => {
     const same = "1\n2\n3\n4\n5\n6\n7\n8";
@@ -52,26 +73,48 @@ describe("formatting", () => {
 });
 
 const entry = (over: Partial<UsageEntry>): UsageEntry => ({
-  id: "u", idempotencyKey: "k", at: "2026-11-07T10:00:00Z", kind: "agent_step", persona: "bell", step: "research", engine: "e", trailId: null,
-  short: null, tokens: 10, costMicrousd: 100, wallMs: 5, outcome: "ok", billedTo: "byok", ...over,
+  id: "u",
+  idempotencyKey: "k",
+  at: "2026-11-07T10:00:00Z",
+  kind: "agent_step",
+  persona: "bell",
+  step: "research",
+  engine: "e",
+  trailId: null,
+  short: null,
+  tokens: 10,
+  costMicrousd: 100,
+  wallMs: 5,
+  outcome: "ok",
+  billedTo: "byok",
+  ...over,
 });
 
 describe("usage arithmetic", () => {
   test("unknown costs are counted and never added as zero", () => {
-    fc.assert(fc.property(fc.array(fc.option(fc.nat(10_000), { nil: null }), { maxLength: 30 }), (costs) => {
-      const rows = costs.map((c) => entry({ costMicrousd: c }));
-      const t = totalsOf(rows);
-      expect(t.unknownCost).toBe(costs.filter((c) => c === null).length);
-      expect(t.costMicrousd).toBe(costs.reduce<number>((s, c) => s + (c ?? 0), 0));
-      expect(t.entries).toBe(rows.length);
-    }));
+    fc.assert(
+      fc.property(fc.array(fc.option(fc.nat(10_000), { nil: null }), { maxLength: 30 }), (costs) => {
+        const rows = costs.map((c) => entry({ costMicrousd: c }));
+        const t = totalsOf(rows);
+        expect(t.unknownCost).toBe(costs.filter((c) => c === null).length);
+        expect(t.costMicrousd).toBe(costs.reduce<number>((s, c) => s + (c ?? 0), 0));
+        expect(t.entries).toBe(rows.length);
+      }),
+    );
   });
   test("failed and unavailable rows are counted separately", () => {
-    const t = [entry({ outcome: "failed" }), entry({ outcome: "unavailable", costMicrousd: null }), entry({})].reduce(addEntry, emptyTotals());
+    const t = [
+      entry({ outcome: "failed" }),
+      entry({ outcome: "unavailable", costMicrousd: null }),
+      entry({}),
+    ].reduce(addEntry, emptyTotals());
     expect([t.failed, t.unavailable, t.unknownCost]).toEqual([1, 1, 1]);
   });
   test("summaries have one bucket per day, including empty days, and group totals add up", () => {
-    const rows = [entry({ at: "2026-11-05T10:00:00Z" }), entry({ at: "2026-11-07T10:00:00Z", persona: null, step: "mystery" })];
+    const rows = [
+      entry({ at: "2026-11-05T10:00:00Z" }),
+      entry({ at: "2026-11-07T10:00:00Z", persona: null, step: "mystery" }),
+    ];
     const s = summarize(rows, "2026-11-05T00:00:00Z", "2026-11-07T12:00:00Z", []);
     expect(s.byDay.map((d) => d.key)).toEqual(["2026-11-05", "2026-11-06", "2026-11-07"]);
     expect(s.byDay[1]!.totals.entries).toBe(0);
@@ -81,31 +124,54 @@ describe("usage arithmetic", () => {
 });
 
 describe("warnings", () => {
-  test("parser errors block; unknown keys do not", () => {
+  test("only `error:` lines block; unknown keys do not", () => {
     expect(hasBlocking(["line 4: unknown key faceted"])).toBe(false);
-    expect(hasBlocking(["line 7: invalid risk"])).toBe(true);
-    expect(splitWarnings(["line 7: invalid risk", "line 4: unknown key x"])).toEqual({ errors: ["line 7: invalid risk"], notes: ["line 4: unknown key x"] });
+    expect(hasBlocking(["error: line 7: invalid risk"])).toBe(true);
+    expect(splitWarnings(["error: line 7: invalid risk", "line 4: unknown key x"])).toEqual({
+      errors: ["line 7: invalid risk"],
+      notes: ["line 4: unknown key x"],
+    });
   });
 });
 
 import { diffSketches, changedCount } from "./sketch-diff.ts";
 import type { AreaSketch } from "@ephyra/core";
 
-const area = (name: string, over: Partial<AreaSketch> = {}): AreaSketch =>
-  ({ name, intent: "x", paths: ["a/**"], risk: "low", level: "propose", userFacing: false, ...over });
+const area = (name: string, over: Partial<AreaSketch> = {}): AreaSketch => ({
+  name,
+  intent: "x",
+  paths: ["a/**"],
+  risk: "low",
+  level: "propose",
+  userFacing: false,
+  ...over,
+});
 
 describe("diffSketches", () => {
   test("added, removed, changed and same are told apart, and changed lists its fields", () => {
-    const d = diffSketches([area("a"), area("b"), area("c")], [area("a"), area("b", { level: "auto", risk: "high" }), area("d")]);
-    expect(d.map((c) => [c.name, c.kind])).toEqual([["a", "same"], ["b", "changed"], ["d", "added"], ["c", "removed"]]);
+    const d = diffSketches(
+      [area("a"), area("b"), area("c")],
+      [area("a"), area("b", { level: "auto", risk: "high" }), area("d")],
+    );
+    expect(d.map((c) => [c.name, c.kind])).toEqual([
+      ["a", "same"],
+      ["b", "changed"],
+      ["d", "added"],
+      ["c", "removed"],
+    ]);
     const b = d[1]!;
-    expect(b.kind === "changed" && b.fields.map((f) => [f.field, f.before, f.after])).toEqual([["level", "Propose", "Auto-land"], ["risk", "low", "high"]]);
+    expect(b.kind === "changed" && b.fields.map((f) => [f.field, f.before, f.after])).toEqual([
+      ["level", "Propose", "Auto-land"],
+      ["risk", "low", "high"],
+    ]);
     expect(changedCount(d)).toBe(3);
   });
   test("identical maps have no changes", () => {
-    fc.assert(fc.property(fc.array(fc.constantFrom("a", "b", "c"), { maxLength: 3 }), (names) => {
-      const maps = [...new Set(names)].map((n) => area(n));
-      expect(changedCount(diffSketches(maps, maps))).toBe(0);
-    }));
+    fc.assert(
+      fc.property(fc.array(fc.constantFrom("a", "b", "c"), { maxLength: 3 }), (names) => {
+        const maps = [...new Set(names)].map((n) => area(n));
+        expect(changedCount(diffSketches(maps, maps))).toBe(0);
+      }),
+    );
   });
 });

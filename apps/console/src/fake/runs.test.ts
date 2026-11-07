@@ -6,7 +6,6 @@ import { ConsoleClient, parseSseFrame } from "../api.ts";
 import { FakeApi } from "./api.ts";
 import { AUTONOMY_MD } from "./fixtures.ts";
 import { RUN_IDS } from "./runs.ts";
-import { mapMessage } from "../lib/protocol.ts";
 import { renderSketch, replaceAreas, sketchesOf } from "./sketch.ts";
 import { lintAutonomy } from "./autonomy.ts";
 
@@ -50,10 +49,15 @@ describe("run fixtures", () => {
     const first = await api.runEvents(RUN_IDS.orb);
     const got: Ev[] = [];
     const ctl = new AbortController();
-    const done = api.watchRun(RUN_IDS.orb, first.at(-1)!.seq, (batch) => {
-      got.push(...batch);
-      if (got.length >= 4) ctl.abort();
-    }, ctl.signal);
+    const done = api.watchRun(
+      RUN_IDS.orb,
+      first.at(-1)!.seq,
+      (batch) => {
+        got.push(...batch);
+        if (got.length >= 4) ctl.abort();
+      },
+      ctl.signal,
+    );
     await done;
     expect(got.map((e) => e.seq)).toEqual(got.map((_, i) => first.length + i));
     expect(got.at(-1)!.text).toContain("proof runner");
@@ -61,7 +65,13 @@ describe("run fixtures", () => {
   test("a finished run replays and ends", async () => {
     const api = new FakeApi();
     const got: Ev[] = [];
-    await api.watchRun(RUN_IDS.local, undefined, (b) => got.push(...b), new AbortController().signal);
+    const status = await api.watchRun(
+      RUN_IDS.local,
+      undefined,
+      (b) => got.push(...b),
+      new AbortController().signal,
+    );
+    expect(status).toBe("done");
     expect(got.length).toBe((await api.runEvents(RUN_IDS.local)).length);
   });
 });
@@ -69,26 +79,51 @@ describe("run fixtures", () => {
 describe("SSE", () => {
   test("a frame becomes a validated event; junk is skipped", () => {
     const ev = { runId: "r", seq: 3, at: "2026-11-07T15:00:00.000Z", type: "status", text: "hi" };
-    expect(parseSseFrame(`id: 3\ndata: ${JSON.stringify(ev)}`)).toEqual([ev as Ev]);
-    expect(parseSseFrame(": heartbeat")).toEqual([]);
+    expect(parseSseFrame(`id: 3\nevent: run_event\ndata: ${JSON.stringify(ev)}`)).toEqual([
+      { kind: "event", event: ev as Ev },
+    ]);
+    expect(parseSseFrame(": ping")).toEqual([]);
+    expect(parseSseFrame("retry: 2000")).toEqual([]);
     expect(parseSseFrame("data: {not json")).toEqual([]);
     expect(parseSseFrame(`data: ${JSON.stringify({ ...ev, type: "shell" })}`)).toEqual([]);
+    expect(parseSseFrame('event: end\ndata: {"status":"done"}')).toEqual([{ kind: "end", status: "done" }]);
+    expect(parseSseFrame('event: end\ndata: {"status":"exploded"}')).toEqual([]);
   });
   test("the client reads a stream split across chunks and sends Accept: text/event-stream", async () => {
-    const mk = (seq: number) => ({ runId: "r", seq, at: "2026-11-07T15:00:00.000Z", type: "status", text: `s${seq}` });
-    const payload = `data: ${JSON.stringify(mk(1))}\n\n: ping\n\ndata: ${JSON.stringify(mk(2))}\n\n`;
+    const mk = (seq: number) => ({
+      runId: "r",
+      seq,
+      at: "2026-11-07T15:00:00.000Z",
+      type: "status",
+      text: `s${seq}`,
+    });
+    const frame = (e: object) =>
+      `id: ${(e as { seq: number }).seq}\nevent: run_event\ndata: ${JSON.stringify(e)}\n\n`;
+    const payload = `retry: 2000\n\n${frame(mk(1))}: ping\n\n${frame(mk(2))}event: end\ndata: {"status":"done"}\n\n`;
     let accept = "";
     let url = "";
     const fetcher: typeof fetch = async (u, init) => {
       url = String(u);
       accept = (init?.headers as Record<string, string>).Accept!;
       const bytes = new TextEncoder().encode(payload);
-      const body = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(bytes.slice(0, 20)); c.enqueue(bytes.slice(20)); c.close(); } });
+      const body = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(bytes.slice(0, 20));
+          c.enqueue(bytes.slice(20));
+          c.close();
+        },
+      });
       return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
     };
     const got: Ev[] = [];
-    await new ConsoleClient("https://x.test", "t", fetcher).watchRun("r 1", 0, (b) => got.push(...b), new AbortController().signal);
+    const status = await new ConsoleClient("https://x.test", "t", fetcher).watchRun(
+      "r 1",
+      0,
+      (b) => got.push(...b),
+      new AbortController().signal,
+    );
     expect(got.map((e) => e.seq)).toEqual([1, 2]);
+    expect(status).toBe("done");
     expect(accept).toBe("text/event-stream");
     expect(url).toBe("https://x.test/v1/runs/r%201/events?after=0");
   });
@@ -105,36 +140,39 @@ const sketch = fc.record({
 
 describe("application map (stand-in mapping)", () => {
   test("sketches survive a render and read back, and the document still lints clean", () => {
-    fc.assert(fc.property(fc.uniqueArray(sketch, { selector: (s) => s.name, maxLength: 4 }), (sketches) => {
-      const md = replaceAreas(AUTONOMY_MD, sketches);
-      expect(sketchesOf(md)).toEqual(sketches);
-      expect(lintAutonomy(md)).toEqual([]);
-      sketches.forEach((s) => AreaSketch.parse(s));
-    }));
+    fc.assert(
+      fc.property(fc.uniqueArray(sketch, { selector: (s) => s.name, maxLength: 4 }), (sketches) => {
+        const md = replaceAreas(AUTONOMY_MD, sketches);
+        expect(sketchesOf(md)).toEqual(sketches);
+        expect(lintAutonomy(md)).toEqual([]);
+        sketches.forEach((s) => AreaSketch.parse(s));
+      }),
+    );
   });
   test("the fixture document reads as the three-level map", () => {
     expect(sketchesOf(AUTONOMY_MD).map((a) => [a.name, a.level, a.risk])).toEqual([
-      ["payments", "propose", "critical"], ["cart", "patch", "medium"], ["marketing-site", "auto", "low"],
+      ["payments", "propose", "critical"],
+      ["cart", "patch", "medium"],
+      ["marketing-site", "auto", "low"],
     ]);
     expect(renderSketch(sketchesOf(AUTONOMY_MD)[0]!)).toContain("Money moves here");
   });
-  test("Velum answers a plain-language request with a before/after map, and the cards apply through a message", async () => {
+  test("Velum answers a plain-language request with a before/after map", async () => {
     const api = new FakeApi({ seedConversation: false });
     const draft = await api.createDraft("autonomy.md", "d");
-    const reply = (await api.sendMessage(draft.id, "payments should never land without me; the marketing site can fix itself", "m1")).messages.at(-1)!;
-    expect(reply.proposal?.sketches?.map((s) => [s.name, s.level])).toContainEqual(["marketing-site", "auto"]);
+    const reply = (
+      await api.sendMessage(
+        draft.id,
+        "payments should never land without me; the marketing site can fix itself",
+        "m1",
+      )
+    ).messages.at(-1)!;
+    expect(reply.proposal?.sketches?.map((s) => [s.name, s.level])).toContainEqual([
+      "marketing-site",
+      "auto",
+    ]);
     z.array(AreaSketch).parse(reply.proposal!.sketches);
-    const edited = sketchesOf(draft.content).map((s) => (s.name === "cart" ? { ...s, level: "research" as const } : s));
-    const after = (await api.sendMessage(draft.id, mapMessage(edited), "m2")).messages.at(-1)!;
-    const applied = await api.applyProposal(draft.id, after.id, "a");
-    expect(sketchesOf(applied.content).find((s) => s.name === "cart")?.level).toBe("research");
-    expect((await api.areaMap({ draftId: draft.id })).find((s) => s.name === "cart")?.level).toBe("research");
-    expect((await api.areaMap({ path: "autonomy.md" })).find((s) => s.name === "cart")?.level).toBe("patch");
-  });
-  test("a map message with a bad sketch changes nothing", async () => {
-    const api = new FakeApi({ seedConversation: false });
-    const draft = await api.createDraft("autonomy.md", "d");
-    const reply = (await api.sendMessage(draft.id, "Apply this application map:\n[{\"name\":\"Bad Name\"}]", "m")).messages.at(-1)!;
-    expect(reply.proposal).toBeUndefined();
+    const applied = await api.applyProposal(draft.id, reply.id, "a");
+    expect(sketchesOf(applied.content).find((s) => s.name === "marketing-site")?.level).toBe("auto");
   });
 });

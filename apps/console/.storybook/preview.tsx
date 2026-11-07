@@ -20,7 +20,8 @@ declare module "@storybook/react-vite" {
 }
 
 const withEnvironment: Decorator = (Story, context) => {
-  const theme = context.parameters.theme ?? (context.globals.theme as "light" | "dark" | undefined) ?? "light";
+  const theme =
+    context.parameters.theme ?? (context.globals.theme as "light" | "dark" | undefined) ?? "light";
   const api = useMemo(() => new FakeApi(context.parameters.fake), [context.id, context.parameters.fake]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -30,7 +31,9 @@ const withEnvironment: Decorator = (Story, context) => {
   return (
     <ApiProvider api={api}>
       <ClockProvider now={clock}>
-        <div className="sb-frame"><Story /></div>
+        <div className="sb-frame">
+          <Story />
+        </div>
       </ClockProvider>
     </ApiProvider>
   );
@@ -39,12 +42,19 @@ const withEnvironment: Decorator = (Story, context) => {
 const preview: Preview = {
   decorators: [withEnvironment],
   globalTypes: {
-    theme: { description: "Theme", toolbar: { title: "Theme", icon: "circlehollow", items: ["light", "dark"], dynamicTitle: true } },
+    theme: {
+      description: "Theme",
+      toolbar: { title: "Theme", icon: "circlehollow", items: ["light", "dark"], dynamicTitle: true },
+    },
   },
   initialGlobals: { theme: "light" },
   parameters: {
-    layout: "fullscreen", controls: { disable: true }, actions: { disable: true },
-    viewport: { options: { phone: { name: "Phone 375", styles: { width: "375px", height: "720px" }, type: "mobile" } } },
+    layout: "fullscreen",
+    controls: { disable: true },
+    actions: { disable: true },
+    viewport: {
+      options: { phone: { name: "Phone 375", styles: { width: "375px", height: "720px" }, type: "mobile" } },
+    },
   },
 };
 export default preview;

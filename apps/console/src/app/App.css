@@ -1,2 +1,20 @@
-.app-user { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
-.gate { max-width: 34rem; margin: 3rem auto; padding: 0 var(--gutter); display: grid; gap: 1rem; }
+.gate {
+  max-width: 34rem;
+  margin: var(--s7) auto;
+  padding: 0 var(--s4);
+  display: grid;
+  gap: var(--s4);
+}
+
+.account-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--surface);
+  font-weight: 600;
+  flex: none;
+}

@@ -1,22 +1,42 @@
 import { PERSONAS, type PersonaId } from "@ephyra/core";
 import { Avatar } from "../kit.ts";
-import { usePrefersReducedMotion } from "../lib/hooks.ts";
-
-/** Where the persona art lives once built and served: /app/personas/<id>.{webp,webm,mp4} (assets from another lane). */
-export const personaMedia = (id: PersonaId, base = "/app/personas") => ({
-  still: `${base}/${id}.webp`, webm: `${base}/${id}.webm`, mp4: `${base}/${id}.mp4`,
-});
+import { useDarkSurface } from "../lib/hooks.ts";
 
 /**
- * A persona's face: the still, looping when motion is allowed, and the persona's initial on its colour when a file is
- * missing. With `prefers-reduced-motion` the loop is never loaded.
+ * Persona art lives at /app/personas: `<id>-64.webp` for avatars up to 48px, `<id>.webp` above that, and the loops
+ * `<id>.webm` / `<id>.mp4`. The loops are opaque on dark (#070f18), so they play only on dark surfaces and at 48px or more;
+ * everywhere else the transparent still breathes instead. A missing file falls back to the initial on the persona colour.
  */
-export function PersonaAvatar({ persona, size = 48, live, base }: { persona: PersonaId; size?: 24 | 32 | 48 | 96; live?: boolean; base?: string }) {
-  const reduced = usePrefersReducedMotion();
+export const personaMedia = (id: PersonaId, size: number, base = "/app/personas") => ({
+  still: `${base}/${id}${size <= 48 ? "-64" : ""}.webp`,
+  webm: `${base}/${id}.webm`,
+  mp4: `${base}/${id}.mp4`,
+});
+
+export function PersonaAvatar({
+  persona,
+  size = 32,
+  live,
+  base,
+}: {
+  persona: PersonaId;
+  size?: 24 | 32 | 48 | 96;
+  live?: boolean;
+  base?: string;
+}) {
+  const dark = useDarkSurface();
   const p = PERSONAS.find((x) => x.id === persona)!;
-  const media = personaMedia(persona, base);
+  const media = personaMedia(persona, size, base);
   return (
-    <Avatar src={media.still} video={reduced || size < 48 ? undefined : [media.webm, media.mp4]} initial={p.name[0]!} color={`var(${p.color})`}
-      size={size} live={live} />
+    <Avatar
+      src={media.still}
+      initial={p.name[0]!}
+      color={`var(${p.color})`}
+      tint={`var(${p.color}-tint)`}
+      size={size}
+      label={p.name}
+      video={live && dark && size >= 48 ? { webm: media.webm, mp4: media.mp4 } : undefined}
+      breathe={live}
+    />
   );
 }

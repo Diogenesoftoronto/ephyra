@@ -1,3 +1,17 @@
-.map { display: grid; gap: 1rem; justify-items: start; min-width: 0; width: 100%; }
-.map-grid { width: 100%; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
-.map-add { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.map {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  min-width: 0;
+  width: 100%;
+}
+.map-grid {
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+.map-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}

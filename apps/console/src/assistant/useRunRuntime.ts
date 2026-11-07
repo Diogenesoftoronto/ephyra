@@ -10,7 +10,12 @@ import { eventsToThread } from "./messages.ts";
 export function useRunRuntime(run: Pick<AgentRun, "status" | "startedAt">, events: readonly AgentRunEvent[]) {
   const messages = useMemo(() => eventsToThread(events, run), [events, run]);
   return useExternalStoreRuntime<ThreadMessageLike>({
-    messages, isRunning: run.status === "running", isDisabled: true, convertMessage: (m) => m,
-    onNew: async () => { throw new Error("Run transcripts are read-only."); },
+    messages,
+    isRunning: run.status === "running",
+    isDisabled: true,
+    convertMessage: (m) => m,
+    onNew: async () => {
+      throw new Error("Run transcripts are read-only.");
+    },
   });
 }

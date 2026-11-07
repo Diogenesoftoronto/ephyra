@@ -1,3 +1,17 @@
-.editor { display: grid; gap: .75rem; min-width: 0; }
-.editor-text { min-height: 16rem; resize: vertical; white-space: pre; overflow: auto; }
-.editor-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.editor {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.editor-text {
+  min-height: 16rem;
+  resize: vertical;
+  white-space: pre;
+  overflow: auto;
+}
+.editor-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}

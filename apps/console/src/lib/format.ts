@@ -14,7 +14,9 @@ export function formatMicrousd(micro: number | null | undefined): string {
 export function formatTotalCost(totals: Pick<UsageTotals, "costMicrousd" | "unknownCost">): string {
   const known = formatMicrousd(totals.costMicrousd);
   if (totals.unknownCost === 0) return known;
-  return totals.costMicrousd === 0 ? `${UNKNOWN} (${totals.unknownCost})` : `${known} + ${totals.unknownCost} ${UNKNOWN}`;
+  return totals.costMicrousd === 0
+    ? `${UNKNOWN} (${totals.unknownCost})`
+    : `${known} + ${totals.unknownCost} ${UNKNOWN}`;
 }
 
 export function formatTokens(tokens: number | null | undefined): string {

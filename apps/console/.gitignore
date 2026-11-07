@@ -1,6 +1,4 @@
-/screens/
-.screens/
+dist/
 storybook-static/
-.sb-style/
+artifacts/
 .screens/
-storybook-static/

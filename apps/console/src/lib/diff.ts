@@ -11,7 +11,12 @@ export function lineDiff(before: string, after: string): DiffOp[] {
   let head = 0;
   while (head < a.length && head < b.length && a[head] === b[head]) head++;
   let tail = 0;
-  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++;
+  while (
+    tail < a.length - head &&
+    tail < b.length - head &&
+    a[a.length - 1 - tail] === b[b.length - 1 - tail]
+  )
+    tail++;
   const ops: DiffOp[] = [];
   for (let i = 0; i < head; i++) ops.push({ kind: "same", text: a[i]!, aLine: i + 1, bLine: i + 1 });
   ops.push(...middle(a.slice(head, a.length - tail), b.slice(head, b.length - tail), head));
@@ -31,15 +36,21 @@ function middle(a: string[], b: string[], offset: number): DiffOp[] {
   const table = new Uint32Array((a.length + 1) * w);
   for (let i = a.length - 1; i >= 0; i--) {
     for (let j = b.length - 1; j >= 0; j--) {
-      table[i * w + j] = a[i] === b[j] ? table[(i + 1) * w + j + 1]! + 1 : Math.max(table[(i + 1) * w + j]!, table[i * w + j + 1]!);
+      table[i * w + j] =
+        a[i] === b[j]
+          ? table[(i + 1) * w + j + 1]! + 1
+          : Math.max(table[(i + 1) * w + j]!, table[i * w + j + 1]!);
     }
   }
   const ops: DiffOp[] = [];
   let i = 0;
   let j = 0;
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { ops.push({ kind: "same", text: a[i]!, aLine: offset + i + 1, bLine: offset + j + 1 }); i++; j++; }
-    else if (table[(i + 1) * w + j]! >= table[i * w + j + 1]!) ops.push(del(i++));
+    if (a[i] === b[j]) {
+      ops.push({ kind: "same", text: a[i]!, aLine: offset + i + 1, bLine: offset + j + 1 });
+      i++;
+      j++;
+    } else if (table[(i + 1) * w + j]! >= table[i * w + j + 1]!) ops.push(del(i++));
     else ops.push(add(j++));
   }
   while (i < a.length) ops.push(del(i++));
@@ -48,7 +59,10 @@ function middle(a: string[], b: string[], offset: number): DiffOp[] {
 }
 
 export function diffStats(ops: DiffOp[]): { added: number; removed: number } {
-  return { added: ops.filter((o) => o.kind === "add").length, removed: ops.filter((o) => o.kind === "del").length };
+  return {
+    added: ops.filter((o) => o.kind === "add").length,
+    removed: ops.filter((o) => o.kind === "del").length,
+  };
 }
 
 /** Collapse long unchanged runs to `context` lines around each change. */

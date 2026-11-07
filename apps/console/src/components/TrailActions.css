@@ -1,2 +1,9 @@
-.trail-actions { display: grid; gap: .75rem; }
-.trail-actions-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.trail-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+.trail-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

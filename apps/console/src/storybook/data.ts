@@ -12,15 +12,45 @@ export const runs = makeRuns(trails, NOW);
 
 const day = 86_400_000;
 export const window14 = {
-  from: new Date(Math.floor(NOW / day) * day - 13 * day).toISOString(), to: new Date(NOW).toISOString(),
+  from: new Date(Math.floor(NOW / day) * day - 13 * day).toISOString(),
+  to: new Date(NOW).toISOString(),
 };
-const meta = trails.map((t) => ({ trailId: t.id, short: t.short, title: t.title, budget: {
-  spendMicrousdUsed: t.budget.spendMicrousdUsed, spendMicrousdMax: t.budget.spendMicrousdMax,
-  tokensUsed: t.budget.tokensUsed, tokensMax: t.budget.tokensMax } }));
+const meta = trails.map((t) => ({
+  trailId: t.id,
+  short: t.short,
+  title: t.title,
+  budget: {
+    spendMicrousdUsed: t.budget.spendMicrousdUsed,
+    spendMicrousdMax: t.budget.spendMicrousdMax,
+    tokensUsed: t.budget.tokensUsed,
+    tokensMax: t.budget.tokensMax,
+  },
+}));
 export const usage14 = summarize(usageEntries, window14.from, window14.to, meta);
-export const usage7 = summarize(usageEntries.filter((e) => e.at >= new Date(NOW - 6.5 * day).toISOString()),
-  new Date(Math.floor(NOW / day) * day - 6 * day).toISOString(), window14.to, meta);
+export const usage7 = summarize(
+  usageEntries.filter((e) => e.at >= new Date(NOW - 6.5 * day).toISOString()),
+  new Date(Math.floor(NOW / day) * day - 6 * day).toISOString(),
+  window14.to,
+  meta,
+);
 
 export const trailByShort = (hex: string) => trails.find((t) => t.short === `T-${hex}`)!;
 export const trailId = (hex: string) => trailByShort(hex).id;
 export const eventsFor = (hex: string) => makeEvents(trailByShort(hex), NOW);
+
+import { emptyDraft, makeDocs, AUTONOMY_MD } from "../fake/fixtures.ts";
+import { sketchesOf } from "../fake/sketch.ts";
+export const docs = makeDocs();
+export const draft = emptyDraft("story-draft", docs[0]!, NOW);
+export const sketches = sketchesOf(AUTONOMY_MD);
+
+export const formArea = {
+  name: "payments",
+  paths: ["src/payments/**"],
+  risk: "critical" as const,
+  userFacing: true,
+  checkpoints: { A: "blocking" as const, B: "blocking" as const, C: "blocking" as const },
+  landing: ["trail_ref"],
+  watchSeconds: 7200,
+  voxqMicrousd: 0,
+};
