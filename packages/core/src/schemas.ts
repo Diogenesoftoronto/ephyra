@@ -233,3 +233,17 @@ export const Trail = z.object({
   updatedAt: IsoTime,
 });
 export type Trail = z.infer<typeof Trail>;
+
+/** What the post-landing watch observed so far. Collected by @ephyra/evidence, judged by @ephyra/policy (design/01 §8.3). */
+export const WatchObservations = z.object({
+  elapsedS: z.number().nonnegative(),
+  fingerprintRecurrences: z.number().int().nonnegative(),
+  newFingerprintsInTouchedFiles: z.array(z.string()),
+  /** probe id → consecutive failures (0 = last run passed). */
+  probeConsecutiveFailures: z.record(z.string(), z.number().int().nonnegative()),
+  errorRate: z.object({ current: z.number().nonnegative(), baseline: z.number().nonnegative(), sustainedAboveS: z.number().nonnegative() }).nullable(),
+  tracerNewClusters: z.number().int().nonnegative(),
+  /** Missing or dropped telemetry: a gap is never a passing observation. */
+  coverageGaps: z.array(z.string()),
+});
+export type WatchObservations = z.infer<typeof WatchObservations>;
