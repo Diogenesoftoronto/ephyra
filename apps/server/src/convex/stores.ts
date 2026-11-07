@@ -1,6 +1,7 @@
 // Convex-backed implementations of the server's persistence ports. Every call carries the shared secret;
 // every payload read back is validated with the core zod schemas before it is trusted.
 import { ConvexHttpClient } from "convex/browser";
+import { getFunctionName, type FunctionReference } from "convex/server";
 import {
   Signal, Trail, TrailEvent, type InboxItem, type OperationLedger, type OperationRecord, type SignalStore,
 } from "@ephyra/core";
@@ -13,6 +14,30 @@ export type ConvexConfig = { url: string; secret: string };
 export function convexClient(config: ConvexConfig): ConvexHttpClient {
   if (config.secret.length < 32) throw new Error("EPHYRA_CONVEX_SECRET must be at least 32 characters");
   return new ConvexHttpClient(config.url);
+}
+
+const PROJECT_MODULES = new Set(["runtime", "signals", "ledger", "audit", "runs", "drafts", "usage"]);
+
+/**
+ * Bind project stores to one immutable workspace without changing their typed query/mutation interfaces.
+ * Authentication and account settings must use the original client. The bound namespace always wins over
+ * a caller-supplied argument; accidentally using this client for an unscoped module fails closed.
+ */
+export function scopedConvexClient(client: ConvexHttpClient, workspace: string): ConvexHttpClient {
+  if (!workspace || workspace.length > 200) throw new Error("a bounded workspace identifier is required");
+  return new Proxy(client, {
+    get(target, property) {
+      const value = Reflect.get(target, property, target);
+      if (property === "query" || property === "mutation") {
+        return async (reference: FunctionReference<"query" | "mutation">, args: Record<string, unknown> = {}, ...rest: unknown[]) => {
+          const module = getFunctionName(reference).split(":")[0]!;
+          if (!PROJECT_MODULES.has(module)) throw new Error("workspace client only accepts project-data functions");
+          return Reflect.apply(value, target, [reference, { ...args, workspace }, ...rest]);
+        };
+      }
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
 }
 
 const topInAppFile = (s: Signal) => s.frames.find((f) => f.inApp)?.file;
