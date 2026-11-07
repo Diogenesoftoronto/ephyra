@@ -41,6 +41,8 @@ test("local lifecycle, secrets, paths, snapshot, CAS and lease", async () => {
   await symlink(root, join(h.workdir, "escape"));
   await expect(runner.writeFile(h, "escape/bad", "x")).rejects.toThrow();
   await runner.writeFile(h, "file", "changed");
+  await runner.writeFile(h, "nested/dir/probe.sh", "#!/bin/sh\n");
+  expect(new TextDecoder().decode((await runner.readFile(h, "nested/dir/probe.sh"))!)).toBe("#!/bin/sh\n");
   const ref = (await runner.exportArtifacts(h, ["file"]))[0]!;
   expect(ref.digest).toMatch(/^sha256:[a-f0-9]{64}$/);
   expect(await readFile(join(root, "runner", "artifacts", ref.digest.slice(7)), "utf8")).toBe("changed");

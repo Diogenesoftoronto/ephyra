@@ -140,6 +140,14 @@ export class PlainGitAdapter implements ForgeAdapter {
       commitMessage: message,
     };
   }
+  /** Where a trail branch forked from the repository's default branch (trail_ref landings have no oldOid). */
+  private async mergeBase(oid: string): Promise<string> {
+    for (const ref of ["refs/heads/main", "refs/heads/master", "HEAD"]) {
+      const r = await this.run(["git", "merge-base", oid, ref], this.repoDir);
+      if (!r.code && r.stdout.trim()) return r.stdout.trim();
+    }
+    throw new Error("cannot find what to restore for this landing");
+  }
   private async serial<T>(target: string, f: () => Promise<T>): Promise<T> {
     const lockKey = `${this.repoDir}\0${target}`;
     const prev = this.locks.get(lockKey) ?? Promise.resolve();
@@ -265,52 +273,40 @@ export class PlainGitAdapter implements ForgeAdapter {
           "revert requires reconciliation",
         );
       }
-      const dir = await mkdtemp(join(tmpdir(), "ephyra-revert-"));
-      let added = false;
+      // Restore the pre-landing tree in one commit on top of the landed head. This undoes every commit
+      // the landing brought in (including same-tree trailer commits) and needs no working tree.
+      if (!receipt.oldOid && receipt.mode !== "trail_ref") throw new Error("receipt has no prior state to restore");
+      // trail_ref landings create a new branch, so the prior state is where it forked from the default branch.
+      const restoreFrom = receipt.oldOid ?? (await this.mergeBase(receipt.newOid));
+      if (restoreFrom === receipt.newOid) throw new Error("landing introduced nothing to revert");
+      const tree = (await this.git("rev-parse", `${restoreFrom}^{tree}`)).trim();
+      const message = `Revert landing ${receipt.newOid.slice(0, 12)}\n\nRestores ${restoreFrom}.\nEphyra-Revert-Of: ${receipt.newOid}\n`;
+      const made = await this.run(
+        ["git", "-c", "user.name=ephyra", "-c", "user.email=ephyra@localhost",
+          "commit-tree", tree, "-p", receipt.newOid, "-m", message],
+        this.repoDir,
+      );
+      if (made.code) throw new Error(`revert commit failed: ${made.stderr.trim().slice(0, 300)}`);
+      const oid = made.stdout.trim();
+      let update;
       try {
-        await this.git("worktree", "add", "--detach", dir, receipt.newOid);
-        added = true;
-        const result = await this.run(
-          ["git", "revert", "--no-edit", receipt.newOid],
-          dir,
+        update = await this.run(
+          ["git", "update-ref", receipt.target, oid, receipt.newOid],
+          this.repoDir,
         );
-        if (result.code) throw new Error(result.stderr || "git revert failed");
-        const head = await this.run(["git", "rev-parse", "HEAD"], dir);
-        if (head.code) throw new Error(head.stderr);
-        const oid = head.stdout.trim();
-        let update;
-        try {
-          update = await this.run(
-            ["git", "update-ref", receipt.target, oid, receipt.newOid],
-            this.repoDir,
-          );
-        } catch {
-          await this.ledger.markAmbiguous(
-            idempotencyKey,
-            "revert update outcome unknown",
-          );
-          throw new ReconciliationRequired(
-            idempotencyKey,
-            "revert update outcome unknown",
-          );
-        }
-        if (update.code) throw new BaseMoved(receipt.target);
-        const reverted: LandingReceipt = {
-          ...receipt,
-          oldOid: receipt.newOid,
-          newOid: oid,
-          at: new Date().toISOString(),
-        };
-        await this.ledger.complete(idempotencyKey, reverted);
-        return reverted;
-      } finally {
-        if (added)
-          await this.run(
-            ["git", "worktree", "remove", "--force", dir],
-            this.repoDir,
-          );
-        await rm(dir, { recursive: true, force: true });
+      } catch {
+        await this.ledger.markAmbiguous(idempotencyKey, "revert update outcome unknown");
+        throw new ReconciliationRequired(idempotencyKey, "revert update outcome unknown");
       }
+      if (update.code) throw new BaseMoved(receipt.target);
+      const reverted: LandingReceipt = {
+        ...receipt,
+        oldOid: receipt.newOid,
+        newOid: oid,
+        at: new Date().toISOString(),
+      };
+      await this.ledger.complete(idempotencyKey, reverted);
+      return reverted;
     });
   }
 }

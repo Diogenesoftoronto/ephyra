@@ -4,6 +4,8 @@ import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
 import { auth, type AuthEnv } from "./auth.ts";
 
 export class StaleApproval extends Error {}
+/** The state machine refused the event (e.g. claiming a closed trail). */
+export class InvalidTransition extends Error {}
 export interface HttpPort {
   inbox(): Promise<InboxItem[]>;
   trails(state?: string): Promise<Trail[]>;
@@ -11,6 +13,8 @@ export interface HttpPort {
   /** Must atomically check the bound revision, record the decision and append its audit event. */
   decide(id: string, input: DecisionInput, principal: string): Promise<void>;
   action(id: string, action: string, input: unknown, principal: string): Promise<void>;
+  /** Operator view: dead-lettered jobs and effects needing reconciliation. */
+  ops?(): Promise<unknown>;
 }
 export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string };
 const decision = z.object({ checkpoint: z.enum(["A", "B", "C"]), verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
@@ -51,10 +55,16 @@ export function createApp(token: string, port: HttpPort, otlp = new Hono()): Hon
   for (const action of ["comment", "claim", "release", "park", "resume", "kill", "land"]) {
     app.post(`/v1/trails/:id/${action}`, async (c) => {
       const input = await c.req.json().catch(() => ({}));
-      await port.action(c.req.param("id"), action, input, c.get("principal"));
-      return c.json({ ok: true });
+      try {
+        await port.action(c.req.param("id"), action, input, c.get("principal"));
+        return c.json({ ok: true });
+      } catch (error) {
+        if (error instanceof InvalidTransition) return c.json({ error: error.message }, 409);
+        throw error;
+      }
     });
   }
+  app.get("/v1/ops", async (c) => c.json(port.ops ? await port.ops() : {}));
   app.route("/otlp", otlp);
   return app;
 }

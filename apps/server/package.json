@@ -3,21 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Control plane: HTTP API, DBOS workflows, Postgres projections, outbox.",
+  "description": "Control plane: HTTP API, Convex-backed engine, effect wiring.",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "start": "bun run src/main.ts"
+    "start": "bun run src/main.ts",
+    "convex:deploy": "convex deploy"
   },
   "dependencies": {
-    "@dbos-inc/dbos-sdk": "^5",
     "@ephyra/core": "workspace:*",
     "hono": "^4.13.17",
     "zod": "4",
     "@ephyra/ingest": "workspace:*",
     "@ephyra/journal": "workspace:*",
-    "@ephyra/policy": "workspace:*"
+    "@ephyra/policy": "workspace:*",
+    "convex": "1.49.0",
+    "@ephyra/evidence": "workspace:*",
+    "@ephyra/forge": "workspace:*",
+    "@ephyra/models": "workspace:*",
+    "@ephyra/agent": "workspace:*",
+    "@ephyra/runner": "workspace:*"
+  },
+  "devDependencies": {
+    "convex-test": "0.0.67"
   }
 }

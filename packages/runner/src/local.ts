@@ -141,7 +141,9 @@ export class LocalRunner implements Runner {
 
   async writeFile(handle: RunnerHandle, path: string, content: string | Uint8Array): Promise<void> {
     const target = await this.confined(handle, path, true);
-    await writeFile(target, content);
+    await mkdir(dirname(target), { recursive: true });
+    // Re-check after creating parents: a racing symlink must still be rejected.
+    await writeFile(await this.confined(handle, path, true), content);
   }
   async readFile(handle: RunnerHandle, path: string): Promise<Uint8Array | null> {
     try { return await readFile(await this.confined(handle, path)); } catch (error) {

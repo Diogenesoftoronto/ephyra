@@ -1,8 +1,8 @@
-// The contract every wiring module codes against. Implemented by wiring/runtime.ts (Postgres and memory);
+// The contract every wiring module codes against. Implemented in compose.ts over Convex or memory stores;
 // FakeContext below is for tests. Wiring modules export `xxxHandlers(ctx, deps)` returning a slice of
 // EffectHandlers, and register long-running work as jobs so no effect handler blocks the outbox.
 import type {
-  Actor, Clock, IdGen, InboxItem, Journal, SignalStore, Trail, TrailEvent, TrailEventBody,
+  Actor, Clock, Effect, IdGen, InboxItem, Journal, JournalFiles, SignalStore, Trail, TrailEvent, TrailEventBody,
 } from "@ephyra/core";
 import type { AutonomyPolicy, Thresholds } from "@ephyra/policy";
 import type { EffectHandlers } from "../orchestrator.ts";
@@ -22,7 +22,8 @@ export type RepoConfig = {
   remote: string;
 };
 
-export type EmitInput = { trail: string; actor: Actor } & TrailEventBody;
+/** `files` are written into the trail's journal tree with the event (hypothesis.md, artefacts/…). */
+export type EmitInput = { trail: string; actor: Actor; files?: JournalFiles } & TrailEventBody;
 
 export interface InboxStore {
   put(item: InboxItem & { id: string }): Promise<void>;
@@ -51,7 +52,7 @@ export interface ServerContext {
   /** Apply an event through the orchestrator (validates via the state machine, journals, dispatches effects). */
   emit(input: EmitInput): Promise<void>;
   /** Seed a newly created trail (from core createTrail) and dispatch its initial effects. */
-  start(trail: Trail, initial: TrailEvent): Promise<void>;
+  start(trail: Trail, initial: TrailEvent, effects?: Effect[]): Promise<void>;
   trails: {
     get(id: string): Promise<Trail | null>;
     list(filter?: { states?: Trail["state"][] }): Promise<Trail[]>;
@@ -68,7 +69,7 @@ export type HandlerSlice = Partial<EffectHandlers>;
 /** In-memory context for wiring-module tests. Records emitted events instead of running the state machine. */
 export class FakeContext implements ServerContext {
   emitted: EmitInput[] = [];
-  started: { trail: Trail; initial: TrailEvent }[] = [];
+  started: { trail: Trail; initial: TrailEvent; effects: Effect[] }[] = [];
   logs: { msg: string; fields?: Record<string, unknown> }[] = [];
   jobRunners = new Map<string, JobRunner>();
   queued: { kind: string; key: string; payload: unknown; runAt?: Date }[] = [];
@@ -119,8 +120,8 @@ export class FakeContext implements ServerContext {
   }
 
   async emit(input: EmitInput): Promise<void> { this.emitted.push(input); }
-  async start(trail: Trail, initial: TrailEvent): Promise<void> {
-    this.started.push({ trail, initial });
+  async start(trail: Trail, initial: TrailEvent, effects: Effect[] = []): Promise<void> {
+    this.started.push({ trail, initial, effects });
     this.put(trail);
   }
   log(msg: string, fields?: Record<string, unknown>): void { this.logs.push({ msg, fields }); }

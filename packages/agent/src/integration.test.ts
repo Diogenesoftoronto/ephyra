@@ -15,7 +15,8 @@ function fakeRunner(root: string): Runner {
   return {
     name: "fixture", capabilities: { checkpoint: "none", network: ["none"], shell: true, browser: false },
     async *exec(_handle, cmd, opts) {
-      const process = Bun.spawn(cmd, { cwd: opts.cwd ?? root, stdout: "pipe", stderr: "pipe" });
+      // Like real runners: cwd is relative to the sandbox workdir.
+      const process = Bun.spawn(cmd, { cwd: opts.cwd ? join(root, opts.cwd) : root, stdout: "pipe", stderr: "pipe" });
       const timer = setTimeout(() => process.kill(), opts.deadlineMs);
       const [stdout, stderr, exit] = await Promise.all([
         new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited,

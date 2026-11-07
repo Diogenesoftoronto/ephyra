@@ -24,13 +24,14 @@ export function evaluateWatch(
     return { rollback: true, criterion: "error rate exceeded baseline" };
   const advisories = obs.coverageGaps.map((gap) => `coverage gap: ${gap}`);
   if (obs.tracerNewClusters > 0) advisories.push("new tracer clusters");
-  if (obs.errorRate === null) advisories.push("error rate unavailable");
+  const rateApplies = config.routes.length > 0;
+  if (rateApplies && obs.errorRate === null) advisories.push("error rate unavailable");
   return {
     rollback: false,
     advisories,
     canClose:
       obs.elapsedS >= config.windowS &&
       obs.coverageGaps.length === 0 &&
-      obs.errorRate !== null,
+      (!rateApplies || obs.errorRate !== null),
   };
 }

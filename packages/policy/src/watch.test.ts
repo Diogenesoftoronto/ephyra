@@ -86,9 +86,13 @@ test("closure requires complete window and coverage; clusters are advisory", () 
   expect(
     evaluateWatch(config, { ...clean, coverageGaps: ["probe"] }, "low"),
   ).toMatchObject({ rollback: false, canClose: false });
+  // With routes to watch, a missing error rate blocks closure; with none, the criterion does not apply.
+  expect(
+    evaluateWatch({ ...config, routes: ["/cart"] }, { ...clean, errorRate: null }, "low"),
+  ).toMatchObject({ rollback: false, canClose: false });
   expect(
     evaluateWatch(config, { ...clean, errorRate: null }, "low"),
-  ).toMatchObject({ rollback: false, canClose: false });
+  ).toMatchObject({ rollback: false, canClose: true });
   expect(
     evaluateWatch(config, { ...clean, tracerNewClusters: 1 }, "low"),
   ).toMatchObject({

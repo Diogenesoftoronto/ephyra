@@ -11,7 +11,7 @@ FROM oven/bun:1.4.4-alpine
 RUN apk add --no-cache git su-exec
 WORKDIR /app
 COPY --from=deps /app /app
-ENV NODE_ENV=production PORT=3000 EPHYRA_JOURNAL_DIR=/data/journal.git
+ENV NODE_ENV=production PORT=3000 EPHYRA_DATA_DIR=/data
 COPY --chmod=755 infra/docker/server-entrypoint.sh /usr/local/bin/ephyra-entrypoint
 RUN mkdir -p /data && chown -R bun:bun /data /app
 # Starts as root only to fix volume ownership; the server itself runs as `bun`.
