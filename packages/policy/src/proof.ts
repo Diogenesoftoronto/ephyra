@@ -34,13 +34,12 @@ export function requiredProof(
   if (flags.ui) result.push("story_render", "story_interaction");
   if (risk !== "low") {
     result.push("regression_probes", "intent_probes", "bug_review");
-    if (flags.ui) result.push("story_visual_diff");
+    if (flags.ui) result.push("story_visual_diff", "visual_approval");
     if (flags.userFacing) result.push("persona_study");
   }
   if (risk === "high" || risk === "critical") {
     result.push("traffic_replay", "human_approval_c");
-    if (flags.ui)
-      result.push("recording_or_terminal_recording", "visual_approval");
+    if (flags.ui) result.push("recording_or_terminal_recording");
     if (flags.userFacing) result.push("voxq_study");
   }
   if (risk === "critical") result.push("critical_manual_landing");
@@ -67,6 +66,7 @@ export function evaluateProof(
             items.some(
               (item) =>
                 item.kind === "visual_approval" &&
+                item.by.trim().length > 0 &&
                 item.approved.includes(change),
             ),
           ),
