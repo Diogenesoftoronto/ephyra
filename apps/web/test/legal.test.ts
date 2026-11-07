@@ -125,9 +125,18 @@ describe("pricing", () => {
         const exact = (signals * extractionTokens * p.models[0].usd + signals * judgementTokens * p.models[1].usd) / 1e6;
         const shown = exampleTriageUsd(p);
         expect(shown + 1e-9).toBeGreaterThanOrEqual(exact);
+        expect(shown).toBeGreaterThan(0); // a real cost is never shown as $0
         expect(shown).toBeLessThan(exact + 0.01 + 1e-9);
         expect(Math.round(shown * 100)).toBeCloseTo(shown * 100, 6);
       }));
+  });
+
+  test("a sub-micro-dollar cost still shows as one cent (fast-check counterexample [1,1,1,6,5])", () => {
+    const p = structuredClone(pricing);
+    p.example = { signals: 1, extractionTokens: 1, judgementTokens: 1 };
+    p.models[0].usd = 6 / 1e4;
+    p.models[1].usd = 5 / 1e4;
+    expect(exampleTriageUsd(p)).toBe(0.01);
   });
 
   test("money keeps every significant decimal and at least two", () => {
