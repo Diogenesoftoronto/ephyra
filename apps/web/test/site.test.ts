@@ -135,7 +135,8 @@ describe("static site", () => {
     expect((await get(site(), "/assets/brand/logo.svg")).headers.get("content-type")).toBe("image/svg+xml");
     expect((await get(site(), "/.git/config")).status).toBe(404);
     expect((await get(site(), "/%2e%2e/package.json")).status).toBe(404);
-    expect((await get(site(), "/d/")).status).toBe(200); // the repo has it; the image does not copy it (Dockerfile.web)
+    // Cut D is an untracked draft, so the test must not depend on it; an unknown cut is simply a 404.
+    expect((await get(site(), "/zz/")).status).toBe(404);
   });
 
   test("the home cut has one URL: its folder and /index.html redirect home; folders without a slash get one", async () => {
