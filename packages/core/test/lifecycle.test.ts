@@ -1,0 +1,14 @@
+import { test, expect } from 'bun:test';
+import fc from 'fast-check';
+import { Trail } from '../src/schemas.ts';
+import { transition, fold } from '../src/lifecycle.ts';
+import type { TrailEvent, TransitionContext } from '../src/events.ts';
+const id = '00000000-0000-4000-8000-000000000001';
+const now = '2026-11-07T00:00:00Z';
+const ctx: TransitionContext = { now, blocking: { A: true, B: true, C: true }, landingModes: ['trail_ref'] };
+const trail = Trail.parse({ schema: 1, id, short: 'T-test', repo: 'repo', title: 'test', rev: 1, state: 'researching', signals: [id], area: 'a', risk: 'low', route: 'auto_fix', severity: 1, base: { ref: 'main', sha: 'a'.repeat(40) }, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 }, budget: { tokensUsed: 0, tokensMax: 1, wallclockMaxS: 1, spendMicrousdUsed: 0, spendMicrousdMax: 0 }, mirrors: {}, createdAt: now, updatedAt: now });
+const event = (body: object): TrailEvent => ({ schema: 1, id, trail: id, rev: 1, at: now, actor: { kind: 'system', id: 'test' }, ...body }) as TrailEvent;
+test('research requests A and shadow decision does not advance', () => { const r = transition(trail, event({ type: 'research_completed', data: { hypothesis: 'h' } }), ctx); expect(r.ok).toBe(true); if (!r.ok) return; expect(r.trail.state).toBe('hypothesised'); expect(r.effects[0]?.type).toBe('request_checkpoint'); const d = transition(r.trail, event({ type: 'checkpoint_decided', data: { checkpoint: 'A', decision: { by: 'policy', at: now, verdict: 'approve', shadow: true } } }), ctx); expect(d.ok && d.trail.state).toBe('hypothesised'); });
+test('random sequences are safe, schema valid, monotonic and deterministic', () => { fc.assert(fc.property(fc.array(fc.constantFrom('parked', 'resumed', 'killed', 'claimed_by_human', 'released_by_human', 'research_completed', 'new_signal')), names => { let t = trail; for (const [i, name] of names.entries()) { const e = event({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, type: name, data: name === 'parked' || name === 'killed' ? { reason: 'x' } : name === 'research_completed' ? { hypothesis: 'x' } : name === 'new_signal' ? { signalId: id } : {} }); const a = transition(t, e, ctx); expect(a).toEqual(transition(t, e, ctx)); if (a.ok) { expect(Trail.safeParse(a.trail).success).toBe(true); expect(a.trail.rev).toBeGreaterThanOrEqual(t.rev); expect(new Set(a.effects.map(x => x.key)).size).toBe(a.effects.length); t = a.trail; } } })); });
+test('terminal trails absorb events', () => { expect(transition({ ...trail, state: 'closed' }, event({ type: 'new_signal', data: { signalId: id } }), ctx).ok).toBe(false); });
+test('fold preserves ordered effects', () => { const e = event({ type: 'research_completed', data: { hypothesis: 'h' } }); expect(fold(trail, [e], ctx)).toEqual(transition(trail, e, ctx)); });
