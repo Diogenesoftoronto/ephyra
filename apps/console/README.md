@@ -1,10 +1,13 @@
 # Console
 
-This package is an incomplete foundation for the Ephyra browser console. Its HTTP client validates
-activity, usage, policy document and draft responses against core schemas. It accepts a session token
-and retains the operation key when a write has an ambiguous outcome.
+The console is an incomplete React/Vite application for the Ephyra control plane. It includes a
+validated HTTP client and an early navigation shell. Overview, Usage and Personas have partial views;
+Inbox and Workspace are placeholders and must not be used for decisions.
 
-Run `bun run --filter @ephyra/console typecheck` and `bun test apps/console` to check the client.
+Run `bun run --filter @ephyra/console dev` for development, `build` for the app, `storybook` for the
+component catalogue and `build-storybook` for a static build. Run `bun run --filter @ephyra/console
+typecheck` and `bun test apps/console` for focused checks.
 
-Unverified: integration with the server, authentication, and all browser behavior. The SPA, fake API,
-Storybook and screens have not yet been implemented.
+Verified: the app and Storybook build, and the client unit tests pass. Unverified: server integration,
+authentication and browser behavior. The fake API, remaining screens, generated forms, complete
+Storybook coverage and browser smoke tests are not implemented.
