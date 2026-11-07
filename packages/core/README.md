@@ -17,7 +17,7 @@ reproducing -- cannot reproduce --> parked
 landing -- base moved --> patching (rebase)
 watching -- regression --> rolled_back -- rollback completed --> researching (rev + 1)
 active -- pause --> parked -- resume --> previous state
-active -- claim --> handed_off -- release --> previous state
+hypothesised/planned/ready -- claim review --> handed_off -- owner release --> previous state
 active -- kill or checkpoint reject --> abandoned
 ```
 
@@ -40,8 +40,12 @@ without advancing, regardless of verdict. A research-only A approval parks and
 notifies. Revising A, B or C returns respectively to research, planning or patching.
 New proof, new signals during proof, base changes and human revisions invalidate a
 previous C approval. Human revisions increment the revision when the head changes,
-request proof, and keep the trail handed off; a completed proof sets the state to
-resume on release. Spend requests retain their purpose and amount until a non-shadow
+request proof, and require the current human owner. Successful proof keeps the held review at C;
+failed proof clears ownership before normal patching or parking. The owner can also release while
+already-enqueued proof continues, without starting or cancelling work. Claims populate the existing
+`Trail.owner` field, are exclusive, and are limited to checkpoint states. Workflow actions and decisions
+are refused while held; comments stay available. These are behavioural changes, with no new core
+exported shapes. Spend requests retain their purpose and amount until a non-shadow
 decision; approval starts the respondent run and rejection records the decision and
 continues without the run. No proof is inferred from that decision.
 

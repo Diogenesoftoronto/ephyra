@@ -105,6 +105,24 @@ current inbox item, the server refuses it before recording a decision. Trail det
 `hypothesis.md` and `plan.md` from the matching journal revision, plus the recorded proof events. Missing or moving
 journal content is returned as unavailable. No arbitrary file paths are accepted from the console.
 
+**Shared trail reviews.** `comment`, `claim` and `release` use the authenticated principal. Claims
+are allowed only at `hypothesised`, `planned` and `ready`; the existing `Trail.owner` records the
+reviewer. Only that owner can release. While held, workflow actions and checkpoint/spend decisions
+are refused; comments remain available to approvers. This is review ownership, not cancellation of
+an active agent. A failed proof ends ownership before normal patching or parking; an owner can release
+while already-enqueued proof remains in progress without restarting that work.
+
+These three writes accept an optional `Idempotency-Key` (the console always supplies one). A stable,
+principal/trail/action-scoped event ID deduplicates the intent against the durable journal inside the
+serialized engine. Changed content under the same key returns 409. A retry repairs a failed projection
+from the latest journal state. `GET /v1/trails/:id/operations/:action?key=…` reports `recorded` or
+`not_found` for the requesting principal; it never applies a write. Audit records are labelled request
+attempts, and comment text is excluded from operational logs and audit payloads. The journal retains
+the comment itself. Review bindings are checked again inside the serialized mutation.
+
+Old persisted `handed_off` trails without an owner require operator reconciliation. Ownership is not
+invented from those legacy states, whose original takeover could have left active work running.
+
 ## Verified and Unverified (console)
 
 Verified offline (no network): usage aggregation (property tests: totals equal the sum of the persona, engine and day groups; unknown
