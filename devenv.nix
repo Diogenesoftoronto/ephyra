@@ -13,6 +13,8 @@
   env.DATABASE_URL = "postgres://127.0.0.1:54329/ephyra";
 
   processes.server.exec = "bun run apps/server/src/main.ts";
+  processes.storybook.exec = "bun run --cwd apps/server storybook --no-open --host 127.0.0.1";
+  processes.textbook.exec = "bun run --cwd apps/cli textbook";
 
   enterTest = ''
     bun install
