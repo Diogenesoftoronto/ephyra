@@ -9,16 +9,20 @@ export class InvalidTransition extends Error {}
 export interface HttpPort {
   inbox(): Promise<InboxItem[]>;
   trails(state?: string): Promise<Trail[]>;
-  trail(id: string): Promise<{ trail: Trail; events: TrailEvent[] } | null>;
+  trail(id: string): Promise<{ trail: Trail; events: TrailEvent[]; artefacts?: { path: string; content: string | null }[] } | null>;
   /** Must atomically check the bound revision, record the decision and append its audit event. */
   decide(id: string, input: DecisionInput, principal: string): Promise<void>;
   action(id: string, action: string, input: unknown, principal: string): Promise<void>;
   /** Operator view: dead-lettered jobs and effects needing reconciliation. */
   ops?(): Promise<unknown>;
 }
-export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string };
-const decision = z.object({ checkpoint: z.enum(["A", "B", "C"]), verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
-const spendDecision = z.object({ verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
+export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string; bound?: InboxItem["bound"] };
+const reviewBound = z.object({ rev: z.number().int().positive(), head: z.string().optional(), proofDigest: z.string().optional() });
+const decision = z.object({
+  checkpoint: z.enum(["A", "B", "C"]), verdict: z.enum(["approve", "revise", "reject"]),
+  note: z.string().max(4000).optional(), bound: reviewBound.optional(),
+});
+const spendDecision = z.object({ verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional(), bound: reviewBound.optional() });
 
 /**
  * Who may change trails. When `requireSignIn` is set (Not Organic sign-in configured), decisions and actions
@@ -50,6 +54,10 @@ export function createApp(
     }
     return next();
   });
+  app.get("/v1/me", (c) => c.json({
+    principal: c.get("principal"), kind: c.get("principalKind"),
+    approver: !approval.requireSignIn || (c.get("principalKind") === "human" && approval.approvers.has(c.get("principal"))),
+  }));
   app.get("/v1/inbox", async (c) => c.json(await port.inbox()));
   app.get("/v1/trails", async (c) => c.json(await port.trails(c.req.query("state"))));
   app.get("/v1/trails/:id", async (c) => {

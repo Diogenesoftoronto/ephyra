@@ -157,7 +157,17 @@ describe("composed server", () => {
     expect(resume.status).toBe(200);
     for (const cp of ["A", "B", "C"]) {
       await until(async () => (await inbox()).some((i) => i.trailId === trail!.id && i.checkpoint === cp), `checkpoint ${cp}`);
-      const res = await decide(trail!.id, cp);
+      const items = await (await server.app.request("/v1/inbox", { headers: auth })).json() as
+        { trailId: string; checkpoint?: string; bound: { rev: number; head?: string; proofDigest?: string } }[];
+      const item = items.find((i) => i.trailId === trail!.id && i.checkpoint === cp)!;
+      const stale = await server.app.request(`/v1/trails/${trail!.id}/decide`, { method: "POST", headers: auth,
+        body: JSON.stringify({ checkpoint: cp, verdict: "approve", bound: { ...item.bound, rev: item.bound.rev + 1 } }) });
+      expect(stale.status).toBe(409);
+      const review = await (await server.app.request(`/v1/trails/${trail!.id}`, { headers: auth })).json() as
+        { artefacts: { path: string; content: string | null }[] };
+      expect(review.artefacts.find((a) => a.path === "hypothesis.md")?.content).toContain("divides by zero");
+      const res = await server.app.request(`/v1/trails/${trail!.id}/decide`, { method: "POST", headers: auth,
+        body: JSON.stringify({ checkpoint: cp, verdict: "approve", bound: item.bound }) });
       expect(res.status).toBe(200);
     }
     await until(async () => (await trails())[0]!.state === "watching", "landing");
