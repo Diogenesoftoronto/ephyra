@@ -1,3 +1,80 @@
+/* One framed workspace shared by setup and settings; forms remain ordinary semantic controls. */
+.workspace-bar + :is(.settings-page, .onboarding-page) {
+  margin-top: var(--s5);
+}
+.account-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-surface);
+}
+.account-layout-rail {
+  min-width: 0;
+  padding: var(--s5) var(--s3);
+  border-right: 1px solid var(--line);
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--surface-2);
+}
+.account-layout-content {
+  padding: var(--s6);
+  min-width: 0;
+}
+.account-panel-heading {
+  display: grid;
+  gap: var(--s2);
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--line);
+}
+.account-panel-heading h2 {
+  margin: 0;
+}
+.account-panel-heading p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--muted);
+}
+.account-panel-note {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  color: var(--muted);
+}
+.account-panel-note svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.account-panel-note p {
+  margin: 0;
+  font-size: var(--fs-small);
+}
+.account-repository-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  gap: var(--s4);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .account-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-layout-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+}
+@media (max-width: 600px) {
+  .account-layout-content {
+    padding: var(--s5) var(--s4);
+  }
+  .account-repository-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .account-form {
   display: grid;
   gap: var(--s4);
@@ -100,32 +177,45 @@
 }
 .account-provider-choice {
   display: flex;
-  align-items: flex-start;
-  gap: var(--s2);
+  align-items: center;
+  gap: var(--s3);
+  min-height: 52px;
   padding: var(--s3);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface);
   cursor: pointer;
   min-width: 0;
+  transition:
+    border-color 150ms,
+    background 150ms;
 }
 .account-provider-choice[data-provider="none"] {
   grid-column: 1 / -1;
 }
 .account-provider-choice > input {
-  width: auto;
+  appearance: none;
+  width: 16px;
+  height: 16px;
   flex: none;
-  margin-top: 0.25rem;
-  accent-color: var(--jelly-deep);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: none;
+}
+.account-provider-choice > input:checked {
+  border-color: var(--jelly-deep);
+  background: var(--jelly-deep);
+  box-shadow: inset 0 0 0 3px var(--surface);
+}
+.account-provider-choice strong {
+  font-weight: 600;
 }
 .account-provider-choice > span {
   display: grid;
   gap: var(--s1);
-}
-.account-provider-choice > span > span {
-  color: var(--muted);
-  font-size: var(--fs-small);
-  line-height: 1.45;
 }
 .account-provider-choice[data-selected] {
   border-color: var(--jelly-deep);
@@ -139,17 +229,16 @@
   cursor: default;
 }
 .account-form .account-advanced {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-block: 1px solid var(--line);
   padding: 0;
-  background: var(--surface-2);
+  background: transparent;
 }
 .account-form .account-advanced summary {
-  padding: var(--s3) var(--s4);
-  min-height: 44px;
+  padding: var(--s3) 0;
+  min-height: 48px;
 }
 .account-form .account-advanced-fields {
-  padding: var(--s3) var(--s4) var(--s4);
+  padding: var(--s3) 0 var(--s4);
   border-top: 1px solid var(--line);
 }
 .account-form .account-advanced-fields > .ui-button {
@@ -203,7 +292,17 @@
   }
 }
 @media (max-width: 450px) {
-  .account-provider-choices {
-    grid-template-columns: minmax(0, 1fr);
+  .account-provider-choice {
+    padding: var(--s3) var(--s2);
+    gap: var(--s2);
+  }
+  .account-provider-choice strong {
+    font-size: var(--fs-small);
+    overflow-wrap: anywhere;
+  }
+}
+@media (forced-colors: active) {
+  .account-provider-choice > input {
+    appearance: auto;
   }
 }

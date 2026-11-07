@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, PageHeader } from "../kit.ts";
+import { Button, Icon, PageHeader } from "../kit.ts";
 import {
   AccountSaveFeedback,
   ModelAccessForm,
@@ -12,6 +12,7 @@ import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
 import "./OnboardingPage.css";
 
 const steps = ["Repository", "Model access", "Review"];
+const stepHints = ["Connect your code", "Choose how agents work", "Open your workspace"];
 
 export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }: AccountPageProps) {
   const [step, setStep] = useState(() => (settings.repository ? (settings.model.provider === "none" ? 1 : 2) : 0));
@@ -38,7 +39,7 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
     <div className="onboarding-page">
       <PageHeader
         title="Make this workspace yours"
-        lede="Connect your code, choose model access, then start with your intent and autonomy policy."
+        lede="Connect your code and choose model access. You can finish setup later."
         actions={
           <Button
             variant="ghost"
@@ -50,31 +51,49 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
           </Button>
         }
       />
-      <nav aria-label="Setup progress">
-        <ol className="onboarding-steps">
-          {steps.map((label, index) => (
-            <li key={label}>
-              <button
-                type="button"
-                aria-current={step === index ? "step" : undefined}
-                disabled={locked}
-                onClick={() => setStep(index)}
-              >
-                <span className="onboarding-step-number" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span>{label}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-      {settings.onboarding.status === "skipped" && (
-        <p className="account-hint">You can pick up where you left off. Your saved connections are shown below.</p>
-      )}
-      <div className="onboarding-layout">
-        <Card className="onboarding-content">
-          <div className="onboarding-section-heading">
+      <div className="account-layout onboarding-layout">
+        <aside className="account-layout-rail onboarding-rail">
+          <div>
+            <span className="account-label onboarding-rail-label">Your starting point</span>
+            <nav aria-label="Setup progress">
+              <ol className="onboarding-steps">
+                {steps.map((label, index) => (
+                  <li key={label}>
+                    <button
+                      type="button"
+                      aria-current={step === index ? "step" : undefined}
+                      disabled={locked}
+                      onClick={() => setStep(index)}
+                    >
+                      <span className="onboarding-step-number" aria-hidden="true">
+                        {index + 1}
+                      </span>
+                      <span>
+                        <strong>{label}</strong>
+                        <small>{stepHints[index]}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </div>
+          <div className="onboarding-guide">
+            <div className="onboarding-guide-heading">
+              <PersonaAvatar persona="velum" size={32} />
+              <strong>Start with intent.</strong>
+            </div>
+            <p className="account-hint">
+              Tell Ephyra what matters. With model access, Velum can help you draft your intent.
+            </p>
+          </div>
+          <div className="onboarding-identity">
+            <Icon name="onboarding" />
+            <span>Signed in · Not Organic</span>
+          </div>
+        </aside>
+        <section className="account-layout-content onboarding-content">
+          <header className="account-panel-heading">
             <span className="account-label">Step {step + 1} of 3</span>
             <h2 ref={heading} tabIndex={-1}>
               {step === 0
@@ -83,14 +102,17 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
                   ? "How should agents access models?"
                   : "Ready to open your workspace"}
             </h2>
-            <p className="account-hint">
+            <p>
               {step === 0
                 ? "Ephyra checks the branch before connecting it to this account."
                 : step === 1
                   ? "Bring your own key or use your Not Organic account. You can also decide later."
                   : "These are your saved settings. You can change them any time in Settings."}
             </p>
-          </div>
+          </header>
+          {settings.onboarding.status === "skipped" && (
+            <p className="onboarding-resumed">Pick up where you left off. Your saved connections are still here.</p>
+          )}
           {step === 0 ? (
             <>
               <RepositoryForm
@@ -130,36 +152,15 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
             </>
           )}
           <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
-          {step > 0 && (
-            <Button variant="ghost" disabled={locked} onClick={() => setStep(step - 1)}>
-              Back to {steps[step - 1]?.toLowerCase()}
-            </Button>
-          )}
-        </Card>
-        <aside className="onboarding-aside">
-          <div className="onboarding-guide">
-            <PersonaAvatar persona="velum" size={48} />
-            <div>
-              <strong>Start with your intent</strong>
-              <p className="account-hint">
-                Write what your application should do and where it needs your approval. When model access is ready,
-                Velum can help you draft it.
-              </p>
-            </div>
+          <div className="onboarding-footer">
+            {step > 0 && (
+              <Button variant="ghost" disabled={locked} onClick={() => setStep(step - 1)}>
+                <span aria-hidden="true">←</span> Back to {steps[step - 1]?.toLowerCase()}
+              </Button>
+            )}
+            <span className="account-hint">No paid model requests during setup.</span>
           </div>
-          <div className="onboarding-note">
-            <span className="account-label">You stay in control</span>
-            <p>
-              Connecting a repository does not start code execution or deployment. Autonomous execution is not
-              configured.
-            </p>
-            <p className="account-hint">No paid model request runs during setup.</p>
-          </div>
-          <div className="onboarding-identity">
-            <span className="account-label">Signed in as</span>
-            <code>{settings.did}</code>
-          </div>
-        </aside>
+        </section>
       </div>
     </div>
   );

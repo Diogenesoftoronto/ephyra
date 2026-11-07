@@ -59,4 +59,5 @@ export const Error: StoryObj = {
   play: Loading.play,
 };
 export const Phone: StoryObj = { ...Initial, globals: { viewport: { value: "phone" } } };
+export const PhoneModelAccess: StoryObj = { ...ResumeModelAccess, globals: { viewport: { value: "phone" } } };
 export const Dark: StoryObj = { ...Review, parameters: { theme: "dark" } };

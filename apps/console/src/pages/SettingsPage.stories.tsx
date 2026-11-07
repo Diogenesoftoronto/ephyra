@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SettingsPage } from "./SettingsPage.tsx";
+import { SettingsPage, type SettingsSection } from "./SettingsPage.tsx";
 import {
   ACCOUNT_FIXTURE,
   CONNECTED_ACCOUNT_FIXTURE,
@@ -11,7 +11,7 @@ import {
 import { ApiError } from "../api.ts";
 const meta: Meta = { title: "Screens/SettingsPage" };
 export default meta;
-function SettingsStory({ options = {} }: { options?: FakeAccountOptions }) {
+function SettingsStory({ options = {}, section }: { options?: FakeAccountOptions; section?: SettingsSection }) {
   const [api] = useState(() => new FakeAccountApi(options));
   const [settings, setSettings] = useState(options.initial ?? ACCOUNT_FIXTURE);
   return (
@@ -24,15 +24,23 @@ function SettingsStory({ options = {} }: { options?: FakeAccountOptions }) {
         onDone={() => {}}
         onResumeSetup={() => {}}
         loadCatalog={loadAccountCatalogFixture}
+        initialSection={section}
       />
     </>
   );
 }
 export const Initial: StoryObj = { render: () => <SettingsStory /> };
 export const Connected: StoryObj = { render: () => <SettingsStory options={{ initial: CONNECTED_ACCOUNT_FIXTURE }} /> };
+export const ModelAccess: StoryObj = {
+  render: () => <SettingsStory section="models" options={{ initial: CONNECTED_ACCOUNT_FIXTURE }} />,
+};
+export const Account: StoryObj = {
+  render: () => <SettingsStory section="account" options={{ initial: CONNECTED_ACCOUNT_FIXTURE }} />,
+};
 export const SavedKey: StoryObj = {
   render: () => (
     <SettingsStory
+      section="models"
       options={{
         initial: {
           ...CONNECTED_ACCOUNT_FIXTURE,
@@ -81,3 +89,5 @@ export const Skipped: StoryObj = {
 };
 export const Dark: StoryObj = { ...Connected, parameters: { theme: "dark" } };
 export const Phone: StoryObj = { ...SavedKey, globals: { viewport: { value: "phone" } } };
+export const PhoneRepository: StoryObj = { ...Connected, globals: { viewport: { value: "phone" } } };
+export const DarkModelAccess: StoryObj = { ...SavedKey, parameters: { theme: "dark" } };

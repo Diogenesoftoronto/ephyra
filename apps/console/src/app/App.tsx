@@ -242,7 +242,7 @@ function Frame({
               <a href="#/onboarding">Resume setup →</a>
             </aside>
           )}
-        {voiceContext.kind !== "draft" && (
+        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && (
           <div className="voice-entry">
             <VoiceLauncher />
           </div>

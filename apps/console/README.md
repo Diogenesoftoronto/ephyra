@@ -44,6 +44,9 @@ and never calls a provider or a server. It is opt-in and visibly labelled.
 First sign-in opens a resumable repository → model access → review flow. **Explore first** saves setup for later.
 Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
+Settings groups Repository, Model access and Account into a section rail, which becomes a compact tab row on phones.
+Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
+leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses a matching step rail and a focused form.
 Keys start blank, can be replaced or removed, and are never stored in browser storage or returned by the server.
 Changing provider protocol or endpoint does not silently reuse a saved key.
 
@@ -99,12 +102,15 @@ bun run --filter @ephyra/console voice-interactions
 bun run --filter @ephyra/console tutor-interactions
 bun run --filter @ephyra/console multiplayer
 env -u LD_LIBRARY_PATH bun apps/console/scripts/signin.ts
+env -u LD_LIBRARY_PATH bun apps/console/scripts/account-layout.ts
 ```
 
 The sign-in browser harness checks the public app link, PKCE redirect/callback, protected cookie, reload,
 real policy-draft creation, server-side sign-out and account/workspace isolation at desktop and phone widths.
 It runs the real HTTP server with a fictional Not Organic gateway; hosted account authentication is a separate live check.
 Sign-in, manual connection and expired-session states are included in Storybook.
+The offline account layout check covers 320–1440px, retained unsaved fields, section keyboard navigation,
+optional setup, dark mode and reconciliation after an uncertain save. It captures the rendered Storybook screens.
 
 Build both the app and Storybook before `interactions`. The browser scripts start temporary loopback
 static servers, close them on completion, and use the installed Playwright Chromium headless shell.
@@ -128,7 +134,8 @@ production deployment and cloud/forge writes. Storybook/demo fixtures are not ev
 
 ## Voice
 
-**Talk with Velum** is available throughout the console. Overview and Usage conversations use a fresh server snapshot;
+**Talk with Velum** is available in the work screens; onboarding and Settings keep the focus on setup.
+Overview and Usage conversations use a fresh server snapshot;
 opening a trail or run supplies that resource's recorded context. These conversations explain the evidence and have
 no mutation tools. In an open document, spoken and typed turns use the same saved Velum thread, generated forms and
 reviewable proposals. Dirty, closed and read-only drafts retain their existing guards.
