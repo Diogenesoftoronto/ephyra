@@ -480,7 +480,9 @@ test("the walkthrough export renders every step at its exact size", async () => 
 	for (const s of data.steps) {
 		expect(s.wide).toHaveLength(30);
 		for (const row of s.wide) expect(width(row.map((x) => x[0]).join(""))).toBe(96);
-		for (const row of s.narrow) expect(width(row.map((x) => x[0]).join(""))).toBe(46);
+		for (const row of s.narrow) expect(width(row.map((x) => x[0]).join(""))).toBe(40);
+		// The phone frames are tall enough to hold everything: no "more below" marker.
+		expect(s.narrow.map((r) => r.map((x) => x[0]).join("")).join("\n"), s.id).not.toContain("↓ J");
 	}
 	// The landing page ships a copy. It must be this one, and its steps must be the page's steps, in order.
 	const site = `${import.meta.dir}/../../../site/e`;
@@ -490,4 +492,37 @@ test("the walkthrough export renders every step at its exact size", async () => 
 	const page = await Bun.file(`${site}/index.html`).text();
 	expect([...page.matchAll(/data-step="([a-z]+)"/g)].map((m) => m[1])).toEqual(data.steps.map((s) => s.id));
 	await Bun.file(out).delete();
+});
+
+test("writing a note: the hint row says how to send or cancel, and the end of a long note stays visible", () => {
+	let s: InboxState = { items: [DEMO_ITEMS.A, ...DEMO_OTHERS], selected: 0 };
+	s = inboxReducer(s, "r").state;
+	const note = "check the coupon path too, and the tax rounding on refunds, before anything else";
+	for (const ch of note) s = inboxReducer(s, ch).state;
+	const lines = renderInbox(s, 80, 24).split("\n");
+	const composer = lines.at(-2)!;
+	const hint = lines.at(-1)!;
+	expect(hint).toContain("enter send");
+	expect(hint).toContain("esc cancel");
+	expect(hint).not.toContain("approve");
+	expect(composer).toContain("revise T-4c1e0f ›");
+	expect(composer).toContain("…");
+	expect(composer).toContain("before anything else▏");
+});
+
+test("at checkpoint C, a approves and lands, and l isn't offered", () => {
+	const c = renderInbox({ items: [DEMO_ITEMS.C], selected: 0 }, 100, 30);
+	expect(c).toContain("a approve and land");
+	expect(c).not.toContain("l land");
+	const ready = { ...DEMO_ITEMS.C, kind: "notice" as const, checkpoint: undefined };
+	expect(renderInbox({ items: [ready], selected: 0 }, 100, 30)).toContain("l land");
+});
+
+test("under 60 columns the selected item gets the whole screen, with its place in the list", () => {
+	const s: InboxState = { ...loaded(DEMO_ITEMS.C, "proof"), selected: 0 };
+	const narrow = renderInbox(s, 40, 56);
+	expect(narrow).toContain("T-4c1e0f · 1 of 4");
+	expect(narrow).not.toContain("waiting ─");
+	expect(narrow).toContain("no findings (review-agent)");
+	expect(renderInbox(s, 70, 30)).toContain("waiting ─");
 });

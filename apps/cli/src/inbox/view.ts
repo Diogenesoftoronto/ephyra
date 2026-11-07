@@ -26,7 +26,7 @@ import {
 	type Activity,
 	type TrailStory,
 } from "./story";
-import { oneLine, trunc, width, wrap } from "./text";
+import { oneLine, tail, trunc, width, wrap } from "./text";
 
 export type Tone =
 	| "fg"
@@ -135,10 +135,10 @@ function glyph(item: InboxItem): Seg {
 	if (item.kind === "checkpoint")
 		return g(
 			item.checkpoint ?? "?",
-			item.blocking ? "amber" : "muted",
+			item.blocking ? "mint" : "muted",
 			item.blocking,
 		);
-	if (item.kind === "spend") return g("$", "amber", true);
+	if (item.kind === "spend") return g("$", "mint", true);
 	if (item.kind === "parked") return g("‖", "mint", true);
 	return g("!", "mint", true);
 }
@@ -156,7 +156,7 @@ function listLines(state: InboxState, w: number, rows: number): Line[] {
 		const fixed = 1 + width(item.short) + 2 + 1 + 2;
 		const room = w - fixed - lineWidth(sev) - 1;
 		const head: Line = [
-			g(sel ? "▌" : " ", "amber"),
+			g(sel ? "▌" : " ", "strong"),
 			g(item.short, sel ? "strong" : "fg", sel),
 			g("  "),
 			glyph(item),
@@ -165,7 +165,7 @@ function listLines(state: InboxState, w: number, rows: number): Line[] {
 		];
 		out.push(room >= 3 ? spread(head, sev, w) : row(head, w));
 		out.push([
-			g(sel ? "▌" : " ", "amber"),
+			g(sel ? "▌" : " ", "strong"),
 			g(oneLine(item.title), sel ? "fg" : "muted"),
 		]);
 		if (roomy && i < state.items.length - 1) out.push([]);
@@ -305,7 +305,7 @@ function markdown(text: string, w: number, name = ""): Line[] {
 		if (b) {
 			const lines = wrap(b[2]!.replace(/`/g, ""), w - 2 - b[1]!.length);
 			lines.forEach((t, i) =>
-				out.push([g(i ? "  " : `${b[1]}• `, i ? "fg" : "amber"), g(t)]),
+				out.push([g(i ? "  " : `${b[1]}• `, i ? "fg" : "muted"), g(t)]),
 			);
 			continue;
 		}
@@ -314,7 +314,7 @@ function markdown(text: string, w: number, name = ""): Line[] {
 			const lab = `${n[1]}${n[2]}. `;
 			wrap(n[3]!.replace(/`/g, ""), w - lab.length).forEach((t, i) =>
 				out.push([
-					g(i ? " ".repeat(lab.length) : lab, i ? "fg" : "amber"),
+					g(i ? " ".repeat(lab.length) : lab, i ? "fg" : "muted"),
 					g(t),
 				]),
 			);
@@ -335,7 +335,7 @@ function fileBlock(
 	file: FileEntry | undefined,
 	w: number,
 ): Line[] {
-	const head: Line = [g(name, "amber", true)];
+	const head: Line = [g(name, "strong", true)];
 	if (!file || file.status === "loading")
 		return [head, [g("loading…", "muted")]];
 	if (file.status === "missing")
@@ -469,9 +469,10 @@ function proofRows(bundle: ProofBundle, w: number): Line[] {
 				w - 2,
 			).map((l, n) => [n ? g("  ") : info, ...l]),
 		);
-		const paths = diff.paths.map(oneLine).join("  ");
-		for (const t of wrap(paths, w - 11))
-			out.push([g("           "), g(t, "muted")]);
+		// One path per line; a path too long for the column keeps its end, which is the part that identifies it.
+		const room = w - 11;
+		for (const p of diff.paths.map(oneLine))
+			out.push([g("           "), g(width(p) <= room ? p : `…${tail(p, room - 1)}`, "muted")]);
 	}
 	const review = items.find(
 		(i): i is Extract<ProofItem, { kind: "bug_review" }> =>
@@ -488,7 +489,7 @@ function proofRows(bundle: ProofBundle, w: number): Line[] {
 			out.push(
 				...fact("review", `${f.severity}: ${oneLine(f.text)}${at}`, w - 2).map(
 					(l, n) => [
-						n ? g("  ") : g("! ", bad ? "cherry" : "amber", true),
+						n ? g("  ") : g("! ", bad ? "cherry" : "mint", true),
 						...l,
 					],
 				),
@@ -510,9 +511,9 @@ function proofRows(bundle: ProofBundle, w: number): Line[] {
 function meta(item: InboxItem): Line {
 	const kind =
 		item.kind === "checkpoint"
-			? g(`checkpoint ${item.checkpoint}`, "amber", true)
+			? g(`checkpoint ${item.checkpoint}`, item.blocking ? "mint" : "strong", true)
 			: item.kind === "spend"
-				? g("spend", "amber", true)
+				? g("spend", "mint", true)
 				: g(item.kind, "mint", true);
 	const what =
 		item.kind === "checkpoint"
@@ -568,7 +569,7 @@ function activityLines(list: Activity[], w: number, max: number): Line[] {
 				: a.tone === "bad"
 					? "cherry"
 					: a.tone === "human"
-						? "mint"
+						? "strong"
 						: "fg";
 		const head = `${a.at.slice(11, 16)} ${trunc(a.who, 10).padEnd(10)} `;
 		const lines = wrap(oneLine(a.text), Math.max(8, w - head.length));
@@ -670,7 +671,7 @@ function trailBody(
 		if (story.proof) {
 			const b = story.proof.bundle;
 			out.push([
-				g("proof", "amber", true),
+				g("proof", "strong", true),
 				g(`  rev ${b.rev} · `, "muted"),
 				b.passed ? g("passed", "amber", true) : g("failed", "cherry", true),
 				g(` · ${b.items.length} items`, "muted"),
@@ -679,7 +680,7 @@ function trailBody(
 		} else
 			out.push(
 				[
-					g("proof", "amber", true),
+					g("proof", "strong", true),
 					g(`  none for rev ${story.rev} yet`, "muted"),
 				],
 				[],
@@ -694,7 +695,7 @@ function trailBody(
 					? `${oneLine(sp.purpose)} · up to ${usd(sp.microusd)}`
 					: oneLine(summary),
 				w,
-			).map((l) => l.map((x, j) => (j ? { ...x, tone: "amber" as Tone } : x))),
+			).map((l) => l.map((x, j) => (j ? { ...x, tone: "mint" as Tone } : x))),
 		);
 		out.push(
 			...fact(
@@ -778,7 +779,7 @@ function detailLines(
 	if (item.shadowVerdict)
 		out.push([
 			g("policy, in shadow mode, would ", "muted"),
-			g(item.shadowVerdict, "mint", true),
+			g(item.shadowVerdict, "strong", true),
 		]);
 	out.push([]);
 	if (!entry || entry.status === "loading") {
@@ -826,7 +827,7 @@ function evidenceLines(
 ): Line[] {
 	const out: Line[] = [
 		[
-			g("explain", "amber", true),
+			g("explain", "strong", true),
 			g(`  what ${item.short} is based on`, "muted"),
 		],
 		[],
@@ -887,7 +888,7 @@ function evidenceLines(
 		const score = typeof h.score === "number" ? ` ${h.score.toFixed(2)}` : "";
 		out.push(
 			spread(
-				[g(src.padEnd(8), "mint"), g(oneLine(String(h.title ?? "")), "fg")],
+				[g(src.padEnd(8), "strong"), g(oneLine(String(h.title ?? "")), "fg")],
 				[g(score, "muted")],
 				w,
 			),
@@ -901,14 +902,14 @@ function evidenceLines(
 
 export const KEYS: [string, string][] = [
 	["j k", "move between items"],
-	["a", "approve the checkpoint, or the spend"],
+	["a", "approve the checkpoint or the spend; at C, this lands it"],
 	["r", "send it back with a note"],
 	["x", "kill the trail, with a reason"],
 	["c", "comment; everyone on the trail sees it"],
 	["t", "take over: the agent stops, it's yours"],
 	["p", "park it, or resume it"],
 	["o", "open the landing or the agent's thread"],
-	["l", "land now (ready trails only)"],
+	["l", "land a ready trail whose proof is approved"],
 	["e", "explain: the evidence behind it"],
 	["J K", "scroll this pane"],
 	["esc", "back to the trail"],
@@ -916,7 +917,7 @@ export const KEYS: [string, string][] = [
 ];
 function helpLines(w: number): Line[] {
 	return [
-		[g("keys", "amber", true)],
+		[g("keys", "strong", true)],
 		[],
 		...KEYS.flatMap(([k, v]) =>
 			wrap(v, w - 8).map((t, i) => [
@@ -962,6 +963,17 @@ const HINTS: [string, string][] = [
 	["q", "quit"],
 ];
 function hints(state: InboxState, w: number): Line {
+	if (state.modal)
+		return row(
+			[
+				g(" "),
+				g("enter", "key", true),
+				g(" send  ", "muted"),
+				g("esc", "key", true),
+				g(" cancel", "muted"),
+			],
+			w,
+		);
 	const item = state.items[state.selected];
 	const can = availableKeys(item);
 	const out: Line = [g(" ")];
@@ -969,10 +981,16 @@ function hints(state: InboxState, w: number): Line {
 	let used = 1;
 	for (const [k, label] of HINTS) {
 		if (!can.has(k) || k === "?") continue;
-		const lab = k === "p" && item?.state === "parked" ? "resume" : label;
+		const lab =
+			k === "a" && item?.kind === "checkpoint" && item.checkpoint === "C"
+				? "approve and land"
+				: k === "p" && item?.state === "parked"
+					? "resume"
+					: label;
 		const cost = k.length + 1 + lab.length + 2;
 		if (used + cost > w - reserve) break;
-		out.push(g(k, "key", true), g(` ${lab}  `, "muted"));
+		const waiting = k === "a" && item?.blocking;
+		out.push(g(k, waiting ? "mint" : "key", true), g(` ${lab}  `, "muted"));
 		used += cost;
 	}
 	out.push(g("?", "key", true), g(" keys  ", "muted"));
@@ -982,16 +1000,11 @@ function hints(state: InboxState, w: number): Line {
 function message(state: InboxState, w: number): Line {
 	const item = state.items[state.selected];
 	if (state.modal) {
-		const tail = "  ⏎ send · esc cancel";
-		return row(
-			[
-				g(` ${state.modal.action} ${item?.short ?? ""} › `, "amber", true),
-				g(oneLine(state.modal.value).slice(-(w - 30))),
-				g("▏", "amber"),
-				g(tail, "muted"),
-			],
-			w,
-		);
+		const prefix = ` ${state.modal.action} ${item?.short ?? ""} › `;
+		const room = Math.max(1, w - width(prefix) - 1);
+		const note = oneLine(state.modal.value);
+		const shown = width(note) > room ? `…${tail(note, room - 1)}` : note;
+		return row([g(prefix, "strong", true), g(shown), g("▏", "strong")], w);
 	}
 	if (state.error)
 		return row(
@@ -999,7 +1012,7 @@ function message(state: InboxState, w: number): Line {
 			w,
 		);
 	if (state.notice)
-		return row([g(" ", "mint"), g(oneLine(state.notice), "mint")], w);
+		return row([g(" "), g(oneLine(state.notice), "strong")], w);
 	return row([], w);
 }
 
@@ -1058,6 +1071,12 @@ export function inboxView(state: InboxState, w = 80, h = 24): Line[] {
 			true,
 		);
 		for (let i = 0; i < bodyH; i++) lines.push([...left[i]!, g(" "), ...r[i]!]);
+	} else if (w < 60) {
+		// Under 60 columns the selected item gets the whole screen: reading the checkpoint matters more than the
+		// list. The title says where it sits in the list, and j/k move.
+		const pos = state.items.length ? ` · ${state.selected + 1} of ${state.items.length}` : "";
+		const title: Line = pane === "help" ? rightTitle : [...rightTitle, g(pos, "muted")];
+		lines.push(...box(title, right(w - 2, bodyH - 2), w, bodyH, state.scroll ?? 0, true));
 	} else {
 		const listH = Math.max(
 			3,
@@ -1110,7 +1129,7 @@ export function trailView(
 	out.push(
 		spread(
 			[
-				g(trail.short, "amber", true),
+				g(trail.short, "strong", true),
 				g("  "),
 				g(oneLine(trail.title), "strong", true),
 			],
@@ -1178,7 +1197,7 @@ export function trailsView(trails: Trail[], w = 80): Line[] {
 							: "fg";
 			return row(
 				[
-					g(t.short.padEnd(10), "amber"),
+					g(t.short.padEnd(10), "strong"),
 					g(t.state.replace("_", " ").padEnd(14), tone),
 					g(trunc(oneLine(t.area), 13).padEnd(14), "muted"),
 					g(t.risk.padEnd(9), "muted"),
