@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "description": "Control plane: HTTP API, DBOS workflows, Postgres projections, outbox.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit -p ." },
-  "dependencies": { "@ephyra/core": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@dbos-inc/dbos-sdk": "^5",
+    "@ephyra/core": "workspace:*",
+    "hono": "^4.13.17",
+    "zod": "4"
+  }
 }
