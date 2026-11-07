@@ -3,13 +3,13 @@
 import type {
   DecideBackend, ExtractBackend, ExtractionRequest, JudgementRequest,
 } from "@ephyra/core";
-import { NotOrganicDecide, NotOrganicExtract } from "@ephyra/models";
+import { NotOrganicDecide, NotOrganicExtract, type UsageHook } from "@ephyra/models";
 import type { NotOrganicSignIn } from "./notorganic.ts";
 
-async function options(signIn: NotOrganicSignIn, did: string, alias: string, purpose: "extract" | "decide.triage") {
+async function options(signIn: NotOrganicSignIn, did: string, alias: string, purpose: "extract" | "decide.triage", onUsage?: UsageHook) {
   const creds = await signIn.credentialsFor(did);
   return {
-    alias, purpose, endpoint: signIn.config.issuer, keys: creds.keys,
+    alias, purpose, endpoint: signIn.config.issuer, keys: creds.keys, ...(onUsage ? { onUsage } : {}),
     tokenProvider: { getAccessToken: async () => creds.token },
     // Same transport as sign-in (lets tests and proxies intercept both).
     http: { fetch: signIn.fetch as unknown as typeof fetch },
@@ -20,9 +20,9 @@ export class HostedDecide implements DecideBackend {
   readonly kind = "notorganic" as const;
   readonly alias = "notorganic-judgement";
   readonly supports = ["noul", "choice", "score"] as const;
-  constructor(private readonly signIn: NotOrganicSignIn, private readonly billingDid: string) {}
+  constructor(private readonly signIn: NotOrganicSignIn, private readonly billingDid: string, private readonly onUsage?: UsageHook) {}
   async decide(req: JudgementRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
-    const client = new NotOrganicDecide(await options(this.signIn, this.billingDid, this.alias, "decide.triage"));
+    const client = new NotOrganicDecide(await options(this.signIn, this.billingDid, this.alias, "decide.triage", this.onUsage));
     return client.decide({ model: "judgement", ...req }, opts);
   }
 }
@@ -30,9 +30,9 @@ export class HostedDecide implements DecideBackend {
 export class HostedExtract implements ExtractBackend {
   readonly kind = "notorganic" as const;
   readonly alias = "notorganic-extraction";
-  constructor(private readonly signIn: NotOrganicSignIn, private readonly billingDid: string) {}
+  constructor(private readonly signIn: NotOrganicSignIn, private readonly billingDid: string, private readonly onUsage?: UsageHook) {}
   async extract(req: ExtractionRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
-    const client = new NotOrganicExtract(await options(this.signIn, this.billingDid, this.alias, "extract"));
+    const client = new NotOrganicExtract(await options(this.signIn, this.billingDid, this.alias, "extract", this.onUsage));
     return client.extract({ model: "extraction", ...req }, opts);
   }
 }

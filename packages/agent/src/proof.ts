@@ -7,6 +7,9 @@ type UiRun = { command: string[]; parse: (output: string) => ProofItem[] };
 export type ProofOptions = {
   runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string; probe: string;
   testCommand?: string[]; ui?: UiRun[]; secrets?: string[]; deadlineMs?: number;
+  /** How many times the probe runs at each revision (default 3, integer 2..10). Every run must fail at base and pass at head; any
+   * disagreement means the probe is flaky and the proof is Unverified, never passed. */
+  probeRuns?: number;
   evaluate: (items: ProofItem[], trail: Trail) => { passed: boolean; missing: string[] } | Promise<{ passed: boolean; missing: string[] }>;
 };
 
@@ -63,6 +66,8 @@ export async function buildProof(options: ProofOptions): Promise<ProofBundle> {
   const { runner, handle, trail, base, head, probe } = options;
   if (![base, head].every(sha => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(sha))) throw new Error("invalid commit id");
   if (!/^\.ephyra\/repro\/[\w.-]+\.sh$/.test(probe)) throw new Error("invalid probe path");
+  const runs = options.probeRuns ?? 3;
+  if (!Number.isInteger(runs) || runs < 2 || runs > 10) throw new Error("probeRuns must be an integer from 2 to 10");
   const end = Date.now() + (options.deadlineMs ?? 300_000);
   const remaining = () => {
     const ms = end - Date.now();
@@ -87,11 +92,17 @@ export async function buildProof(options: ProofOptions): Promise<ProofBundle> {
     const tests: TestResult[] = [];
     let suite = "";
     for (let i = 0; i < 2; i++) {
-      const result = await execute(runner, handle, ["sh", ".ephyra-probe.sh"], remaining(), paths[i]);
-      if ((i === 0 && result.exit === 0) || (i === 1 && result.exit !== 0)) throw new Unverified("probe outcome");
-      items.push(i === 0
-        ? { kind: "repro_before", probe, result: "fail", log: redact(result.stdout + result.stderr, options.secrets) }
-        : { kind: "repro_after", probe, result: "pass", log: redact(result.stdout + result.stderr, options.secrets) });
+      const logs: string[] = [];
+      for (let n = 0; n < runs; n++) {
+        const result = await execute(runner, handle, ["sh", ".ephyra-probe.sh"], remaining(), paths[i]);
+        if ((i === 0 && result.exit === 0) || (i === 1 && result.exit !== 0)) {
+          if (n === 0) throw new Unverified("probe outcome");
+          throw new Unverified(`flaky probe: run ${n + 1} of ${runs} at ${i === 0 ? "base" : "head"} disagreed with run 1`);
+        }
+        logs.push(`Run ${n + 1} (exit ${result.exit}):\n${redact(result.stdout + result.stderr, options.secrets)}`);
+      }
+      const log = `${runs} of ${runs} runs ${i === 0 ? "failed" : "passed"}.\n` + logs.join("\n");
+      items.push(i === 0 ? { kind: "repro_before", probe, result: "fail", log } : { kind: "repro_after", probe, result: "pass", log });
       const command = options.testCommand ?? await detectTest(runner, handle, paths[i]!, remaining());
       suite = command.join(" ");
       const test = await execute(runner, handle, command, remaining(), paths[i]);

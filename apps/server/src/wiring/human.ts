@@ -94,7 +94,19 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
     trails: (state) => ctx.trails.list(state ? { states: [state as Trail["state"]] } : undefined),
     async trail(id) {
       const trail = await ctx.trails.get(id) ?? (await ctx.trails.list()).find((t) => t.short === id) ?? null;
-      return trail ? { trail, events: await ctx.trails.events(trail.id) } : null;
+      if (!trail) return null;
+      const events = await ctx.trails.events(trail.id);
+      // Only journal-owned review documents. Never accept arbitrary application paths from the browser.
+      const paths = ["hypothesis.md", "plan.md"];
+      const before = await ctx.journal.read(trail.id);
+      const artefacts = await Promise.all(paths.map(async (path) => {
+        const bytes = before?.trail.rev === trail.rev ? await ctx.journal.readFile(trail.id, path) : null;
+        return { path, content: bytes && bytes.length <= 500_000 ? new TextDecoder().decode(bytes) : null };
+      }));
+      const after = await ctx.journal.read(trail.id);
+      // A moved journal cannot supply the text for the reviewed revision. The caller can reload.
+      if (before?.head !== after?.head) for (const a of artefacts) a.content = null;
+      return { trail, events, artefacts };
     },
     // The route has already checked `path` with isReadableFile; unknown trails read as missing.
     async file(id, path) {
@@ -110,6 +122,10 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       const bound = item?.bound;
       if (!bound || bound.rev !== trail.rev || bound.head !== trail.head || bound.proofDigest !== digest) {
         throw new StaleApproval("the trail changed since this item was created");
+      }
+      if (input.bound && (input.bound.rev !== bound.rev || input.bound.head !== bound.head
+        || input.bound.proofDigest !== bound.proofDigest)) {
+        throw new StaleApproval("the reviewed item was replaced; reload before deciding");
       }
       const decision: Decision = {
         by: "human", who: principal, at: new Date().toISOString(), verdict: input.verdict,

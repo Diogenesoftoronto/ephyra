@@ -10,6 +10,18 @@ Ephyra is a design for an open-source system that keeps a running application he
 | [design/01-product-and-loop.md](design/01-product-and-loop.md) | Fable | Trail state machine, sensing, intents, System One triage schemas, autonomy policy, proof bundles, event→action table, MVP |
 | [design/02-platform.md](design/02-platform.md) | Astra (Codex) | Forge adapters (Radicle / Tangled / plain git), git ref layout, DBOS durable execution, telemetry, sandboxes, model/account registry, Railway + self-host service maps, security |
 
+## Implemented application
+
+The [web console](apps/console/README.md) now implements Overview, Inbox, Usage, Runs, Workspace and Personas.
+It reads recorded work and spend, follows agent transcripts, reviews checkpoint evidence, and edits policy drafts
+with Velum and validated generated forms. Publishing writes a policy git ref for later landing. It does not apply
+the policy to production. Cut E remains the public homepage; the console is served separately at `/app/`.
+
+The component catalogue is in `apps/console` Storybook. Local tests cover the console/server contract and policy
+publication into a temporary git repository; browser checks use clearly labelled fixtures. Live provider,
+account and cloud/forge verification is tracked in the [server README](apps/server/README.md).
+The design comparison and roadmap below are the original proposal, not a claim that every integration is live.
+
 ## Where it sits
 
 What you described as "sort of like trails" turns out to be **Entire Trails**, which launched on Oct 26 2026 to replace PRs. A trail can start from a bug report or an agent. Review agents score every push, and Gates enforce human approval. But Entire Trails needs a repo hosted on Entire or mirrored from GitHub. Ephyra is the self-hostable, forge-agnostic version, and it starts from production:
@@ -65,7 +77,7 @@ Ephyra still uses Entire's open-source CLI. Its checkpoints are plain git refs, 
 3. **M2, hunting and autonomy:** traffic replay, property tests and tracer-bullet hunters; `autonomy.md` evaluated by Jev; auto-land for `low` areas; Clef as the self-hosted decision backend.
 4. **M3, Tangled and multiplayer:** Tangled pull landing, multiplayer claims, agent intent probes.
 
-## Open questions for you
+## Questions from the original design brief
 
 1. **"notorganic"** and **"voxq"**: I couldn't identify either. Both are disabled placeholder slots, one in the provider registry and one in the evidence sources. What are they?
 2. **Hosted Jev**: is it OK for the always-on tier to depend on hosted Jev, with Clef as the self-hosted fallback? Or must triage be fully self-hostable from day one? (Jev's weights aren't public, and Clairic's are only "promised".)
@@ -73,4 +85,4 @@ Ephyra still uses Entire's open-source CLI. Its checkpoints are plain git refs, 
 
 ## Not yet verified
 
-These items are flagged in 02 §8: Tangled pull/issue write payloads and service-auth NSIDs; whether Radicle and Tangled replicate custom `refs/ephyra/*`; whether Nix builds work inside Railway Sandboxes; DBOS behavior when external writes have ambiguous outcomes. No costs or cold-start times were measured. Everything above is design, not running code.
+These items are flagged in 02 §8: Tangled pull/issue write payloads and service-auth NSIDs; whether Radicle and Tangled replicate custom `refs/ephyra/*`; whether Nix builds work inside Railway Sandboxes; DBOS behavior when external writes have ambiguous outcomes. No costs or cold-start times were measured in the design work. See the package READMEs for implementation and verification status.

@@ -1,0 +1,15 @@
+.ledger {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  min-width: 0;
+  width: 100%;
+}
+.ledger > :first-child {
+  width: 100%;
+}
+.ledger-note {
+  margin: 0.25rem 0 0;
+  max-width: 24rem;
+  font-size: 0.85rem;
+}

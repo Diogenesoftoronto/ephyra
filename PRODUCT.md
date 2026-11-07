@@ -1,38 +1,42 @@
-# Ephyra
+# Ephyra product
 
 ## Register
 
-brand
+product
 
 ## Users
 
-Developers and operators evaluating self-hosted software that investigates production errors and proposes fixes on their own git forge.
+Operators and developers of self-hosted applications, reviewing agent work and costs at their desk or from a phone.
 
 ## Product Purpose
 
-Explain the trail from signal to evidence, repro, patch, proof, approval, landing and watch. Let visitors inspect the same sample in a graphical workspace or real CLI output, read the evidence, and try discussion and handoff in a local demo. This is pre-alpha, not an install-ready product promise.
+Turn production signals into git-backed trails, let humans decide at checkpoints, and make agent activity, spend and autonomy visible.
+The React console complements the terminal inbox. Cut E remains the public home page.
 
 ## Brand Personality
 
-Gelatinous, lit-from-behind, exacting. The established specimen-lab and gelatin direction is defined in design/brand/BRAND.md. Cut E uses the immortal jellyfish life cycle to explain repair.
+Gelatinous, lit-from-behind, exacting. The established specimen-lab identity comes from design/brand/BRAND.md and Cut E.
 
 ## Anti-references
 
-No cyberpunk neon jellyfish, purple-to-blue SaaS gradients, editorial serif-plus-mono imitation, invented testimonials or benchmarks. Keep the approved artwork and rack-focus hero.
+No cyberpunk jellyfish, purple-to-blue SaaS gradients, invented metrics, or simulated work presented as live.
 
 ## Design Principles
 
-- Explain self-hosting and pre-alpha status on the first screen.
-- Show real CLI output with a persistent sample-data label.
-- Keep graphical and terminal views on the same trail and moment.
-- Put discussion and human control beside the work; distinguish local demo behavior from networked collaboration.
-- Use open reading surfaces, soft membrane edges, and curved connections from the selected Connected Notes concept.
-- Make human checkpoints and approval consequences explicit.
-- Use colour for state: mint for signals and waiting, amber for accepted work, cherry for undo.
-- Make proof inspectable on phones without shrinking it beyond readability.
+- Put blocking decisions and exceptions before history and totals.
+- Tie every review to the revision and evidence the person saw.
+- Keep unknown costs, unavailable providers and missing evidence explicit.
+- Distinguish saved drafts, published policy refs and policy in effect.
+- Keep the actual screens and their interactive states in Storybook.
 
 ## Accessibility & Inclusion
 
-Keyboard access, visible focus, readable contrast in both themes, and a complete reduced-motion presentation. Scroll effects supplement readable copy; full terminal screens must be available as selectable text.
+Keyboard navigation, labelled forms, readable text contrast in both themes, mobile layouts and reduced-motion stills.
 
-Context: design/brand/BRAND.md, the landing-page review fixes, and output/jellyware-exploration/manifest.json. The exploration's personas and scores are design assessments, not user research.
+The existing design/05-console.md and design/brand/PERSONAS.md are the detailed product and asset contracts.
+
+## Public landing walkthrough
+
+Cut E explains the same sample trail through graphical and terminal views. Keep its sample label visible, human checkpoints explicit, and proof readable on phones. The selected Connected Notes direction uses open reading surfaces, soft membrane edges, and curved connections.
+
+The landing discussion is a local browser demo, separate from the authenticated console. Full terminal screens stay available as selectable text. The 30-concept exploration lives in output/jellyware-exploration/manifest.json; its personas and scores are design assessments, not user research.

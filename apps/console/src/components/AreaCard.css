@@ -1,0 +1,24 @@
+.area-body {
+  display: grid;
+  gap: 0.8rem;
+}
+.area-card-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.area-intent,
+.area-paths {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.area-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+}
+.area-check {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
