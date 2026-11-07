@@ -1,0 +1,43 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "rust"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "logRecords": [
+            {
+              "severityNumber": 17,
+              "timeUnixNano": "1700000000000000000",
+              "attributes": [
+                {
+                  "key": "exception.type",
+                  "value": {
+                    "stringValue": "Error"
+                  }
+                },
+                {
+                  "key": "exception.stacktrace",
+                  "value": {
+                    "stringValue": "thread panicked\n  0: service::handler\n    at src/main.rs:12:3"
+                  }
+                }
+              ],
+              "body": {
+                "stringValue": "failed"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
