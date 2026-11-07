@@ -25,3 +25,19 @@ test("Entire filters unrecorded checkpoint IDs and fails closed", async () => {
   expect(filterToCheckpoints(hits, [])).toEqual([]);
   await expect(new EntireEvidence(".", [], async () => { throw new Error(); }).search({ text: "x", limit: 1 })).rejects.toThrow("unverified");
 });
+
+
+test("Entire falls back to text when JSON is unsupported and reports unavailability", async () => {
+  const { Unavailable } = await import("./src/index.ts");
+  let calls = 0;
+  const source = new EntireEvidence(".", ["abcdef123456"], async () => {
+    calls++;
+    return calls === 1
+      ? { code: 1, stdout: "", stderr: "unknown flag: --json" }
+      : { code: 0, stdout: "abcdef123456 checkpoint example\nabcdef999999 other", stderr: "" };
+  });
+  expect((await source.search({ text: "example", limit: 5 })).map(hit => hit.id)).toEqual(["abcdef123456"]);
+  expect(calls).toBe(2);
+  await expect(new EntireEvidence(".", [], async () => ({ code: 1, stdout: "", stderr: "not enabled" }))
+    .search({ text: "x", limit: 1 })).rejects.toBeInstanceOf(Unavailable);
+});

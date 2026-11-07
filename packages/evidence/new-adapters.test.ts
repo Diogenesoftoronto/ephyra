@@ -18,3 +18,25 @@ test("Voxq blocks unapproved spend before a request", () => {
   expect(() => client.publish("study", { by: "policy", at: "2026-01-01T00:00:00Z", verdict: "approve" }, "key"))
     .toThrow(SpendNotApproved);
 });
+
+
+test("OpenObserve route and trace queries use the documented request and surface gaps", async () => {
+  const requests: { url: string; body: any; auth: string | null }[] = [];
+  const fake = (async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)),
+      auth: new Headers(init?.headers).get("authorization") });
+    return Response.json({ hits: [] });
+  }) as typeof fetch;
+  const opts = { url: "https://example.test", org: "my org", stream: "logs", authorization: "Basic abc",
+    from: new Date(1000), to: new Date(2000) };
+  const source = new OpenObserveEvidence(opts, fake);
+  await source.search({ text: "", route: "/orders", limit: 7 });
+  await source.search({ text: "", traceId: "trace-1", limit: 4 });
+  expect(requests[0]?.url).toBe("https://example.test/api/my%20org/_search");
+  expect(requests[0]?.auth).toBe("Basic abc");
+  expect(requests[0]?.body.query).toEqual({ sql: `SELECT * FROM "logs" WHERE "route" = '/orders'`,
+    start_time: 1000000, end_time: 2000000, from: 0, size: 7 });
+  expect(requests[1]?.body.query.sql).toContain(`"trace_id" = 'trace-1'`);
+  const incomplete = new OpenObserveEvidence(opts, (async () => Response.json({ hits: [], is_partial: true })) as typeof fetch);
+  await expect(incomplete.search({ text: "x", limit: 1 })).rejects.toThrow("unverified");
+});
