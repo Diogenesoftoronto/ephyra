@@ -22,3 +22,19 @@ test("script exhaustion and unsupported budgets fail closed", async () => {
   await expect(new MockAgent([]).run()).rejects.toThrow();
   await expect(new ClaudeCodeAgent("model").run(task, {} as never, {} as never)).rejects.toThrow("token budget");
 });
+
+test("malformed review output is a typed failure", async () => {
+  const { reviewStep, ReviewOutputError } = await import("./review");
+  const runner = {
+    async *exec() {
+      yield { stream: "stdout" as const, chunk: "diff" };
+      yield { exit: 0, durationMs: 1, timedOut: false };
+    },
+  };
+  const agent = new MockAgent([{
+    ok: true, artefacts: { "review.json": "not json" }, outputs: {},
+    usage: { tokens: 0, costMicrousd: null, model: "mock" }, sessions: [],
+  }]);
+  await expect(reviewStep(agent, task, runner as never, {} as never, "a".repeat(40), "b".repeat(40)))
+    .rejects.toBeInstanceOf(ReviewOutputError);
+});
