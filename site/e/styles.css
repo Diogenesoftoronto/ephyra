@@ -1,0 +1,226 @@
+/* Ephyra · cut E "Immortal"
+   The immortal jellyfish's life cycle is the fix loop. Up is production, down is git, and the creature travels between them.
+   One stanza is pinned on the left. Scroll pulls focus down it a line at a time and drives the drawing on the canvas.
+   Without full motion the page is its own end state: the stanza in focus beside the whole cycle.
+   Tokens match cuts A and D. Dark theme is applied twice: for system preference (unless forced light) and when forced. */
+
+:root {
+  --bg: oklch(0.975 0.012 85);
+  --ink: oklch(0.24 0.03 60);
+  --muted: oklch(0.45 0.03 65);
+  --jelly: oklch(0.74 0.162 68);
+  --jelly-deep: oklch(0.52 0.135 52);
+  --glow: oklch(0.55 0.11 180);
+  --cherry: oklch(0.56 0.19 24);
+  --on-jelly: oklch(0.2 0.03 60);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .6) inset, 0 8px 24px -16px oklch(0.52 0.135 52 / .45);
+  --water-top: oklch(0.955 0.02 222);
+  --water-mid: oklch(0.968 0.014 150);
+
+  --font-display: "Anybody", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
+
+  --gutter: clamp(1.25rem, 4vw, 3rem);
+  --head-h: 4rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --fs-head: clamp(2.3rem, min(5.2vw, 8.4svh), 4.6rem);
+  --fs-line: clamp(1.15rem, min(2vw, 3.4svh), 1.9rem);
+  --fs-close: clamp(1.25rem, min(2.3vw, 3.9svh), 2.2rem);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.165 0.022 250);
+    --ink: oklch(0.95 0.015 85);
+    --muted: oklch(0.74 0.025 80);
+    --jelly-deep: oklch(0.80 0.15 72);
+    --glow: oklch(0.86 0.13 178);
+    --cherry: oklch(0.72 0.17 24);
+    --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+    --water-top: oklch(0.245 0.038 230);
+    --water-mid: oklch(0.195 0.03 240);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.165 0.022 250);
+  --ink: oklch(0.95 0.015 85);
+  --muted: oklch(0.74 0.025 80);
+  --jelly-deep: oklch(0.80 0.15 72);
+  --glow: oklch(0.86 0.13 178);
+  --cherry: oklch(0.72 0.17 24);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+  --water-top: oklch(0.245 0.038 230);
+  --water-mid: oklch(0.195 0.03 240);
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html.motion { scroll-snap-type: y proximity; }
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-x: clip;
+}
+img, svg, canvas { display: block; max-width: 100%; }
+h1, p { margin: 0; }
+a { color: inherit; text-decoration-color: var(--jelly); text-decoration-thickness: 2px; text-underline-offset: .2em; }
+a:hover { text-decoration-color: var(--jelly-deep); }
+:focus-visible { outline: 2px solid var(--jelly); outline-offset: 3px; border-radius: 6px; }
+
+/* ---------- header: logo and one link ---------- */
+.bar {
+  position: fixed; inset: 0 0 auto; z-index: 20;
+  height: calc(var(--head-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--gutter) 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  background: linear-gradient(var(--water-top) 40%, transparent);
+}
+.logo {
+  display: inline-flex; align-items: center; gap: .55rem;
+  font-family: var(--font-display); font-weight: 680; font-stretch: 90%; font-size: 1.35rem; letter-spacing: -.01em;
+  text-decoration: none;
+}
+.logo img { width: 28px; height: 28px; }
+.bar-link { font-size: .95rem; font-weight: 600; padding: .5rem 0; }
+.bar-nav { display: flex; gap: clamp(1rem, 3vw, 1.75rem); }
+.bar-nav .bar-link { text-decoration-color: transparent; }
+.bar-nav .bar-link:hover { text-decoration-color: var(--jelly); }
+
+/* ---------- reel: a tall scroll track with the stage pinned inside it ---------- */
+.reel { position: relative; --step: 80svh; overflow-x: clip; }   /* clip, not hidden: it keeps the stage sticky */
+.motion .reel { height: calc(100svh + (var(--n) - 1) * var(--step)); }
+
+/* The stage is full-bleed so the production and git lines can cross the whole page; padding centres the content. */
+.stage {
+  --pad-x: max(var(--gutter), calc((100% - 96rem) / 2));
+  position: relative;
+  min-height: 100svh;
+  padding: calc(var(--head-h) + env(safe-area-inset-top) + 1.5svh) var(--pad-x) 4svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);   /* shared, so a landscape phone still gets a real drawing */
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: clamp(2rem, 5vw, 6rem);
+  align-items: center;
+  background: linear-gradient(180deg, var(--water-top) 0%, var(--water-mid) 46%, var(--bg) 100%);
+}
+.motion .stage { position: sticky; top: 0; height: 100svh; }
+
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+html:not(.js) .scene, html:not(.js) .tag, html:not(.js) .plate { display: none; }
+.scene-box { grid-column: 2; grid-row: 1; align-self: stretch; min-height: 0; }
+
+/* Labels for the two lines the drawing hangs between. JS places them. */
+.tag {
+  position: absolute; left: 0; top: 0; z-index: 1;
+  font: 600 .68rem/1 var(--font-body); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; pointer-events: none;
+}
+.plate {
+  position: absolute; left: 0; top: 0; z-index: 1;
+  display: grid; justify-items: start; gap: .1rem;
+  color: var(--muted); font-size: .8rem; line-height: 1.3; white-space: nowrap; pointer-events: none;
+}
+.plate i { color: var(--ink); font-size: .98rem; }
+
+/* The copy column is a window. When the stanza is taller than it, JS glides the stanza so the focus stays in view. */
+.copy {
+  grid-column: 1; grid-row: 1; position: relative; z-index: 2;
+  align-self: stretch; min-height: 0; display: flex; flex-direction: column; justify-content: center;
+}
+.motion .copy { overflow: hidden; margin-inline: calc(var(--gutter) * -.75); padding-inline: calc(var(--gutter) * .75); }
+.copy.overflows {
+  justify-content: flex-start;
+  /* JS grows each fade only while there is text hidden past that edge */
+  -webkit-mask-image: linear-gradient(transparent, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bot, 2.5rem)), transparent);
+  mask-image: linear-gradient(transparent, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bot, 2.5rem)), transparent);
+}
+.stanza { position: relative; flex: none; max-width: 40rem; padding: .25em 0; }
+.copy.overflows .stanza { padding: .25rem 0 1.25rem; }
+.ph { display: inline-block; }   /* lines break between phrases, never mid-phrase */
+
+/* ---------- the stanza ---------- */
+.ln {
+  margin-top: .55em;
+  font-family: var(--font-display); font-weight: 560; font-stretch: 92%;
+  font-size: var(--fs-line); line-height: 1.1; letter-spacing: -.006em;
+  text-wrap: balance;
+}
+.ln-head {
+  margin: 0 0 .32em;
+  font-size: var(--fs-head); font-weight: 790; font-stretch: 84%;
+  line-height: .94; letter-spacing: -.016em;
+}
+.ln-close { margin-top: .85em; font-size: var(--fs-close); font-weight: 650; }
+.motion .ln { cursor: pointer; will-change: filter, opacity; }
+.motion .ln.is-focus { cursor: auto; }
+
+/* Color is state, and only state: mint is a signal, amber is work that holds, cherry is an undo. */
+.mint { color: var(--glow); }
+.amber { color: var(--jelly-deep); }
+.cherry { color: var(--cherry); }
+.hl { text-decoration: underline 1px dotted var(--muted); text-underline-offset: .22em; }   /* the two words that name the drawing's lines */
+
+.cta { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.5rem; }
+.btn {
+  display: inline-flex; align-items: center; min-height: 48px; padding: .7rem 1.35rem;
+  border-radius: 999px; background: var(--jelly); color: var(--on-jelly);
+  font-weight: 600; text-decoration: none; box-shadow: var(--shadow-gel);
+  transition: transform 150ms var(--ease-out);
+}
+.btn:hover { transform: translateY(-1px); }
+.status { color: var(--muted); font-size: .95rem; }
+.cta:focus-within { opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+
+/* ---------- scroll cue (no words) ---------- */
+.cue { display: none; }
+.motion .cue {
+  display: block; position: absolute; z-index: 2; left: 50%; top: calc(100% - 3rem); width: 22px; height: 22px;
+  color: var(--muted);
+  animation: bob 2.4s var(--ease-out) infinite;
+}
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+/* ---------- snap points, one per stop ---------- */
+.snaps { display: none; }
+.motion .snaps { display: block; position: absolute; inset: 0; pointer-events: none; }
+.snaps i { position: absolute; left: 0; top: calc(var(--k) * var(--step)); width: 1px; height: 1px; scroll-snap-align: start; }
+
+.foot { padding: 2.5rem var(--gutter) 3rem; color: var(--muted); font-size: .9rem; text-align: center; }
+.foot-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem 1.25rem; margin-bottom: 1rem; }
+.foot-nav a { display: inline-block; padding: .35rem 0; }
+
+/* ---------- narrow or portrait: the drawing on top, the stanza below ---------- */
+@media (max-width: 47.5rem), (max-aspect-ratio: 5/6) {
+  .stage {
+    --scene-h: clamp(15rem, 47svh, 34rem);
+    --fs-head: clamp(2.3rem, 7vw, 3.6rem);
+    --fs-line: clamp(1.15rem, 3vw, 1.6rem);
+    --fs-close: clamp(1.25rem, 3.4vw, 1.85rem);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--scene-h) minmax(0, 1fr);
+    row-gap: clamp(.75rem, 2.5svh, 1.75rem);
+    align-items: stretch;
+    padding-top: calc(var(--head-h) + env(safe-area-inset-top));
+  }
+  .scene-box { grid-column: 1; grid-row: 1; }
+  .copy { grid-column: 1; grid-row: 2; }
+  html:not(.motion) .copy { justify-content: flex-start; }
+  .stanza { max-width: 34rem; }
+  .plate { display: flex; align-items: baseline; gap: .45em; font-size: .72rem; }
+  .plate i { font-size: .8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}

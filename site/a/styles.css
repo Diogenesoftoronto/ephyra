@@ -172,7 +172,7 @@ p { max-width: var(--measure); }
 @keyframes arms { 0%,70%,100% { transform: scaleY(1); } 22% { transform: scaleY(1.12); } 45% { transform: scaleY(.96); } }
 .wordmark { position: relative; height: 28px; display: inline-flex; align-items: center; }
 .wordmark img { position: absolute; left: 0; top: 0; height: 28px; width: auto; }
-.wordmark::after { content: ""; position: absolute; left: 0; top: 0; width: 96px; height: 28px; background: var(--ink); -webkit-mask: url("assets/brand/wordmark.svg") left center / contain no-repeat; mask: url("assets/brand/wordmark.svg") left center / contain no-repeat; opacity: 0; }
+.wordmark::after { content: ""; position: absolute; left: 0; top: 0; width: 96px; height: 28px; background: var(--ink); -webkit-mask: url("../assets/brand/wordmark.svg") left center / contain no-repeat; mask: url("../assets/brand/wordmark.svg") left center / contain no-repeat; opacity: 0; }
 .wordmark.has-img > img { opacity: 0 !important; }
 .wordmark.has-img::after { opacity: 1; }
 .wordmark-fb { font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; letter-spacing: -0.02em; font-variation-settings: "wdth" 118; line-height: 1; }

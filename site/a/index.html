@@ -10,11 +10,11 @@
 <meta name="theme-color" content="#161c27" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Ephyra · Software that sets itself">
 <meta property="og:description" content="Self-driving fixes for production, on forges you own, without pull requests. A design, not yet a product.">
-<meta property="og:image" content="assets/og/og.png">
+<meta property="og:image" content="../assets/og/og.png">
 <meta property="og:type" content="website">
-<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
 <script>
   // Theme before first paint. Tokens live on :root; data-theme overrides the system preference.
   try { var t = localStorage.getItem('ephyra-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -22,14 +22,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:ital,wdth,wght@0,50..150,100..900;1,50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
-<link rel="preload" as="image" href="assets/video/hero-loop-poster.webp" fetchpriority="high">
+<link rel="preload" as="image" href="../assets/video/hero-loop-poster.webp" fetchpriority="high">
 <link rel="stylesheet" href="styles.css">
 <script type="module" src="main.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
-<!-- Fallback icon symbols: soft gelatin shapes with a top-left specular. Replaced by assets/icons/sprite.svg when it loads. -->
+<!-- Fallback icon symbols: soft gelatin shapes with a top-left specular. Replaced by ../assets/icons/sprite.svg when it loads. -->
 <svg class="sr-defs" aria-hidden="true" focusable="false" width="0" height="0">
   <defs>
     <linearGradient id="fb-gel" x1="0" y1="0" x2="1" y2="1">
@@ -74,11 +74,11 @@
   <a class="brand" href="#top" aria-label="Ephyra, home">
     <span class="mark" data-swap-img>
       <svg class="mark-fb" viewBox="0 0 32 32" aria-hidden="true"><g class="bell"><path d="M16 4.5c-1.4 3.3-3.3 5-6.6 5.6 2.2 2.6 2.6 5 1.4 8.3 3.2-1 5.4-.5 7.2 2 1.8-2.5 4-3 7.2-2-1.2-3.3-.8-5.7 1.4-8.3-3.3-.6-5.2-2.3-6.6-5.6z" fill="var(--jelly)" fill-opacity=".9"/><circle cx="16" cy="13.6" r="4.4" fill="var(--jelly-deep)" fill-opacity=".9"/><ellipse cx="13.9" cy="11.6" rx="1.7" ry=".9" fill="#fff" fill-opacity=".9" transform="rotate(-30 13.9 11.6)"/></g><path class="arms" d="M11 23c-.6 2.3-1.8 4-3.6 5.2M16 24.5v5M21 23c.6 2.3 1.8 4 3.6 5.2" fill="none" stroke="var(--jelly)" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <img src="assets/brand/logo-animated.svg" alt="" width="32" height="32" decoding="async">
+      <img src="../assets/brand/logo-animated.svg" alt="" width="32" height="32" decoding="async">
     </span>
     <span class="wordmark" data-swap-img>
       <span class="wordmark-fb">ephyra</span>
-      <img src="assets/brand/wordmark.svg" alt="" width="96" height="28" decoding="async">
+      <img src="../assets/brand/wordmark.svg" alt="" width="96" height="28" decoding="async">
     </span>
   </a>
   <nav class="site-nav" aria-label="Sections">
@@ -91,11 +91,11 @@
     <a href="#jellyware">Jellyware</a>
   </nav>
   <div class="head-tools">
-    <a class="cut-switch" href="b/" title="Compare with the other landing page">cut&nbsp;A · see&nbsp;B</a>
+    <a class="cut-switch" href="../b/" title="Compare with the other landing page">cut&nbsp;A · see&nbsp;B</a>
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="Theme: system" title="Theme: system">
       <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><g class="t-sys"><rect x="3" y="4.5" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 20h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g><g class="t-light"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g><g class="t-dark"><path d="M14.5 3.5a8.5 8.5 0 1 0 6 13.4A7 7 0 0 1 14.5 3.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></g></svg>
     </button>
-    <a class="btn btn-small" href="../README.md" data-squash>Read the design</a>
+    <a class="btn btn-small" href="../../README.md" data-squash>Read the design</a>
   </div>
 </header>
 
@@ -106,10 +106,10 @@
   <div class="hero-media" aria-hidden="true">
     <canvas class="gel-canvas" data-gel width="16" height="9"></canvas>
     <div class="hero-plate" data-swap-img>
-      <img class="hero-poster" src="assets/video/hero-loop-poster.webp" alt="" width="2400" height="1350" fetchpriority="high" decoding="async">
-      <video class="hero-video" data-video muted loop playsinline preload="none" poster="assets/video/hero-loop-poster.webp" width="2400" height="1350" tabindex="-1">
-        <source src="assets/video/hero-loop.webm" type="video/webm">
-        <source src="assets/video/hero-loop.mp4" type="video/mp4">
+      <img class="hero-poster" src="../assets/video/hero-loop-poster.webp" alt="" width="2400" height="1350" fetchpriority="high" decoding="async">
+      <video class="hero-video" data-video muted loop playsinline preload="none" poster="../assets/video/hero-loop-poster.webp" width="2400" height="1350" tabindex="-1">
+        <source src="../assets/video/hero-loop.webm" type="video/webm">
+        <source src="../assets/video/hero-loop.mp4" type="video/mp4">
       </video>
     </div>
     <div class="hero-vignette"></div>
@@ -121,13 +121,13 @@
     </h1>
     <p class="lede">Ephyra is a design for open-source, self-hostable self-driving software. A production error becomes a <strong>trail</strong>: evidence, repro, patch, proof, landing, watch. Trails live in git on Radicle, Tangled or plain git. There is no pull request. Humans approve from a keyboard inbox exactly where policy says they must.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="../README.md" data-squash>Read the design</a>
+      <a class="btn btn-primary" href="../../README.md" data-squash>Read the design</a>
       <button class="chip chip-cmd" type="button" data-copy="devenv up" data-squash aria-label="Copy devenv up to clipboard. Not available yet.">
         <code>devenv up</code><span class="soon">soon</span>
       </button>
       <a class="link-quiet" href="#follow">Follow along</a>
     </div>
-    <p class="hero-note">Design docs: <a href="../design/01-product-and-loop.md">product and loop</a> · <a href="../design/02-platform.md">platform</a>. Nothing below is running code yet.</p>
+    <p class="hero-note">Design docs: <a href="../../design/01-product-and-loop.md">product and loop</a> · <a href="../../design/02-platform.md">platform</a>. Nothing below is running code yet.</p>
   </div>
 </section>
 
@@ -189,9 +189,9 @@
   <div class="trails-grid">
     <figure class="clip" data-clip="trail-loop" data-swap-img>
       <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><path d="M20 120 C 90 120, 110 50, 160 50 S 230 120, 300 120" fill="none" stroke="var(--jelly)" stroke-opacity=".45" stroke-width="18" stroke-linecap="round"/><circle cx="300" cy="120" r="22" fill="url(#blob-grad)"/><circle cx="160" cy="50" r="9" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/><circle cx="20" cy="120" r="9" fill="var(--glow)"/></svg></div>
-      <img src="assets/motion/trail-loop-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
-      <video data-video muted loop playsinline preload="none" poster="assets/motion/trail-loop-poster.webp" width="1280" height="720" tabindex="-1">
-        <source src="assets/motion/trail-loop.webm" type="video/webm"><source src="assets/motion/trail-loop.mp4" type="video/mp4">
+      <img src="../assets/motion/trail-loop-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="../assets/motion/trail-loop-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="../assets/motion/trail-loop.webm" type="video/webm"><source src="../assets/motion/trail-loop.mp4" type="video/mp4">
       </video>
       <figcaption>One trail: signal to set, with checkpoints A, B and C as beads.</figcaption>
     </figure>
@@ -251,7 +251,7 @@ number on screen and by email within one minute.</code></pre>
     </figure>
   </div>
   <div class="specimen specimen-signal" data-swap-img aria-hidden="true">
-    <img src="assets/img/specimen-signal.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+    <img src="../assets/img/specimen-signal.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
   </div>
 </section>
 
@@ -264,9 +264,9 @@ number on screen and by email within one minute.</code></pre>
   <div class="judgement-grid">
     <figure class="clip clip-wide" data-clip="dedupe-merge" data-swap-img>
       <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><g filter="url(#goo)"><circle cx="120" cy="90" r="30" fill="var(--glow)" fill-opacity=".9"/><circle cx="165" cy="96" r="22" fill="var(--glow)" fill-opacity=".9"/><circle cx="196" cy="78" r="16" fill="var(--glow)" fill-opacity=".9"/></g><ellipse cx="108" cy="76" rx="9" ry="4.5" fill="#fff" fill-opacity=".85" transform="rotate(-30 108 76)"/></svg></div>
-      <img src="assets/motion/dedupe-merge-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
-      <video data-video muted loop playsinline preload="none" poster="assets/motion/dedupe-merge-poster.webp" width="1280" height="720" tabindex="-1">
-        <source src="assets/motion/dedupe-merge.webm" type="video/webm"><source src="assets/motion/dedupe-merge.mp4" type="video/mp4">
+      <img src="../assets/motion/dedupe-merge-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="../assets/motion/dedupe-merge-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="../assets/motion/dedupe-merge.webm" type="video/webm"><source src="../assets/motion/dedupe-merge.mp4" type="video/mp4">
       </video>
       <figcaption>Dedupe: three signals with one root cause fuse into one trail.</figcaption>
     </figure>
@@ -345,9 +345,9 @@ number on screen and by email within one minute.</code></pre>
     <div class="humans-aside">
       <figure class="clip" data-clip="inbox-approve" data-swap-img>
         <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><rect x="60" y="54" width="200" height="72" rx="14" fill="url(#blob-grad)"/><ellipse cx="86" cy="70" rx="12" ry="6" fill="#fff" fill-opacity=".85" transform="rotate(-25 86 70)"/><text x="160" y="98" text-anchor="middle" font-family="Martian Mono, monospace" font-size="22" fill="#fff" fill-opacity=".95">a</text></svg></div>
-        <img src="assets/motion/inbox-approve-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
-        <video data-video muted loop playsinline preload="none" poster="assets/motion/inbox-approve-poster.webp" width="1280" height="720" tabindex="-1">
-          <source src="assets/motion/inbox-approve.webm" type="video/webm"><source src="assets/motion/inbox-approve.mp4" type="video/mp4">
+        <img src="../assets/motion/inbox-approve-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <video data-video muted loop playsinline preload="none" poster="../assets/motion/inbox-approve-poster.webp" width="1280" height="720" tabindex="-1">
+          <source src="../assets/motion/inbox-approve.webm" type="video/webm"><source src="../assets/motion/inbox-approve.mp4" type="video/mp4">
         </video>
         <figcaption>A human checkpoint is a firm press: the jelly squashes, then springs back.</figcaption>
       </figure>
@@ -364,9 +364,9 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
       </div>
       <figure class="clip" data-clip="smartlog-stack" data-swap-img>
         <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><g fill="url(#blob-grad)"><rect x="110" y="120" width="100" height="22" rx="11"/><rect x="118" y="90" width="84" height="22" rx="11" opacity=".85"/><rect x="126" y="60" width="68" height="22" rx="11" opacity=".7"/><rect x="134" y="30" width="52" height="22" rx="11" opacity=".55"/></g><circle cx="80" cy="131" r="6" fill="var(--glow)"/></svg></div>
-        <img src="assets/motion/smartlog-stack-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
-        <video data-video muted loop playsinline preload="none" poster="assets/motion/smartlog-stack-poster.webp" width="1280" height="720" tabindex="-1">
-          <source src="assets/motion/smartlog-stack.webm" type="video/webm"><source src="assets/motion/smartlog-stack.mp4" type="video/mp4">
+        <img src="../assets/motion/smartlog-stack-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <video data-video muted loop playsinline preload="none" poster="../assets/motion/smartlog-stack-poster.webp" width="1280" height="720" tabindex="-1">
+          <source src="../assets/motion/smartlog-stack.webm" type="video/webm"><source src="../assets/motion/smartlog-stack.mp4" type="video/mp4">
         </video>
         <figcaption>Optional: with Sapling, a trail is a draft stack in your smartlog. <code>sl amend</code> is a take-over.</figcaption>
       </figure>
@@ -396,7 +396,7 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
     </div>
   </div>
   <div class="specimen specimen-forge" data-swap-img aria-hidden="true">
-    <img src="assets/img/specimen-forge.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+    <img src="../assets/img/specimen-forge.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
   </div>
 </section>
 
@@ -411,15 +411,15 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
     </div>
     <figure class="clip clip-tall" data-clip="set-vs-rollback" data-swap-img>
       <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><path d="M60 130c0-30 16-50 44-50s44 20 44 50z" fill="url(#blob-grad)"/><ellipse cx="86" cy="98" rx="10" ry="5" fill="#fff" fill-opacity=".9" transform="rotate(-25 86 98)"/><path d="M180 130c0-18 10-30 30-30 26 0 50 14 50 30 0 10-14 12-26 8-10-3-16 8-30 4-14-4-24-2-24-12z" fill="var(--cherry)" fill-opacity=".8"/><path d="M226 134c0 10-2 18-2 24" stroke="var(--cherry)" stroke-width="7" stroke-linecap="round"/></svg></div>
-      <img src="assets/motion/set-vs-rollback-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
-      <video data-video muted loop playsinline preload="none" poster="assets/motion/set-vs-rollback-poster.webp" width="1280" height="720" tabindex="-1">
-        <source src="assets/motion/set-vs-rollback.webm" type="video/webm"><source src="assets/motion/set-vs-rollback.mp4" type="video/mp4">
+      <img src="../assets/motion/set-vs-rollback-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="../assets/motion/set-vs-rollback-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="../assets/motion/set-vs-rollback.webm" type="video/webm"><source src="../assets/motion/set-vs-rollback.mp4" type="video/mp4">
       </video>
       <figcaption>Set: the wobble decays, the highlight sharpens. Rollback: it slumps and drips back.</figcaption>
     </figure>
   </div>
   <div class="specimen specimen-set" data-swap-img aria-hidden="true">
-    <img src="assets/img/specimen-set.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+    <img src="../assets/img/specimen-set.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
   </div>
 </section>
 
@@ -429,9 +429,9 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
     <h2 id="follow-title" class="display-2" data-elastic>Follow along.</h2>
     <p>Ephyra is a design, written on 6 November 2026. The milestones are set, the open questions are listed, and no line of it runs yet. The first dogfood target is a real multi-service app on Radicle, devenv and Railway. Read the documents, argue with them, and watch this page change.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="../README.md" data-squash>Read the design</a>
-      <a class="btn" href="../design/01-product-and-loop.md" data-squash>Product and loop</a>
-      <a class="btn" href="../design/02-platform.md" data-squash>Platform</a>
+      <a class="btn btn-primary" href="../../README.md" data-squash>Read the design</a>
+      <a class="btn" href="../../design/01-product-and-loop.md" data-squash>Product and loop</a>
+      <a class="btn" href="../../design/02-platform.md" data-squash>Platform</a>
     </div>
     <ol class="milestones">
       <li><strong>M0</strong> one service, one loop, one human: a production error becomes a landed, watched fix and the only key pressed is <kbd>a</kbd></li>
@@ -449,7 +449,7 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
   <div class="foot-brand">
     <span class="mark" data-swap-img>
       <svg class="mark-fb" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4.5c-1.4 3.3-3.3 5-6.6 5.6 2.2 2.6 2.6 5 1.4 8.3 3.2-1 5.4-.5 7.2 2 1.8-2.5 4-3 7.2-2-1.2-3.3-.8-5.7 1.4-8.3-3.3-.6-5.2-2.3-6.6-5.6z" fill="var(--jelly)" fill-opacity=".9"/><circle cx="16" cy="13.6" r="4.4" fill="var(--jelly-deep)" fill-opacity=".9"/><path d="M11 23c-.6 2.3-1.8 4-3.6 5.2M16 24.5v5M21 23c.6 2.3 1.8 4 3.6 5.2" fill="none" stroke="var(--jelly)" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <img src="assets/brand/logo.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
+      <img src="../assets/brand/logo.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
     </span>
     <p><strong>Ephyra</strong> is a working name. An ephyra is the juvenile, free-swimming stage of a jellyfish: the first step toward jellyware.</p>
   </div>

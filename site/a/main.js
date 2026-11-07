@@ -95,10 +95,10 @@ class Spring {
   });
 })();
 
-/* ---------------- icon sprite: swap inline fallbacks for assets/icons/sprite.svg ---------------- */
+/* ---------------- icon sprite: swap inline fallbacks for ../assets/icons/sprite.svg ---------------- */
 (async () => {
   try {
-    const res = await fetch('assets/icons/sprite.svg', { cache: 'force-cache' });
+    const res = await fetch('../assets/icons/sprite.svg', { cache: 'force-cache' });
     if (!res.ok) return;
     const text = await res.text();
     if (!text.includes('<symbol')) return;
