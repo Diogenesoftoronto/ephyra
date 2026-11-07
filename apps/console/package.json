@@ -12,6 +12,7 @@
     "test": "bun test src",
     "smoke": "env -u LD_LIBRARY_PATH bun scripts/smoke.ts",
     "interactions": "env -u LD_LIBRARY_PATH bun scripts/interactions.ts",
+    "multiplayer": "env -u LD_LIBRARY_PATH bun scripts/multiplayer.ts",
     "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts"
   },
   "dependencies": {

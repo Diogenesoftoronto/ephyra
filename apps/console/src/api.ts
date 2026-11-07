@@ -80,6 +80,9 @@ export type DraftView = z.infer<typeof DraftView>;
 /** One decoded SSE frame: a run event, or the terminal `end` frame with the run's final status. */
 export type RunFrame = { kind: "event"; event: AgentRunEvent } | { kind: "end"; status: AgentRun["status"] };
 export type TrailAction = "comment" | "claim" | "release" | "park" | "resume";
+export type SharedTrailAction = Extract<TrailAction, "comment" | "claim" | "release">;
+export const TrailOperation = z.object({ status: z.enum(["recorded", "not_found"]) });
+export type TrailOperation = z.infer<typeof TrailOperation>;
 
 /**
  * Everything the console needs from the server. `ConsoleClient` speaks HTTP; `FakeApi` (src/fake) is the
@@ -99,7 +102,9 @@ export interface ConsoleApi {
   usage(query?: UsageQuery): Promise<UsageSummary>;
   entries(query?: EntriesQuery): Promise<EntriesPage>;
   inbox(): Promise<InboxEntry[]>;
-  trail(id: string): Promise<TrailDetail>;
+  trail(id: string, signal?: AbortSignal): Promise<TrailDetail>;
+  /** Check this authenticated principal's durable receipt without repeating a write. */
+  trailOperation(id: string, action: SharedTrailAction, operationKey: string): Promise<TrailOperation>;
   decide(
     trailId: string,
     input: {
@@ -203,7 +208,7 @@ export class ConsoleClient implements ConsoleApi {
     readonly principal?: string,
   ) {}
 
-  async request<T>(path: string, schema: z.ZodType<T>, options?: WriteOptions): Promise<T> {
+  async request<T>(path: string, schema: z.ZodType<T>, options?: WriteOptions, signal?: AbortSignal): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
     if (this.principal) headers["X-Ephyra-Principal"] = this.principal;
     if (options) {
@@ -212,13 +217,17 @@ export class ConsoleClient implements ConsoleApi {
     }
     let response: Response;
     try {
-      response = await this.fetcher(new URL(path, this.baseUrl), {
+      const fetcher = this.fetcher;
+      response = await fetcher(new URL(path, this.baseUrl), {
         method: options?.method ?? "GET",
         headers,
+        cache: "no-store",
+        ...(signal ? { signal } : {}),
         ...(options ? { body: JSON.stringify(options.body) } : {}),
       });
-    } catch {
+    } catch (error) {
       if (options) throw new UnknownWriteOutcome(options.operationKey);
+      if (signal?.aborted) throw error;
       throw new Error("API connection failed");
     }
     if (!response.ok) {
@@ -258,8 +267,14 @@ export class ConsoleClient implements ConsoleApi {
   inbox() {
     return this.request("/v1/inbox", z.array(InboxItemSchema));
   }
-  trail(id: string) {
-    return this.request(`/v1/trails/${encodeURIComponent(id)}`, TrailDetailSchema);
+  trail(id: string, signal?: AbortSignal) {
+    return this.request(`/v1/trails/${encodeURIComponent(id)}`, TrailDetailSchema, undefined, signal);
+  }
+  trailOperation(id: string, action: SharedTrailAction, operationKey: string) {
+    return this.request(
+      `/v1/trails/${encodeURIComponent(id)}/operations/${action}${query({ key: operationKey })}`,
+      TrailOperation,
+    );
   }
   async decide(
     trailId: string,
@@ -319,7 +334,8 @@ export class ConsoleClient implements ConsoleApi {
     const url = new URL(`/v1/runs/${encodeURIComponent(id)}/events${query({ after })}`, this.baseUrl);
     let response: Response;
     try {
-      response = await this.fetcher(url, {
+      const fetcher = this.fetcher;
+      response = await fetcher(url, {
         headers: {
           Authorization: `Bearer ${this.token}`,
           Accept: "text/event-stream",

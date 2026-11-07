@@ -21,6 +21,7 @@ import {
   type InboxEntry,
   type PolicyDocView,
   type RunsQuery,
+  type SharedTrailAction,
   type TrailAction,
   type TrailDetail,
   type UsageQuery,
@@ -60,6 +61,8 @@ export type FakeOptions = {
   movedTrails?: readonly string[];
   /** When false, writes by this principal answer 403. */
   approver?: boolean;
+  /** Exact authenticated actor used in the demo's comments and review claims. */
+  principal?: string;
   velumUnavailable?: boolean;
   /** Publishing answers 409 as if the live document moved. */
   publishConflict?: boolean;
@@ -91,6 +94,7 @@ export class FakeApi implements ConsoleApi {
   private docList: PolicyDocView[];
   private draftMap = new Map<string, Draft>();
   private ops = new Map<string, unknown>();
+  private trailOps = new Map<string, string>();
   private runBundles: RunBundle[];
   private released = new Map<string, number>();
   private refreshed = new Set<string>();
@@ -121,7 +125,7 @@ export class FakeApi implements ConsoleApi {
 
   async identity() {
     await this.gate("identity");
-    return { principal: ME, kind: "human" as const, approver: this.options.approver !== false };
+    return { principal: this.options.principal ?? ME, kind: "human" as const, approver: this.options.approver !== false };
   }
 
   // ── plumbing ──
@@ -299,6 +303,16 @@ export class FakeApi implements ConsoleApi {
     return structuredClone({ trail, events: this.events.get(id) ?? [] });
   }
 
+  private trailOpKey(id: string, action: TrailAction, op: string): string {
+    return JSON.stringify([this.options.principal ?? ME, id, action, op]);
+  }
+
+  async trailOperation(id: string, action: SharedTrailAction, operationKey: string) {
+    await this.gate("trailOperation");
+    if (!this.trails.some((t) => t.id === id)) throw new ApiError(404, "not found");
+    return { status: this.trailOps.has(this.trailOpKey(id, action, operationKey)) ? "recorded" as const : "not_found" as const };
+  }
+
   async docs() {
     await this.gate("docs");
     return structuredClone(this.docList.map((d) => this.withMap(d)));
@@ -357,6 +371,7 @@ export class FakeApi implements ConsoleApi {
         throw new ApiError(409, "the reviewed item changed");
       const trail = this.trails.find((t) => t.id === trailId);
       if (!trail) throw new ApiError(404, "not found");
+      if (trail.state === "handed_off") throw new ApiError(409, "release the review claim before deciding");
       if (this.options.staleTrails?.includes(trailId) && !this.refreshed.has(trailId)) {
         this.refreshBinding(trail);
         throw new ApiError(409, "approval is stale");
@@ -364,7 +379,7 @@ export class FakeApi implements ConsoleApi {
       this.writes.push(["decide", { trailId, ...input }]);
       const decision = {
         by: "human" as const,
-        who: ME,
+        who: this.options.principal ?? ME,
         at: this.stamp(),
         verdict: input.verdict,
         ...(input.note ? { note: input.note } : {}),
@@ -395,9 +410,25 @@ export class FakeApi implements ConsoleApi {
   ) {
     await this.gate("trailAction");
     this.requireApprover();
-    return this.once(op, () => {
+    const principal = this.options.principal ?? ME;
+    const key = this.trailOpKey(trailId, action, op);
+    const intent = JSON.stringify({ text: input.text, reason: input.reason });
+    const recorded = this.trailOps.get(key);
+    if (recorded !== undefined) {
+      if (recorded !== intent) throw new ApiError(409, "operation key was already used for a different action body");
+      return;
+    }
+    {
       const trail = this.trails.find((t) => t.id === trailId);
       if (!trail) throw new ApiError(404, "not found");
+      if (action === "comment" && (!input.text?.trim() || input.text.length > 4000))
+        throw new ApiError(400, "comment must contain 1 to 4,000 characters");
+      if (action === "claim" && (!["hypothesised", "planned", "ready"].includes(trail.state) || trail.owner?.kind === "human"))
+        throw new ApiError(409, "a review can only be claimed at an unclaimed checkpoint");
+      if (action === "release" && (trail.state !== "handed_off" || trail.owner?.kind !== "human" || trail.owner.id !== principal))
+        throw new ApiError(409, "only the person who claimed the review can release it");
+      if (trail.state === "handed_off" && action !== "comment" && action !== "release")
+        throw new ApiError(409, "release the review claim before changing the trail");
       this.writes.push(["trailAction", { trailId, action, ...input }]);
       if (action === "park") {
         trail.resumeTo = trail.state;
@@ -407,9 +438,16 @@ export class FakeApi implements ConsoleApi {
         trail.state = trail.resumeTo ?? "researching";
         delete trail.resumeTo;
       }
-      if (action === "claim") trail.owner = { kind: "human", id: ME };
-      if (action === "release") delete trail.owner;
-      trail.rev += 1;
+      if (action === "claim") {
+        trail.owner = { kind: "human", id: principal };
+        trail.resumeTo = trail.state;
+        trail.state = "handed_off";
+      }
+      if (action === "release") {
+        trail.state = trail.resumeTo!;
+        delete trail.resumeTo;
+        delete trail.owner;
+      }
       const list = this.events.get(trailId) ?? [];
       const body =
         action === "comment"
@@ -427,14 +465,15 @@ export class FakeApi implements ConsoleApi {
         trail: trailId,
         rev: trail.rev,
         at: this.stamp(),
-        actor: { kind: "human", id: ME },
+        actor: { kind: "human", id: principal },
         ...body,
       } as TrailEvent);
       this.events.set(trailId, list);
       this.inboxItems = this.inboxItems.map((i) =>
         i.trailId === trailId ? { ...i, state: trail.state } : i,
       );
-    });
+      this.trailOps.set(key, intent);
+    }
   }
 
   async updateSketches(id: string, sketches: AreaSketch[], baseDigest: string, op: string) {

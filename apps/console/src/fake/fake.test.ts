@@ -110,16 +110,64 @@ describe("FakeApi writes", () => {
     ).toBe(403);
   });
 
-  test("comment, claim and park change the trail and the timeline", async () => {
+  test("comment, claim, release and park preserve the revision and record their actors", async () => {
     const api = new FakeApi();
     const id = (await api.inbox())[0]!.trailId;
+    const before = (await api.trail(id)).trail;
     await api.trailAction(id, "comment", { text: "Looks right to me." }, "c1");
     await api.trailAction(id, "claim", {}, "c2");
+    const held = (await api.trail(id)).trail;
+    expect(held.owner?.id).toContain("alex");
+    expect(held.state).toBe("handed_off");
+    expect(held.resumeTo).toBe(before.state);
+    await api.trailAction(id, "release", {}, "c4");
     await api.trailAction(id, "park", { reason: "later" }, "c3");
     const { trail, events } = await api.trail(id);
     expect(trail.state).toBe("parked");
-    expect(trail.owner?.id).toContain("alex");
-    expect(events.slice(-3).map((e) => e.type)).toEqual(["human_comment", "claimed_by_human", "parked"]);
+    expect(trail.rev).toBe(before.rev);
+    expect(trail.owner).toBeUndefined();
+    expect(events.slice(-4).map((e) => e.type)).toEqual(["human_comment", "claimed_by_human", "released_by_human", "parked"]);
+  });
+
+  test("only the claimant can release a review and receipts are scoped to the exact principal", async () => {
+    const options = { principal: "did:example:alice" };
+    const api = new FakeApi(options);
+    const item = (await api.inbox()).find((i) => i.checkpoint === "A")!;
+    await api.trailAction(item.trailId, "claim", {}, "claim");
+    expect(await api.trailOperation(item.trailId, "claim", "claim")).toEqual({ status: "recorded" });
+    options.principal = "did:example:bob";
+    expect(await api.trailOperation(item.trailId, "claim", "claim")).toEqual({ status: "not_found" });
+    for (const action of ["claim", "release", "park", "resume"] as const) {
+      expect(((await rejects(api.trailAction(item.trailId, action, {}, action))) as ApiError).status).toBe(409);
+    }
+    expect(((await rejects(api.decide(item.trailId, { checkpoint: "A", verdict: "approve" }, "decide"))) as ApiError).status).toBe(409);
+    await api.trailAction(item.trailId, "comment", { text: "I can still add evidence." }, "comment");
+    expect((await api.trail(item.trailId)).events.at(-1)?.actor.id).toBe(options.principal);
+    options.principal = "did:example:alice";
+    await api.trailAction(item.trailId, "release", {}, "release");
+    expect((await api.trail(item.trailId)).trail).toMatchObject({ state: "hypothesised" });
+  });
+
+  test("shared action keys deduplicate, reject changed intent, and remain separate by trail and action", async () => {
+    const api = new FakeApi();
+    const [a, b] = (await api.inbox()).filter((i) => i.kind === "checkpoint");
+    const before = (await api.trail(a!.trailId)).events.length;
+    await api.trailAction(a!.trailId, "comment", { text: "same note" }, "same-key");
+    await api.trailAction(a!.trailId, "comment", { text: "same note" }, "same-key");
+    expect((await api.trail(a!.trailId)).events.length).toBe(before + 1);
+    expect(((await rejects(api.trailAction(a!.trailId, "comment", { text: "changed" }, "same-key"))) as ApiError).status).toBe(409);
+    await api.trailAction(a!.trailId, "claim", {}, "same-key");
+    await api.trailAction(b!.trailId, "comment", { text: "different trail" }, "same-key");
+    expect(await api.trailOperation(b!.trailId, "claim", "same-key")).toEqual({ status: "not_found" });
+  });
+
+  test("review claims refuse active work and comments reject empty or excessive text", async () => {
+    const api = new FakeApi();
+    const active = api.snapshot().trails.find((t) => t.state === "watching")!;
+    expect(((await rejects(api.trailAction(active.id, "claim", {}, "claim"))) as ApiError).status).toBe(409);
+    for (const text of ["", "  ", "x".repeat(4001)]) {
+      expect(((await rejects(api.trailAction(active.id, "comment", { text }, text))) as ApiError).status).toBe(400);
+    }
   });
 });
 

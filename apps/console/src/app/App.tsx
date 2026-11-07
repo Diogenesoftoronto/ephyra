@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ApiProvider } from "./ApiContext.tsx";
 import { useAsync } from "./useAsync.ts";
 import type { ConsoleApi, SessionInfo } from "../api.ts";
@@ -35,14 +35,14 @@ function useRoute(): Route {
   return route;
 }
 
-function Page({ route, approver }: { route: Route; approver: boolean }) {
+function Page({ route, approver, principal }: { route: Route; approver: boolean; principal?: string }) {
   switch (route.page) {
     case "overview":
       return <OverviewPage />;
     case "usage":
       return <UsagePage />;
     case "inbox":
-      return <InboxPage trailId={route.id} canAct={approver} />;
+      return <InboxPage trailId={route.id} canAct={approver} principal={principal} />;
     case "runs":
       return route.id ? <RunPage runId={route.id} /> : <RunsPage />;
     case "workspace":
@@ -79,9 +79,11 @@ export function App({
   onDisconnect?: () => void;
 }) {
   const route = useRoute();
+  const sessionKey = useMemo(() => crypto.randomUUID(), [api, identity?.principal]);
   return (
     <ApiProvider api={api}>
       <Frame
+        key={sessionKey}
         route={route}
         approver={approver}
         demo={demo}
@@ -143,6 +145,7 @@ function Frame({
           key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}
           route={route}
           approver={approver}
+          principal={identity?.principal}
         />
       </Suspense>
       <footer className="app-foot">

@@ -7,3 +7,6 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+.trail-actions-owner { overflow-wrap: anywhere; }
+.trail-actions-owner span { color: var(--muted); font-size: var(--fs-small); }
+.trail-actions > .muted { max-width: 70ch; font-size: var(--fs-small); }

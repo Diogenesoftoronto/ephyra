@@ -1,0 +1,60 @@
+.trail-discussion {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+  padding-block: var(--s5);
+  border-block: 1px solid var(--line);
+}
+.trail-discussion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+}
+.trail-discussion-connection,
+.trail-discussion-intro,
+.trail-discussion-empty,
+.trail-discussion-send p {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.trail-discussion-connection[data-state="live"] { color: var(--ok); }
+.trail-discussion-connection[data-state="error"] { color: var(--cherry); }
+.trail-discussion-intro { margin-top: calc(-1 * var(--s2)); }
+.trail-discussion-messages { display: grid; gap: var(--s5); }
+.trail-discussion-message { min-width: 0; }
+.trail-discussion-message header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s2);
+}
+.trail-discussion-message header b {
+  overflow-wrap: anywhere;
+  font-size: var(--fs-small);
+}
+.trail-discussion-message time {
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+.trail-discussion-message p {
+  margin-top: var(--s2);
+  max-width: 70ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trail-discussion-message .trail-discussion-handoff { color: var(--muted); font-size: var(--fs-small); }
+.trail-discussion-compose { display: grid; gap: var(--s3); }
+.trail-discussion-send {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+.trail-discussion-feedback { display: grid; justify-items: start; gap: var(--s3); }
+.trail-discussion-feedback p { max-width: 70ch; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .trail-discussion-message time { flex-basis: 100%; }
+  .trail-discussion-send { align-items: start; }
+}

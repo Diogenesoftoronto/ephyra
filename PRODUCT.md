@@ -28,6 +28,8 @@ No cyberpunk jellyfish, purple-to-blue SaaS gradients, invented metrics, or simu
 - Keep unknown costs, unavailable providers and missing evidence explicit.
 - Distinguish saved drafts, published policy refs and policy in effect.
 - Keep the actual screens and their interactive states in Storybook.
+- Keep shared comments and review ownership beside the evidence, with authenticated authors and clear connection state.
+- Preserve drafts during shared updates, and check durable delivery before retrying an unconfirmed change.
 
 ## Accessibility & Inclusion
 
