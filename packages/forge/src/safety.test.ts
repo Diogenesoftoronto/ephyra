@@ -138,3 +138,36 @@ test("revert refuses a moved target and cleans its temporary worktree", async ()
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("revert command failure leaves target unchanged and removes the worktree", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "forge-revert-error-"));
+  try {
+    const git = async (...args: string[]) => {
+      const result = await commandRunner(["git", ...args], dir);
+      if (result.code) throw new Error(result.stderr);
+      return result.stdout.trim();
+    };
+    await git("init");
+    await git("config", "user.name", "Test");
+    await git("config", "user.email", "test@example.test");
+    await git("commit", "--allow-empty", "-m", "root");
+    const oid = await git("rev-parse", "HEAD");
+    const target = await git("symbolic-ref", "HEAD");
+    const receipt = {
+      mode: "auto_land" as const,
+      target,
+      oldOid: null,
+      newOid: oid,
+      at: new Date().toISOString(),
+    };
+    await expect(
+      new PlainGitAdapter(dir).revert(receipt, "root-revert"),
+    ).rejects.toThrow();
+    expect(await git("rev-parse", target)).toBe(oid);
+    expect(
+      (await git("worktree", "list", "--porcelain")).match(/^worktree /gm),
+    ).toHaveLength(1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
