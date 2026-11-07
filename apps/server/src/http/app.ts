@@ -23,7 +23,10 @@ export interface HttpPort {
  * Journal files a reader may fetch. An allow-list, not a sanitiser: anything else is refused before it reaches
  * the journal, so no path can climb out of the trail's tree. Contents are agent-written, untrusted text.
  */
-export const READABLE_FILE = /^(?:(?:hypothesis|plan|intent)\.md|evidence\/index\.json|proof\/manifest\.json|artefacts\/[a-z][a-z_-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
+const READABLE_NAMES = new Set(["hypothesis.md", "plan.md", "intent.md", "evidence/index.json", "proof/manifest.json"]);
+const READABLE_ARTEFACT = /^artefacts\/[a-z][a-z_-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+export const isReadableFile = (path: string) =>
+  !path.includes("..") && (READABLE_NAMES.has(path) || READABLE_ARTEFACT.test(path));
 /** Largest file served, in bytes. Bigger files are refused rather than truncated, so nobody judges half a document. */
 export const MAX_FILE_BYTES = 256 * 1024;
 export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string };
@@ -62,7 +65,7 @@ export function createApp(
   });
   app.get("/v1/trails/:id/file", async (c) => {
     const path = c.req.query("path") ?? "";
-    if (!READABLE_FILE.test(path) || path.includes("..")) return c.json({ error: "path not readable" }, 400);
+    if (!isReadableFile(path)) return c.json({ error: "path not readable" }, 400);
     if (!port.file) return c.json({ error: "not supported" }, 501);
     const data = await port.file(c.req.param("id"), path);
     if (!data) return c.json({ error: "not found" }, 404);
