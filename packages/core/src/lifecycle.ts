@@ -1,80 +1,366 @@
-import type { Trail, Signal, TriageResult, Budget, TrailState } from './schemas.ts';
+import type { Trail, Signal, TriageResult, Budget, TrailState, Decision } from './schemas.ts';
 import { shortId } from './ids.ts';
 import type { TrailEvent, Effect, TransitionContext, TransitionResult } from './events.ts';
 
 type Command = Effect extends infer E ? E extends Effect ? Omit<E, 'key'> : never : never;
-export type CreateTrailInput = { id: string; signal: Signal; title: string; repo: string; base: Trail['base']; triage: TriageResult; now: string; budget: Budget };
+type Checkpoint = 'A' | 'B' | 'C';
+type EventOf<T extends TrailEvent['type']> = Extract<TrailEvent, { type: T }>;
+type Step = 'research' | 'repro' | 'plan' | 'patch' | 'review';
+
+export type CreateTrailInput = {
+  id: string;
+  signal: Signal;
+  title: string;
+  repo: string;
+  base: Trail['base'];
+  triage: TriageResult;
+  now: string;
+  budget: Budget;
+  /** Required to reopen a regression, preserving the original trail and severity. */
+  regressionTrail?: Trail;
+};
 export type CreateTrailResult = { trail: Trail | null; effects: Effect[] };
-const keys = (id: string, rev: number, discriminator: string, commands: Command[]): Effect[] => commands.map((c, i) => ({ ...c, key: `${id}:${rev}:${c.type}:${discriminator}:${JSON.stringify(c)}:${i}` }) as Effect);
-export function createTrail(x: CreateTrailInput): CreateTrailResult {
-  const t = x.triage;
-  if (t.duplicateOf) return { trail: null, effects: keys(x.id, 1, 'create', [{ type: 'merge_signal', signalId: x.signal.id, into: t.duplicateOf }]) };
-  const state = t.route === 'ignore' ? 'abandoned' : t.route === 'human' || t.conflictsWith ? 'parked' : 'researching';
-  const trail: Trail = { schema: 1, id: x.id, short: shortId(x.id), repo: x.repo, title: x.title, rev: 1, state, ...(state === 'parked' ? { resumeTo: 'researching' as const } : {}), signals: [x.signal.id], area: t.area, risk: t.risk, route: t.route === 'ignore' ? 'human' : t.route, severity: t.severity, base: x.base, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 }, budget: x.budget, mirrors: {}, ...(t.conflictsWith ? { parent: t.conflictsWith } : {}), createdAt: x.now, updatedAt: x.now };
-  const commands: Command[] = state === 'abandoned' ? [{ type: 'mute_fingerprint', fingerprint: x.signal.fingerprint, forS: 86400 }] : state === 'parked' ? [{ type: 'notify_inbox', reason: 'Needs a human' }] : [{ type: 'start_agent', step: 'research' }];
-  if (t.notifyHuman && state === 'researching') commands.push({ type: 'notify_inbox', reason: 'Triage notification' });
-  return { trail, effects: keys(x.id, 1, 'create', commands) };
+
+function keyed(id: string, rev: number, eventId: string, commands: Command[]): Effect[] {
+  const counts = new Map<string, number>();
+  return commands.map((command) => {
+    const identity = JSON.stringify(command);
+    const count = counts.get(identity) ?? 0;
+    counts.set(identity, count + 1);
+    return { ...command, key: `${id}:${rev}:${command.type}:${eventId}:${identity}:${count}` } as Effect;
+  });
 }
+
+export function createTrail(input: CreateTrailInput): CreateTrailResult {
+  const { triage, signal } = input;
+  if (triage.duplicateOf) {
+    return { trail: null, effects: keyed(input.id, 1, signal.id, [
+      { type: 'merge_signal', signalId: signal.id, into: triage.duplicateOf },
+    ]) };
+  }
+  if (triage.regressionOf) {
+    const original = input.regressionTrail;
+    if (!original || original.id !== triage.regressionOf || original.state !== 'closed') {
+      throw new Error('A matching closed regression trail is required');
+    }
+    const trail: Trail = {
+      ...structuredClone(original), rev: original.rev + 1, state: 'researching',
+      signals: [...new Set([...original.signals, signal.id])],
+      severity: Math.max(original.severity, triage.severity), updatedAt: input.now,
+      attempts: { ...original.attempts, proof: 0 },
+    };
+    delete trail.resumeTo;
+    return { trail, effects: keyed(trail.id, trail.rev, signal.id, [{ type: 'start_agent', step: 'research' }]) };
+  }
+  const state = triage.route === 'ignore' ? 'abandoned'
+    : triage.route === 'human' || triage.conflictsWith ? 'parked' : 'researching';
+  const trail: Trail = {
+    schema: 1, id: input.id, short: shortId(input.id), repo: input.repo, title: input.title,
+    rev: 1, state, ...(state === 'parked' ? { resumeTo: 'researching' as const } : {}),
+    signals: [signal.id], area: triage.area, risk: triage.risk,
+    route: triage.route === 'ignore' ? 'human' : triage.route, severity: triage.severity,
+    base: input.base, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
+    budget: input.budget, mirrors: {}, ...(triage.conflictsWith ? { parent: triage.conflictsWith } : {}),
+    createdAt: input.now, updatedAt: input.now,
+  };
+  const commands: Command[] = state === 'abandoned'
+    ? [{ type: 'mute_fingerprint', fingerprint: signal.fingerprint, forS: 86400 }]
+    : state === 'parked'
+      ? triage.conflictsWith ? [] : [{ type: 'notify_inbox', reason: 'Needs a human' }]
+      : [{ type: 'start_agent', step: 'research' }];
+  if (triage.notifyHuman && state === 'researching') {
+    commands.push({ type: 'notify_inbox', reason: 'Triage notification' });
+  }
+  return { trail, effects: keyed(trail.id, trail.rev, signal.id, commands) };
+}
+
+class Machine {
+  readonly trail: Trail;
+  readonly commands: Command[] = [];
+  constructor(trail: Trail, readonly ctx: TransitionContext) { this.trail = structuredClone(trail); }
+  agent(step: Step, note?: string) {
+    this.commands.push({ type: 'start_agent', step, ...(note === undefined ? {} : { note }) });
+  }
+  park(reason: string) {
+    if (this.trail.state !== 'parked') this.trail.resumeTo = this.trail.state;
+    this.trail.state = 'parked';
+    this.commands.push({ type: 'notify_inbox', reason });
+  }
+  checkpoint(cp: Checkpoint) {
+    this.commands.push({ type: 'request_checkpoint', checkpoint: cp, blocking: this.ctx.blocking[cp] });
+    const decision = this.ctx.autoDecision?.[cp] ?? (cp === 'C' ? this.ctx.autoDecisionC : undefined);
+    if (!this.ctx.blocking[cp] && decision) this.decide(cp, decision);
+  }
+  decide(cp: Checkpoint, decision: Decision): boolean {
+    const state = { A: 'hypothesised', B: 'planned', C: 'ready' } as const;
+    if (this.trail.state !== state[cp]) return false;
+    this.trail.checkpoints[cp] = decision;
+    if (decision.shadow) return true;
+    if (decision.verdict === 'reject') {
+      this.trail.state = 'abandoned';
+    } else if (decision.verdict === 'revise') {
+      const states = { A: 'researching', B: 'reproducing', C: 'patching' } as const;
+      const steps = { A: 'research', B: 'plan', C: 'patch' } as const;
+      this.trail.state = states[cp];
+      this.agent(steps[cp], decision.note);
+    } else if (cp === 'A' && this.trail.route === 'research_only') {
+      this.park('Research complete');
+    } else if (cp === 'A') {
+      this.trail.state = 'reproducing';
+      this.agent('repro');
+    } else if (cp === 'B') {
+      this.trail.state = 'patching';
+      this.agent('patch');
+    } else {
+      this.trail.state = 'landing';
+      this.commands.push({ type: 'land', modes: this.ctx.landingModes });
+    }
+    return true;
+  }
+  new_signal(e: EventOf<'new_signal'>) {
+    if (!this.trail.signals.includes(e.data.signalId)) this.trail.signals.push(e.data.signalId);
+    this.trail.severity = Math.max(this.trail.severity, e.data.severity ?? 0);
+    if (this.trail.state === 'proving' || this.trail.state === 'ready') {
+      this.trail.state = 'proving';
+      this.commands.push({ type: 'run_proof' });
+    }
+    return true;
+  }
+  research_completed(_e: EventOf<'research_completed'>) {
+    if (this.trail.state !== 'researching') return false;
+    this.trail.state = 'hypothesised';
+    this.checkpoint('A');
+    return true;
+  }
+  checkpoint_decided(e: EventOf<'checkpoint_decided'>) { return this.decide(e.data.checkpoint, e.data.decision); }
+  repro_completed(e: EventOf<'repro_completed'>) {
+    if (this.trail.state !== 'reproducing') return false;
+    if (e.data.ok) this.agent('plan');
+    else this.park(e.data.reason ?? 'Cannot reproduce');
+    return true;
+  }
+  plan_completed(_e: EventOf<'plan_completed'>) {
+    if (this.trail.state !== 'reproducing') return false;
+    this.trail.state = 'planned';
+    this.checkpoint('B');
+    return true;
+  }
+  patch_completed(e: EventOf<'patch_completed'>) {
+    if (this.trail.state !== 'patching' || e.data.revision < this.trail.rev) return false;
+    this.trail.rev = e.data.revision;
+    this.trail.head = e.data.head;
+    this.trail.state = 'proving';
+    this.commands.push({ type: 'run_proof' });
+    return true;
+  }
+  proof_completed(e: EventOf<'proof_completed'>) {
+    const bundle = e.data.bundle;
+    if (this.trail.state !== 'proving' || bundle.trail !== this.trail.id || bundle.rev !== this.trail.rev) return false;
+    if (bundle.passed && this.ctx.proofSufficient !== false) {
+      this.trail.state = 'ready';
+      this.checkpoint('C');
+    } else {
+      this.trail.attempts.proof++;
+      if (this.trail.attempts.proof >= this.trail.attempts.maxProof) this.park('Proof attempts exhausted');
+      else {
+        this.trail.state = 'patching';
+        this.agent('patch', `Missing: ${bundle.missing.join(', ')}`);
+      }
+    }
+    return true;
+  }
+  land_requested(e: EventOf<'land_requested'>) {
+    if (this.trail.state !== 'ready' || this.trail.checkpoints.C?.verdict !== 'approve'
+      || this.trail.checkpoints.C.shadow) return false;
+    this.trail.state = 'landing';
+    this.commands.push({ type: 'land', modes: e.data.modes ?? this.ctx.landingModes });
+    return true;
+  }
+  landing_completed(e: EventOf<'landing_completed'>) {
+    if (this.trail.state !== 'landing') return false;
+    this.trail.landing?.receipts.push(e.data.receipt);
+    this.trail.state = 'watching';
+    this.commands.push({ type: 'start_watch' });
+    return true;
+  }
+  landing_failed(e: EventOf<'landing_failed'>) {
+    if (this.trail.state !== 'landing') return false;
+    if (e.data.baseMoved) {
+      this.trail.state = 'patching';
+      this.commands.push({ type: 'rebase', onto: this.trail.base.sha });
+    } else this.park(e.data.reason);
+    return true;
+  }
+  base_moved(e: EventOf<'base_moved'>) {
+    if (!['proving', 'ready', 'landing'].includes(this.trail.state)) return false;
+    this.trail.base.sha = e.data.newSha;
+    this.trail.state = 'patching';
+    this.commands.push({ type: 'rebase', onto: e.data.newSha });
+    return true;
+  }
+  watch_started(_e: EventOf<'watch_started'>) { return this.trail.state === 'watching'; }
+  watch_completed(_e: EventOf<'watch_completed'>) {
+    if (this.trail.state !== 'watching') return false;
+    this.trail.state = 'closed';
+    this.commands.push({ type: 'register_regression_probe' }, { type: 'resume_dependents' });
+    return true;
+  }
+  probe_regressed_after_landing(e: EventOf<'probe_regressed_after_landing'>) {
+    if (this.trail.state !== 'watching') return false;
+    this.trail.watchEvidence = e.data.evidence;
+    this.trail.state = 'rolled_back';
+    this.commands.push({ type: 'rollback', criterion: e.data.criterion });
+    return true;
+  }
+  rollback_completed(e: EventOf<'rollback_completed'>) {
+    if (this.trail.state !== 'rolled_back') return false;
+    this.trail.landing?.receipts.push(e.data.receipt);
+    this.trail.rev++;
+    this.trail.state = 'researching';
+    this.trail.attempts.proof = 0;
+    this.agent('research', this.trail.watchEvidence);
+    return true;
+  }
+  human_comment(e: EventOf<'human_comment'>) {
+    const cp = ({ hypothesised: 'A', planned: 'B', ready: 'C' } as Partial<Record<TrailState, Checkpoint>>)[this.trail.state];
+    if (e.data.isRequest && cp) {
+      this.decide(cp, { by: 'human', at: this.ctx.now, verdict: 'revise', note: e.data.text });
+    } else this.commands.push({ type: 'reply_comment', text: e.data.text });
+    return true;
+  }
+  claimed_by_human(_e: EventOf<'claimed_by_human'>) {
+    if (this.trail.state === 'handed_off') return false;
+    this.trail.resumeTo = this.trail.state;
+    this.trail.state = 'handed_off';
+    this.commands.push({ type: 'stop_agent', releaseLease: true });
+    return true;
+  }
+  human_revision(e: EventOf<'human_revision'>) {
+    if (this.trail.state !== 'handed_off') this.claimed_by_human({} as EventOf<'claimed_by_human'>);
+    this.trail.head = e.data.head;
+    this.trail.resumeTo = 'proving';
+    this.commands.push({ type: 'run_proof' });
+    return true;
+  }
+  released_by_human(_e: EventOf<'released_by_human'>) {
+    if (this.trail.state !== 'handed_off' || !this.trail.resumeTo) return false;
+    this.trail.state = this.trail.resumeTo;
+    delete this.trail.resumeTo;
+    return true;
+  }
+  parked(e: EventOf<'parked'>) {
+    if (this.trail.state === 'parked') return false;
+    this.park(e.data.reason);
+    return true;
+  }
+  resumed(_e: EventOf<'resumed'>) {
+    if (this.trail.state !== 'parked' || !this.trail.resumeTo || this.trail.parent) return false;
+    this.trail.state = this.trail.resumeTo;
+    delete this.trail.resumeTo;
+    return true;
+  }
+  killed(_e: EventOf<'killed'>) {
+    this.trail.state = 'abandoned';
+    this.commands.push({ type: 'stop_agent', releaseLease: true });
+    return true;
+  }
+  budget_exceeded(e: EventOf<'budget_exceeded'>) { this.park(e.data.summary); return true; }
+  spend_requested(e: EventOf<'spend_requested'>) {
+    if (this.trail.pendingSpend) return false;
+    this.trail.pendingSpend = e.data;
+    this.commands.push({ type: 'request_spend', ...e.data });
+    return true;
+  }
+  spend_decided(e: EventOf<'spend_decided'>) {
+    if (!this.trail.pendingSpend) return false;
+    this.trail.checkpoints.spend.push(e.data.decision);
+    if (!e.data.decision.shadow) {
+      if (e.data.decision.verdict === 'approve') {
+        this.commands.push({ type: 'start_respondent_run', ...this.trail.pendingSpend });
+      }
+      delete this.trail.pendingSpend;
+    }
+    return true;
+  }
+  child_trail_finished(e: EventOf<'child_trail_finished'>) {
+    this.commands.push({ type: 'deliver_child_evidence', ...e.data });
+    return true;
+  }
+  parent_trail_landed(e: EventOf<'parent_trail_landed'>) {
+    if (this.trail.state !== 'parked' || this.trail.parent !== e.data.parent) return false;
+    delete this.trail.parent;
+    delete this.trail.resumeTo;
+    this.trail.state = 'researching';
+    this.agent('research');
+    return true;
+  }
+  intent_updated(e: EventOf<'intent_updated'>) {
+    this.commands.push({ type: 'run_probes', probes: [e.data.intent], reason: 'Intent updated' });
+    return true;
+  }
+  agent_failed(e: EventOf<'agent_failed'>) {
+    const steps: Step[] = ['research', 'repro', 'plan', 'patch', 'review'];
+    if (e.data.retryable && steps.includes(e.data.step as Step)) this.agent(e.data.step as Step, e.data.reason);
+    else this.park(e.data.reason);
+    return true;
+  }
+  trail_created(e: EventOf<'trail_created'>) {
+    if (this.trail.state !== 'sensed') return false;
+    this.commands.push({ type: 'run_triage', signalId: e.data.signalId });
+    return true;
+  }
+  triage_completed(e: EventOf<'triage_completed'>) {
+    if (this.trail.state !== 'sensed' && this.trail.state !== 'triaged') return false;
+    const result = e.data.result;
+    this.trail.area = result.area;
+    this.trail.risk = result.risk;
+    this.trail.severity = Math.max(this.trail.severity, result.severity);
+    this.trail.route = result.route === 'ignore' ? 'human' : result.route;
+    if (result.duplicateOf) {
+      this.trail.state = 'abandoned';
+      for (const signalId of this.trail.signals) {
+        this.commands.push({ type: 'merge_signal', signalId, into: result.duplicateOf });
+      }
+    } else if (result.regressionOf) {
+      // Reopening requires the closed trail; use createTrail with regressionTrail instead.
+      return false;
+    } else if (result.route === 'ignore') {
+      // Fingerprints live on signals, not the trail header; creation handles muting.
+      this.trail.state = 'abandoned';
+    } else if (result.conflictsWith) {
+      this.trail.parent = result.conflictsWith;
+      this.trail.resumeTo = 'researching';
+      this.trail.state = 'parked';
+    } else if (result.route === 'human') {
+      this.trail.state = 'triaged';
+      this.park('Needs a human');
+    } else {
+      this.trail.state = 'researching';
+      this.agent('research');
+    }
+    return true;
+  }
+}
+
 export function transition(trail: Trail, event: TrailEvent, ctx: TransitionContext): TransitionResult {
   if (event.trail !== trail.id) return { ok: false, error: 'Event belongs to another trail' };
   if (trail.state === 'closed' || trail.state === 'abandoned') return { ok: false, error: 'Terminal trail' };
-  const t: Trail = structuredClone(trail); const c: Command[] = [];
-  const agent = (step: 'research'|'repro'|'plan'|'patch', note?: string) => c.push({ type: 'start_agent', step, ...(note !== undefined ? { note } : {}) });
-  const park = (reason: string) => { if (t.state !== 'parked') t.resumeTo = t.state; t.state = 'parked'; c.push({ type: 'notify_inbox', reason }); };
-  const checkpoint = (cp: 'A'|'B'|'C') => {
-    c.push({ type: 'request_checkpoint', checkpoint: cp, blocking: ctx.blocking[cp] });
-    const decision = ctx.autoDecision?.[cp] ?? (cp === 'C' ? ctx.autoDecisionC : undefined);
-    if (!ctx.blocking[cp] && decision) decide(cp, decision);
-  };
-  const decide = (cp: 'A'|'B'|'C', d: Trail['checkpoints']['A']) => {
-    if (!d || t.state !== ({ A: 'hypothesised', B: 'planned', C: 'ready' } as const)[cp]) return false;
-    t.checkpoints[cp] = d; if (d.shadow) return true;
-    if (d.verdict === 'reject') { t.state = 'abandoned'; return true; }
-    if (d.verdict === 'revise') { const states = { A: 'researching', B: 'reproducing', C: 'patching' } as const; const steps = { A: 'research', B: 'plan', C: 'patch' } as const; t.state = states[cp]; agent(steps[cp], d.note); return true; }
-    if (cp === 'A' && t.route === 'research_only') { park('Research complete'); return true; }
-    if (cp === 'A') { t.state = 'reproducing'; agent('repro'); }
-    if (cp === 'B') { t.state = 'patching'; agent('patch'); }
-    if (cp === 'C') { t.state = 'landing'; c.push({ type: 'land', modes: ctx.landingModes }); }
-    return true;
-  };
-  let valid = true;
-  switch (event.type) {
-    case 'new_signal': if (!t.signals.includes(event.data.signalId)) t.signals.push(event.data.signalId); t.severity = Math.max(t.severity, event.data.severity ?? 0); if (t.state === 'proving' || t.state === 'ready') { t.state = 'proving'; c.push({ type: 'run_proof' }); } break;
-    case 'research_completed': if (t.state !== 'researching') { valid = false; break; } t.state = 'hypothesised'; checkpoint('A'); break;
-    case 'checkpoint_decided': valid = decide(event.data.checkpoint, event.data.decision); break;
-    case 'repro_completed': if (t.state !== 'reproducing') { valid = false; break; } if (!event.data.ok) park(event.data.reason ?? 'Cannot reproduce'); else agent('plan'); break;
-    case 'plan_completed': if (t.state !== 'reproducing') { valid = false; break; } t.state = 'planned'; checkpoint('B'); break;
-    case 'patch_completed': if (t.state !== 'patching' || event.data.revision < t.rev) { valid = false; break; } t.rev = event.data.revision; t.head = event.data.head; t.state = 'proving'; c.push({ type: 'run_proof' }); break;
-    case 'proof_completed': if (t.state !== 'proving' || event.data.bundle.trail !== t.id || event.data.bundle.rev !== t.rev) { valid = false; break; } if (event.data.bundle.passed && ctx.proofSufficient !== false) { t.state = 'ready'; checkpoint('C'); } else { t.attempts.proof++; if (t.attempts.proof >= t.attempts.maxProof) park('Proof attempts exhausted'); else { t.state = 'patching'; agent('patch', `Missing: ${event.data.bundle.missing.join(', ')}`); } } break;
-    case 'land_requested': if (t.state !== 'ready' || t.checkpoints.C?.verdict !== 'approve' || t.checkpoints.C.shadow) { valid = false; break; } t.state = 'landing'; c.push({ type: 'land', modes: event.data.modes ?? ctx.landingModes }); break;
-    case 'landing_completed': if (t.state !== 'landing') { valid = false; break; } if (t.landing) t.landing.receipts.push(event.data.receipt); t.state = 'watching'; c.push({ type: 'start_watch' }); break;
-    case 'watch_started': if (t.state !== 'watching') valid = false; break;
-    case 'watch_completed': if (t.state !== 'watching') { valid = false; break; } t.state = 'closed'; c.push({ type: 'register_regression_probe' }, { type: 'resume_dependents' }); break;
-    case 'probe_regressed_after_landing': if (t.state !== 'watching') { valid = false; break; } t.watchEvidence = event.data.evidence; t.state = 'rolled_back'; c.push({ type: 'rollback', criterion: event.data.criterion }); break;
-    case 'rollback_completed': if (t.state !== 'rolled_back') { valid = false; break; } if (t.landing) t.landing.receipts.push(event.data.receipt); t.rev++; t.state = 'researching'; t.attempts.proof = 0; agent('research', t.watchEvidence); break;
-    case 'base_moved': if (!['proving','ready','landing'].includes(t.state)) { valid = false; break; } t.base.sha = event.data.newSha; t.state = 'patching'; c.push({ type: 'rebase', onto: event.data.newSha }); break;
-    case 'landing_failed': if (t.state !== 'landing') { valid = false; break; } if (event.data.baseMoved) { t.state = 'patching'; c.push({ type: 'rebase', onto: t.base.sha }); } else park(event.data.reason); break;
-    case 'parked': if (t.state === 'parked') { valid = false; break; } park(event.data.reason); break;
-    case 'budget_exceeded': park(event.data.summary); break;
-    case 'resumed': if (t.state !== 'parked' || !t.resumeTo) { valid = false; break; } t.state = t.resumeTo; delete t.resumeTo; break;
-    case 'claimed_by_human': if (t.state === 'handed_off') { valid = false; break; } t.resumeTo = t.state; t.state = 'handed_off'; c.push({ type: 'stop_agent', releaseLease: true }); break;
-    case 'human_revision': if (t.state !== 'handed_off') { t.resumeTo = t.state; t.state = 'handed_off'; c.push({ type: 'stop_agent', releaseLease: true }); } t.head = event.data.head; t.resumeTo = 'proving'; c.push({ type: 'run_proof' }); break;
-    case 'released_by_human': if (t.state !== 'handed_off' || !t.resumeTo) { valid = false; break; } t.state = t.resumeTo; delete t.resumeTo; break;
-    case 'killed': t.state = 'abandoned'; c.push({ type: 'stop_agent', releaseLease: true }); break;
-    case 'human_comment': if (event.data.isRequest) { const cp = ({ hypothesised: 'A', planned: 'B', ready: 'C' } as Partial<Record<TrailState, 'A'|'B'|'C'>>)[t.state]; if (cp) decide(cp, { by: 'human', at: ctx.now, verdict: 'revise', note: event.data.text }); else c.push({ type: 'reply_comment', text: event.data.text }); } else c.push({ type: 'reply_comment', text: event.data.text }); break;
-    case 'spend_requested': t.pendingSpend = { purpose: event.data.purpose, microusd: event.data.microusd }; c.push({ type: 'request_spend', purpose: event.data.purpose, microusd: event.data.microusd }); break;
-    case 'spend_decided': t.checkpoints.spend.push(event.data.decision); if (event.data.decision.verdict === 'approve' && !event.data.decision.shadow && t.pendingSpend) c.push({ type: 'start_respondent_run', ...t.pendingSpend }); if (!event.data.decision.shadow) delete t.pendingSpend; break;
-    case 'parent_trail_landed': if (t.state !== 'parked') { valid = false; break; } t.state = 'researching'; delete t.resumeTo; agent('research'); break;
-    case 'child_trail_finished': c.push({ type: 'deliver_child_evidence', ...event.data }); break;
-    case 'intent_updated': c.push({ type: 'run_probes', probes: [event.data.intent], reason: 'Intent updated' }); break;
-    case 'agent_failed': if (event.data.retryable && ['research', 'repro', 'plan', 'patch'].includes(event.data.step)) agent(event.data.step as 'research'|'repro'|'plan'|'patch', event.data.reason); else park(event.data.reason); break;
-    default: valid = false;
-  }
-  if (!valid) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
-  t.updatedAt = ctx.now; return { ok: true, trail: t, effects: keys(t.id, t.rev, event.id, c) };
+  const machine = new Machine(trail, ctx);
+  // Every event handler has the matching discriminated event type; the lookup retains that pairing.
+  const handler = machine[event.type] as (event: TrailEvent) => boolean;
+  if (!handler.call(machine, event)) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
+  machine.trail.updatedAt = ctx.now;
+  return { ok: true, trail: machine.trail, effects: keyed(trail.id, machine.trail.rev, event.id, machine.commands) };
 }
+
 export function fold(initial: Trail, events: TrailEvent[], ctx: TransitionContext): TransitionResult {
-  let trail = initial; const effects: Effect[] = [];
-  for (const event of events) { const result = transition(trail, event, ctx); if (!result.ok) return result; trail = result.trail; effects.push(...result.effects); }
+  let trail = initial;
+  const effects: Effect[] = [];
+  for (const event of events) {
+    const result = transition(trail, event, ctx);
+    if (!result.ok) return result;
+    trail = result.trail;
+    effects.push(...result.effects);
+  }
   return { ok: true, trail, effects };
 }
