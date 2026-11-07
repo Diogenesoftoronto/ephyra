@@ -70,7 +70,7 @@ export async function run(options:ReturnType<typeof parseArgs>){
         report.cases.push(result);await writeFile(path,JSON.stringify(report,null,2)+'\n');
         console.log(`${suite} ${row.case_id}: ${result.status} (${result.identity})`);
         // No blind retry after failed/auth-ambiguous paid agent execution.
-        if(options.live&&suite==='agent'&&result.status==='unavailable')break;
+        if(options.live&&suite==='agent'&&(result.status==='unavailable'||result.scores.completion?.score===0))break;
       }
       report.corpus=corpus.filter(c=>report.cases.some((r:CaseResult)=>r.case_id===c.case_id));report.corpusHash=corpusHash(report.corpus);
       report.summary=summarize(report.cases);if(suite==='triage')report.calibration=triageMetrics(report.cases);

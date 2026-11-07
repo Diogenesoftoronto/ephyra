@@ -24,7 +24,7 @@ export const runAgent:SuiteRunner=async(row,opts):Promise<Outcome>=>{
     let head=base,probe='';
     for(const step of ['research','repro','plan','patch'] as AgentStep[]){
       const task={step,trail:t,context:{scope:'Only this tiny repository. Never change tests. Allowed: value.js, hypothesis.md, plan.md, .ephyra/repro/*.sh. Run rtk proxy bun test value.test.ts. Keep work brief; no plugins, network, subagents, pushes or remotes.',budget:'At most 8 tool turns and 6000 tokens per step. Commit using Ephyra-Trail and Co-Authored-By trailers.'},untrusted:{signal:String(row.input.bug),prior_artifacts:JSON.stringify(artefacts)},budget:{tokens:6000,wallclockS:120}};
-      const started=Date.now();
+      const started=Date.now();const startHead=await git(root,'rev-parse','HEAD');
       const result=await opts.telemetry.span('AGENT',`agent.${step}`,{prompt:renderPrompt(task)},opts.span,async span=>{
         const runner=localRunner(root,opts.telemetry,span);
         let result:AgentResult;
@@ -42,7 +42,7 @@ export const runAgent:SuiteRunner=async(row,opts):Promise<Outcome>=>{
         if(result.usage.costMicrousd!==null)span.setAttribute('llm.cost.total',result.usage.costMicrousd/1e6);
         return result;
       });
-      usages.push(result.usage);steps.push({step,wallMs:Date.now()-started,result});
+      usages.push(result.usage);steps.push({step,wallMs:Date.now()-started,startHead,endHead:await git(root,'rev-parse','HEAD'),result});
       if(!result.ok)throw new Unverified(result.error??'agent returned ok=false');
       Object.assign(artefacts,result.artefacts);
       if(step==='repro')probe=result.outputs.probe??'';
@@ -60,7 +60,9 @@ export const runAgent:SuiteRunner=async(row,opts):Promise<Outcome>=>{
     const pathsOk=changed.every(p=>allowed.some(a=>a.endsWith('/')?p.startsWith(a):p===a));
     return {identity,scores:{completion:check(bundle.passed,'Full research, repro, plan, patch, executable proof'),repro:check(bundle.items.some(i=>i.kind==='repro_before')&&bundle.items.some(i=>i.kind==='repro_after'),'Same probe actually fails at base and passes at head'),allowed_paths:check(pathsOk,changed.join(', ')),plan_quality:unscored('Qualitative rubric committed; no judge called'),explanation_quality:unscored('Qualitative rubric committed; no judge called')},output:{steps,bundle,changed,stepCount:steps.length,artefacts,usageIdentityProvenance:live?'CLI adapter echoes requested model; provider-resolved identity not exposed':'scripted offline fixture'},tokens:usages.reduce((n,u)=>n+u.tokens,0),costMicrousd:usages.every(u=>u.costMicrousd!==null)?usages.reduce((n,u)=>n+u.costMicrousd!,0):null};
   }catch(e){
-    // Preserve partial steps and reported cost even when completion is unavailable.
-    return {identity,status:'unavailable',reason:clean(String(e)),scores:{completion:unscored(clean(String(e)))},output:{steps,stepCount:steps.length,artefacts,reason:clean(String(e)),diagnostics:opts.telemetry.memory.getFinishedSpans().filter(s=>['claude','codex','amp'].includes(String(s.attributes['tool.name']))).map(s=>s.attributes['output.value'])},tokens:usages.length?usages.reduce((n,u)=>n+u.tokens,0):null,costMicrousd:usages.length&&usages.every(u=>u.costMicrousd!==null)?usages.reduce((n,u)=>n+u.costMicrousd!,0):null};
+    // Completed provider turns followed by a semantic contract failure are measured failures.
+    // Authentication, absent usage, deadlines and ambiguous CLI failures remain unavailable.
+    const contractFailure=usages.length>0&&/patch produced no commits|patch trail trailer|repro artefact|probe outcome/.test(String(e));
+    return {identity,status:contractFailure?'scored':'unavailable',reason:clean(String(e)),scores:{completion:contractFailure?check(false,clean(String(e))):unscored(clean(String(e)))},output:{steps,stepCount:steps.length,artefacts,reason:clean(String(e)),diagnostics:opts.telemetry.memory.getFinishedSpans().filter(s=>['claude','codex','amp'].includes(String(s.attributes['tool.name']))).map(s=>s.attributes['output.value'])},tokens:usages.length?usages.reduce((n,u)=>n+u.tokens,0):null,costMicrousd:usages.length&&usages.every(u=>u.costMicrousd!==null)?usages.reduce((n,u)=>n+u.costMicrousd!,0):null};
   }finally{await rm(root,{recursive:true,force:true});}
 };
