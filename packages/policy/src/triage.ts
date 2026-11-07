@@ -159,6 +159,7 @@ export function applyTriage(
   thresholds: Thresholds,
   area: Area,
   candidates?: Candidates,
+  signalKind?: Signal["kind"],
 ): TriageResult {
   const t = thresholds[judgement.model];
   const a = judgement.answers;
@@ -241,8 +242,21 @@ export function applyTriage(
   }
   const frame = extraction.answers.top_app_frame;
   if (t && frame?.value === null && (frame.p_null ?? 0) > 0.8) {
-    result.route = "ignore";
-    reasons.push("no application frame; not our code");
+    const exception =
+      signalKind === "user_report" ||
+      signalKind === "intent_probe" ||
+      signalKind === "story_probe" ||
+      signalKind === "regression_replay";
+    if (exception || signalKind === undefined) {
+      result.route = "human";
+      result.notifyHuman = true;
+      reasons.push(
+        "no application frame; report or probe needs human assessment",
+      );
+    } else {
+      result.route = "ignore";
+      reasons.push("no application frame; not our code");
+    }
   }
   if (t && severity >= t.severity) {
     result.notifyHuman = true;
