@@ -1,0 +1,66 @@
+<h2 id="scope">Who and what this policy covers</h2>
+<p>This proposed policy covers the Ephyra website and its journal, and the Ephyra deployments we operate, including their sign-in. The operator is {{operator}}, using the working name Ephyra. A public business mailing address remains to be added before adoption.</p>
+<p>Anyone can run Ephyra themselves. The operator of a self-hosted deployment decides what it collects, is responsible for that processing, and should give its own notice to the people it affects. This policy describes how the software behaves, which can help with that notice, but it does not cover deployments we do not operate.</p>
+<p>For a deployment we operate for an organization, the organization decides which signals and repositories to send. We process that content on its instructions as its service provider. For account, sign-in and security records, we decide the purposes ourselves.</p>
+
+<h2 id="website">The public website</h2>
+<p>When you visit, our hosting provider, Railway, receives standard request information: IP address, user agent, requested page, referrer and time. That information can appear in service logs we use to operate and troubleshoot the site. The public pages use no analytics, advertising, tracking pixels or cookies.</p>
+<p>The theme switch stores your light or dark choice in your browser’s local storage, under <code>ephyra-theme</code>, <code>ephyra-b-theme</code> or <code>ephyra-c-theme</code>. The choice never leaves your browser, and you can clear it at any time.</p>
+<p>The landing pages load fonts from Google Fonts. When you open one, your browser sends your IP address and user agent to Google, which processes that request under its own privacy policy.</p>
+<p>The journal’s articles are public AT Protocol records on a personal data server at <code>pds.notorganic.info</code>. Our server fetches them from there, so reading the journal does not send your information to that data server.</p>
+
+<h2 id="signin">Signing in</h2>
+<p>Signing in sends you to Not Organic, which handles your password, passkey or other credentials under its own policy. Ephyra receives and stores three things: your DID, your handle, and the Not Organic tokens for your session.</p>
+<p>The deployment encrypts the refresh token with AES-GCM, under a key it holds, before storing it in its database. While you sign in, your browser holds a short-lived HttpOnly cookie, <code>ephyra_login</code>, for up to ten minutes. The cookie ties the sign-in callback to the browser that started it.</p>
+<p>A session lasts until you sign out or it is revoked or expires. It expires at the end of Not Organic’s refresh lifetime, or after 30 days if Not Organic does not state one.</p>
+<p>When you sign in from a terminal, the CLI stores its session in <code>~/.config/ephyra/credentials.json</code> on your computer, readable only by your user account. Running <code>ephyra logout</code> removes it.</p>
+<p>When you approve or reject a checkpoint, the deployment records your DID, your decision, the time and the trail revision. The record goes in the trail’s journal and in the deployment’s audit log, because a reviewable record of who approved what is the purpose of a checkpoint.</p>
+
+<h2 id="signals">Production signals and trails</h2>
+<p>A deployment receives the errors, traces and logs its operator’s applications send it, along with repository content and forge activity. These can include personal information about the operator’s own users, such as account identifiers, IP addresses or request contents captured in a stack trace.</p>
+<p>The operator decides what to send. It is responsible for having a lawful basis and for removing what is not needed before sending it.</p>
+<p>Trails record evidence, hypotheses, reproduction scripts, patches and proof as git objects under <code>refs/ephyra/trails</code> in the repository. Excerpts of signals can appear in that evidence. When a trail lands, its commits carry <code>Ephyra-Trail</code> and <code>Ephyra-Proof</code> trailers.</p>
+
+<h2 id="ai">AI providers</h2>
+<p>To triage a signal, Ephyra sends an excerpt of it to the extraction and decision models the deployment chose. Those can be:</p>
+<ul>
+<li>models hosted through Not Organic, such as Clairic for extraction and Jev for decisions;</li>
+<li>a provider reached directly with the operator’s own keys;</li>
+<li>a model the operator hosts.</li>
+</ul>
+<p>To work a trail, Ephyra sends the evidence, code and instructions to the coding agent the operator chose, such as Amp, Claude Code or Codex. Each provider receives the content it needs to answer the request. Hosted model calls through Not Organic use the deployment’s billing account, not the identity of the person who approved the work.</p>
+<p>Untrusted content is marked as data in these requests, never as instructions. We do not use your content to train models. Provider retention and training depend on the provider and on the operator’s agreement with it. We do not promise zero retention, and a request is not end-to-end encrypted from the provider that answers it.</p>
+
+<h2 id="providers">Service providers, transfers and disclosures</h2>
+<p>The <a href="/legal/providers">service providers</a> page lists who processes what, when, and where. Not every provider receives every person’s information. That depends on the features a deployment uses.</p>
+<p>Information may be processed outside your province or country, including in the United States, and is then subject to the laws there.</p>
+<p>We may also disclose information when you direct us to, when the law requires it, or when it is lawfully necessary to protect people, investigate abuse or defend legal rights.</p>
+
+<h2 id="retention">Retention and deletion</h2>
+<table>
+<thead><tr><th>Record</th><th>How long</th></tr></thead>
+<tbody>
+<tr><td>Website request logs</td><td>The hosting provider’s log retention period.</td></tr>
+<tr><td>Sign-in state</td><td>Up to ten minutes.</td></tr>
+<tr><td>Sessions</td><td>Until sign-out, revocation or expiry.</td></tr>
+<tr><td>Signals, inbox items, jobs and operation records</td><td>Kept in the deployment’s database until the operator deletes them. No automatic deletion schedule is implemented yet.</td></tr>
+<tr><td>Trail journals</td><td>Git refs in the repository, kept until someone deletes them. Copies pushed to forges, mirrors or Radicle seed nodes can persist after local deletion.</td></tr>
+<tr><td>Approval audit records</td><td>Kept for the life of the deployment, because they explain why code landed.</td></tr>
+<tr><td>Journal articles</td><td>Public until the author deletes them from the data server. Copies made by feeds, caches and AT Protocol relays are outside our control.</td></tr>
+</tbody>
+</table>
+
+<h2 id="rights">Your choices and requests</h2>
+<p>You can ask for access to your personal information, correction of inaccurate records, an explanation of how it is processed, and withdrawal of consent where it applies. You can also ask for deletion or portability where the law provides it. Depending on where you live, you may also be able to object to processing, restrict it, or appeal a decision.</p>
+<p>Write to {{contact}}. Describe the request and the account or deployment it concerns. Do not send passwords, private keys or API tokens. We will verify identity in proportion to the request. We will respond within the time the law requires and explain any lawful refusal or extension.</p>
+<p>The person in charge of the protection of personal information is the operator, {{operatorName}}, reachable at {{contact}}.</p>
+<p>You can also raise a concern with the authority responsible for your location. In Québec, that is the Commission d’accès à l’information du Québec. The Office of the Privacy Commissioner of Canada explains complaint options under the federal laws it administers.</p>
+
+<h2 id="security">Security</h2>
+<p>The <a href="/security">security page</a> describes how Ephyra protects sessions, secrets and approvals, and how to report a vulnerability. Ephyra is pre-alpha and holds no security certification.</p>
+
+<h2 id="children">Children</h2>
+<p>Ephyra is a tool for software teams and is not directed at children. Do not send us information about a child through signals or support requests unless it is necessary and lawful.</p>
+
+<h2 id="changes">Changes</h2>
+<p>We will post changes here with a new revision date. Before using personal information for a new purpose, we will give any notice and obtain any consent the law requires.</p>
