@@ -45,6 +45,8 @@ export default defineSchema({
     runAtMs: v.number(),
     attempts: v.number(),
     lastError: v.optional(v.string()),
+    /** When the current attempt was claimed; shown as "running since" in the activity feed. */
+    startedMs: v.optional(v.number()),
   })
     .index("by_key", ["key"])
     .index("by_status_run_at", ["status", "runAtMs"]),
@@ -71,6 +73,21 @@ export default defineSchema({
   /** CLI sign-in grants, released once to the CLI holding the challenge preimage after browser approval. */
   cliGrants: defineTable({ challenge: v.string(), json: v.string(), approved: v.boolean(), createdMs: v.number() })
     .index("by_challenge", ["challenge"]),
+
+  usage: defineTable({ key: v.string(), json: v.string() }).index("by_key", ["key"]),
+
+  /** Agent runs (one per agent step): the run record, and its normalized event stream with a per-run monotonic seq. */
+  runs: defineTable({ runId: v.string(), trailId: v.optional(v.string()), status: v.string(), startedMs: v.number(), json: v.string() })
+    .index("by_run_id", ["runId"])
+    .index("by_status_started", ["status", "startedMs"])
+    .index("by_trail_started", ["trailId", "startedMs"])
+    .index("by_started", ["startedMs"]),
+  runEvents: defineTable({ runId: v.string(), seq: v.number(), json: v.string() }).index("by_run_seq", ["runId", "seq"]),
+
+  /** Console policy drafts: the full Draft JSON, indexed by id and status. */
+  drafts: defineTable({ draftId: v.string(), status: v.string(), json: v.string(), updatedMs: v.number() })
+    .index("by_draft_id", ["draftId"])
+    .index("by_status_updated", ["status", "updatedMs"]),
 
   /** Hash-chained audit log; the chain is extended inside a serializable mutation. */
   audit: defineTable({ seq: v.number(), auditId: v.string(), json: v.string(), prevHash: v.string(), hash: v.string() })

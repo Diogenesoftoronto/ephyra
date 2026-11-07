@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentResult, AgentTask, CodingAgent, Runner, RunnerHandle } from "@ephyra/core";
 import { LocalRunner } from "@ephyra/runner";
+import type { AgentRunOptions } from "@ephyra/agent";
 import { compose, type Composed } from "./compose.ts";
 import { readConfig } from "./config.ts";
 
@@ -35,8 +36,10 @@ async function exec(runner: Runner, handle: RunnerHandle, cmd: string[]): Promis
 class ScriptedAgent implements CodingAgent {
   readonly name = "scripted";
   steps: string[] = [];
-  async run(task: AgentTask, runner: Runner, handle: RunnerHandle): Promise<AgentResult> {
+  async run(task: AgentTask, runner: Runner, handle: RunnerHandle, opts: AgentRunOptions = {}): Promise<AgentResult> {
     this.steps.push(task.step);
+    await opts.onEvent?.({ type: "message", text: `Working on ${task.step}` });
+    await opts.onEvent?.({ type: "tool_call", tool: { callId: `c-${task.step}`, name: "shell_command", args: "{}" } });
     const usage = { tokens: 10, costMicrousd: null, model: "scripted" };
     const git = (...a: string[]) => exec(runner, handle, ["git", "-c", "user.name=agent", "-c", "user.email=a@a", ...a]);
     if (task.step === "research") {
@@ -172,6 +175,43 @@ describe("composed server", () => {
     for (const t of ["triage_completed", "research_completed", "repro_completed", "plan_completed", "patch_completed",
       "proof_completed", "landing_completed", "watch_started", "watch_completed"]) expect(types).toContain(t);
   }, 60_000);
+
+  test("the flow left runs, events, usage and activity behind for the console", async () => {
+    const [trail] = await trails();
+    const runs = await (await server.app.request(`/v1/runs?trail=${trail!.id}`,
+      { headers: auth })).json() as { id: string; step: string; status: string; persona: string; engine: string; executor: { kind: string } }[];
+    expect(runs.map((r) => r.step).sort()).toEqual(["patch", "plan", "repro", "research"]);
+    expect(runs.every((r) => r.status === "done" && r.executor.kind === "local")).toBe(true);
+    expect(runs.find((r) => r.step === "research")).toMatchObject({ persona: "bell", engine: "scripted" });
+    const research = runs.find((r) => r.step === "research")!;
+    const events = await (await server.app.request(`/v1/runs/${research.id}/events`, { headers: auth })).json() as { seq: number; type: string }[];
+    expect(events.map((e) => [e.seq, e.type])).toEqual([[0, "message"], [1, "tool_call"]]);
+
+    const usage = await (await server.app.request("/v1/usage/entries?limit=100",
+      { headers: auth })).json() as {
+      entries: {
+        kind: string; step: string; persona: string | null; costMicrousd: number | null; tokens: number | null; wallMs: number | null; outcome: string;
+      }[];
+    };
+    const steps = usage.entries.filter((e) => e.kind === "agent_step");
+    expect(steps.map((e) => e.step).sort()).toEqual(["patch", "plan", "repro", "research"]);
+    for (const e of steps) expect(e).toMatchObject({ tokens: 10, costMicrousd: null, outcome: "ok" }); // the agent reported no cost: unknown, not 0
+    expect(steps.find((e) => e.step === "research")!.persona).toBe("bell");
+    const proof = usage.entries.find((e) => e.kind === "proof");
+    expect(proof).toMatchObject({ persona: "nema", step: "proof", outcome: "ok", costMicrousd: null, tokens: null, billedTo: "local" });
+    expect(proof!.wallMs).toBeGreaterThan(0);
+
+    const summary = await (await server.app.request("/v1/usage",
+      { headers: auth })).json() as { totals: { unknownCost: number; costMicrousd: number }; byTrail: { trailId: string; short: string }[] };
+    expect(summary.totals.costMicrousd).toBe(0);
+    expect(summary.totals.unknownCost).toBeGreaterThanOrEqual(5);
+    expect(summary.byTrail[0]).toMatchObject({ trailId: trail!.id, short: expect.any(String) });
+
+    const feed = await (await server.app.request("/v1/activity?limit=100",
+      { headers: auth })).json() as { status: string; persona: string | null; summary: string }[];
+    expect(feed.some((i) => i.persona === "bell" && i.status === "done" && i.summary.startsWith("Wrote the hypothesis"))).toBe(true);
+    expect(feed.some((i) => i.persona === "turri")).toBe(true);
+  });
 
   test("approving a stale checkpoint is refused with 409, and actions on closed trails too", async () => {
     const [trail] = await trails();

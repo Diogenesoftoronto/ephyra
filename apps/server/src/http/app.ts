@@ -26,9 +26,13 @@ const spendDecision = z.object({ verdict: z.enum(["approve", "revise", "reject"]
  */
 export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<string> };
 
+const PLUGIN_REPORT = /^\/v1\/runs\/[^/]+\/policy$/;
+
 export function createApp(
   token: string, port: HttpPort, otlp = new Hono(), sessions?: SessionResolver,
   approval: ApprovalPolicy = { requireSignIn: false, approvers: new Set() },
+  /** Extra /v1 routes (the console's) that inherit the same authentication and approver rules. */
+  extra?: (approval: ApprovalPolicy) => Hono<AuthEnv>,
 ): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
   app.get("/healthz", (c) => c.json({ ok: true }));
@@ -36,6 +40,8 @@ export function createApp(
   // Every mutating /v1 route is a human decision or action.
   app.use("/v1/*", async (c, next) => {
     if (c.req.method === "GET" || !approval.requireSignIn) return next();
+    // The harness plugin inside an agent run reports policy decisions with the service token; that is the one write a machine may make.
+    if (PLUGIN_REPORT.test(new URL(c.req.url).pathname) && c.get("principalKind") === "service") return next();
     if (c.get("principalKind") !== "human") {
       return c.json({ error: "sign in with Not Organic (`ephyra login`) to change trails" }, 403);
     }
@@ -85,6 +91,7 @@ export function createApp(
     });
   }
   app.get("/v1/ops", async (c) => c.json(port.ops ? await port.ops() : {}));
+  if (extra) app.route("/", extra(approval));
   app.route("/otlp", otlp);
   return app;
 }

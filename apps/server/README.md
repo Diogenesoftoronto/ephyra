@@ -37,7 +37,88 @@ See `src/config.ts`. The main variables:
 | `EPHYRA_AUTONOMY_FILE`, `EPHYRA_THRESHOLDS_FILE` | Policy files (shadow-mode templates otherwise) |
 | `EPHYRA_EXTRACT` | `parser` (default), `workers-ai`, `none` |
 | `EPHYRA_DECIDE` | `none` (default: every signal goes to a human), `typesafe`, `systemone` |
-| `EPHYRA_AGENT` | `none` (default), `claude-code`, `codex` (the CLI must be in the image) |
+| `EPHYRA_AGENT` | `none` (default), `claude-code`, `codex`, `amp` (the CLI must be in the image) |
+| `EPHYRA_DRAFT` | Velum's model: `none` (default), `notorganic`, `anthropic`, `openai`, `fake` |
+| `EPHYRA_DRAFT_MODEL` | Model id or gateway alias for Velum (defaults: `balanced` on Not Organic, `claude-sonnet-5-5`, `gpt-6.1-sol`) |
+| `EPHYRA_DRAFT_ANTHROPIC_API_KEY`, `EPHYRA_DRAFT_OPENAI_API_KEY` | Bring-your-own keys for `EPHYRA_DRAFT=anthropic` / `openai` |
+| `EPHYRA_CONSOLE_DIR` | Built web console served at `/app/` when the directory has an `index.html` (default `apps/console/dist`) |
+
+## The web console API
+
+`design/05-console.md` is the contract; the shapes are in `packages/core/src/console.ts`. All routes use the `/v1` authentication
+(session token, or service token plus `X-Ephyra-Principal`); mutations need an approver when sign-in is on, and **publishing a draft
+needs a signed-in approver whenever approvers are configured**. Every response is validated with the core schemas before it is sent.
+
+| Route | Returns |
+|---|---|
+| `GET /v1/personas` | `Persona[]` |
+| `GET /v1/usage?from&to&persona&engine&trail` | `UsageSummary`; default window the last 7 days (at most 366), every UTC day present, `persona=unattributed` for work with no persona |
+| `GET /v1/usage/entries?…&cursor&limit` | `{ entries, cursor? }`, newest first, `limit` 1 to 200 |
+| `GET /v1/activity?limit` | `ActivityItem[]`: running first (with `startedAt`), then waiting and recent, newest first |
+| `GET /v1/docs`, `GET /v1/docs/:path` | `PolicyDoc` with digest and parser warnings, plus (additive) `sketches` on the autonomy document |
+| `POST /v1/drafts` `{path}`, `GET /v1/drafts?status`, `GET /v1/drafts/:id` | `Draft` (plus additive `sketches`) |
+| `POST /v1/drafts/:id/messages` `{text, quotes?}` | Appends the message and Velum's reply. `Idempotency-Key` makes a retry return the draft without asking the model again |
+| `PUT /v1/drafts/:id/content` `{content, baseDigest}`, `PUT /v1/drafts/:id/sketches` `{sketches, baseDigest}` | Manual edit / edit of the application map (rendered through `sketchToArea` → `renderAutonomy`) |
+| `POST /v1/drafts/:id/apply` `{messageId}`, `…/publish`, `…/discard` | See below |
+| `GET /v1/runs?trail&status&limit`, `GET /v1/runs/:id` | `AgentRun[]` (running first) / `AgentRun` |
+| `GET /v1/runs/:id/events?after=<seq>` | `AgentRunEvent[]`; with `Accept: text/event-stream` a live SSE stream (`id:` is the seq, `Last-Event-ID` resumes, a final `event: end` carries the status) |
+| `POST /v1/runs/:id/policy` | Ingestion for the Amp harness plugin's `tool.call` decisions (service token allowed even with sign-in on) |
+
+**Documents.** `autonomy.md`, `thresholds.yaml` and `intents/<name>.md`. Source order for each: the configured file
+(`EPHYRA_AUTONOMY_FILE`, `EPHYRA_THRESHOLDS_FILE`), then the deployment repository at `EPHYRA_BASE_REF`, then the shipped template
+(autonomy and thresholds only). The digest is the SHA-256 of the text. Parse errors are reported in `warnings` with an `error:`
+prefix and block publishing; other warnings do not. A draft of a new intent starts from an empty document.
+
+**Publishing.** Refused (409) when the draft isn't open, has errors, or the document's digest moved since `baseDigest`. Otherwise it
+writes a commit (the base ref's tree with the new file, or a root commit when the base ref doesn't exist) to
+`refs/ephyra/policy/<draft-id>` with `Ephyra-Draft:` and `Ephyra-Approver:` trailers, creating the ref with compare-and-swap, appends the
+audit entry `policy.publish`, and marks the draft published. A replay after a crash finds the identical commit and reuses it. The live
+policy is never changed; it changes only when that commit lands on the base ref through the usual landing.
+
+**Velum.** The `DraftModel` port has four adapters: Not Organic (`POST /v1/chat/completions` on `NOTORGANIC_ISSUER`, DPoP-bound with the
+billing account's sign-in session, with a cost ceiling header), Anthropic and OpenAI (bring your own key), and a deterministic fake.
+Velum replies with JSON `{text, proposal?, spec?}`; the system prompt comes from `velumPrompt` plus the application map. The server
+re-parses every proposal for warnings, validates every `spec` with `validateVelumSpec` (invalid → dropped with a system note), renders
+`proposal.sketches` itself (any `content` sent with sketches is ignored), wraps quoted signal or comment text as
+`<untrusted_signal>` / `<untrusted_comment>`, and answers an unavailable model with a system message and an `unavailable` usage row,
+never a made-up reply. Provider prices are not reported by Anthropic or OpenAI, so BYOK Velum rows have an unknown cost.
+
+**Usage.** One idempotent row per unit of work: model calls (extract, triage) through the models `UsageHook`, each agent step (tokens,
+cost and model from `AgentResult.usage`, wall time; failed and `Unverified` steps too), each proof run, and each Velum reply.
+`billedTo` comes from the configured backend (Not Organic hosted → `notorganic`, keyed providers → `byok`, local CLIs and parsers →
+`local`, a keyless custom endpoint → `unknown`). An unknown cost is `null`, counted in `unknownCost`, never added as 0. Notes pass
+through `safeNote`, which scrubs credential shapes. The ledger is in memory or the Convex `usage` table; a ledger outage is logged and
+never fails the work it measures.
+
+**Runs.** Each agent step creates an `AgentRun` (id `<trail>.<rev>.<step>.<attempt>`) with an executor (`orb` with project, `runner`
+with id, `local`, or the runner's name), appends the engine's normalized events (see `packages/agent`) with a gap-free `seq`, merges
+the Amp thread URL and a portal URL when the stream reports them, and closes with status, engine, usage and error. Events are buffered
+for 250 ms before they are stored. A run left `running` by a crashed server is closed as failed on the next boot. Stores: memory and the
+Convex `runs` / `runEvents` tables (secret-gated, convex-tested).
+
+**Console.** When `EPHYRA_CONSOLE_DIR/index.html` exists, `/app/` serves the built console with SPA fallback (missing assets 404, never
+outside the directory); `/v1` keeps its authentication.
+
+## Verified and Unverified (console)
+
+Verified offline (no network): usage aggregation (property tests: totals equal the sum of the persona, engine and day groups; unknown
+costs counted, never summed as 0; paging covers every entry once), recording from the models hook, agent steps and proof through the
+composed server, activity derivation, docs, draft chat/apply/edit/discard/publish including the policy ref (CAS, replay, concurrent
+publish) and audit entry, the application map routes, Velum adapters against fake `fetch`, run routes including SSE ordering, resume
+and close, the plugin policy route, Convex functions (convex-test), and static serving with traversal attempts.
+
+**Unverified:**
+- A live Velum reply. One attempt with the Anthropic adapter returned HTTP 400 from the provider (*credit balance too low* on the key
+  used), so no live reply was seen. Not Organic chat with the billing account's DPoP token is also unseen live: the `infer:<model>`
+  scope Velum needs is requested at sign-in only when `EPHYRA_DRAFT=notorganic`, and the gateway/client catalog must allow it.
+- The success path of the Amp, Claude Code and Codex stream normalizers on live runs (fixtures follow the documented formats; only the
+  Amp reauthentication failure is a real capture), and the portal URL appearing in an `amp orb portal` result.
+- **Live plugin reporting.** `POST /v1/runs/:id/policy` is the ingestion path for the Ephyra harness plugin
+  (`.amp/plugins/ephyra.ts`, design/03), but that plugin is not built, so no policy event has come from a real Amp run. Policy events
+  exist only when a caller posts them; none are ever synthesised.
+- Landing the published policy commit on Radicle or Tangled (the commit only lands through the forge adapters that are verified), and
+  the Convex `drafts`, `runs` and `runEvents` functions against a live deployment.
+- Orb and runner Amp steps other than research, plan and review still need the plugin's `ephyra_report` tool (unchanged).
 
 ## Deploying
 
@@ -93,4 +174,4 @@ terminal approval, successful sign-in, an expired request and an error. The term
 OpenTUI application and its stories live in `apps/cli/src/inbox.stories.ts` for Textbook instead.
 
 New browser-facing application components and meaningful states should be added to Storybook alongside
-their implementation. The public marketing site is separate; there is no browser dashboard yet.
+their implementation. The public marketing site is separate; the web console is `apps/console`.
