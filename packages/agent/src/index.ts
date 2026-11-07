@@ -6,7 +6,8 @@ const contracts: Record<AgentTask["step"], string> = {
   plan: "Write plan.md with implementation steps, risks, and verification.",
   patch: "Implement and commit the patch. Every produced commit must contain " +
     "the Ephyra-Trail trailer with the supplied trail ID.",
-  review: "Return JSON only: {\"findings\":[{\"severity\":\"low|medium|high|critical\",\"text\":\"...\",\"file\":\"optional\",\"line\":1}]}. Do not modify files.",
+  review: "Return JSON only: {\"findings\":[{\"severity\":\"low|medium|high|critical\",\"text\":\"...\",\"file\":\"optional\",\"line\":1}]}. " +
+    "Do not modify files.",
 };
 export function renderPrompt(task: AgentTask): string {
   const trusted = Object.entries(task.context).map(([k,v]) => `${k}: ${v}`).join("\n");
