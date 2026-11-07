@@ -379,7 +379,7 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
   <div class="forge-grid">
     <div class="forge-copy">
       <h2 id="forge-title" class="display-2" data-elastic>Your forge. Your box.</h2>
-      <p>Git owns the durable record. Forge objects mirror it, so the same trail can land as a signed Radicle patch, a Tangled pull, a conditional branch update on a bare repo, or a live change applied into the devenv you are already running. Postgres with DBOS embedded in the worker holds the hot state; a transition counts as durable only after the git outbox acknowledges it. No Temporal cluster, no Redis.</p>
+      <p>Git owns the durable record. Forge objects mirror it, so the same trail can land as a signed Radicle patch, a Tangled pull, a conditional branch update on a bare repo, or a live change applied into the devenv you are already running. Convex holds the hot state: the inbox, the job queue and the projections. A transition counts as durable only once the git journal accepts it. No Temporal cluster, no Redis.</p>
       <p>Run it from a Railway template, with Railway Sandboxes for repro and patch work. Or run everything on your own Nix hardware with Firecracker microVMs, with no hosted model, GitHub account or Railway account required.</p>
     </div>
     <div class="works-with" aria-labelledby="works-title">
@@ -454,17 +454,19 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
     <p><strong>Ephyra</strong> is a working name. An ephyra is the juvenile, free-swimming stage of a jellyfish: the first step toward jellyware.</p>
   </div>
   <dl class="foot-facts">
-    <div><dt>Status</dt><dd>Pre-alpha. Design documents only.</dd></div>
-    <div><dt>Stack</dt><dd>TypeScript on Bun, Postgres with DBOS, OpenTelemetry, devenv</dd></div>
+    <div><dt>Status</dt><dd>Pre-alpha. Not for sale.</dd></div>
+    <div><dt>Stack</dt><dd>TypeScript on Bun, Convex, OpenTelemetry, devenv</dd></div>
     <div><dt>Accounts and evidence</dt><dd>Not Organic for hosted System One calls; voxq for human-intent studies</dd></div>
     <div><dt>License</dt><dd>Open source, license to be decided</dd></div>
   </dl>
-  <nav class="foot-links" aria-label="Documents">
-    <a href="../README.md">README</a>
-    <a href="../design/01-product-and-loop.md">01 · Product and loop</a>
-    <a href="../design/02-platform.md">02 · Platform</a>
-    <a href="../design/brand/BRAND.md">Brand brief</a>
-    <a href="../research/brief.md">Research brief</a>
+  <nav class="foot-links" aria-label="Site">
+    <a href="/pricing">Pricing</a>
+    <a href="/blog/">Journal</a>
+    <a href="/security">Security</a>
+    <a href="/legal/terms">Terms</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/acceptable-use">Acceptable use</a>
+    <a href="/legal/providers">Service providers</a>
   </nav>
   <p class="foot-credit">Macroscope, PostHog, Entire, Amp, Radicle, Tangled, Sapling, devenv, Railway, Cloudflare, TypeSafe, Liquid AI and HumanLayer are the work of their own teams. Named here as references and intended integrations, not as endorsements.</p>
 </footer>

@@ -1,0 +1,23 @@
+<h2 id="report">Reporting a vulnerability</h2>
+<p>Email {{security}} with what you found, how to reproduce it, the version or commit you tested, and what an attacker could do with it. Please don’t include passwords, private keys or personal information you don’t need. We will acknowledge your report, keep you updated while we fix it, and credit you if you want credit. There is no bug bounty yet.</p>
+<p>Test against a deployment you run yourself. Do not test deployments other people operate, the Not Organic service, or other people’s repositories. Do not access, change or keep other people’s data, and do not degrade the service for anyone. If you follow these rules and report in good faith, we will not pursue or support legal action against you for your research.</p>
+<p>Not Organic, Amp, Radicle, Tangled and our other providers run their own disclosure programs. Report issues in their services to them.</p>
+<p>Machine-readable contact: <a href="/.well-known/security.txt">/.well-known/security.txt</a>.</p>
+
+<h2 id="design">How Ephyra protects what it touches</h2>
+<ul>
+<li><strong>Untrusted content stays data.</strong> Signal text, logs, stack traces, forge comments and study answers are wrapped as untrusted blocks in prompts. They are never placed in system or instruction text, and they never grant a capability.</li>
+<li><strong>Approvals are bound.</strong> Each checkpoint approval is bound to the trail revision and head it was shown, and the landing approval is also bound to the proof digest. If the trail has changed since, the approval is refused. Only people on the deployment’s approver list can approve, and every approval goes into the trail journal and the audit log.</li>
+<li><strong>Landings carry their proof.</strong> Landed commits carry <code>Ephyra-Trail</code> and <code>Ephyra-Proof</code> trailers, and proof bundles are pinned by digest. A watch window can roll a landing back. Evidence that was not gathered is reported as missing, never as passed.</li>
+<li><strong>Writes happen once.</strong> Every external write carries an operation key. A write whose outcome is unclear goes to a person for reconciliation instead of being blindly retried.</li>
+<li><strong>Sign-in is bound to the server.</strong> Sign-in uses Not Organic with PKCE and DPoP-bound tokens; the DPoP key is held by the server. Refresh tokens are encrypted with AES-GCM before storage and rotated with compare-and-swap. Terminal sign-in needs a browser approval with a matching code, and the CLI keeps its credentials in a file only your user account can read.</li>
+<li><strong>The database refuses strangers.</strong> Every Convex function checks a shared deployment secret with a constant-time comparison, and refuses the call when the secret is missing or wrong.</li>
+<li><strong>Secrets stay out of the record.</strong> Secrets come from the environment or a credential reference. They are never logged, committed, written to journals, or sent to models.</li>
+</ul>
+
+<h2 id="limits">Known limits</h2>
+<ul>
+<li>Ephyra is pre-alpha. It has had no third-party security audit, and it holds no SOC 2, ISO 27001 or other certification.</li>
+<li>The local runner is for trusted repositories only. It is not a security sandbox and does not limit network or resources. The Railway and Not Organic runners are not yet verified against live services.</li>
+<li>Models can be manipulated by content they read. Checkpoints, proof and the approver list exist because a model’s judgement is not a security control.</li>
+</ul>

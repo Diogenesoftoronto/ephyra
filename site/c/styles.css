@@ -256,6 +256,7 @@ a { color: inherit; }
 }
 .foot p { margin: 0; }
 .foot a { color: var(--jelly-deep); }
+.foot-links { margin-top: .9rem; text-align: center; }
 
 /* ── Mobile ── */
 @media (max-width: 760px) {
