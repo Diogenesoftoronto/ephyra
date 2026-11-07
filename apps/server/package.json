@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ephyra/core": "workspace:*",
+    "hono": "^4.13.17",
     "zod": "4"
   }
 }
