@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Bell, the Researcher">
+<style>.p{fill:#f8ac3d}.s{stroke:#f8ac3d}@media (prefers-color-scheme:light){.p{fill:#aa5f04}.s{stroke:#aa5f04}}</style>
+<path class="p" d="M3.5 18.5C3.5 9.5 9 4 16 4s12.5 5.5 12.5 14.5c-2 1.2-4.2 1.2-6.2 0-2 1.2-4.2 1.2-6.3 0-2 1.2-4.2 1.2-6.3 0-2 1.2-4.2 1.2-6.2 0Z"/>
+<path class="s" d="M8.5 20.5v5.5M13.5 21v7M18.5 21v7M23.5 20.5v5.5" fill="none" stroke-width="3.6" stroke-linecap="round"/>
+<g fill="#fff" opacity=".32"><circle cx="13.4" cy="10.6" r="2.5"/><circle cx="18.6" cy="10.6" r="2.5"/><circle cx="13.4" cy="15.4" r="2.5"/><circle cx="18.6" cy="15.4" r="2.5"/></g>
+<circle cx="11" cy="7.5" r="1.8" fill="#fff" opacity=".45"/>
+</svg>

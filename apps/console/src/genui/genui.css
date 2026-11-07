@@ -1,0 +1,69 @@
+/* Layout only. */
+.gu-stack {
+  display: grid;
+  gap: var(--s4);
+}
+.gu-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+  min-width: 0;
+}
+.gu-group > legend {
+  padding: 0;
+  margin-bottom: var(--s1);
+}
+.gu-row {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  min-width: 0;
+}
+.gu-row > input {
+  flex: 1;
+  min-width: 0;
+}
+.gu-duration {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 1fr) minmax(0, 2fr);
+}
+.gu-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+}
+.gu-check {
+  display: inline-flex;
+  gap: var(--s2);
+  align-items: center;
+}
+.gu-link {
+  justify-self: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  color: inherit;
+  font: inherit;
+}
+.gu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  align-items: center;
+}
+.gu-diff {
+  display: grid;
+  gap: var(--s2);
+}
+.gu-note {
+  margin: 0;
+}
+.gu-form {
+  display: grid;
+  gap: var(--s3);
+}

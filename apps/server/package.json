@@ -23,6 +23,7 @@
     "@ephyra/policy": "workspace:*",
     "convex": "1.49.0",
     "@ephyra/evidence": "workspace:*",
+    "@ephyra/genui": "workspace:*",
     "@ephyra/forge": "workspace:*",
     "@ephyra/models": "workspace:*",
     "@ephyra/agent": "workspace:*",

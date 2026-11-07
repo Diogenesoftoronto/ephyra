@@ -5,3 +5,4 @@ export * from "./triage";
 export * from "./proof";
 export * from "./watch";
 export * from "./templates";
+export * from "./sketch";

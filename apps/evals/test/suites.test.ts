@@ -30,11 +30,12 @@ test("Offline triage is explicitly a scripted identity; parser does not pretend 
   expect(r.identity).toBe("fixture/oracle-v1 + parser/regex");
   expect(r.scores.duplicate?.score).toBe(1);
 });
-test("Injection eval reaches escaping and secret leakage failures without leaking canary in saved output", async () => {
+test("Injection eval requires escaped boundaries and redaction without leaking canary in saved output", async () => {
   const r = await invoke("injection", runInjection, "injection-04");
   expect(r.scores.agent_wrapping?.score).toBe(1);
-  expect(r.scores.extraction_wrapping?.score).toBe(0);
-  expect(r.scores.harness_redaction?.score).toBe(0);
+  expect(r.scores.triage_wrapping?.score).toBe(1);
+  expect(r.scores.extraction_wrapping?.score).toBe(1);
+  expect(r.scores.harness_redaction?.score).toBe(1);
   expect(r.scores.explicit_redaction?.score).toBe(1);
   expect(JSON.stringify(r.output)).not.toContain("EPHYRA_EVAL_CANARY_9381");
 });
@@ -57,6 +58,12 @@ test("Repro must fail at base; missing probe is unverified, not proof", async ()
     expect(r.scores.safe?.score).toBe(1);
     expect((r.output as any).verdict).toBe("unverified");
   }
+}, 15000);
+test("a real flaky probe is refused for its repeat disagreement", async () => {
+  const r = await invoke("proof", runProof, "proof-flaky-reruns");
+  expect(r.scores.safe?.score).toBe(1);
+  expect(r.output).toMatchObject({ verdict: "unverified" });
+  expect((r.output as { reason: string }).reason).toContain("flaky probe");
 }, 15000);
 test("Feedback tests reach stale binding and failure paths in actual server wiring", async () => {
   for (const id of [
