@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { AccountSettings, ModelProvider, ModelUpdate, RepositoryUpdate } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
 import { Button, Field, Tag } from "../kit.ts";
@@ -16,6 +16,7 @@ export interface AccountPageProps {
 }
 export interface AccountFormProps extends AccountPageProps {
   onBusyChange?: (busy: boolean) => void;
+  secondaryAction?: ReactNode;
 }
 
 const providers: Record<ModelProvider, string> = {
@@ -24,13 +25,6 @@ const providers: Record<ModelProvider, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic-compatible",
   compatible: "OpenAI-compatible",
-};
-const providerDescriptions: Record<ModelProvider, string> = {
-  none: "Start with documents. Add model access when you need it.",
-  notorganic: "Use hosted models through your signed-in account.",
-  openai: "Bring your own OpenAI API key.",
-  anthropic: "Use Anthropic or a compatible Messages endpoint.",
-  compatible: "Bring a key for a compatible Chat Completions endpoint.",
 };
 export const modelProviderName = (provider: ModelProvider) => providers[provider];
 const statusNames: Record<AccountSettings["model"]["status"], string> = {
@@ -62,7 +56,7 @@ export function AccountSaveFeedback({ state, onRefresh }: { state: AccountWriteS
   );
 }
 
-export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange }: AccountFormProps) {
+export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, secondaryAction }: AccountFormProps) {
   const repository = settings.repository;
   const [url, setUrl] = useState(repository?.url ?? "");
   const [branch, setBranch] = useState(repository?.branch ?? "main");
@@ -130,7 +124,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange }
       )}
       <fieldset className="account-fields" disabled={write.locked}>
         <div className="account-repository-fields">
-          <Field label="Repository clone URL" hint="Use the HTTPS clone URL from your git host." error={urlError}>
+          <Field label="Repository clone URL" error={urlError}>
             <input
               type="url"
               required
@@ -204,9 +198,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange }
           </div>
         </details>
       </fieldset>
-      <p className="account-hint">
-        Saving fetches this branch. Changing the repository or branch opens a separate document workspace.
-      </p>
+      <p className="account-hint">Changing the repository or branch opens a separate document workspace.</p>
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       <div className="account-actions">
         <Button
@@ -216,14 +208,23 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange }
           disabled={write.locked}
           data-account-action="save-repository"
         >
-          {onDone ? "Verify repository and continue" : "Verify and save repository"}
+          {onDone ? "Continue" : "Save repository"}
         </Button>
+        {secondaryAction}
       </div>
     </form>
   );
 }
 
-export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange, loadCatalog }: AccountFormProps) {
+export function ModelAccessForm({
+  api,
+  settings,
+  onChange,
+  onDone,
+  onBusyChange,
+  loadCatalog,
+  secondaryAction,
+}: AccountFormProps) {
   const providerGroup = useId();
   const [provider, setProvider] = useState<ModelProvider>(settings.model.provider);
   const [model, setModel] = useState(settings.model.model);
@@ -287,7 +288,8 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
       }}
     >
       <fieldset className="account-fields" disabled={write.locked}>
-        <Field label="Model provider" hint={providerDescriptions[provider]}>
+        <fieldset className="account-provider-field">
+          <legend>Provider</legend>
           <div className="account-provider-choices">
             {(["notorganic", "openai", "anthropic", "compatible", "none"] as const).map((value) => (
               <label
@@ -309,7 +311,7 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
               </label>
             ))}
           </div>
-        </Field>
+        </fieldset>
         {provider !== "none" && (
           <ModelPicker
             provider={provider}
@@ -325,7 +327,7 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
             label={savedKey ? "Replace API key" : "API key"}
             hint={
               savedKey
-                ? "A key is saved for this endpoint. Leave blank to keep it, or enter a replacement."
+                ? "A key is saved for this endpoint. Leave blank to keep it."
                 : "Encrypted on the server, never saved in browser storage. A new endpoint needs a new key."
             }
           >
@@ -399,16 +401,7 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
           </details>
         )}
       </fieldset>
-      {provider === "none" ? null : provider === "notorganic" ? (
-        <p className="account-hint">
-          Uses your signed-in Not Organic account. Save your choice first. If access needs permission, sign in again
-          using the link below.
-        </p>
-      ) : (
-        <p className="account-hint">
-          No paid model request runs when you save. Check the saved access status below before using agents.
-        </p>
-      )}
+      {provider !== "none" && <p className="account-hint">No paid model request runs when you save.</p>}
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       <div className="account-actions">
         <Button
@@ -418,23 +411,25 @@ export function ModelAccessForm({ api, settings, onChange, onDone, onBusyChange,
           disabled={write.locked}
           data-account-action="save-model"
         >
-          {onDone
-            ? provider === "none"
-              ? "Continue without a model"
-              : "Save model access and continue"
-            : "Save model access"}
+          {onDone ? (provider === "none" ? "Continue without a model" : "Continue") : "Save model access"}
         </Button>
+        {secondaryAction}
       </div>
       {settings.model.provider !== "none" && (
-        <div className="account-current">
-          <span className="account-label">Saved model access</span>
-          <div className="account-saved">
-            <strong>{providers[settings.model.provider]}</strong>
-            <Tag>{statusNames[settings.model.status]}</Tag>
-            {settings.model.keyConfigured && <span>Key saved</span>}
-          </div>
-          {settings.model.model && <code>{settings.model.model}</code>}
-          {settings.model.detail && <p className="account-hint">{settings.model.detail}</p>}
+        <div>
+          <details className="account-current">
+            <summary>
+              Saved connection <Tag>{statusNames[settings.model.status]}</Tag>
+            </summary>
+            <div className="account-current-details">
+              <div className="account-saved">
+                <strong>{providers[settings.model.provider]}</strong>
+                {settings.model.keyConfigured && <span>Key saved</span>}
+              </div>
+              {settings.model.model && <code>{settings.model.model}</code>}
+              {settings.model.detail && <p className="account-hint">{settings.model.detail}</p>}
+            </div>
+          </details>
           {settings.model.provider === "notorganic" && settings.model.status === "needs_sign_in" && (
             <a href="/auth/login?setup=1">Sign in to allow model access</a>
           )}
@@ -460,14 +455,14 @@ export function SetupReview({ settings }: { settings: AccountSettings }) {
                 <Tag>Branch verified</Tag>
               </>
             ) : (
-              "Not connected. You can add one in Settings."
+              "Not connected"
             )}
           </dd>
         </div>
         <div>
           <dt>Model access</dt>
           <dd>
-            <span>{providers[settings.model.provider]}</span>
+            {settings.model.provider !== "none" && <span>{providers[settings.model.provider]}</span>}
             {settings.model.model && <code>{settings.model.model}</code>}
             <Tag>{statusNames[settings.model.status]}</Tag>
             {settings.model.provider === "notorganic" && settings.model.status === "needs_sign_in" && (
@@ -477,13 +472,9 @@ export function SetupReview({ settings }: { settings: AccountSettings }) {
         </div>
         <div>
           <dt>Code execution</dt>
-          <dd>Not configured. Connecting a repository does not start autonomous code changes or deployments.</dd>
+          <dd>Not configured</dd>
         </div>
       </dl>
-      <p className="account-hint">
-        Your workspace is ready for writing intent and autonomy policies. Agent assistance uses your saved model access
-        when available.
-      </p>
     </div>
   );
 }

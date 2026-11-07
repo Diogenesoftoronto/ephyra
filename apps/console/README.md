@@ -44,9 +44,10 @@ and never calls a provider or a server. It is opt-in and visibly labelled.
 First sign-in opens a resumable repository → model access → review flow. **Explore first** saves setup for later.
 Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
-Settings groups Repository, Model access and Account into a section rail, which becomes a compact tab row on phones.
+Settings groups Repository, Model access and Account into a text tab row at every screen size.
 Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
-leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses a matching step rail and a focused form.
+leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses one heading, a progress line and a focused form.
+Both screens use an unframed reading column. Saved model connection details expand from their status row.
 Keys start blank, can be replaced or removed, and are never stored in browser storage or returned by the server.
 Changing provider protocol or endpoint does not silently reuse a saved key.
 
