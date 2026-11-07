@@ -1,3 +1,5 @@
-# @ephyra/ingest
+# Ingest
 
-Pure redaction, stack parsing, fingerprinting and signal normalization plus an in-memory SignalStore. The store is process-local and does not provide durable idempotency or coverage accounting. No OTLP receiver is available yet; transport, quotas, partial success, and production ingestion remain Unverified. Redaction is best effort and must not be treated as a complete secret detector.
+Normalizes OTLP/HTTP JSON logs and traces into redacted signals, groups failures by fingerprint, and offers an in-memory signal store and Hono routes. The package tests exercise sample logs, span errors, stack parsing, redaction and in-process duplicate requests.
+
+Protobuf ingestion is planned and returns 415. The memory store, request deduplication and notification suppression are process-local and do not survive restart or coordinate replicas; they are not durable delivery guarantees. Coverage gaps and real collector integration remain unverified. The caller must authenticate requests, provide quota enforcement and bind telemetry to the correct repository before production use.
