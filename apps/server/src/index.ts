@@ -1,3 +1,7 @@
 export * from "./orchestrator.ts";
 export * from "./audit.ts";
 export * from "./orchestrator/effects.ts";
+export * from "./config.ts";
+export * from "./db/migrate.ts";
+export * from "./db/pg-operation-ledger.ts";
+export * from "./db/pg-signal-store.ts";

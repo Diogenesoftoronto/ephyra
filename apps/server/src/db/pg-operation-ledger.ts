@@ -31,6 +31,6 @@ export class PgOperationLedger implements OperationLedger {
     const rows = await this.sql`SELECT key, plan_digest, status, result, at FROM operation_ledger WHERE key = ${key}`;
     const row = rows[0];
     if (!row) return null;
-    return { key: row.key, planDigest: row.plan_digest, status: row.status, result: row.result, at: new Date(row.at).toISOString() };
+    return { key: row.key, planDigest: row.plan_digest, status: row.status, result: typeof row.result === "string" ? JSON.parse(row.result) : row.result, at: new Date(row.at).toISOString() };
   }
 }
