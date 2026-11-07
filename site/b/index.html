@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ephyra Lightbox</title>
+<meta name="description" content="Ephyra is a design for self-driving software you host yourself: production errors become trails that land on forges you own, with humans at the checkpoints.">
+<meta name="theme-color" content="#f6efe1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1621" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Ephyra — software that sets itself">
+<meta property="og:description" content="Self-driving fixes for production, on forges you own. A pre-alpha design.">
+<meta property="og:image" content="../assets/og/og.png">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..1000,0..1,0..1,0..1&display=swap">
+<link rel="preload" as="image" href="../assets/img/hero-ephyra-cutout.webp" fetchpriority="high">
+<link rel="stylesheet" href="styles.css">
+<script>
+  try { const t = localStorage.getItem("ephyra-b-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  document.documentElement.classList.add("js");
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <a class="brand" href="#main" aria-label="Ephyra, back to top">
+    <img src="assets/mark.svg" width="30" height="30" alt="">
+    <span>ephyra</span>
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#method">Method</a>
+    <a href="#watch">Watch</a>
+    <a href="#autonomy">Autonomy</a>
+    <a href="#forge">Forges</a>
+    <a href="#jellyware">Jellyware</a>
+  </nav>
+  <div class="nav-end">
+    <a class="cut" href="../index.html" title="Compare with the other landing page">cut&nbsp;B · see&nbsp;A</a>
+    <button class="theme" type="button" aria-label="Color theme: system" data-mode="system">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18V3Z" fill="currentColor"/><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    </button>
+    <a class="btn btn-small" href="../../README.md">Read the design</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ───────────── Hero: the specimen first, the statement last ───────────── -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="lightbox" aria-hidden="true"></div>
+
+    <div class="hero-copy">
+      <p class="eyebrow hand">Specimen 01 · pre-alpha · a design, not yet a product</p>
+      <p class="lede">Ephyra is a design for self-driving software you host yourself. A production error becomes a <strong>trail</strong>: evidence, a failing repro, a patch, proof, and a landing on a forge you own. No pull request. You answer at the checkpoints; the rest sets by itself.</p>
+      <div class="ctas">
+        <a class="btn" href="../../README.md">Read the design</a>
+        <a class="btn btn-quiet" href="#method">How it sets</a>
+        <span class="chip code" title="Not runnable yet">devenv up <em>soon</em></span>
+      </div>
+    </div>
+
+    <figure class="specimen">
+      <div class="jelly-stage">
+        <img class="jelly-img" onerror="this.closest('.jelly-stage').classList.add('no-img')" src="../assets/img/hero-ephyra-cutout.webp" width="1200" height="1200" fetchpriority="high"
+             alt="A ridged honey-amber gelatin mould, glowing as if lit from beneath, with a tiny eight-armed ephyra suspended inside it.">
+        <canvas class="jelly-canvas" aria-hidden="true"></canvas>
+      </div>
+      <svg class="leaders" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M14 13 L24 13 L33 27"/>
+        <path d="M88 6.5 L77 6.5 L60 36"/>
+        <path d="M86 86 L76 86 L68 75"/>
+        <circle cx="33" cy="27" r=".9"/><circle cx="60" cy="36" r=".9"/><circle cx="68" cy="75" r=".9"/>
+      </svg>
+      <span class="note hand n1">gelatin<br><span>your app, in production</span></span>
+      <span class="note hand n2">ephyra<br><span>the agent · 8 arms · 1 pulse</span></span>
+      <button class="note hand n3 poke" type="button">poke it<br><span>it should set again</span></button>
+      <figcaption class="plate-label hand">Fig. 1 — <i>Aurelia</i> ephyra in honey gelatin, on a lightbox. Set 6&nbsp;Nov&nbsp;2026.</figcaption>
+    </figure>
+
+    <h1 class="headline" id="hero-title" aria-label="Software that sets itself.">
+      <span class="line" aria-hidden="true">Software that</span>
+      <span class="line" aria-hidden="true"><span class="accent">sets</span> itself.</span>
+    </h1>
+  </section>
+
+  <!-- ───────────── Method: pinned horizontal strip ───────────── -->
+  <section class="method" id="method" aria-labelledby="method-title">
+    <div class="method-pin">
+      <header class="method-head">
+        <p class="eyebrow hand">Method</p>
+        <h2 id="method-title">From a signal to a set, in six steps.</h2>
+        <p>Each step leaves a record in git, so a trail can pause for a week, move machines, and pick up where it stopped.</p>
+        <div class="method-progress" aria-hidden="true"><span></span></div>
+      </header>
+      <ol class="method-track">
+        <li class="step">
+          <figure><img src="../assets/img/specimen-signal-800.webp" width="800" height="600" loading="lazy" alt="A single mint droplet glowing at the centre of a petri dish of clear gel, ripples spreading."></figure>
+          <div class="step-text"><span class="num code">01</span><h3>Catch a signal</h3>
+            <p>Error spans, trace anomalies, a failed intent probe, a regression replay. Each is fingerprinted first; only new or re-rising fingerprints go on.</p></div>
+        </li>
+        <li class="step">
+          <figure class="screen"><video muted loop playsinline preload="none" poster="../assets/motion/dedupe-merge-poster.webp" aria-label="Three mint signal droplets fusing into one.">
+            <source src="../assets/motion/dedupe-merge.webm" type="video/webm"><source src="../assets/motion/dedupe-merge.mp4" type="video/mp4"></video></figure>
+          <div class="step-text"><span class="num code">02</span><h3>Merge the duplicates</h3>
+            <p>Two cheap System One calls. Clairic pulls typed fields from the payload; Jev, or a d1 you host, answers six questions: actionable, duplicate, regression, conflict, severity, route.</p>
+            <p class="tag code">≈ $0.49 per 10k signals · illustrative</p></div>
+        </li>
+        <li class="step">
+          <figure><img src="../assets/img/specimen-trail-800.webp" width="800" height="600" loading="lazy" alt="A glowing amber trail winding through a tray of agar, beaded at four points, ending in a small blob."></figure>
+          <div class="step-text"><span class="num code">03</span><h3>Lay a trail</h3>
+            <p>A trail is a directory in git under <code>refs/ephyra/trails/&lt;id&gt;</code>. Evidence comes from traces, the code graph, past trails, and <code>entire search</code> over earlier agent sessions.</p></div>
+        </li>
+        <li class="step">
+          <figure><img src="../assets/img/specimen-proof-800.webp" width="800" height="600" loading="lazy" alt="A cube of amber gelatin under a brass loupe, the ephyra inside sharp and still."></figure>
+          <div class="step-text"><span class="num code">04</span><h3>Prove it</h3>
+            <p>The repro fails at base and passes on the patch, in a devenv sandbox. UI changes bring Storybook or Textbook proof. Changes people see can bring a voxq study.</p></div>
+        </li>
+        <li class="step">
+          <figure class="screen"><video muted loop playsinline preload="none" poster="../assets/motion/inbox-approve-poster.webp" aria-label="A terminal inbox row; pressing a approves the trail.">
+            <source src="../assets/motion/inbox-approve.webm" type="video/webm"><source src="../assets/motion/inbox-approve.mp4" type="video/mp4"></video></figure>
+          <div class="step-text"><span class="num code">05</span><h3>Ask a human</h3>
+            <p>Checkpoints A, B and C arrive in a keyboard inbox: <kbd>a</kbd> <kbd>r</kbd> <kbd>x</kbd> <kbd>t</kbd> <kbd>o</kbd>. Your <code>autonomy.md</code> decides where the loop must wait.</p></div>
+        </li>
+        <li class="step">
+          <figure><img src="../assets/img/specimen-set-800.webp" width="800" height="600" loading="lazy" alt="A glossy amber jelly mould standing perfectly set on a glass cake stand."></figure>
+          <div class="step-text"><span class="num code">06</span><h3>Let it set</h3>
+            <p>It lands as a trail ref, a Radicle patch, a Tangled pull or a Sapling stack. Then it is watched.</p></div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ───────────── Watch: set or slump ───────────── -->
+  <section class="watch" id="watch" aria-labelledby="watch-title">
+    <div class="watch-copy">
+      <p class="eyebrow hand">Watch</p>
+      <h2 id="watch-title">It sets. Or it slumps.</h2>
+      <p>Landing is not the end. Ephyra watches the change for a window your policy sets. If any of these happen, it reverts through the same landing mode and reopens the trail one revision up, with the watch data as evidence.</p>
+      <ul class="criteria">
+        <li>the original fingerprint comes back: three times, or once in a high-risk area</li>
+        <li>a new fingerprint appears in the files it touched</li>
+        <li>an intent probe for the area fails twice</li>
+        <li>errors on touched routes stay above 1.5× baseline for ten minutes</li>
+      </ul>
+    </div>
+
+    <div class="watch-demo" data-state="set">
+      <div class="watch-plate">
+        <img class="p-set" src="../assets/img/specimen-set-800.webp" width="800" height="600" loading="lazy" alt="">
+        <img class="p-slump" src="../assets/img/specimen-rollback-800.webp" width="800" height="600" loading="lazy" alt="">
+        <p class="watch-word" aria-hidden="true">Set.</p>
+      </div>
+      <p class="sr-only" aria-live="polite" id="watch-status">Set.</p>
+      <ol class="watch-log code" aria-label="Watch log">
+        <li>T-0193 · proof passed · landed as trail_ref · watch 2h</li>
+      </ol>
+      <div class="watch-actions">
+        <button class="btn" type="button" id="watch-run">Land a bad patch</button>
+        <span class="hand watch-hint">a simulation of the loop, not live data</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────── Autonomy: firm core, soft edges ───────────── -->
+  <section class="autonomy" id="autonomy" aria-labelledby="autonomy-title">
+    <div class="autonomy-copy">
+      <p class="eyebrow hand">Autonomy</p>
+      <h2 id="autonomy-title">Firm core. Soft edges.</h2>
+      <p>Humans harden the core; the edges can drive themselves. One plain-English file, <code>ephyra/autonomy.md</code>, binds areas to paths and says how far the loop may go alone. Every area starts in shadow mode: decisions are recorded, nothing lands without you, and a weekly would-approve report tells you when to flip it.</p>
+      <div class="ring-tabs" role="tablist" aria-label="Areas">
+        <button role="tab" id="tab-core" aria-controls="policy" aria-selected="true" data-ring="0">Core · payments</button>
+        <button role="tab" id="tab-mid" aria-controls="policy" aria-selected="false" data-ring="1">Middle · cart</button>
+        <button role="tab" id="tab-edge" aria-controls="policy" aria-selected="false" data-ring="2">Edge · marketing site</button>
+      </div>
+      <pre class="policy code" id="policy" role="tabpanel" aria-labelledby="tab-core" tabindex="0"></pre>
+    </div>
+    <div class="rings-wrap">
+      <svg class="rings" viewBox="0 0 600 600" aria-hidden="true">
+        <defs>
+          <path id="ring-t2" d="M300,300 m-262,0 a262,262 0 1,1 524,0 a262,262 0 1,1 -524,0"/>
+          <path id="ring-t1" d="M300,300 m-182,0 a182,182 0 1,1 364,0 a182,182 0 1,1 -364,0"/>
+          <radialGradient id="ring-g" cx="50%" cy="46%" r="55%">
+            <stop offset="0" stop-color="#fff2cf" stop-opacity=".9"/><stop offset="1" stop-color="#fff2cf" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path class="ring r2" data-ring="2"/>
+        <path class="ring r1" data-ring="1"/>
+        <path class="ring r0" data-ring="0"/>
+        <circle cx="300" cy="300" r="250" fill="url(#ring-g)" class="ring-shine"/>
+        <text class="ring-label hand"><textPath href="#ring-t2" startOffset="0">edges · marketing site · docs · copy · auto-land when proof passes · watch 1h · edges · marketing site · docs · copy · auto-land when proof passes ·</textPath></text>
+        <text class="ring-label hand"><textPath href="#ring-t1" startOffset="0">middle · cart · api · agents patch · checkpoint C decides · middle · cart · api · agents patch ·</textPath></text>
+        <text class="core-label" x="300" y="292" text-anchor="middle">core</text>
+        <text class="core-sub hand" x="300" y="322" text-anchor="middle">a named human approves</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ───────────── Forges ───────────── -->
+  <section class="forge" id="forge" aria-labelledby="forge-title">
+    <div class="forge-bg" aria-hidden="true"><img src="../assets/img/specimen-forge.webp" width="1600" height="1200" loading="lazy" alt=""></div>
+    <div class="forge-inner">
+      <p class="eyebrow hand">Forges</p>
+      <h2 id="forge-title">Your forge. Your box.</h2>
+      <ul class="forge-list" aria-label="Where a trail can land">
+        <li><span class="wobble">Radicle</span><small class="hand">as a patch</small></li>
+        <li><span class="wobble">Tangled</span><small class="hand">as a pull</small></li>
+        <li><span class="wobble">plain git</span><small class="hand">as a branch</small></li>
+        <li><span class="wobble">Sapling</span><small class="hand">as a draft stack</small></li>
+      </ul>
+      <div class="forge-cols">
+        <p>Trails live in git; a forge object only mirrors them. Run Ephyra from a Railway template with Railway Sandboxes for the repro, or on one <code>devenv up</code> on your own Nix box with Firecracker. No GitHub account required, no hosted model required.</p>
+        <figure class="screen small">
+          <video muted loop playsinline preload="none" poster="../assets/motion/smartlog-stack-poster.webp" aria-label="A trail shown as a draft stack of three commits in a smartlog, then taken over by a human.">
+            <source src="../assets/motion/smartlog-stack.webm" type="video/webm"><source src="../assets/motion/smartlog-stack.mp4" type="video/mp4"></video>
+          <figcaption class="hand">A trail as a Sapling draft stack. <code>sl goto</code> + amend is a take-over.</figcaption>
+        </figure>
+      </div>
+      <p class="forge-small">Not Organic for accounts and hosted System One calls · voxq for asking real people · bring your own keys, or host d1 yourself. Names set in our own type on purpose; none of these projects endorse Ephyra.</p>
+    </div>
+  </section>
+
+  <!-- ───────────── Jellyware ───────────── -->
+  <section class="jellyware" id="jellyware" aria-labelledby="jelly-title">
+    <p class="eyebrow hand" id="jelly-title">Jellyware</p>
+    <p class="manifesto">Hardware. Firmware. Software. <em>Jellyware</em>: software soft enough to reshape itself, and firm enough to trust. The pain of a bug is how bad it is times how long it lives in production. Ephyra works on the second number: land small, watch closely, unwind on its own.</p>
+    <p class="credit hand">“Jellyware” is Amp’s word, from <cite>Orbs and Jellyware</cite>, <i>Raising an Agent</i> S2E2, August 2026.</p>
+  </section>
+
+  <!-- ───────────── Acknowledgements ───────────── -->
+  <section class="thanks" aria-labelledby="thanks-title">
+    <h2 id="thanks-title" class="hand">Borrowed, with thanks</h2>
+    <dl>
+      <div><dt>Macroscope Murmur</dt><dd>events delivered to a still-running agent; approval policy in plain English</dd></div>
+      <div><dt>PostHog self-driving</dt><dd>a signals inbox, and checking for work already in flight</dd></div>
+      <div><dt>Entire</dt><dd>agent sessions as git refs; Trails as the unit of work instead of a PR</dd></div>
+      <div><dt>HumanLayer</dt><dd>research, plan, implement, with a human at each turn</dd></div>
+      <div><dt>Amp</dt><dd>jellyware, and production as a feedback loop</dd></div>
+    </dl>
+  </section>
+
+  <!-- ───────────── Follow ───────────── -->
+  <section class="follow" aria-labelledby="follow-title">
+    <img class="follow-mark" src="assets/mark.svg" width="88" height="88" alt="">
+    <h2 id="follow-title">Follow along.</h2>
+    <p>Ephyra is a design written on 6 November 2026. No line of it runs yet. The first dogfood target is voxq, on Radicle, devenv and Railway.</p>
+    <div class="ctas center">
+      <a class="btn" href="../../README.md">Read the design</a>
+      <a class="btn btn-quiet" href="../../design/01-product-and-loop.md">Product and loop</a>
+      <a class="btn btn-quiet" href="../../design/02-platform.md">Platform</a>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <dl class="facts">
+    <div><dt class="hand">status</dt><dd>Pre-alpha. Design documents only.</dd></div>
+    <div><dt class="hand">stack</dt><dd>TypeScript on Bun, Postgres with DBOS, OpenTelemetry, devenv</dd></div>
+    <div><dt class="hand">accounts</dt><dd>Not Organic; or your own keys, or self-hosted models</dd></div>
+    <div><dt class="hand">license</dt><dd>Open source, license to be decided</dd></div>
+  </dl>
+  <p class="fine">Macroscope, PostHog, Entire, HumanLayer, Amp, Radicle, Tangled, Sapling, devenv, Railway, Cloudflare, TypeSafe and Liquid AI are the work of their own teams, named here as references and intended integrations, not endorsements. Specimen photographs are generated illustrations.</p>
+</footer>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

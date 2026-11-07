@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/ingest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OTLP ingestion, signal normalisation, fingerprinting, dedupe.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

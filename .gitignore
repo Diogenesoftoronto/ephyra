@@ -1,0 +1,14 @@
+node_modules/
+.devenv/
+.direnv/
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+dist/
+.ephyra-local/
+# generated media sources stay on disk, out of git
+site/_sources/
+# lockfile is regenerated at integration time while parallel lanes run
+bun.lock

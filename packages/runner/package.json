@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sandbox runners: local devenv/process, Railway Sandboxes, Not Organic sandbox.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

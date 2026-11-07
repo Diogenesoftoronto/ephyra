@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/policy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "autonomy.md, thresholds, triage decision table, proof requirements, watch criteria. Pure.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

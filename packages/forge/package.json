@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/forge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Forge adapters (plain git, Radicle, Tangled) and landing modes.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

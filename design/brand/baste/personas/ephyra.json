@@ -1,0 +1,51 @@
+{
+  "id": "ephyra",
+  "name": "The Jelly Keeper",
+  "summary": "A site-reliability engineer who used to culture jellyfish at a marine station. They run their own Radicle seed and a Nix box under the desk, write runbooks like specimen labels, and believe software should be soft enough to reshape itself and firm enough to trust.",
+  "culture": {
+    "region": "North Atlantic coast, marine field station",
+    "subcultures": ["self-hosting", "local-first software", "marine biology", "home cooking from vintage cookbooks", "open-source forges"],
+    "values": ["provenance", "honesty about uncertainty", "owning your tools", "patience", "craft"],
+    "language": { "primary": "English", "vernacular": ["it set", "it slumped", "trail", "specimen", "turn the vise"] }
+  },
+  "influences": {
+    "films": ["Microcosmos", "The Life Aquatic with Steve Zissou", "Jean Painlevé's underwater films"],
+    "shows": ["Blue Planet II"],
+    "anime": ["Kuragehime (Princess Jellyfish)", "Mushishi"],
+    "music": { "genres": ["ambient", "dub techno", "exotica"], "artists": ["Hiroshi Yoshimura", "Basic Channel", "Martin Denny"] },
+    "games": ["Subnautica", "Spore (cell stage)"],
+    "visualArtists": ["Ernst Haeckel (Kunstformen der Natur, Discomedusae plates)", "Leopold and Rudolf Blaschka (glass jellyfish models)", "1960s gelatin-mould cookbook photography"],
+    "fashion": ["lab coats", "rubber boots", "translucent raincoats"],
+    "spaces": ["jellyfish kreisel tanks", "night marine lab benches with lightboxes", "vintage test kitchens", "aquarium back-of-house corridors"],
+    "tools": ["Radicle", "Tangled", "Sapling", "devenv", "Nix", "OpenTelemetry", "petri dishes and loupes"],
+    "obsessions": ["ephyra pulse rhythms", "gelatin set points and wobble", "bioluminescence", "caustic light patterns", "metaball shaders", "trail provenance in git refs"]
+  },
+  "behaviors": {
+    "discovery": ["Radicle seeds", "AT Protocol feeds", "field notebooks", "conference hallway tracks"],
+    "interfaceValues": ["keyboard-first", "calm defaults", "evidence over claims", "reversible actions", "honest status"],
+    "platforms": ["terminal", "Sapling smartlog", "self-hosted dashboards"],
+    "expression": ["specimen-label annotations", "precise lab notes", "gentle humour"],
+    "petPeeves": ["purple-to-blue SaaS gradients", "fake testimonials", "glassmorphism without purpose", "hairline icon sets", "dark patterns", "AI-slop hero images"]
+  },
+  "aesthetic": {
+    "colorTemperature": "warm",
+    "density": "rich",
+    "edgeStyle": "organic",
+    "motionStyle": "liquid",
+    "typographyStyle": "expressive",
+    "textureStyle": "textured",
+    "iconStyle": "filled",
+    "layoutStyle": "editorial",
+    "visualKeywords": ["honey amber gelatin", "backlit translucent jelly", "ephyra baby jellyfish", "specimen plate", "lightbox", "bioluminescent mint", "caustic light", "Haeckel Discomedusae", "Blaschka glass", "vintage cookbook photograph", "macro photography"],
+    "moodKeywords": ["wobbly", "calm", "exacting", "alive", "soft", "trustworthy", "lamplit night"]
+  },
+  "animation": {
+    "motifs": ["an ephyra bell contracting quickly and relaxing slowly", "amber gelatin wobbling then setting still", "caustic light rippling across a lab bench", "mint bioluminescent droplets drifting and merging"],
+    "subjects": ["ephyra", "jelly cube", "petri dish", "specimen jar"],
+    "depth": "deep",
+    "camera": "locked",
+    "focus": "subject",
+    "loopSeconds": 6,
+    "avoid": ["fast cuts", "strobing", "shaky handheld camera", "neon cyberpunk", "lens flares"]
+  }
+}

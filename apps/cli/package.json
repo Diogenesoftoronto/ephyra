@@ -1,0 +1,10 @@
+{
+  "name": "@ephyra/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ephyra CLI and the terminal inbox.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": { "@ephyra/core": "workspace:*" }
+}

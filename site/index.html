@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ephyra · Software that sets itself</title>
+<meta name="description" content="Ephyra is a design for open-source, self-hostable self-driving software: production signals become trails that go from evidence to repro to patch to proof to landing, on Radicle, Tangled or plain git. Pre-alpha, design stage.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161c27" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Ephyra · Software that sets itself">
+<meta property="og:description" content="Self-driving fixes for production, on forges you own, without pull requests. A design, not yet a product.">
+<meta property="og:image" content="assets/og/og.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
+<script>
+  // Theme before first paint. Tokens live on :root; data-theme overrides the system preference.
+  try { var t = localStorage.getItem('ephyra-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:ital,wdth,wght@0,50..150,100..900;1,50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+<link rel="preload" as="image" href="assets/video/hero-loop-poster.webp" fetchpriority="high">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="main.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- Fallback icon symbols: soft gelatin shapes with a top-left specular. Replaced by assets/icons/sprite.svg when it loads. -->
+<svg class="sr-defs" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <linearGradient id="fb-gel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--jelly)" stop-opacity=".95"/>
+      <stop offset="1" stop-color="var(--jelly-deep)" stop-opacity=".9"/>
+    </linearGradient>
+    <linearGradient id="fb-mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--glow)" stop-opacity=".95"/>
+      <stop offset="1" stop-color="var(--glow)" stop-opacity=".6"/>
+    </linearGradient>
+    <filter id="goo" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>
+      <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11" result="g"/>
+      <feComposite in="SourceGraphic" in2="g" operator="atop"/>
+    </filter>
+    <symbol id="fb-signal" viewBox="0 0 24 24"><circle cx="12" cy="13" r="6.5" fill="url(#fb-mint)"/><circle cx="12" cy="13" r="10" fill="none" stroke="var(--glow)" stroke-opacity=".35" stroke-width="1.6"/><ellipse cx="9.4" cy="10.2" rx="2" ry="1.1" fill="#fff" fill-opacity=".8" transform="rotate(-30 9.4 10.2)"/></symbol>
+    <symbol id="fb-trail" viewBox="0 0 24 24"><path d="M3 17c3.5 0 4-9 8-9s4.5 9 8 9" fill="none" stroke="var(--jelly)" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/><circle cx="19" cy="17" r="4.2" fill="url(#fb-gel)"/><ellipse cx="17.6" cy="15.5" rx="1.3" ry=".75" fill="#fff" fill-opacity=".85" transform="rotate(-30 17.6 15.5)"/></symbol>
+    <symbol id="fb-evidence" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="13" height="17" rx="3" fill="url(#fb-gel)"/><path d="M8 9h6M8 12.5h6M8 16h4" stroke="#fff" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="7.6" cy="6" rx="1.6" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 7.6 6)"/></symbol>
+    <symbol id="fb-repro" viewBox="0 0 24 24"><path d="M9 3.5h6v5.2l4.6 8.3A2.6 2.6 0 0 1 17.3 21H6.7a2.6 2.6 0 0 1-2.3-4l4.6-8.3z" fill="url(#fb-gel)"/><ellipse cx="9.6" cy="6.2" rx="1.2" ry=".7" fill="#fff" fill-opacity=".85" transform="rotate(-30 9.6 6.2)"/><circle cx="13.5" cy="16" r="1.5" fill="var(--glow)"/></symbol>
+    <symbol id="fb-patch" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="url(#fb-gel)"/><path d="M8.5 12h7M12 8.5v7" stroke="#fff" stroke-opacity=".9" stroke-width="2" stroke-linecap="round"/><ellipse cx="7.2" cy="6.4" rx="1.7" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 7.2 6.4)"/></symbol>
+    <symbol id="fb-proof" viewBox="0 0 24 24"><path d="M12 2.8l7.5 3.3v5.4c0 4.6-3.2 8.5-7.5 9.7-4.3-1.2-7.5-5.1-7.5-9.7V6.1z" fill="url(#fb-gel)"/><path d="M8.4 12.2l2.4 2.4 4.8-5" fill="none" stroke="#fff" stroke-opacity=".95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="8.4" cy="6.8" rx="1.6" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 8.4 6.8)"/></symbol>
+    <symbol id="fb-landing" viewBox="0 0 24 24"><path d="M12 3.5v10.5M7.5 10l4.5 4.5L16.5 10" fill="none" stroke="var(--jelly-deep)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17.5c2 2.2 4.5 3 8 3s6-.8 8-3" fill="url(#fb-gel)"/></symbol>
+    <symbol id="fb-watch" viewBox="0 0 24 24"><path d="M2.5 12c2.6-4.6 5.8-6.8 9.5-6.8s6.9 2.2 9.5 6.8c-2.6 4.6-5.8 6.8-9.5 6.8S5.1 16.6 2.5 12z" fill="url(#fb-gel)"/><circle cx="12" cy="12" r="3.2" fill="var(--bg)"/><circle cx="12" cy="12" r="1.6" fill="var(--glow)"/><ellipse cx="7.2" cy="8.8" rx="1.8" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-25 7.2 8.8)"/></symbol>
+    <symbol id="fb-rollback" viewBox="0 0 24 24"><path d="M5 11a7 7 0 1 1 2 5" fill="none" stroke="var(--cherry)" stroke-width="2.6" stroke-linecap="round"/><path d="M4.5 6.5v5h5" fill="none" stroke="var(--cherry)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="14" cy="19.5" rx="3" ry="1.6" fill="var(--cherry)" fill-opacity=".55"/></symbol>
+    <symbol id="fb-set" viewBox="0 0 24 24"><path d="M4 9.5c0-3.5 3.6-6 8-6s8 2.5 8 6c0 2.4-1.2 4-3 5v3.2a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2V14.5c-1.8-1-3-2.6-3-5z" fill="url(#fb-gel)"/><ellipse cx="8.3" cy="6.6" rx="2.4" ry="1.2" fill="#fff" fill-opacity=".9" transform="rotate(-20 8.3 6.6)"/></symbol>
+    <symbol id="fb-intent" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="url(#fb-gel)"/><circle cx="12" cy="12" r="4.6" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.8"/><circle cx="12" cy="12" r="1.5" fill="#fff"/><ellipse cx="7.6" cy="7.4" rx="1.9" ry="1" fill="#fff" fill-opacity=".8" transform="rotate(-30 7.6 7.4)"/></symbol>
+    <symbol id="fb-hunter" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="url(#fb-gel)"/><path d="M15.5 15.5l5 5" stroke="var(--jelly-deep)" stroke-width="3" stroke-linecap="round"/><ellipse cx="7.8" cy="7.6" rx="1.9" ry="1" fill="#fff" fill-opacity=".85" transform="rotate(-30 7.8 7.6)"/></symbol>
+    <symbol id="fb-inbox" viewBox="0 0 24 24"><path d="M4 4.5h16v10l-3 3H7l-3-3z" fill="url(#fb-gel)"/><path d="M4 14.5h4.5l1.5 2h4l1.5-2H20" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.6"/><ellipse cx="7.4" cy="7.2" rx="1.7" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 7.4 7.2)"/></symbol>
+    <symbol id="fb-checkpoint" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="8.5" fill="url(#fb-gel)"/><path d="M12 7v10M7.5 12h9" stroke="#fff" stroke-opacity=".9" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="7.6" cy="7.2" rx="1.8" ry=".9" fill="#fff" fill-opacity=".85" transform="rotate(-30 7.6 7.2)"/></symbol>
+    <symbol id="fb-human" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" fill="url(#fb-gel)"/><path d="M4.5 20.5c.8-4.3 3.7-6.5 7.5-6.5s6.7 2.2 7.5 6.5z" fill="url(#fb-gel)"/><ellipse cx="10.4" cy="6" rx="1.3" ry=".7" fill="#fff" fill-opacity=".85" transform="rotate(-30 10.4 6)"/></symbol>
+    <symbol id="fb-sandbox" viewBox="0 0 24 24"><path d="M3.5 9.5L12 5l8.5 4.5v6L12 20l-8.5-4.5z" fill="url(#fb-gel)"/><path d="M3.5 9.5L12 14l8.5-4.5M12 14v6" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.4"/><ellipse cx="8.2" cy="8" rx="1.7" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 8.2 8)"/></symbol>
+    <symbol id="fb-system-one" viewBox="0 0 24 24"><circle cx="8" cy="12" r="5.2" fill="url(#fb-gel)"/><circle cx="16" cy="12" r="5.2" fill="url(#fb-mint)" fill-opacity=".85"/><ellipse cx="5.6" cy="9.6" rx="1.5" ry=".8" fill="#fff" fill-opacity=".85" transform="rotate(-30 5.6 9.6)"/></symbol>
+    <symbol id="fb-self-host" viewBox="0 0 24 24"><path d="M4 11l8-6.5L20 11v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z" fill="url(#fb-gel)"/><rect x="9.5" y="13.5" width="5" height="7" rx="1" fill="#fff" fill-opacity=".8"/><ellipse cx="8.4" cy="9.6" rx="1.6" ry=".9" fill="#fff" fill-opacity=".8" transform="rotate(-30 8.4 9.6)"/></symbol>
+    <symbol id="fb-stack" viewBox="0 0 24 24"><rect x="4" y="15" width="16" height="4.5" rx="2.25" fill="url(#fb-gel)"/><rect x="5.5" y="9.5" width="13" height="4.5" rx="2.25" fill="url(#fb-gel)" fill-opacity=".8"/><rect x="7" y="4" width="10" height="4.5" rx="2.25" fill="url(#fb-gel)" fill-opacity=".6"/></symbol>
+    <symbol id="fb-git-branch" viewBox="0 0 24 24"><path d="M7 6v12M7 12c0-3 5-2 8-5" fill="none" stroke="var(--jelly-deep)" stroke-width="2.4" stroke-linecap="round"/><circle cx="7" cy="5.5" r="2.6" fill="url(#fb-gel)"/><circle cx="7" cy="18.5" r="2.6" fill="url(#fb-gel)"/><circle cx="16.5" cy="6" r="2.6" fill="url(#fb-mint)"/></symbol>
+    <symbol id="fb-forge-seed" viewBox="0 0 24 24"><path d="M12 3.5c4 3.4 6 6.8 6 10.2A6 6 0 0 1 6 13.7c0-3.4 2-6.8 6-10.2z" fill="url(#fb-gel)"/><ellipse cx="9.6" cy="9.4" rx="1.6" ry=".9" fill="#fff" fill-opacity=".85" transform="rotate(-40 9.6 9.4)"/></symbol>
+    <symbol id="fb-forge-knot" viewBox="0 0 24 24"><path d="M6 12a6 6 0 1 1 12 0 6 6 0 1 1-12 0z" fill="none" stroke="var(--jelly)" stroke-width="3.2"/><path d="M6 12c0-4 12 4 12 0" fill="none" stroke="var(--jelly-deep)" stroke-width="3.2" stroke-linecap="round"/><ellipse cx="8.4" cy="7.6" rx="1.4" ry=".8" fill="#fff" fill-opacity=".85" transform="rotate(-30 8.4 7.6)"/></symbol>
+  </defs>
+</svg>
+
+<header class="site-head">
+  <a class="brand" href="#top" aria-label="Ephyra, home">
+    <span class="mark" data-swap-img>
+      <svg class="mark-fb" viewBox="0 0 32 32" aria-hidden="true"><g class="bell"><path d="M16 4.5c-1.4 3.3-3.3 5-6.6 5.6 2.2 2.6 2.6 5 1.4 8.3 3.2-1 5.4-.5 7.2 2 1.8-2.5 4-3 7.2-2-1.2-3.3-.8-5.7 1.4-8.3-3.3-.6-5.2-2.3-6.6-5.6z" fill="var(--jelly)" fill-opacity=".9"/><circle cx="16" cy="13.6" r="4.4" fill="var(--jelly-deep)" fill-opacity=".9"/><ellipse cx="13.9" cy="11.6" rx="1.7" ry=".9" fill="#fff" fill-opacity=".9" transform="rotate(-30 13.9 11.6)"/></g><path class="arms" d="M11 23c-.6 2.3-1.8 4-3.6 5.2M16 24.5v5M21 23c.6 2.3 1.8 4 3.6 5.2" fill="none" stroke="var(--jelly)" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <img src="assets/brand/logo-animated.svg" alt="" width="32" height="32" decoding="async">
+    </span>
+    <span class="wordmark" data-swap-img>
+      <span class="wordmark-fb">ephyra</span>
+      <img src="assets/brand/wordmark.svg" alt="" width="96" height="28" decoding="async">
+    </span>
+  </a>
+  <nav class="site-nav" aria-label="Sections">
+    <a href="#loop">Loop</a>
+    <a href="#trails">Trails</a>
+    <a href="#hunting">Hunting</a>
+    <a href="#judgement">Judgement</a>
+    <a href="#humans">Humans</a>
+    <a href="#forge">Forge</a>
+    <a href="#jellyware">Jellyware</a>
+  </nav>
+  <div class="head-tools">
+    <a class="cut-switch" href="b/" title="Compare with the other landing page">cut&nbsp;A · see&nbsp;B</a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Theme: system" title="Theme: system">
+      <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><g class="t-sys"><rect x="3" y="4.5" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 20h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g><g class="t-light"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g><g class="t-dark"><path d="M14.5 3.5a8.5 8.5 0 1 0 6 13.4A7 7 0 0 1 14.5 3.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></g></svg>
+    </button>
+    <a class="btn btn-small" href="../README.md" data-squash>Read the design</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- 1 · Hero -->
+<section class="hero" id="top" aria-labelledby="hero-title">
+  <div class="hero-media" aria-hidden="true">
+    <canvas class="gel-canvas" data-gel width="16" height="9"></canvas>
+    <div class="hero-plate" data-swap-img>
+      <img class="hero-poster" src="assets/video/hero-loop-poster.webp" alt="" width="2400" height="1350" fetchpriority="high" decoding="async">
+      <video class="hero-video" data-video muted loop playsinline preload="none" poster="assets/video/hero-loop-poster.webp" width="2400" height="1350" tabindex="-1">
+        <source src="assets/video/hero-loop.webm" type="video/webm">
+        <source src="assets/video/hero-loop.mp4" type="video/mp4">
+      </video>
+    </div>
+    <div class="hero-vignette"></div>
+  </div>
+  <div class="hero-copy">
+    <p class="status-chip"><span class="dot" aria-hidden="true"></span>Pre-alpha · a design, not yet a product</p>
+    <h1 id="hero-title" class="display" data-elastic>
+      <span class="w">Software</span> <span class="w">that</span> <span class="w">sets</span> <span class="w">itself.</span>
+    </h1>
+    <p class="lede">Ephyra is a design for open-source, self-hostable self-driving software. A production error becomes a <strong>trail</strong>: evidence, repro, patch, proof, landing, watch. Trails live in git on Radicle, Tangled or plain git. There is no pull request. Humans approve from a keyboard inbox exactly where policy says they must.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../README.md" data-squash>Read the design</a>
+      <button class="chip chip-cmd" type="button" data-copy="devenv up" data-squash aria-label="Copy devenv up to clipboard. Not available yet.">
+        <code>devenv up</code><span class="soon">soon</span>
+      </button>
+      <a class="link-quiet" href="#follow">Follow along</a>
+    </div>
+    <p class="hero-note">Design docs: <a href="../design/01-product-and-loop.md">product and loop</a> · <a href="../design/02-platform.md">platform</a>. Nothing below is running code yet.</p>
+  </div>
+</section>
+
+<!-- 2 · The loop -->
+<section class="loop" id="loop" aria-labelledby="loop-title">
+  <div class="loop-sticky">
+    <div class="loop-head">
+      <p class="eyebrow">Specimen 01 · the loop</p>
+      <h2 id="loop-title" class="display-2" data-elastic>Signal, trail, proof, set.</h2>
+    </div>
+    <figure class="loop-stage" data-loop-stage aria-label="Animated diagram of one trail: a signal appears, duplicates merge, the trail travels through checkpoints, proof sets it">
+      <svg class="loop-svg" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="trail-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--jelly)" stop-opacity="0"/><stop offset="1" stop-color="var(--jelly)" stop-opacity=".55"/></linearGradient>
+          <radialGradient id="blob-grad" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".18" stop-color="var(--jelly)" stop-opacity=".98"/><stop offset="1" stop-color="var(--jelly-deep)" stop-opacity=".95"/></radialGradient>
+          <radialGradient id="mint-grad" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".22" stop-color="var(--glow)" stop-opacity=".95"/><stop offset="1" stop-color="var(--glow)" stop-opacity=".7"/></radialGradient>
+        </defs>
+        <path class="loop-path-bg" d="M70 300 C 160 300, 190 120, 300 120 S 440 300, 540 300 S 660 120, 730 120" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 8"/>
+        <path class="loop-path-trail" data-trail-path d="M70 300 C 160 300, 190 120, 300 120 S 440 300, 540 300 S 660 120, 730 120" fill="none" stroke="var(--jelly)" stroke-opacity=".5" stroke-width="14" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+        <!-- checkpoints -->
+        <g class="beads" fill="var(--surface)" stroke="var(--line)" stroke-width="2">
+          <g data-bead="A" transform="translate(300 120)"><circle r="12"/><text y="4" text-anchor="middle">A</text></g>
+          <g data-bead="B" transform="translate(540 300)"><circle r="12"/><text y="4" text-anchor="middle">B</text></g>
+          <g data-bead="C" transform="translate(730 120)"><circle r="12"/><text y="4" text-anchor="middle">C</text></g>
+        </g>
+        <!-- signals: droplets that merge (dedupe) -->
+        <g class="drops" filter="url(#goo)" data-drops>
+          <circle data-drop="0" cx="70" cy="300" r="0" fill="var(--glow)"/>
+          <circle data-drop="1" cx="30" cy="330" r="0" fill="var(--glow)"/>
+          <circle data-drop="2" cx="95" cy="345" r="0" fill="var(--glow)"/>
+        </g>
+        <!-- the trail blob -->
+        <g data-blob transform="translate(70 300)" opacity="0">
+          <ellipse data-blob-body rx="26" ry="26" fill="url(#blob-grad)"/>
+          <ellipse data-blob-spec cx="-9" cy="-10" rx="7" ry="3.5" fill="#fff" fill-opacity=".8" transform="rotate(-30)"/>
+        </g>
+        <text class="axis-label" x="70" y="350" text-anchor="middle">signal</text>
+        <text class="axis-label" x="300" y="80" text-anchor="middle">hypothesis</text>
+        <text class="axis-label" x="540" y="350" text-anchor="middle">plan</text>
+        <text class="axis-label" x="730" y="80" text-anchor="middle">set</text>
+      </svg>
+      <figcaption class="loop-caption" data-loop-caption aria-live="polite">A production error arrives as a signal.</figcaption>
+    </figure>
+  </div>
+  <ol class="loop-steps" data-loop-steps>
+    <li data-step="0"><h3>A signal appears</h3><p>Errors, trace anomalies and failed probes arrive through OpenTelemetry. Code fingerprints them first; only new or re-rising fingerprints go on.</p></li>
+    <li data-step="1"><h3>Duplicates merge</h3><p>Two cheap System One calls judge each signal: actionable, duplicate of, regression of, conflicts with, severity, route. Duplicates fuse into the open trail instead of opening a second one.</p></li>
+    <li data-step="2"><h3>The trail travels</h3><p>Evidence from traces, the code graph and past trails. A hypothesis at checkpoint A. A failing repro in a sandbox, then a plan at B. Each checkpoint is blocking or advisory per code area.</p></li>
+    <li data-step="3"><h3>Proof, then it sets</h3><p>Repro fails at base and passes at head, tests run, regression and intent probes pass. The trail lands as a git ref, a Radicle patch, a Tangled pull or live into your devenv. It is watched, and reverts itself if the error returns.</p></li>
+  </ol>
+</section>
+
+<!-- 3 · Trails, not PRs -->
+<section class="trails" id="trails" aria-labelledby="trails-title">
+  <div class="section-intro">
+    <h2 id="trails-title" class="display-2" data-elastic>A trail, not a pull request.</h2>
+    <p>A trail is a directory committed to its own git ref, <code>refs/ephyra/trails/&lt;id&gt;/journal</code>, with one file per event so appends never conflict. It carries the signals, the triage records with the model that answered, the evidence index, <code>hypothesis.md</code>, <code>plan.md</code>, the proof manifest and the watch outcome. Pause and resume are properties of the record, not of a process. A forge object only mirrors it.</p>
+  </div>
+  <div class="trails-grid">
+    <figure class="clip" data-clip="trail-loop" data-swap-img>
+      <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><path d="M20 120 C 90 120, 110 50, 160 50 S 230 120, 300 120" fill="none" stroke="var(--jelly)" stroke-opacity=".45" stroke-width="18" stroke-linecap="round"/><circle cx="300" cy="120" r="22" fill="url(#blob-grad)"/><circle cx="160" cy="50" r="9" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/><circle cx="20" cy="120" r="9" fill="var(--glow)"/></svg></div>
+      <img src="assets/motion/trail-loop-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="assets/motion/trail-loop-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="assets/motion/trail-loop.webm" type="video/webm"><source src="assets/motion/trail-loop.mp4" type="video/mp4">
+      </video>
+      <figcaption>One trail: signal to set, with checkpoints A, B and C as beads.</figcaption>
+    </figure>
+    <div class="compare-wrap">
+      <table class="compare">
+        <caption>Where Ephyra sits. The other three shipped first, and Ephyra borrows from each.</caption>
+        <thead><tr><th scope="col"></th><th scope="col">Macroscope Murmur</th><th scope="col">PostHog self-driving</th><th scope="col">Entire Trails</th><th scope="col" class="us">Ephyra</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Unit of work</th><td>GitHub PR</td><td>GitHub PR</td><td>Trail, on the Entire forge</td><td class="us">Trail, as git refs on any forge</td></tr>
+          <tr><th scope="row">Triggered by</th><td>Tasks, review and CI events</td><td>Signals inbox</td><td>Bug reports, agents, pushes</td><td class="us">Prod signals, hunters, regressions, intent drift</td></tr>
+          <tr><th scope="row">Forge</th><td>GitHub</td><td>GitHub</td><td>Entire, or a GitHub mirror</td><td class="us">Radicle, Tangled, plain git</td></tr>
+          <tr><th scope="row">Self-host</th><td>Control plane "soon"</td><td>No</td><td>No</td><td class="us">Railway template or one <code>devenv up</code></td></tr>
+          <tr><th scope="row">Triage tier</th><td>LLM</td><td>LLM</td><td>LLM review agents</td><td class="us">System One models</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="credit">Murmur's event-to-running-agent loop and plain-English approvability file, PostHog's signals inbox and in-flight check, and Entire's checkpoints-as-git-refs are the three ideas this design stands on. Ephyra keeps using Entire's open-source CLI: <code>entire search</code> is an evidence source on any forge.</p>
+</section>
+
+<!-- 4 · It hunts -->
+<section class="hunting" id="hunting" aria-labelledby="hunting-title">
+  <div class="hunting-grid">
+    <div class="hunting-copy">
+      <h2 id="hunting-title" class="display-2" data-elastic>It does not wait for the crash.</h2>
+      <p>Most of the loop is listening, and listening is nearly free. Four kinds of signal open trails:</p>
+      <ul class="hunt-list">
+        <li><svg class="icon" aria-hidden="true"><use data-icon="signal" href="#fb-signal"/></svg><div><strong>Production.</strong> Error spans, exception events and log anomalies against a per-route baseline.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use data-icon="hunter" href="#fb-hunter"/></svg><div><strong>Hunters.</strong> Property tests over typed boundaries, fuzzers on parsers, scrubbed traffic replayed against a candidate sha, tracer bullets where code would reject but does not yet, and every Storybook and Textbook story rendered on each push.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use data-icon="rollback" href="#fb-rollback"/></svg><div><strong>Regressions.</strong> Every closed trail leaves its repro behind as a probe. It runs on every landing that touches the trail's files, and nightly.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use data-icon="intent" href="#fb-intent"/></svg><div><strong>Intent.</strong> Plain sentences you write, each with probes a machine can run. The only source that can say "nothing crashed, but the app no longer does what it is for".</div></li>
+      </ul>
+    </div>
+    <figure class="code-plate" data-jiggle>
+      <figcaption><code>intents/checkout-completes.md</code></figcaption>
+<pre><code><span class="c">---</span>
+<span class="k">id:</span> checkout-completes
+<span class="k">area:</span> payments
+<span class="k">severity:</span> high
+<span class="k">probes:</span>
+  - <span class="k">kind:</span> http
+    <span class="k">every:</span> 5m
+    <span class="k">request:</span> { method: POST, url: "{{base}}/api/checkout" }
+    <span class="k">expect:</span>  { status: 200, p95_ms: 800 }
+  - <span class="k">kind:</span> trace
+    <span class="k">every:</span> 15m
+    <span class="k">query:</span> 'span.name = "checkout.complete" AND status = ERROR'
+    <span class="k">expect:</span> { rate_lt: 0.5%, window: 1h }
+  - <span class="k">kind:</span> story
+    <span class="k">story:</span> "Checkout/PaymentForm"
+    <span class="k">play:</span> submit-valid-card
+<span class="c">---</span>
+A signed-in or guest user can complete checkout for an
+in-stock item with a valid card and receives an order
+number on screen and by email within one minute.</code></pre>
+      <p class="plate-note">Drift is the sustained version of a failed probe: <code>severity × (1 − pass_rate_24h / baseline_14d) × persistence</code>. Above 0.3 it opens a trail even when no single failure was actionable.</p>
+    </figure>
+  </div>
+  <div class="specimen specimen-signal" data-swap-img aria-hidden="true">
+    <img src="assets/img/specimen-signal.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+  </div>
+</section>
+
+<!-- 5 · Cheap judgement -->
+<section class="judgement" id="judgement" aria-labelledby="judgement-title">
+  <div class="section-intro">
+    <h2 id="judgement-title" class="display-2" data-elastic>Cheap judgement first. Agents only where code gets written.</h2>
+    <p>No language model runs until a trail is routed. Triage is two calls to System One models: an extraction pass pulls typed fields out of the raw payload, and a judgement pass answers six questions with calibrated probabilities. Thresholds are keyed by the model identity each response reports. You pick the backend.</p>
+  </div>
+  <div class="judgement-grid">
+    <figure class="clip clip-wide" data-clip="dedupe-merge" data-swap-img>
+      <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><g filter="url(#goo)"><circle cx="120" cy="90" r="30" fill="var(--glow)" fill-opacity=".9"/><circle cx="165" cy="96" r="22" fill="var(--glow)" fill-opacity=".9"/><circle cx="196" cy="78" r="16" fill="var(--glow)" fill-opacity=".9"/></g><ellipse cx="108" cy="76" rx="9" ry="4.5" fill="#fff" fill-opacity=".85" transform="rotate(-30 108 76)"/></svg></div>
+      <img src="assets/motion/dedupe-merge-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="assets/motion/dedupe-merge-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="assets/motion/dedupe-merge.webm" type="video/webm"><source src="assets/motion/dedupe-merge.mp4" type="video/mp4">
+      </video>
+      <figcaption>Dedupe: three signals with one root cause fuse into one trail.</figcaption>
+    </figure>
+    <div class="modes">
+      <div class="mode" data-jiggle>
+        <svg class="icon" aria-hidden="true"><use data-icon="system-one" href="#fb-system-one"/></svg>
+        <h3>Hosted</h3>
+        <p>Not Organic's extraction and judgement contracts. Clairic extracts, Jev decides. Paid from a wallet, reserve then settle, idempotent per signal.</p>
+      </div>
+      <div class="mode" data-jiggle>
+        <svg class="icon" aria-hidden="true"><use data-icon="checkpoint" href="#fb-checkpoint"/></svg>
+        <h3>Bring your own key</h3>
+        <p>Workers AI for Clairic, TypeSafe for Jev, or any endpoint that speaks the same shapes. Ephyra meters it locally.</p>
+      </div>
+      <div class="mode" data-jiggle>
+        <svg class="icon" aria-hidden="true"><use data-icon="self-host" href="#fb-self-host"/></svg>
+        <h3>Self-hosted</h3>
+        <p>Deterministic parsers for extraction until Clairic's weights ship. Liquid AI's d1 or Cloudflare's Clef, both with open weights, behind the decide adapter.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cost-wrap">
+    <table class="cost">
+      <caption><span class="flag">Illustrative</span> Cost per 10,000 raw signals, from published list prices and one vendor-reported timing. Nothing here has been measured.</caption>
+      <thead><tr><th scope="col">Stage</th><th scope="col">Hosted</th><th scope="col">BYOK</th><th scope="col">Self-hosted</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Fingerprint dedupe <span class="sub">10,000 → about 1,500 unique</span></th><td>$0</td><td>$0</td><td>$0</td></tr>
+        <tr><th scope="row">Extraction <span class="sub">1,500 × about 2,000 tokens</span></th><td>$0.30</td><td>$0.30</td><td>$0, parsers</td></tr>
+        <tr><th scope="row">Decision, six questions <span class="sub">1,500 × about 3,000 tokens</span></th><td>$0.19</td><td>$0.19</td><td>about 72 s of one consumer GPU</td></tr>
+        <tr class="total"><th scope="row">System One total</th><td>about $0.49</td><td>about $0.49</td><td>about $0 plus hardware</td></tr>
+        <tr><th scope="row">LLM agent trails <span class="sub">about 2% routed, so around 30</span></th><td colspan="2">$1 to $5 each, so $30 to $150</td><td>depends on the local model</td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">Listening to everything costs almost nothing in every column. The gate on spend is the route, and the route is a probability you calibrate per backend.</p>
+  </div>
+</section>
+
+<!-- 6 · Humans at the checkpoints -->
+<section class="humans" id="humans" aria-labelledby="humans-title">
+  <div class="section-intro">
+    <h2 id="humans-title" class="display-2" data-elastic>Humans at the checkpoints.</h2>
+    <p>What a person sees is an inbox of checkpoints, not a wall of diffs. Each item is one trail at one decision: a title, severity, area, and the artefact that matters there. The hypothesis at A, the plan at B, the proof summary at C, or a spend request before asking real people anything.</p>
+  </div>
+  <div class="humans-grid">
+    <figure class="inbox-demo" data-inbox aria-label="Keyboard inbox demonstration">
+      <div class="inbox-bar"><span>ephyra inbox</span><span class="inbox-count" data-inbox-count>3 waiting</span></div>
+      <ul class="inbox-list" role="list">
+        <li class="inbox-item is-current" data-inbox-item>
+          <span class="sev sev-medium">medium</span>
+          <span class="title">T-01j9 NPE in cart total when coupon expired</span>
+          <span class="meta">cart · checkpoint C · proof passed · 23 lines</span>
+          <span class="shadow-badge" title="Policy would have approved this; the area is in shadow mode">would auto-approve</span>
+        </li>
+        <li class="inbox-item" data-inbox-item>
+          <span class="sev sev-high">high</span>
+          <span class="title">T-01ja checkout p95 over 800 ms after dependency bump</span>
+          <span class="meta">payments · checkpoint A · hypothesis</span>
+        </li>
+        <li class="inbox-item" data-inbox-item>
+          <span class="sev sev-low">spend</span>
+          <span class="title">T-01j7 30 respondents via Prolific, up to $45</span>
+          <span class="meta">marketing-site · voxq first-click study</span>
+        </li>
+      </ul>
+      <div class="inbox-keys" role="group" aria-label="Inbox keys">
+        <button type="button" data-key="j" data-squash><kbd>j</kbd><span>next</span></button>
+        <button type="button" data-key="k" data-squash><kbd>k</kbd><span>prev</span></button>
+        <button type="button" data-key="a" data-squash class="key-approve"><kbd>a</kbd><span>approve</span></button>
+        <button type="button" data-key="r" data-squash><kbd>r</kbd><span>revise</span></button>
+        <button type="button" data-key="x" data-squash><kbd>x</kbd><span>reject</span></button>
+        <button type="button" data-key="t" data-squash><kbd>t</kbd><span>take over</span></button>
+        <button type="button" data-key="o" data-squash><kbd>o</kbd><span>open</span></button>
+      </div>
+      <figcaption data-inbox-log aria-live="polite">Press a key, or click one. Approving sets the trail; it lands and goes on watch.</figcaption>
+    </figure>
+    <div class="humans-aside">
+      <figure class="clip" data-clip="inbox-approve" data-swap-img>
+        <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><rect x="60" y="54" width="200" height="72" rx="14" fill="url(#blob-grad)"/><ellipse cx="86" cy="70" rx="12" ry="6" fill="#fff" fill-opacity=".85" transform="rotate(-25 86 70)"/><text x="160" y="98" text-anchor="middle" font-family="Martian Mono, monospace" font-size="22" fill="#fff" fill-opacity=".95">a</text></svg></div>
+        <img src="assets/motion/inbox-approve-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <video data-video muted loop playsinline preload="none" poster="assets/motion/inbox-approve-poster.webp" width="1280" height="720" tabindex="-1">
+          <source src="assets/motion/inbox-approve.webm" type="video/webm"><source src="assets/motion/inbox-approve.mp4" type="video/mp4">
+        </video>
+        <figcaption>A human checkpoint is a firm press: the jelly squashes, then springs back.</figcaption>
+      </figure>
+      <div class="policy" data-jiggle>
+        <h3>Policy in plain English</h3>
+        <p>One file, <code>ephyra/autonomy.md</code>, read by people and by the policy step. Areas bind to globs and say what the loop may do alone. Every area starts in <strong>shadow</strong>: decisions are computed and recorded, but the trail still waits for you. After a week, a report of would-approve against your verdicts tells you whether to flip it to enforce.</p>
+<pre><code><span class="c">## area: cart</span>
+<span class="k">paths:</span> src/cart/**
+<span class="k">risk:</span> medium
+Agents may reproduce and patch. B is advisory; C is
+blocking unless the change is under 40 lines, touches
+no exported types, and the regression probes pass.
+Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
+      </div>
+      <figure class="clip" data-clip="smartlog-stack" data-swap-img>
+        <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><g fill="url(#blob-grad)"><rect x="110" y="120" width="100" height="22" rx="11"/><rect x="118" y="90" width="84" height="22" rx="11" opacity=".85"/><rect x="126" y="60" width="68" height="22" rx="11" opacity=".7"/><rect x="134" y="30" width="52" height="22" rx="11" opacity=".55"/></g><circle cx="80" cy="131" r="6" fill="var(--glow)"/></svg></div>
+        <img src="assets/motion/smartlog-stack-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <video data-video muted loop playsinline preload="none" poster="assets/motion/smartlog-stack-poster.webp" width="1280" height="720" tabindex="-1">
+          <source src="assets/motion/smartlog-stack.webm" type="video/webm"><source src="assets/motion/smartlog-stack.mp4" type="video/mp4">
+        </video>
+        <figcaption>Optional: with Sapling, a trail is a draft stack in your smartlog. <code>sl amend</code> is a take-over.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · Your forge, your box -->
+<section class="forge" id="forge" aria-labelledby="forge-title">
+  <div class="forge-grid">
+    <div class="forge-copy">
+      <h2 id="forge-title" class="display-2" data-elastic>Your forge. Your box.</h2>
+      <p>Git owns the durable record. Forge objects mirror it, so the same trail can land as a signed Radicle patch, a Tangled pull, a conditional branch update on a bare repo, or a live change applied into the devenv you are already running. Postgres with DBOS embedded in the worker holds the hot state; a transition counts as durable only after the git outbox acknowledges it. No Temporal cluster, no Redis.</p>
+      <p>Run it from a Railway template, with Railway Sandboxes for repro and patch work. Or run everything on your own Nix hardware with Firecracker microVMs, with no hosted model, GitHub account or Railway account required.</p>
+    </div>
+    <div class="works-with" aria-labelledby="works-title">
+      <h3 id="works-title">Works with</h3>
+      <ul class="wordmarks" role="list">
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="forge-seed" href="#fb-forge-seed"/></svg><span>Radicle</span><small>patches, COBs, CI broker</small></li>
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="forge-knot" href="#fb-forge-knot"/></svg><span>Tangled</span><small>knots, pulls, spindles</small></li>
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="git-branch" href="#fb-git-branch"/></svg><span>plain git</span><small>bare repo, post-receive</small></li>
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="stack" href="#fb-stack"/></svg><span>Sapling</span><small>draft stacks, ISL</small></li>
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="sandbox" href="#fb-sandbox"/></svg><span>devenv</span><small>one env, everywhere</small></li>
+        <li data-jiggle><svg class="icon" aria-hidden="true"><use data-icon="self-host" href="#fb-self-host"/></svg><span>Railway</span><small>template, sandboxes</small></li>
+      </ul>
+      <p class="wordmarks-note">Names are set in our own type on purpose. None of these projects endorse Ephyra, and none of it is integrated yet.</p>
+    </div>
+  </div>
+  <div class="specimen specimen-forge" data-swap-img aria-hidden="true">
+    <img src="assets/img/specimen-forge.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+  </div>
+</section>
+
+<!-- 8 · Jellyware -->
+<section class="jellyware" id="jellyware" aria-labelledby="jellyware-title">
+  <div class="jelly-grid">
+    <div class="jelly-copy">
+      <h2 id="jellyware-title" class="display-2" data-elastic>Jellyware.</h2>
+      <p class="big">Hardware, firmware, software, jellyware: software soft enough to reshape itself and firm enough to trust.</p>
+      <p>The term is Amp's, from the "Orbs and Jellyware" episode of <cite>Raising an Agent</cite> (August 2026). Their argument: the pain of a bug is how bad it is times how long it lives in production. For the loose edges of a system, landing fast, watching closely and rolling back automatically beats gating on review. Humans harden the core: schemas, auth, money, intents, and the blast-radius policy. The edges self-drive.</p>
+      <p>Ephyra is an attempt to build that calculus into the loop itself. When a landed trail's error fingerprint recurs, or a probe for its area fails twice, the jelly un-sets: the revert lands through the same mode, and the trail reopens one revision up with the watch data as evidence.</p>
+    </div>
+    <figure class="clip clip-tall" data-clip="set-vs-rollback" data-swap-img>
+      <div class="clip-fb" aria-hidden="true"><svg viewBox="0 0 320 180"><path d="M60 130c0-30 16-50 44-50s44 20 44 50z" fill="url(#blob-grad)"/><ellipse cx="86" cy="98" rx="10" ry="5" fill="#fff" fill-opacity=".9" transform="rotate(-25 86 98)"/><path d="M180 130c0-18 10-30 30-30 26 0 50 14 50 30 0 10-14 12-26 8-10-3-16 8-30 4-14-4-24-2-24-12z" fill="var(--cherry)" fill-opacity=".8"/><path d="M226 134c0 10-2 18-2 24" stroke="var(--cherry)" stroke-width="7" stroke-linecap="round"/></svg></div>
+      <img src="assets/motion/set-vs-rollback-poster.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+      <video data-video muted loop playsinline preload="none" poster="assets/motion/set-vs-rollback-poster.webp" width="1280" height="720" tabindex="-1">
+        <source src="assets/motion/set-vs-rollback.webm" type="video/webm"><source src="assets/motion/set-vs-rollback.mp4" type="video/mp4">
+      </video>
+      <figcaption>Set: the wobble decays, the highlight sharpens. Rollback: it slumps and drips back.</figcaption>
+    </figure>
+  </div>
+  <div class="specimen specimen-set" data-swap-img aria-hidden="true">
+    <img src="assets/img/specimen-set.webp" alt="" width="1600" height="900" loading="lazy" decoding="async">
+  </div>
+</section>
+
+<!-- 9 · Follow along / footer CTA -->
+<section class="follow" id="follow" aria-labelledby="follow-title">
+  <div class="follow-inner" data-jiggle>
+    <h2 id="follow-title" class="display-2" data-elastic>Follow along.</h2>
+    <p>Ephyra is a design, written on 6 November 2026. The milestones are set, the open questions are listed, and no line of it runs yet. The first dogfood target is a real multi-service app on Radicle, devenv and Railway. Read the documents, argue with them, and watch this page change.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../README.md" data-squash>Read the design</a>
+      <a class="btn" href="../design/01-product-and-loop.md" data-squash>Product and loop</a>
+      <a class="btn" href="../design/02-platform.md" data-squash>Platform</a>
+    </div>
+    <ol class="milestones">
+      <li><strong>M0</strong> one service, one loop, one human: a production error becomes a landed, watched fix and the only key pressed is <kbd>a</kbd></li>
+      <li><strong>M1</strong> memory and the forge: Radicle patch landing, regression probes, intents, <code>entire search</code></li>
+      <li><strong>M2</strong> proof and hunting: story proofs, traffic replay, autonomy policy evaluated by the decision model, self-hosted d1 and Clef verified</li>
+      <li><strong>M3</strong> people: voxq studies with spend approval, multiplayer trails, Sapling, Tangled</li>
+      <li><strong>M4</strong> the jellyware loop: the agent's own prompts and policy evolve from closed trails, activated by a human</li>
+    </ol>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="foot-brand">
+    <span class="mark" data-swap-img>
+      <svg class="mark-fb" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4.5c-1.4 3.3-3.3 5-6.6 5.6 2.2 2.6 2.6 5 1.4 8.3 3.2-1 5.4-.5 7.2 2 1.8-2.5 4-3 7.2-2-1.2-3.3-.8-5.7 1.4-8.3-3.3-.6-5.2-2.3-6.6-5.6z" fill="var(--jelly)" fill-opacity=".9"/><circle cx="16" cy="13.6" r="4.4" fill="var(--jelly-deep)" fill-opacity=".9"/><path d="M11 23c-.6 2.3-1.8 4-3.6 5.2M16 24.5v5M21 23c.6 2.3 1.8 4 3.6 5.2" fill="none" stroke="var(--jelly)" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <img src="assets/brand/logo.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
+    </span>
+    <p><strong>Ephyra</strong> is a working name. An ephyra is the juvenile, free-swimming stage of a jellyfish: the first step toward jellyware.</p>
+  </div>
+  <dl class="foot-facts">
+    <div><dt>Status</dt><dd>Pre-alpha. Design documents only.</dd></div>
+    <div><dt>Stack</dt><dd>TypeScript on Bun, Postgres with DBOS, OpenTelemetry, devenv</dd></div>
+    <div><dt>Accounts and evidence</dt><dd>Not Organic for hosted System One calls; voxq for human-intent studies</dd></div>
+    <div><dt>License</dt><dd>Open source, license to be decided</dd></div>
+  </dl>
+  <nav class="foot-links" aria-label="Documents">
+    <a href="../README.md">README</a>
+    <a href="../design/01-product-and-loop.md">01 · Product and loop</a>
+    <a href="../design/02-platform.md">02 · Platform</a>
+    <a href="../design/brand/BRAND.md">Brand brief</a>
+    <a href="../research/brief.md">Research brief</a>
+  </nav>
+  <p class="foot-credit">Macroscope, PostHog, Entire, Amp, Radicle, Tangled, Sapling, devenv, Railway, Cloudflare, TypeSafe, Liquid AI and HumanLayer are the work of their own teams. Named here as references and intended integrations, not as endorsements.</p>
+</footer>
+</body>
+</html>
