@@ -205,6 +205,47 @@ Local verification covers adapter requests, replay/concurrency/restart behavior,
 server contracts and unknown costs. Live providers, DPoP audio requests, hosted ledger durability and billing remain
 unverified. The audio transport and conversation ports are exported from `src/index.ts`.
 
+## Humans& collaboration and tutoring
+
+Velum can use **Ampersand** for clarifying intent, discussing competing requirements and proposing autonomy edits.
+The existing JSON proposal/form parser validates its output; a model reply cannot apply or publish anything.
+**&Tutor** is a separate, text-only specialist for understanding a recorded trail and the consequences of a checkpoint.
+Both can use the console's speech transport. They are not native realtime voice models.
+
+| Setting | Purpose |
+|---|---|
+| `EPHYRA_DRAFT=ampersand` | Use `ampersand-v0.1` behind Velum, including its spoken draft conversation |
+| `EPHYRA_HUMANS_API_KEY` | Server-side Humans& credential for direct Ampersand or Tutor requests |
+| `EPHYRA_TUTOR=none\|notorganic\|ampersand` | Tutor provider; default `none`, exact model `ampersand-tutor-v0.1` |
+| `EPHYRA_TUTOR_MAX_COST_MICROUSD` | Hosted Tutor reservation ceiling, up to 100,000 microdollars; not a price |
+
+Hosted Tutor uses Not Organic's dedicated `POST /v1/tutor/consult`, the billing account's DPoP credentials and
+`infer:ampersand-tutor-v0.1`. Existing account sessions may need to sign in again for that scope. The gateway must have
+Tutor enabled. Its consultation service supplies advice, which Ephyra presents as a guide to the supplied evidence.
+Ampersand currently uses the direct Humans& adapter; Ephyra does not claim that Not Organic's chat endpoint serves it.
+Direct requests are billed to the configured key. There is no fallback between these providers or roles.
+
+`GET /v1/tutor` describes configuration; `POST /v1/tutor/explain` takes an idempotency key and a `TutorInput`. It inherits
+the approver gate because it spends the deployment's account. The server loads the trail, verifies its revision, head,
+proof digest and update time against the displayed binding, and sends bounded, redacted excerpts outside instructions.
+The reply returns those excerpts, the binding, a stale flag and the actual model/usage receipt. Follow-ups carry at most
+two recent messages, bounded to a small context excerpt; full history is not a persistent tutoring session. No tutor output
+is proof, an approval or an action. `tutor.explain` appears under the existing `study` usage kind and Velum persona.
+The current gateway returns token usage but no per-request price; Ephyra keeps cost `null` rather than computing a bill.
+
+The direct adapter implements [Humans&'s Agents API](https://ampersand.humansand.ai/docs/API_REFERENCE.html): isolated
+sessions, low reasoning effort, silent completion disabled and no tools/environment access. Creation does not accept an
+upstream idempotency key. Ephyra claims its own ledger entry first, saves the observed session ID in the companion
+`humans:<operation-hash>:session` entry, and caches the completed result. Incomplete, mismatched or uncertain deliveries
+require reconciliation and never create a second session automatically. Closing SSE is not cancellation: Ephyra sends
+a best-effort cancel event for a known unfinished session without claiming that cancellation succeeded. Durable replay
+requires the Convex ledger; development memory mode loses operations on restart.
+
+Verified with fixtures: protocol framing across byte boundaries, exact model identity, cancellation requests, duplicate
+and restart protection, grounding/redaction, stale bindings, spending permissions, client/server contracts and console
+interactions. Unverified: live Humans& access, provider quality/latency, actual account settlement, hosted durability and
+any improvement in operator understanding. No paid model calls were made during these checks.
+
 ## Tests
 
 `bun test apps/server`: unit tests, Convex function tests (convex-test), and an end-to-end test that drives

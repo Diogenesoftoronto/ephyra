@@ -77,6 +77,14 @@ engine identity; unavailable identity and cost are nullable. These contracts con
 or publication capability. Existing trail, proof and usage shapes are unchanged. The server and console integration
 tests validate the wire contract with recorded fixtures; real speech providers and devices remain Unverified here.
 
+## Tutor contracts
+
+`tutor.ts` adds `TutorInput`, `TutorReply`, `TutorCapabilities`, `TutorBinding` and the pure `trailTutorBinding` helper.
+Explanations bind to the revision, head, matching proof digest and update time. Replies carry source excerpts, a stale
+flag and a model usage receipt. Existing trail, decision, proof and usage shapes are unchanged. These contracts grant
+no action capability. Property tests reject proof bindings from a different revision or head; actual tutoring quality
+and provider availability remain Unverified.
+
 ## Verification
 
 The offline tests exercise the lifecycle table, triage creation, checkpoints, rollback,

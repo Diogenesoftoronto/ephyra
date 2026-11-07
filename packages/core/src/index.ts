@@ -9,3 +9,4 @@ export * from "./lifecycle.ts";
 export * from "./console.ts";
 export * from "./digest.ts";
 export * from "./voice.ts";
+export * from "./tutor.ts";
