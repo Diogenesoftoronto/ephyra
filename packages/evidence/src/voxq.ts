@@ -25,7 +25,11 @@ export class VoxqClient {
       if (key && response.status >= 500) throw new ReconciliationRequired(key, "Voxq write outcome unknown");
       throw new Error(`Voxq HTTP ${response.status}`);
     }
-    return response.json();
+    try { return await response.json(); }
+    catch (error) {
+      if (key) throw new ReconciliationRequired(key, "Voxq response could not be decoded");
+      throw error;
+    }
   }
   create(survey: SurveyCreate, key: string) { return this.call("/surveys", "POST", survey, key); }
   estimate(id: string, history_survey_ids: string[] = []) {
@@ -33,7 +37,7 @@ export class VoxqClient {
   }
   simulate(id: string, key: string) { return this.call(`/surveys/${encodeURIComponent(id)}/run`, "POST", undefined, key); }
   publish(id: string, decision: Decision, key: string, budget?: { estimateMicrousd: number; remainingMicrousd: number }) {
-    if (decision.verdict !== "approve" || decision.shadow ||
+    if (!key || (decision.by !== "human" && decision.by !== "policy") || decision.verdict !== "approve" || decision.shadow ||
       (decision.by === "policy" && (!budget || !Number.isSafeInteger(budget.estimateMicrousd) ||
         !Number.isSafeInteger(budget.remainingMicrousd) || budget.estimateMicrousd < 0 ||
         budget.estimateMicrousd > budget.remainingMicrousd))) throw new SpendNotApproved();
@@ -56,7 +60,7 @@ export type VoxqExport = {
 
 export function personaProof(data: VoxqExport, study: string, runId: string, report: string): ProofItem {
   const run = data.provenance?.run;
-  if (data.survey?.id !== study || data.provenance?.status !== "recorded" || run?.id !== runId ||
+  if (!study || !runId || !report || data.survey?.id !== study || data.provenance?.status !== "recorded" || run?.id !== runId ||
       run.survey_id !== study || run.status !== "completed" ||
       !data.responses?.some(row => row.source === "simulation" && row.run_id === runId)) {
     throw new Unverified("completed Voxq simulation evidence");

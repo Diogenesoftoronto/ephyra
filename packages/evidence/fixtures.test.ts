@@ -63,3 +63,22 @@ test("Voxq REST uses Rust routes, payloads, selected run and explicit authorizat
   const failing = new VoxqClient("https://voxq.test", "secret", (async () => { throw Error("offline"); }) as typeof fetch);
   await expect(failing.simulate("s", "key")).rejects.toBeInstanceOf(ReconciliationRequired);
 });
+
+
+test("policy spend requires an in-budget approval and shadow decisions never publish", async () => {
+  let calls = 0;
+  const client = new VoxqClient("https://voxq.test", "token", (async () => {
+    calls++;
+    return Response.json({ accepting_interviews: true });
+  }) as typeof fetch);
+  const decision = { by: "policy" as const, verdict: "approve" as const, at: "2026-01-01T00:00:00Z" };
+  expect(() => client.publish("s", decision, "key", { estimateMicrousd: 11, remainingMicrousd: 10 })).toThrow();
+  expect(() => client.publish("s", { ...decision, shadow: true }, "key", {
+    estimateMicrousd: 1, remainingMicrousd: 10,
+  })).toThrow();
+  expect(calls).toBe(0);
+  await client.publish("s", decision, "key", { estimateMicrousd: 10, remainingMicrousd: 10 });
+  expect(calls).toBe(1);
+  const broken = new VoxqClient("https://voxq.test", "token", (async () => new Response("invalid")) as typeof fetch);
+  await expect(broken.simulate("s", "key")).rejects.toBeInstanceOf(ReconciliationRequired);
+});
