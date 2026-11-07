@@ -98,6 +98,8 @@ export type TransitionContext = {
   proofSufficient?: boolean;
   /** Policy-computed C decision when C is advisory (auto-land path), absent when blocking. */
   autoDecisionC?: Decision;
+  /** Decisions for advisory checkpoints; C falls back to autoDecisionC. */
+  autoDecision?: Partial<Record<"A" | "B" | "C", Decision>>;
 };
 
 export type TransitionResult =
