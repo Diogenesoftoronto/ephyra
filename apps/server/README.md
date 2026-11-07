@@ -39,17 +39,21 @@ See `src/config.ts`. The main variables:
 | `EPHYRA_DECIDE` | `none` (default: every signal goes to a human), `typesafe`, `systemone` |
 | `EPHYRA_AGENT` | `none` (default), `claude-code`, `codex` (the CLI must be in the image) |
 
-## Deploying to Railway
+## Deploying
 
-Infrastructure is `.railway/railway.ts` (server, self-hosted Convex with its own volume). Use the CLI pinned
-in `.railway/node_modules/.bin/railway`.
+Durable state is hosted Convex: team `Tungsten-Cube`, project `ephyra`.
 
-1. `railway config plan` then `railway config apply`.
-2. Secrets, once: `INSTANCE_SECRET` on `convex`; `EPHYRA_CONVEX_SECRET` and `EPHYRA_API_TOKEN` on `server`.
-3. Admin key: `docker run --rm --entrypoint ./generate_key <convex image> ephyra "$INSTANCE_SECRET"`.
-4. Functions: in `apps/server`, `CONVEX_SELF_HOSTED_URL=<convex url> CONVEX_SELF_HOSTED_ADMIN_KEY=<key> bunx convex deploy`,
-   then `bunx convex env set EPHYRA_CONVEX_SECRET <secret>`.
-5. Server: `railway up --service server`.
+| Deployment | URL | Use |
+|---|---|---|
+| prod `loyal-bass-393` | https://loyal-bass-393.convex.cloud | Railway server |
+| dev `fabulous-newt-583` | https://fabulous-newt-583.convex.cloud | local development and `EPHYRA_E2E_CONVEX` |
+
+1. Convex functions: in `apps/server`, `bunx convex deploy` (prod) or `bunx convex dev --once` (dev).
+   Set the shared secret on each deployment once: `bunx convex env set [--prod] EPHYRA_CONVEX_SECRET <secret>`.
+2. Railway infrastructure is `.railway/railway.ts`. Use the CLI pinned in `.railway/node_modules/.bin/railway`:
+   `railway config plan`, then `railway config apply`.
+3. Server secrets on Railway, once: `EPHYRA_CONVEX_SECRET` and `EPHYRA_API_TOKEN` on `server`.
+4. Server code: `railway up --service server`.
 
 ## Tests
 
