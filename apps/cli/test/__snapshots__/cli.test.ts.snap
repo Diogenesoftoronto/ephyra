@@ -1,0 +1,9 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`80x24 rendering 1`] = `
+"EPHYRA  /  INBOX
+j/k move  a approve  r revise  x kill  c comment  t claim  p park  o open  l lan
+
+> T-123  sev 2  cart  low  A  blocking
+  Crash: Investigate"
+`;
