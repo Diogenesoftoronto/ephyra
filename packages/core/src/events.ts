@@ -76,6 +76,14 @@ export const Effect = z.discriminatedUnion("type", [
   z.object({ type: z.literal("merge_signal"), key: z.string(), signalId: z.string().uuid(), into: z.string().uuid() }),
   z.object({ type: z.literal("resume_dependents"), key: z.string() }),
   z.object({ type: z.literal("mute_fingerprint"), key: z.string(), fingerprint: z.string(), forS: z.number().int() }),
+  /** Re-run intent/regression/story probes (intent_updated, new_signal while proving). */
+  z.object({ type: z.literal("run_probes"), key: z.string(), probes: z.array(z.string()), reason: z.string() }),
+  /** Post a system or agent reply on the trail (and its forge mirror). */
+  z.object({ type: z.literal("reply_comment"), key: z.string(), text: z.string() }),
+  /** Start an approved real-respondent voxq run (after spend_decided approve). */
+  z.object({ type: z.literal("start_respondent_run"), key: z.string(), purpose: z.string(), microusd: z.number().int() }),
+  /** Hand a finished child trail's proof to its parent agent as evidence. */
+  z.object({ type: z.literal("deliver_child_evidence"), key: z.string(), child: z.string().uuid(), proofDigest: z.string() }),
 ]);
 export type Effect = z.infer<typeof Effect>;
 
