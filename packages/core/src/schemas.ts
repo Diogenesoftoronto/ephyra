@@ -127,19 +127,45 @@ const Surface = z.enum(["web", "terminal"]);
 export const ProofItem = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("repro_before"), probe: z.string(), result: z.literal("fail"), log: z.string() }),
   z.object({ kind: z.literal("repro_after"), probe: z.string(), result: z.literal("pass"), log: z.string() }),
-  z.object({ kind: z.literal("tests"), suite: z.string(), passed: z.number().int(), failed: z.number().int(), newFailures: z.number().int(), log: z.string() }),
+  z.object({
+    kind: z.literal("tests"), suite: z.string(),
+    passed: z.number().int(), failed: z.number().int(), newFailures: z.number().int(), log: z.string(),
+  }),
   z.object({ kind: z.literal("regression_probes"), ran: z.array(z.string()), failed: z.array(z.string()) }),
   z.object({ kind: z.literal("intent_probes"), ran: z.array(z.string()), failed: z.array(z.string()) }),
-  z.object({ kind: z.literal("traffic_replay"), hunter: z.string(), diffs: z.number().int(), unexplained: z.number().int(), report: z.string() }),
+  z.object({
+    kind: z.literal("traffic_replay"), hunter: z.string(),
+    diffs: z.number().int(), unexplained: z.number().int(), report: z.string(),
+  }),
   z.object({ kind: z.literal("trace"), traceId: z.string(), note: z.string() }),
-  z.object({ kind: z.literal("bug_review"), reviewer: z.string(), findings: z.array(z.object({ severity: Risk, text: z.string(), file: z.string().optional(), line: z.number().int().optional() })) }),
-  z.object({ kind: z.literal("diff_scope"), files: z.number().int(), lines: z.number().int(), exportedTypesChanged: z.boolean(), paths: z.array(z.string()) }),
-  z.object({ kind: z.literal("story_render"), surface: Surface, stories: z.array(z.string()), failed: z.array(z.string()), uncovered: z.array(z.string()) }),
+  z.object({
+    kind: z.literal("bug_review"), reviewer: z.string(),
+    findings: z.array(z.object({ severity: Risk, text: z.string(), file: z.string().optional(), line: z.number().int().optional() })),
+  }),
+  z.object({
+    kind: z.literal("diff_scope"), files: z.number().int(), lines: z.number().int(),
+    exportedTypesChanged: z.boolean(), paths: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal("story_render"), surface: Surface,
+    stories: z.array(z.string()), failed: z.array(z.string()), uncovered: z.array(z.string()),
+  }),
   z.object({ kind: z.literal("story_interaction"), surface: Surface, stories: z.array(z.string()), failed: z.array(z.string()), log: z.string() }),
-  z.object({ kind: z.literal("story_visual_diff"), surface: Surface, baselineSha: z.string(), changed: z.array(z.string()), explained: z.array(z.string()), artefacts: z.string() }),
+  z.object({
+    kind: z.literal("story_visual_diff"), surface: Surface, baselineSha: z.string(),
+    changed: z.array(z.string()), explained: z.array(z.string()), artefacts: z.string(),
+  }),
   z.object({ kind: z.literal("recording"), path: z.string(), what: z.string() }),
   z.object({ kind: z.literal("terminal_recording"), story: z.string(), tape: z.string(), what: z.string() }),
-  z.object({ kind: z.literal("voxq_study"), study: z.string(), runId: z.string(), respondents: z.number().int(), via: z.enum(["share_link", "embed", "prolific"]), syntheticRunId: z.string().optional(), spendMicrousd: z.number().int(), expectMet: z.boolean(), report: z.string() }),
+  /** Synthetic voxq persona run: evidence for user-facing medium-risk changes, never counted as human proof. */
+  z.object({ kind: z.literal("persona_study"), study: z.string(), runId: z.string(), synthetic: z.literal(true), report: z.string() }),
+  /** A named human approved each changed visual (high-risk UI). */
+  z.object({ kind: z.literal("visual_approval"), by: z.string(), at: IsoTime, approved: z.array(z.string()) }),
+  z.object({
+    kind: z.literal("voxq_study"), study: z.string(), runId: z.string(), respondents: z.number().int(),
+    via: z.enum(["share_link", "embed", "prolific"]), syntheticRunId: z.string().optional(),
+    spendMicrousd: z.number().int(), expectMet: z.boolean(), report: z.string(),
+  }),
 ]);
 export type ProofItem = z.infer<typeof ProofItem>;
 export type ProofItemKind = ProofItem["kind"];
