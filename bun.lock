@@ -21,6 +21,7 @@
         "@opentui/core": "^0.5.11",
       },
       "devDependencies": {
+        "@ephyra/policy": "workspace:*",
         "textbook-sh": "^0.2.0",
       },
     },
