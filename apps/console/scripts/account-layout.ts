@@ -25,7 +25,7 @@ try {
     });
     const story = async (id: string) => {
       await page.goto(`${server.url}/iframe.html?id=${id}&viewMode=story`);
-      await page.locator(".account-layout").waitFor();
+      await page.locator(".account-page").waitFor();
       await page.evaluate(() => document.fonts.ready);
     };
     const capture = async (name: string) => {
@@ -81,18 +81,16 @@ try {
 
     await story("screens-onboardingpage--initial");
     await capture("onboarding");
-    await page.getByRole("button", { name: "I'll connect a repository later" }).click();
+    await page.getByRole("button", { name: "Skip repository" }).click();
     assert.equal(
-      await page
-        .getByRole("heading", { name: "How should agents access models?" })
-        .evaluate((el) => el === document.activeElement),
+      await page.getByRole("heading", { name: "Choose model access" }).evaluate((el) => el === document.activeElement),
       true,
     );
     await page.locator('[data-provider="openai"] input').check();
     await capture("onboarding-models");
     await page.locator('[data-provider="none"] input').check();
     await page.getByRole("button", { name: "Continue without a model" }).click();
-    await page.getByRole("heading", { name: "Ready to open your workspace" }).waitFor();
+    await page.getByRole("heading", { name: "Review your setup" }).waitFor();
     await capture("onboarding-review");
     await page.getByRole("button", { name: "Open workspace" }).click();
     await page.getByRole("status").filter({ hasText: "Fixture: workspace opened. Setup is skipped." }).waitFor();
@@ -102,10 +100,10 @@ try {
       await capture("settings-dark");
       await story("screens-settingspage--uncertain-save");
       await page.getByRole("alert").waitFor();
-      assert.equal(await page.getByRole("button", { name: "Verify and save repository" }).isDisabled(), true);
+      assert.equal(await page.getByRole("button", { name: "Save repository" }).isDisabled(), true);
       await page.getByRole("button", { name: "Refresh saved settings" }).click();
-      await page.getByRole("button", { name: "Verify and save repository" }).waitFor({ state: "visible" });
-      assert.equal(await page.getByRole("button", { name: "Verify and save repository" }).isEnabled(), true);
+      await page.getByRole("button", { name: "Save repository" }).waitFor({ state: "visible" });
+      assert.equal(await page.getByRole("button", { name: "Save repository" }).isEnabled(), true);
     }
     assert.deepEqual(external, [], "stories do not contact a provider or catalog");
     assert.deepEqual(errors, [], "no browser exceptions");

@@ -1,186 +1,63 @@
-.settings-page {
-  display: grid;
-  gap: var(--s5);
-  min-width: 0;
-}
-.settings-page > .ui-page-header {
-  margin-bottom: 0;
-}
-.settings-rail {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--s7);
-}
-.settings-rail-label {
-  display: block;
-  margin: 0 var(--s3) var(--s4);
-}
-@media (min-width: 1001px) {
-  .settings-rail > div:first-child {
-    position: sticky;
-    top: var(--s5);
-  }
-}
 .settings-sections {
-  display: grid;
-  gap: var(--s2);
+  display: flex;
+  gap: var(--s5);
+  border-bottom: 1px solid var(--line);
 }
 .settings-sections button {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  width: 100%;
-  min-height: 72px;
-  padding: var(--s3);
-  text-align: left;
-  color: var(--muted);
+  padding: var(--s3) 0;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition:
-    background 150ms,
-    border-color 150ms;
-}
-.settings-sections button > svg {
-  width: 20px;
-  height: 20px;
-  flex: none;
-}
-.settings-sections button > span:not(.settings-section-arrow) {
-  display: grid;
-  gap: var(--s1);
-  min-width: 0;
-}
-.settings-sections strong {
-  color: var(--ink);
+  color: var(--muted);
   font-weight: 600;
-}
-.settings-sections small {
-  font-size: var(--fs-small);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.settings-section-arrow {
-  margin-left: auto;
-  opacity: 0;
+  cursor: pointer;
 }
 .settings-sections button[aria-selected="true"] {
-  color: var(--jelly-deep);
-  background: var(--surface);
-  border-color: var(--line);
-  box-shadow: var(--shadow-surface);
-}
-.settings-sections button[aria-selected="true"] .settings-section-arrow {
-  opacity: 1;
-}
-.settings-sections button[aria-selected="true"] small {
-  color: var(--muted);
-}
-.settings-rail-note {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s2);
-  color: var(--muted);
-  padding: var(--s4) var(--s3) 0;
-  border-top: 1px solid var(--line);
-}
-.settings-rail-note svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-}
-.settings-rail-note p {
-  margin: 0;
-  font-size: var(--fs-small);
+  color: var(--ink);
+  border-bottom-color: var(--jelly-deep);
 }
 .settings-panel {
   display: grid;
   gap: var(--s5);
   min-width: 0;
-  max-width: 46rem;
-  margin-inline: auto;
+  padding-top: var(--s2);
 }
 .settings-panel[hidden] {
   display: none;
 }
-.settings-identity {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s4);
-  padding-bottom: var(--s5);
-  border-bottom: 1px solid var(--line);
+.settings-panel > a {
+  justify-self: start;
 }
-.settings-identity-mark {
+.settings-account-details {
   display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  font-family: var(--font-display);
-  font-weight: 700;
-}
-.settings-identity > div {
-  display: grid;
-  justify-items: start;
-  gap: var(--s2);
-  min-width: 0;
-}
-.settings-identity code {
-  overflow-wrap: anywhere;
-  color: var(--muted);
-  font-size: var(--fs-small);
-}
-.settings-readiness-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s2);
-}
-.settings-readiness-heading h3 {
+  gap: var(--s5);
   margin: 0;
+}
+.settings-account-details > div {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: var(--s4);
+}
+.settings-account-details dt {
+  color: var(--muted);
+}
+.settings-account-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 @media (hover: hover) {
   .settings-sections button:hover {
-    background: var(--surface);
-    border-color: var(--line);
+    color: var(--jelly-deep);
   }
 }
-@media (max-width: 1000px) {
-  .settings-rail {
-    padding: var(--s3);
-  }
-  .settings-rail-label,
-  .settings-rail-note,
-  .settings-section-arrow {
-    display: none;
-  }
+@media (max-width: 450px) {
   .settings-sections {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s4);
+    justify-content: space-between;
+  }
+  .settings-account-details > div {
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s1);
-  }
-  .settings-sections button {
-    justify-content: center;
-    min-height: 48px;
-    padding: var(--s2);
-  }
-  .settings-sections small {
-    display: none;
-  }
-}
-@media (max-width: 550px) {
-  .settings-sections button {
-    flex-direction: column;
-    gap: var(--s1);
-    min-height: 66px;
-  }
-  .settings-sections strong {
-    font-size: var(--fs-small);
   }
 }

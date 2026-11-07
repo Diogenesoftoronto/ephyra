@@ -94,14 +94,14 @@ try {
     await page.screenshot({ path: join(artifacts, `signin-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
     if (width === 1440) {
-      await page.getByRole("heading", { name: "Make this workspace yours", exact: true }).waitFor();
-      await page.getByRole("button", { name: "I'll connect a repository later", exact: true }).click();
+      await page.getByRole("heading", { name: "Connect your repository", exact: true }).waitFor();
+      await page.getByRole("button", { name: "Skip repository", exact: true }).click();
       await page.locator('[data-provider="openai"]').click();
       await page.getByRole("combobox", { name: "Model ID", exact: true }).fill("fixture-chat");
       await page.getByRole("combobox", { name: "Model ID", exact: true }).press("Enter");
       await page.getByLabel("API key", { exact: true }).fill("offline-browser-provider-key");
-      await page.getByRole("button", { name: "Save model access and continue", exact: true }).click();
-      await page.getByRole("heading", { name: "Ready to open your workspace", exact: true }).waitFor();
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.getByRole("heading", { name: "Review your setup", exact: true }).waitFor();
       await page.screenshot({ path: join(artifacts, "setup-review.png"), fullPage: true });
       await page.getByRole("button", { name: "Open workspace", exact: true }).click();
     }
@@ -172,7 +172,7 @@ try {
   const page = await reader.newPage();
   await page.goto(`${origin}/app/`);
   await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
-  await page.getByRole("heading", { name: "Make this workspace yours", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Connect your repository", exact: true }).waitFor();
   await page.getByRole("button", { name: "Explore first", exact: true }).click();
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
   await page.goto(`${origin}/app/#/workspace`);
