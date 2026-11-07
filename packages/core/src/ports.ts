@@ -87,7 +87,8 @@ export interface ForgeAdapter {
   readonly name: string;
   capabilities(repo: string): Promise<ForgeCapabilities>;
   events(cursor: string | null, signal?: AbortSignal): AsyncIterable<ForgeEvent>;
-  prepareLanding(trail: Trail, mode: LandingMode, expectedBase: string): Promise<LandingPlan>;
+  /** `proofDigest` binds the plan to the accepted proof bundle (design/02 §1). */
+  prepareLanding(trail: Trail, mode: LandingMode, expectedBase: string, proofDigest: string): Promise<LandingPlan>;
   land(plan: LandingPlan, authorizationId: string, idempotencyKey: string): Promise<LandingReceipt>;
   /** Revert a previous landing through the same mode. */
   revert(receipt: LandingReceipt, idempotencyKey: string): Promise<LandingReceipt>;
@@ -96,7 +97,9 @@ export interface ForgeAdapter {
 // ───── Runners ─────
 export type ServiceProfile = {
   name: string; digest: string;
-  network: "none" | "egress" | "private";
+  /** "egress_allowlist" needs host-enforced destination filtering (BYO tier only; Railway cannot enforce it). */
+  network: "none" | "egress" | "egress_allowlist" | "private";
+  egressAllowlist?: string[];
   readOnlyProd: boolean;
   credentials: string[]; // scoped credential names, never values
   limits: { cpu: number; memoryMb: number; diskMb: number; timeoutS: number };
@@ -107,7 +110,7 @@ export type ArtifactRef = { path: string; digest: string; bytes: number; mediaTy
 export interface Runner {
   readonly name: string;
   readonly capabilities: { checkpoint: "none" | "disk" | "memory"; network: ServiceProfile["network"][]; shell: boolean; browser: boolean };
-  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile }): Promise<RunnerHandle>;
+  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile; leaseS?: number }): Promise<RunnerHandle>;
   exec(handle: RunnerHandle, command: string[], opts: { cwd?: string; env?: Record<string, string>; deadlineMs: number }): AsyncIterable<ExecOutput>;
   writeFile(handle: RunnerHandle, path: string, content: string | Uint8Array): Promise<void>;
   readFile(handle: RunnerHandle, path: string): Promise<Uint8Array | null>;
@@ -155,8 +158,25 @@ export interface EvidenceSource {
 // ───── Orchestration-facing helpers ─────
 export type InboxItem = {
   trailId: string; short: string; title: string; area: string; risk: Trail["risk"]; severity: number;
+  state: Trail["state"];
+  /** Bound revision: a decision is rejected if the trail's head or proof digest changed since this item was created. */
+  bound: { rev: number; head?: string; proofDigest?: string };
+  /** Where `o` goes: devenv portal, patch, pull, Canvas or ISL stack. */
+  landingUrl?: string;
+  /** Journal path of evidence/index.json, shown by `e`. */
+  evidenceIndex?: string;
   kind: "checkpoint" | "spend" | "parked" | "notice";
   checkpoint?: "A" | "B" | "C"; blocking: boolean; shadowVerdict?: "approve" | "revise" | "reject";
   artefact: { path: string; summary: string };
   createdAt: string;
 };
+
+// ───── Durable operation keys (idempotency across processes) ─────
+export type OperationRecord = { key: string; planDigest: string; status: "pending" | "done" | "reconciliation_required"; result?: unknown; at: string };
+export interface OperationLedger {
+  /** Claim a key for a plan. Returns the existing record if the key was used; throws if the same key was used for a different plan. */
+  begin(key: string, planDigest: string): Promise<{ fresh: true } | { fresh: false; record: OperationRecord }>;
+  complete(key: string, result: unknown): Promise<void>;
+  markAmbiguous(key: string, note: string): Promise<void>;
+  get(key: string): Promise<OperationRecord | null>;
+}
