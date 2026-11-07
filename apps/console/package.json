@@ -23,7 +23,8 @@
     "@json-render/react": "0.22.0",
     "react": "19",
     "react-dom": "19",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "@fontsource-variable/martian-mono": "^5.3.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.6.6",

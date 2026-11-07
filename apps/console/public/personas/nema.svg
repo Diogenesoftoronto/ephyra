@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Nema, the Prover">
+<style>.p{fill:#f89dc9}.s{stroke:#f89dc9}@media (prefers-color-scheme:light){.p{fill:#c62b7a}.s{stroke:#c62b7a}}</style>
+<rect class="p" x="9.5" y="7" width="13" height="23" rx="6.5" transform="rotate(8 16 18.5)"/>
+<path d="M14 11.5l5 2-5.2 2.4 5.6 2.2-5.4 2.4 5.6 2.2-5.2 2.4" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>
+<path class="s" d="M17.5 6.5 19 1.5l2.4 2.3" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="13.5" cy="10" r="1.6" fill="#fff" opacity=".45"/>
+</svg>

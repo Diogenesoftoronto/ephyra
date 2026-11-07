@@ -7,6 +7,7 @@
 @import "@fontsource/atkinson-hyperlegible-next/400.css";
 @import "@fontsource/atkinson-hyperlegible-next/400-italic.css";
 @import "@fontsource/atkinson-hyperlegible-next/600.css";
+@import "@fontsource-variable/martian-mono/wdth.css";
 
 :root, [data-theme="light"] {
   --bg: oklch(0.975 0.012 85);
@@ -31,13 +32,17 @@
   --shadow-gel: 0 1px 0 oklch(1 0 0 / .6) inset, 0 8px 24px -16px oklch(0.52 0.135 52 / .45);
   --water-top: oklch(0.955 0.02 222);
   --water-mid: oklch(0.968 0.014 150);
+  --focus: var(--jelly-deep);
+  --chart: oklch(0.60 0.13 68);
+  --chart-hi: var(--jelly-deep);
+  --rule: oklch(0.24 0.03 60 / .16);
 
-  --persona-rho: #126b70;    --persona-rho-tint: #dcefee;
-  --persona-bell: #854f9a;   --persona-bell-tint: #efe3f4;
-  --persona-nema: #a33e3d;   --persona-nema-tint: #f6e0df;
-  --persona-lappet: #80520b; --persona-lappet-tint: #f3e6cf;
-  --persona-turri: #315f9c;  --persona-turri-tint: #dfe8f6;
-  --persona-velum: #7353a4;  --persona-velum-tint: #e8e0f3;
+  --persona-rho: oklch(0.55 0.10 180);    --persona-rho-tint: color-mix(in oklab, oklch(0.55 0.10 180) 14%, var(--surface));
+  --persona-bell: oklch(0.56 0.13 60);   --persona-bell-tint: color-mix(in oklab, oklch(0.56 0.13 60) 14%, var(--surface));
+  --persona-nema: oklch(0.56 0.20 355);   --persona-nema-tint: color-mix(in oklab, oklch(0.56 0.20 355) 14%, var(--surface));
+  --persona-lappet: oklch(0.55 0.15 135); --persona-lappet-tint: color-mix(in oklab, oklch(0.55 0.15 135) 14%, var(--surface));
+  --persona-turri: oklch(0.56 0.19 24);  --persona-turri-tint: color-mix(in oklab, oklch(0.56 0.19 24) 14%, var(--surface));
+  --persona-velum: oklch(0.55 0.09 230);  --persona-velum-tint: color-mix(in oklab, oklch(0.55 0.09 230) 14%, var(--surface));
   color-scheme: light;
 }
 
@@ -62,13 +67,17 @@
   --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
   --water-top: oklch(0.245 0.038 230);
   --water-mid: oklch(0.195 0.03 240);
+  --focus: var(--jelly);
+  --chart: oklch(0.68 0.12 68);
+  --chart-hi: var(--jelly);
+  --rule: oklch(0.95 0.015 85 / .14);
 
-  --persona-rho: #7bd3ce;    --persona-rho-tint: #12383b;
-  --persona-bell: #d8b2ed;   --persona-bell-tint: #3a2646;
-  --persona-nema: #ffaaaa;   --persona-nema-tint: #44201f;
-  --persona-lappet: #e9c37d; --persona-lappet-tint: #402d0a;
-  --persona-turri: #a5c6ff;  --persona-turri-tint: #1a2c47;
-  --persona-velum: #c9b7ff;  --persona-velum-tint: #2d2145;
+  --persona-rho: oklch(0.86 0.13 178);    --persona-rho-tint: color-mix(in oklab, oklch(0.86 0.13 178) 22%, var(--surface));
+  --persona-bell: oklch(0.80 0.15 72);   --persona-bell-tint: color-mix(in oklab, oklch(0.80 0.15 72) 22%, var(--surface));
+  --persona-nema: oklch(0.80 0.12 350);   --persona-nema-tint: color-mix(in oklab, oklch(0.80 0.12 350) 22%, var(--surface));
+  --persona-lappet: oklch(0.84 0.17 130); --persona-lappet-tint: color-mix(in oklab, oklch(0.84 0.17 130) 22%, var(--surface));
+  --persona-turri: oklch(0.72 0.17 24);  --persona-turri-tint: color-mix(in oklab, oklch(0.72 0.17 24) 22%, var(--surface));
+  --persona-velum: oklch(0.82 0.08 225);  --persona-velum-tint: color-mix(in oklab, oklch(0.82 0.08 225) 22%, var(--surface));
   color-scheme: dark;
 }
 /* Same dark values for the system preference, written once more because a media query cannot share a selector list. */
@@ -94,12 +103,20 @@
     --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
     --water-top: oklch(0.245 0.038 230);
     --water-mid: oklch(0.195 0.03 240);
-    --persona-rho: #7bd3ce;    --persona-rho-tint: #12383b;
-    --persona-bell: #d8b2ed;   --persona-bell-tint: #3a2646;
-    --persona-nema: #ffaaaa;   --persona-nema-tint: #44201f;
-    --persona-lappet: #e9c37d; --persona-lappet-tint: #402d0a;
-    --persona-turri: #a5c6ff;  --persona-turri-tint: #1a2c47;
-    --persona-velum: #c9b7ff;  --persona-velum-tint: #2d2145;
+    --focus: var(--jelly);
+    --chart: oklch(0.68 0.12 68);
+    --chart-hi: var(--jelly);
+    --rule: oklch(0.95 0.015 85 / .14);
+  --focus: var(--jelly);
+  --chart: oklch(0.68 0.12 68);
+  --chart-hi: var(--jelly);
+  --rule: oklch(0.95 0.015 85 / .14);
+    --persona-rho: oklch(0.86 0.13 178);    --persona-rho-tint: color-mix(in oklab, oklch(0.86 0.13 178) 22%, var(--surface));
+    --persona-bell: oklch(0.80 0.15 72);   --persona-bell-tint: color-mix(in oklab, oklch(0.80 0.15 72) 22%, var(--surface));
+    --persona-nema: oklch(0.80 0.12 350);   --persona-nema-tint: color-mix(in oklab, oklch(0.80 0.12 350) 22%, var(--surface));
+    --persona-lappet: oklch(0.84 0.17 130); --persona-lappet-tint: color-mix(in oklab, oklch(0.84 0.17 130) 22%, var(--surface));
+    --persona-turri: oklch(0.72 0.17 24);  --persona-turri-tint: color-mix(in oklab, oklch(0.72 0.17 24) 22%, var(--surface));
+    --persona-velum: oklch(0.82 0.08 225);  --persona-velum-tint: color-mix(in oklab, oklch(0.82 0.08 225) 22%, var(--surface));
     color-scheme: dark;
   }
 }
@@ -107,18 +124,34 @@
 :root {
   --font-display: "Anybody Variable", "Anybody", "Avenir Next Condensed", "Arial Narrow", sans-serif;
   --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono: "Martian Mono Variable", "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --gutter: clamp(1rem, 4vw, 2rem);
-  --radius: 14px;
+  --radius: 10px;
   --radius-sm: 8px;
+  --radius-pill: 999px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-gel: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Type scale. Display is Anybody (condensed for numbers, wider for titles); body is Atkinson; labels are Martian Mono. */
+  --fs-label: .75rem;     /* 12px specimen labels: ids, checkpoints, timestamps */
+  --fs-small: .875rem;    /* 14px meta */
+  --fs-body: 1rem;        /* 16px body */
+  --fs-h3: 1.25rem;       /* 20px section titles */
+  --fs-h2: 1.375rem;
+  --fs-h1: 2rem;
+  --fs-stat: 2rem;
+
+  /* Space: 4px base. */
+  --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
+
+  --rail-w: 13.5rem;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-width: 320px; background: var(--bg); color: var(--ink);
-  font-family: var(--font-body); font-size: 1rem; line-height: 1.5; overflow-x: clip;
+  font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.5; overflow-x: clip;
 }
 h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
@@ -126,7 +159,7 @@ img, svg, video { display: block; max-width: 100%; }
 a { color: inherit; text-decoration-color: var(--jelly); text-decoration-thickness: 2px; text-underline-offset: .2em; }
 a:hover { text-decoration-color: var(--jelly-deep); }
 button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--jelly); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
 code, pre, kbd { font-family: var(--font-mono); font-size: .92em; }
 h1, h2, h3 { font-family: var(--font-display); font-stretch: 90%; font-weight: 680; letter-spacing: -.01em; line-height: 1.15; }
 h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); }
