@@ -9,6 +9,7 @@ const allowed: Record<string, string[]> = {
   "packages/core": [],
   ...Object.fromEntries(ADAPTERS.map((p) => [`packages/${p}`, ["core"]])),
   "apps/cli": ["core", "policy"],
+  "apps/console": ["core", "genui"],
   "apps/web": [],
   "apps/server": ["core", ...ADAPTERS],
   "apps/evals": ["core", ...ADAPTERS],
