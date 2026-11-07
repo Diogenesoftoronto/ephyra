@@ -23,10 +23,9 @@ export class Client {
 		readonly principal = "",
 	) {}
 	async request<T>(path: string, body?: unknown): Promise<T> {
-		const headers: Record<string, string> = {
-			Authorization: `Bearer ${this.token}`,
-			"X-Ephyra-Principal": this.principal,
-		};
+		const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
+		// Only the service token names its principal; a signed-in session's principal is its Not Organic DID.
+		if (this.principal) headers["X-Ephyra-Principal"] = this.principal;
 		if (body !== undefined) {
 			headers["Content-Type"] = "application/json";
 			headers["Idempotency-Key"] = crypto.randomUUID();

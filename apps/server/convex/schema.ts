@@ -60,6 +60,18 @@ export default defineSchema({
 
   reconciliations: defineTable({ key: v.string(), note: v.string(), at: v.string() }).index("by_key", ["key"]),
 
+  /** Not Organic sign-in: pending logins (single use, short-lived). */
+  authTx: defineTable({ state: v.string(), json: v.string(), createdMs: v.number() }).index("by_state", ["state"]),
+  /** Sessions keyed by SHA-256 of the session token; secrets inside `json` are sealed by the server. */
+  sessions: defineTable({
+    sessionHash: v.string(), did: v.string(), json: v.string(), version: v.number(), createdMs: v.number(), expiresMs: v.number(),
+  })
+    .index("by_hash", ["sessionHash"])
+    .index("by_did_created", ["did", "createdMs"]),
+  /** CLI sign-in grants, released once to the CLI holding the challenge preimage after browser approval. */
+  cliGrants: defineTable({ challenge: v.string(), json: v.string(), approved: v.boolean(), createdMs: v.number() })
+    .index("by_challenge", ["challenge"]),
+
   /** Hash-chained audit log; the chain is extended inside a serializable mutation. */
   audit: defineTable({ seq: v.number(), auditId: v.string(), json: v.string(), prevHash: v.string(), hash: v.string() })
     .index("by_seq", ["seq"])

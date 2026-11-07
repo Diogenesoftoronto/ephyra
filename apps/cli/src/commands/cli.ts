@@ -1,4 +1,5 @@
 import { Client } from "../client";
+import { loadCredentials, login, logout } from "../login";
 import { terminal } from "../inbox/run";
 import { init } from "../init";
 
@@ -15,18 +16,41 @@ export async function main(args: string[]) {
 		);
 		return;
 	}
-	if (
-		!process.env.EPHYRA_URL ||
-		!process.env.EPHYRA_API_TOKEN ||
-		!process.env.EPHYRA_PRINCIPAL
-	)
-		throw new Error("Set EPHYRA_URL, EPHYRA_API_TOKEN and EPHYRA_PRINCIPAL");
-	const client = new Client(
-		process.env.EPHYRA_URL,
-		process.env.EPHYRA_API_TOKEN,
+	const io = {
+		print: (line: string) => console.log(line),
+		sleep: (ms: number) => Bun.sleep(ms),
 		fetch,
-		process.env.EPHYRA_PRINCIPAL ?? "",
-	);
+		env: process.env,
+		open: (url: string) => {
+			try {
+				Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], { stdout: "ignore", stderr: "ignore" });
+			} catch { /* printing the link is enough */ }
+		},
+	};
+	if (cmd === "login") {
+		const url = args[0] ?? process.env.EPHYRA_URL;
+		if (!url) throw new Error("Usage: ephyra login <server-url> (or set EPHYRA_URL)");
+		await login(url, io);
+		return;
+	}
+	if (cmd === "logout") return logout(io);
+	// Signed-in session (from `ephyra login`) first; the service token is for automation.
+	const creds = await loadCredentials();
+	const url = process.env.EPHYRA_URL ?? creds?.url;
+	let client: Client;
+	if (process.env.EPHYRA_API_TOKEN && url) {
+		if (!process.env.EPHYRA_PRINCIPAL) throw new Error("EPHYRA_API_TOKEN needs EPHYRA_PRINCIPAL");
+		client = new Client(url, process.env.EPHYRA_API_TOKEN, fetch, process.env.EPHYRA_PRINCIPAL);
+	} else if (creds && url === creds.url) {
+		client = new Client(creds.url, creds.token, fetch, "");
+	} else {
+		throw new Error("Not signed in. Run `ephyra login <server-url>`.");
+	}
+	if (cmd === "whoami") {
+		const res = await fetch(new URL("/auth/me", client.url), { headers: { Authorization: `Bearer ${client.token}` } });
+		console.log(res.ok ? JSON.stringify(await res.json(), null, json ? 0 : 2) : "Not signed in (or the session expired).");
+		return;
+	}
 	let result: unknown;
 	if (cmd === "status") result = await client.health();
 	else if (cmd === "trails") {
@@ -69,7 +93,7 @@ export async function main(args: string[]) {
 		);
 	} else
 		throw new Error(
-			"Usage: ephyra init|status|trails|show|decide|comment|claim|release|park|resume|kill|land|inbox",
+			"Usage: ephyra login|logout|whoami|init|status|trails|show|decide|comment|claim|release|park|resume|kill|land|inbox",
 		);
 	console.log(JSON.stringify(result, null, json ? 0 : 2));
 }
