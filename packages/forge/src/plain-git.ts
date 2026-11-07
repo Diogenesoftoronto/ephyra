@@ -83,6 +83,11 @@ export class PlainGitAdapter implements ForgeAdapter {
       throw new Error("invalid spool cursor");
     let pos = offset;
     const seen = new Set<string>();
+    for (const line of data.subarray(0, offset).toString().split("\n")) {
+      if (!line) continue;
+      const item = JSON.parse(line);
+      seen.add(`${item.ref}\0${item.new}`);
+    }
     for (;;) {
       const end = data.indexOf(10, pos);
       if (end < 0) break;
@@ -164,9 +169,12 @@ export class PlainGitAdapter implements ForgeAdapter {
       }
       return await f();
     } finally {
-      if (lockPath && lockOwned) await unlink(lockPath);
-      release();
-      if (this.locks.get(lockKey) === next) this.locks.delete(lockKey);
+      try {
+        if (lockPath && lockOwned) await unlink(lockPath);
+      } finally {
+        release();
+        if (this.locks.get(lockKey) === next) this.locks.delete(lockKey);
+      }
     }
   }
   async land(
