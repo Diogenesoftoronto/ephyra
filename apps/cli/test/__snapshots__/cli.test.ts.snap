@@ -1,9 +1,28 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`80x24 rendering 1`] = `
-"EPHYRA  /  INBOX
-j/k move  a approve  r revise  x kill  c comment  t claim  p park  o open  l lan
-
-> T-123  sev 2  cart  low  A  blocking
-  Crash: Investigate"
+" ephyra · inbox                                          1 waiting · 1 blocking 
+┌─ waiting ──────────────────┐ ┌─ T-123 ───────────────────────────────────────┐
+│▌T-123  A  cart       sev 2 │ │Crash                                          │
+│▌Crash                      │ │checkpoint A · hypothesis · blocking · risk low│
+│                            │ │sev 2 · cart                                   │
+│                            │ │                                               │
+│                            │ │●──●──◉──○──○──○──○──○──○                      │
+│                            │ │      A     B     C                            │
+│                            │ │hypothesis · waiting on you                    │
+│                            │ │                                               │
+│                            │ │loading the trail…                             │
+│                            │ │                                               │
+│                            │ │Investigate                                    │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+│                            │ │                                               │
+└────────────────────────────┘ └───────────────────────────────────────────────┘
+                                                                                
+ a approve  r revise  l land  e explain  t take  c comment  p park  ? keys      "
 `;
