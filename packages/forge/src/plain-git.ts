@@ -10,21 +10,24 @@ import {
   type Trail,
   type OperationLedger,
 } from "@ephyra/core";
-import { readFile, writeFile, chmod, mkdtemp, rm } from "node:fs/promises";
+import { readFile, writeFile, chmod, mkdtemp, rm, open, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { MemoryOperationLedger } from "./ledger";
 import { commandRunner, type CommandRunner } from "./command";
 import { BaseMoved, caps, digest } from "./common";
+const processLocks = new Map<string, Promise<void>>();
+
 export class PlainGitAdapter implements ForgeAdapter {
   readonly name = "plain-git";
-  private readonly locks = new Map<string, Promise<void>>();
+  private readonly locks = processLocks;
   constructor(
     public readonly repoDir: string,
     private readonly run: CommandRunner = commandRunner,
     private readonly workspace = "default",
     private readonly repo = repoDir,
     private readonly ledger: OperationLedger = new MemoryOperationLedger(),
+    private readonly lockDirectory?: string,
   ) {}
   async capabilities(): Promise<ForgeCapabilities> {
     return caps(this.name, ["trail_ref", "auto_land"], true);
@@ -124,18 +127,37 @@ export class PlainGitAdapter implements ForgeAdapter {
     };
   }
   private async serial<T>(target: string, f: () => Promise<T>): Promise<T> {
-    const prev = this.locks.get(target) ?? Promise.resolve();
+    const lockKey = `${this.repoDir}\0${target}`;
+    const prev = this.locks.get(lockKey) ?? Promise.resolve();
     let release!: () => void;
     const next = new Promise<void>((r) => {
       release = r;
     });
-    this.locks.set(target, next);
+    this.locks.set(lockKey, next);
     await prev;
+    let lockPath: string | undefined;
+    let lockOwned = false;
     try {
+      if (this.lockDirectory) {
+        await mkdir(this.lockDirectory, { recursive: true });
+        lockPath = join(this.lockDirectory, digest(lockKey).slice(7) + ".lock");
+        for (;;) {
+          try {
+            const handle = await open(lockPath, "wx");
+            lockOwned = true;
+            await handle.close();
+            break;
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        }
+      }
       return await f();
     } finally {
+      if (lockPath && lockOwned) await unlink(lockPath);
       release();
-      if (this.locks.get(target) === next) this.locks.delete(target);
+      if (this.locks.get(lockKey) === next) this.locks.delete(lockKey);
     }
   }
   async land(
