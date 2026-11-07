@@ -1,0 +1,5 @@
+# Full-resolution generation originals remain local; delivery WebPs are versioned.
+*.png
+generation-*.json
+# Generated with absolute local asset paths for the inline preview tool.
+gallery.html

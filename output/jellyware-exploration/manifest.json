@@ -1,0 +1,705 @@
+{
+  "title": "Ephyra · Jellyware exploration",
+  "description": "Thirty generated concepts, three generations. Designer assessment using inferred on-call, reviewer, and handoff personas; not a user study. Multiplayer presence in images is a design proposal. Implementation uses actual sample evidence and explicitly local demo collaboration.",
+  "axes": {
+    "x": [
+      "Flowing document",
+      "Orbital workspace",
+      "Branching trail"
+    ],
+    "y": [
+      "Inline discussion",
+      "Shared edge",
+      "People attached to work"
+    ]
+  },
+  "criteria": [
+    {
+      "name": "Persona tasks",
+      "weight": 0.25
+    },
+    {
+      "name": "Multiplayer",
+      "weight": 0.25
+    },
+    {
+      "name": "Jellyware",
+      "weight": 0.2
+    },
+    {
+      "name": "Readability",
+      "weight": 0.15
+    },
+    {
+      "name": "Action clarity",
+      "weight": 0.1
+    },
+    {
+      "name": "Implementability",
+      "weight": 0.05
+    }
+  ],
+  "concepts": [
+    {
+      "id": "g1-01",
+      "name": "Tidal Desk",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-01.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-01, tidal_desk: Continuous pale seafoam work surface, broad open typography, irregular gently rounded edges only at the outer boundary, low-profile floating tool dock. Collaborative notes as small anchored ripples at relevant evidence. Main proof is an open typographic document.",
+      "scores": [
+        4,
+        4,
+        4,
+        4.5,
+        4,
+        4.5
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "assessment": "Clear shared review and tool access; flowing surface works, but small boxes and generic nav remain."
+    },
+    {
+      "id": "g1-02",
+      "name": "Moon Pool",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-02.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-02, moon_pool: Dark inky marine workspace with a single softly illuminated oval-edged working area, warm white readable text, thin organic trails connecting evidence and proof, teammate cursors and a shared conversation along one margin. Beautiful restraint.",
+      "scores": [
+        4,
+        4,
+        4.5,
+        3.5,
+        4,
+        3.5
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "assessment": "Distinct membrane and strong collaboration; dark glow and dense text compete with engineering detail."
+    },
+    {
+      "id": "g1-03",
+      "name": "Estuary",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-03.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-03, estuary: Bright open canvas arranged along a gently curving river of trail stages, evidence on one side and shared decisions on the other, an active proof leaf in the center. Multiplayer participants belong to checkpoints, not just an avatar pile.",
+      "scores": [
+        3.5,
+        4,
+        4,
+        4,
+        3.5,
+        3.5
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "assessment": "Readable branching trail and ownership; stage names drift and scenery consumes working space."
+    },
+    {
+      "id": "g1-04",
+      "name": "Membrane",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-04.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-04, membrane: Pearlescent translucent membrane as a single coherent workspace surface, porous edges and soft tool capsules, very clear dark text on opaque pale interior. Team conversation flows inline beside proof assertions.",
+      "scores": [
+        4,
+        4.5,
+        4.8,
+        4,
+        4,
+        3.5
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "assessment": "Strongest jellyware material with usable reading areas; porous ornament and multiple bubbles need restraint."
+    },
+    {
+      "id": "g1-05",
+      "name": "Specimen Table",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-05.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-05, specimen_table: Marine specimen lab meets professional collaborative coding review: warm pale mineral surface, measured typography, amber glass tool objects, subtle organic boundaries without boxed cards. Named claim/release ownership prominent.",
+      "scores": [
+        3.5,
+        4,
+        3.5,
+        4,
+        4,
+        3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "assessment": "Collaboration is central, but literal lab decor and box interiors overwhelm the product."
+    },
+    {
+      "id": "g1-06",
+      "name": "Current Lines",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-06.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-06, current_lines: Minimal white product UI with fine curved current lines structuring the workflow rather than panels. Shared review is inline threaded annotation at proof rows. Compact floating toolbar along the bottom, status as a living bead.",
+      "scores": [
+        4.5,
+        4,
+        3.8,
+        4.8,
+        4.5,
+        4.8
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "assessment": "Best information clarity and implementable tools; needs more distinctive material and explicit handoff."
+    },
+    {
+      "id": "g1-07",
+      "name": "Lagoon",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-07.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-07, lagoon: Deep teal lagoon backdrop, broad off-white irregular shore-shaped content surface, team discussion tucked into a softly curved inlet. Functional evidence navigation as shoreline tabs, crisp stable controls.",
+      "scores": [
+        4,
+        4,
+        4.5,
+        4,
+        4,
+        3.5
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "assessment": "Good shared inlet and soft outer shape; excessive tool chrome and busy edges."
+    },
+    {
+      "id": "g1-08",
+      "name": "Soft Split",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-08.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-08, soft_split: Two open flowing columns with a gentle S-curve separation: investigator evidence left, reviewer proof and multiplayer discussion right. Soft coral and mint accents, quiet daylight, no card grid or window chrome.",
+      "scores": [
+        4.5,
+        4.3,
+        4.4,
+        4.5,
+        4.5,
+        4.3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "assessment": "Strong flowing separation between investigation and shared review; reduce duplicated navigation and correct fixture details."
+    },
+    {
+      "id": "g1-09",
+      "name": "Colony",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-09.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-09, colony: A collaborative trail room where small organic participant markers cluster around shared evidence. Centered readable proof document, radial compact tool dock, human ownership and agent work clearly distinct. Sophisticated pale aqueous surface.",
+      "scores": [
+        3.8,
+        4.2,
+        4.8,
+        4,
+        4,
+        3.2
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "assessment": "Participants attach to shared work, but oversized avatar bubbles and radial tools reduce usable space."
+    },
+    {
+      "id": "g1-10",
+      "name": "Tidebook",
+      "generation": 1,
+      "parent": null,
+      "mutation": "Initial diverse concept",
+      "path": "g1-10.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame. Concept g1-10, tidebook: A shared engineering fieldbook on a subtly aquatic continuous background, open page-like canvas with rounded organic fold edges, margin conversations and a persistent tool ribbon, visible reviewer handoff. Editorial precision but normal sans product typography.",
+      "scores": [
+        4.2,
+        4.5,
+        4,
+        4.5,
+        4.5,
+        4
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "assessment": "Handoff and shared notes are clear; book metaphor adds texture that should be quieter."
+    },
+    {
+      "id": "g2-01",
+      "name": "Current Membrane",
+      "parent": "g1-06",
+      "mutation": "Retain fine flowing trail and excellent typography. Introduce a SINGLE pale translucent membrane behind central reading surface, small amber gel tool dock; inline shared reviewer constraint and claim/release. Remove box outlines completely.",
+      "generation": 2,
+      "path": "g2-01.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-06, current_lines: Minimal white product UI with fine curved current lines structuring the workflow rather than panels. Shared review is inline threaded annotation at proof rows. Compact floating toolbar along the bottom, status as a living bead.. Mutation for g2-01 current_membrane: Retain fine flowing trail and excellent typography. Introduce a SINGLE pale translucent membrane behind central reading surface, small amber gel tool dock; inline shared reviewer constraint and claim/release. Remove box outlines completely.",
+      "scores": [
+        4.6,
+        4.5,
+        4.5,
+        4.8,
+        4.5,
+        4.6
+      ],
+      "cell": [
+        2,
+        2
+      ],
+      "assessment": "Open proof and attached discussion are coherent; strongest calm workspace. Next improve precise evidence and remove duplicate controls. Participant context and anchored review thread attach people to the active checkpoint."
+    },
+    {
+      "id": "g2-02",
+      "name": "Shared Cove",
+      "parent": "g1-08",
+      "mutation": "Retain S-shaped separation and balanced shared work. Make the seam a delicate translucent mint membrane; place the reviewer constraint next to proof. Reduce chrome to Review Evidence Files Activity Discuss tabs and one clear approval action.",
+      "generation": 2,
+      "path": "g2-02.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-08, soft_split: Two open flowing columns with a gentle S-curve separation: investigator evidence left, reviewer proof and multiplayer discussion right. Soft coral and mint accents, quiet daylight, no card grid or window chrome.. Mutation for g2-02 shared_cove: Retain S-shaped separation and balanced shared work. Make the seam a delicate translucent mint membrane; place the reviewer constraint next to proof. Reduce chrome to Review Evidence Files Activity Discuss tabs and one clear approval action.",
+      "scores": [
+        4.3,
+        4.4,
+        4.5,
+        4.5,
+        4.4,
+        4.2
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "assessment": "Soft split remains readable and social; decorative plants and repeated summary still steal space."
+    },
+    {
+      "id": "g2-03",
+      "name": "Quiet Membrane",
+      "parent": "g1-04",
+      "mutation": "Retain pearlescent soft structure and human/agent collaboration. Remove holes, glare and ornamental bubbles. Quiet opaque reading interior; one curved collaboration inlet on right. No rectangular outlines around proof rows.",
+      "generation": 2,
+      "path": "g2-03.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-04, membrane: Pearlescent translucent membrane as a single coherent workspace surface, porous edges and soft tool capsules, very clear dark text on opaque pale interior. Team conversation flows inline beside proof assertions.. Mutation for g2-03 quiet_membrane: Retain pearlescent soft structure and human/agent collaboration. Remove holes, glare and ornamental bubbles. Quiet opaque reading interior; one curved collaboration inlet on right. No rectangular outlines around proof rows.",
+      "scores": [
+        4.5,
+        4.6,
+        4.6,
+        4.5,
+        4.4,
+        4.1
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "assessment": "Clear shared cove with restrained material; separate bubbles inside conversation remain too prominent."
+    },
+    {
+      "id": "g2-04",
+      "name": "Colony Compact",
+      "parent": "g1-09",
+      "mutation": "Keep participants visibly attached to work but shrink avatar bubbles to small labeled people beads. Expand readable proof surface; move tool dock into a slim organic ribbon. Add explicit Take over and Return to agent controls.",
+      "generation": 2,
+      "path": "g2-04.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-09, colony: A collaborative trail room where small organic participant markers cluster around shared evidence. Centered readable proof document, radial compact tool dock, human ownership and agent work clearly distinct. Sophisticated pale aqueous surface.. Mutation for g2-04 colony_compact: Keep participants visibly attached to work but shrink avatar bubbles to small labeled people beads. Expand readable proof surface; move tool dock into a slim organic ribbon. Add explicit Take over and Return to agent controls.",
+      "scores": [
+        4.3,
+        4.4,
+        4.6,
+        4.5,
+        4.5,
+        4
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "assessment": "Small participants improve working space; shaped proof island still looks like an oversized card."
+    },
+    {
+      "id": "g2-05",
+      "name": "Tidebook Open",
+      "parent": "g1-10",
+      "mutation": "Keep handoff and margin conversation; remove literal book edges and texture. An open continuous aqueous document with only a soft asymmetric outer rim. Put reviewer ownership and discussion directly with approval.",
+      "generation": 2,
+      "path": "g2-05.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-10, tidebook: A shared engineering fieldbook on a subtly aquatic continuous background, open page-like canvas with rounded organic fold edges, margin conversations and a persistent tool ribbon, visible reviewer handoff. Editorial precision but normal sans product typography.. Mutation for g2-05 tidebook_open: Keep handoff and margin conversation; remove literal book edges and texture. An open continuous aqueous document with only a soft asymmetric outer rim. Put reviewer ownership and discussion directly with approval.",
+      "scores": [
+        4.5,
+        4.6,
+        4.5,
+        4.6,
+        4.4,
+        4.3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "assessment": "Strong shared edge and readable open proof; reduce sidebar and remove seaweed decoration."
+    },
+    {
+      "id": "g2-06",
+      "name": "Tidal Annotations",
+      "parent": "g1-01",
+      "mutation": "Keep approachable bright surface, but eliminate small card containers and redundant global nav. Make notes connect to the exact proof row by a fine curved thread. Amber single approval action; mint checkpoint state.",
+      "generation": 2,
+      "path": "g2-06.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-01, tidal_desk: Continuous pale seafoam work surface, broad open typography, irregular gently rounded edges only at the outer boundary, low-profile floating tool dock. Collaborative notes as small anchored ripples at relevant evidence. Main proof is an open typographic document.. Mutation for g2-06 tidal_annotations: Keep approachable bright surface, but eliminate small card containers and redundant global nav. Make notes connect to the exact proof row by a fine curved thread. Amber single approval action; mint checkpoint state.",
+      "scores": [
+        4.5,
+        4.4,
+        4.1,
+        4.7,
+        4.5,
+        4.7
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "assessment": "Anchored annotations work well and the reading surface is calm; needs a stronger material identity and exact before/after labels."
+    },
+    {
+      "id": "g2-07",
+      "name": "Estuary Precise",
+      "parent": "g1-03",
+      "mutation": "Keep flowing trail topology and shared decisions. Remove reeds, landscape and decorative shore. Exact stages Signal, A Cause, B Plan, C Proof, Land, Watch. One central proof document and small teammate annotations on branch.",
+      "generation": 2,
+      "path": "g2-07.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-03, estuary: Bright open canvas arranged along a gently curving river of trail stages, evidence on one side and shared decisions on the other, an active proof leaf in the center. Multiplayer participants belong to checkpoints, not just an avatar pile.. Mutation for g2-07 estuary_precise: Keep flowing trail topology and shared decisions. Remove reeds, landscape and decorative shore. Exact stages Signal, A Cause, B Plan, C Proof, Land, Watch. One central proof document and small teammate annotations on branch.",
+      "scores": [
+        4.4,
+        4.3,
+        4.5,
+        4.6,
+        4.5,
+        4.2
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "assessment": "Correct full trail and clear collaboration; repeated numeric proof in two columns is unnecessary."
+    },
+    {
+      "id": "g2-08",
+      "name": "Night Current",
+      "parent": "g1-06",
+      "mutation": "Retain highly legible thin current structure but use deep blue ink with a quiet opaque reading area, subtle amber resin dock, minimal mint rim. Team thread inline below proof. No neon, no glowing text.",
+      "generation": 2,
+      "path": "g2-08.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-06, current_lines: Minimal white product UI with fine curved current lines structuring the workflow rather than panels. Shared review is inline threaded annotation at proof rows. Compact floating toolbar along the bottom, status as a living bead.. Mutation for g2-08 night_current: Retain highly legible thin current structure but use deep blue ink with a quiet opaque reading area, subtle amber resin dock, minimal mint rim. Team thread inline below proof. No neon, no glowing text.",
+      "scores": [
+        4.6,
+        4.5,
+        4.6,
+        4.6,
+        4.7,
+        4.5
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "assessment": "Best dark direction: quiet depth and unmistakable actions, but fine edges need accessible contrast."
+    },
+    {
+      "id": "g2-09",
+      "name": "Handoff Split",
+      "parent": "g1-08",
+      "mutation": "Retain two flowing columns; emphasize human takeover and agent handback as a shared workflow. One column proof, one narrow shared trail discussion; named reviewer constraint visibly attached to files. Soft salmon/amber material at boundary.",
+      "generation": 2,
+      "path": "g2-09.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-08, soft_split: Two open flowing columns with a gentle S-curve separation: investigator evidence left, reviewer proof and multiplayer discussion right. Soft coral and mint accents, quiet daylight, no card grid or window chrome.. Mutation for g2-09 handoff_split: Retain two flowing columns; emphasize human takeover and agent handback as a shared workflow. One column proof, one narrow shared trail discussion; named reviewer constraint visibly attached to files. Soft salmon/amber material at boundary.",
+      "scores": [
+        4.5,
+        4.7,
+        4.5,
+        4.5,
+        4.5,
+        4.3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "assessment": "Handoff is explicit and connected to shared decisions; need distinguish take over from return, not offer both at once."
+    },
+    {
+      "id": "g2-10",
+      "name": "Membrane Focus",
+      "parent": "g1-04",
+      "mutation": "Retain organic pearl workspace but maximize task focus: large readable main proof, compact shared conversation lower edge, small floating toolbar. One organic perimeter only; no nested soft cards or ornaments.",
+      "generation": 2,
+      "path": "g2-10.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent. Design evolution of description: g1-04, membrane: Pearlescent translucent membrane as a single coherent workspace surface, porous edges and soft tool capsules, very clear dark text on opaque pale interior. Team conversation flows inline beside proof assertions.. Mutation for g2-10 membrane_focus: Retain organic pearl workspace but maximize task focus: large readable main proof, compact shared conversation lower edge, small floating toolbar. One organic perimeter only; no nested soft cards or ornaments.",
+      "scores": [
+        4.4,
+        4.4,
+        4.7,
+        4.6,
+        4.5,
+        3.8
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "assessment": "Single membrane improves clarity, though perforated ornamental rim still feels overworked."
+    },
+    {
+      "id": "g3-01",
+      "name": "Current Room",
+      "parent": "g2-01",
+      "mutation": "Keep the flowing trail and calm central membrane. Finalize for real frontend: flat opaque text area surrounded by faint seafoam edge light, small amber floating dock. Proof left two-thirds, persistent shared review margin right third. Nothing boxed. One takeover toggle, state Human control; exact reviewer note. No decorative scenery.",
+      "generation": 3,
+      "path": "g3-01.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-01 current_room. Parent design description: Retain fine flowing trail and excellent typography. Introduce a SINGLE pale translucent membrane behind central reading surface, small amber gel tool dock; inline shared reviewer constraint and claim/release. Remove box outlines completely.. Targeted refinement: Keep the flowing trail and calm central membrane. Finalize for real frontend: flat opaque text area surrounded by faint seafoam edge light, small amber floating dock. Proof left two-thirds, persistent shared review margin right third. Nothing boxed. One takeover toggle, state Human control; exact reviewer note. No decorative scenery. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.5,
+        4.6,
+        4.6,
+        4.8,
+        4.5,
+        4.3
+      ],
+      "cell": [
+        2,
+        2
+      ],
+      "assessment": "Calm shared room and clear proof; metric prominence and claim/release wording need correction."
+    },
+    {
+      "id": "g3-02",
+      "name": "Night Room",
+      "parent": "g2-08",
+      "mutation": "Refine dark current workspace: clearer text contrast, a quiet soft membrane edge, substantial proof typography; shared review on right. Remove redundant people/ownership sidebar and keep one clear control. No neon glows.",
+      "generation": 3,
+      "path": "g3-02.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-02 night_room. Parent design description: Retain highly legible thin current structure but use deep blue ink with a quiet opaque reading area, subtle amber resin dock, minimal mint rim. Team thread inline below proof. No neon, no glowing text.. Targeted refinement: Refine dark current workspace: clearer text contrast, a quiet soft membrane edge, substantial proof typography; shared review on right. Remove redundant people/ownership sidebar and keep one clear control. No neon glows. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.5,
+        4.6,
+        4.7,
+        4.5,
+        4.4,
+        4.2
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "assessment": "Strong dark material, but still too many enclosing panels and simultaneous takeover controls."
+    },
+    {
+      "id": "g3-03",
+      "name": "Shared Cove Final",
+      "parent": "g2-09",
+      "mutation": "Refine flowing dual-workspace seam: pale cool marine neutral, proof document and narrow review cove. Show Take over OR Return to agent depending current state, not both. Keep reviewer note attached to source files. No coral illustration.",
+      "generation": 3,
+      "path": "g3-03.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-03 shared_cove_final. Parent design description: Retain two flowing columns; emphasize human takeover and agent handback as a shared workflow. One column proof, one narrow shared trail discussion; named reviewer constraint visibly attached to files. Soft salmon/amber material at boundary.. Targeted refinement: Refine flowing dual-workspace seam: pale cool marine neutral, proof document and narrow review cove. Show Take over OR Return to agent depending current state, not both. Keep reviewer note attached to source files. No coral illustration. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.7,
+        4.8,
+        4.7,
+        4.7,
+        4.6,
+        4.5
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "assessment": "Excellent shared cove; soft two-column seam and discussion balance. Some duplicate summary remains."
+    },
+    {
+      "id": "g3-04",
+      "name": "Pearl Room",
+      "parent": "g2-03",
+      "mutation": "Reduce the shared cove to one pearl membrane backdrop and open typographic proof. Conversation has no speech bubble backgrounds, just authors and fine threads. Dock low and central; large legible controls, compact participants.",
+      "generation": 3,
+      "path": "g3-04.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-04 pearl_room. Parent design description: Retain pearlescent soft structure and human/agent collaboration. Remove holes, glare and ornamental bubbles. Quiet opaque reading interior; one curved collaboration inlet on right. No rectangular outlines around proof rows.. Targeted refinement: Reduce the shared cove to one pearl membrane backdrop and open typographic proof. Conversation has no speech bubble backgrounds, just authors and fine threads. Dock low and central; large legible controls, compact participants. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.6,
+        4.7,
+        4.8,
+        4.7,
+        4.4,
+        4.6
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "assessment": "Quiet pearl edge and readable conversation; handoff controls remain duplicated."
+    },
+    {
+      "id": "g3-05",
+      "name": "Field Room",
+      "parent": "g2-05",
+      "mutation": "Remove remaining literal scenery and side navigation. One open shared fieldbook surface with a subtle folded membrane edge, a horizontal tool dock, proof with margin discussion, takeover ownership near approval.",
+      "generation": 3,
+      "path": "g3-05.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-05 field_room. Parent design description: Keep handoff and margin conversation; remove literal book edges and texture. An open continuous aqueous document with only a soft asymmetric outer rim. Put reviewer ownership and discussion directly with approval.. Targeted refinement: Remove remaining literal scenery and side navigation. One open shared fieldbook surface with a subtle folded membrane edge, a horizontal tool dock, proof with margin discussion, takeover ownership near approval. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.6,
+        4.6,
+        4.6,
+        4.7,
+        4.4,
+        4.4
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "assessment": "Coherent continuous field and good note placement, but proof still enclosed inside several surfaces."
+    },
+    {
+      "id": "g3-06",
+      "name": "Connected Notes",
+      "parent": "g2-06",
+      "mutation": "Make the notes connect to proof rows with very subtle curved lines. Add soft amber/mint material only to selected tools and state beads. Extremely legible open document. Persistent discussion is a margin, not a card.",
+      "generation": 3,
+      "path": "g3-06.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-06 connected_notes. Parent design description: Keep approachable bright surface, but eliminate small card containers and redundant global nav. Make notes connect to the exact proof row by a fine curved thread. Amber single approval action; mint checkpoint state.. Targeted refinement: Make the notes connect to proof rows with very subtle curved lines. Add soft amber/mint material only to selected tools and state beads. Extremely legible open document. Persistent discussion is a margin, not a card. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.9,
+        4.8,
+        4.5,
+        4.9,
+        4.8,
+        4.9
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "assessment": "Selected: clearest proof-to-review relationship, open reading space, restrained curved connections, usable tools, and strongest responsive feasibility. Implement exact fixture and local collaboration rather than pictured online presence.",
+      "selected": true
+    },
+    {
+      "id": "g3-07",
+      "name": "Flow Checkpoint",
+      "parent": "g2-07",
+      "mutation": "Keep full Signal Cause Plan Proof Land Watch flow but make its curve understated and compact. Remove duplicated proof metrics. Main document with shared conversation and visible handoff state, organic outer frame.",
+      "generation": 3,
+      "path": "g3-07.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-07 flow_checkpoint. Parent design description: Keep flowing trail topology and shared decisions. Remove reeds, landscape and decorative shore. Exact stages Signal, A Cause, B Plan, C Proof, Land, Watch. One central proof document and small teammate annotations on branch.. Targeted refinement: Keep full Signal Cause Plan Proof Land Watch flow but make its curve understated and compact. Remove duplicated proof metrics. Main document with shared conversation and visible handoff state, organic outer frame. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.3,
+        4.4,
+        4.5,
+        4.4,
+        3.8,
+        4
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "assessment": "Trail topology is clear, but boxed proof returns and disabled approval lacks explanation."
+    },
+    {
+      "id": "g3-08",
+      "name": "Shared Focus",
+      "parent": "g2-10",
+      "mutation": "Remove all membrane holes, chrome, gloss noise. Keep one subtly irregular pale rim, large readable proof and collaboration below it, with a short contextual tool ribbon. Demonstrate keyboard reachable simple native controls.",
+      "generation": 3,
+      "path": "g3-08.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-08 shared_focus. Parent design description: Retain organic pearl workspace but maximize task focus: large readable main proof, compact shared conversation lower edge, small floating toolbar. One organic perimeter only; no nested soft cards or ornaments.. Targeted refinement: Remove all membrane holes, chrome, gloss noise. Keep one subtly irregular pale rim, large readable proof and collaboration below it, with a short contextual tool ribbon. Demonstrate keyboard reachable simple native controls. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.6,
+        4.6,
+        4.5,
+        4.8,
+        4.4,
+        4.7
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "assessment": "Simple coherent membrane and readable proof, though summary repeats and comments lack entry affordance."
+    },
+    {
+      "id": "g3-09",
+      "name": "Colony Workbench",
+      "parent": "g2-04",
+      "mutation": "Make participants small shared initials anchored to relevant evidence. No oversized panels. A continuous pale seafoam workbench, softly rounded dock and a curved channel leading to discussion. Human/agent handoff explicit.",
+      "generation": 3,
+      "path": "g3-09.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-09 colony_workbench. Parent design description: Keep participants visibly attached to work but shrink avatar bubbles to small labeled people beads. Expand readable proof surface; move tool dock into a slim organic ribbon. Add explicit Take over and Return to agent controls.. Targeted refinement: Make participants small shared initials anchored to relevant evidence. No oversized panels. A continuous pale seafoam workbench, softly rounded dock and a curved channel leading to discussion. Human/agent handoff explicit. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.6,
+        4.7,
+        4.7,
+        4.6,
+        4.5,
+        4.5
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "assessment": "Good participants attached to work and graceful tool ribbon; several rounded proof blocks remain."
+    },
+    {
+      "id": "g3-10",
+      "name": "Current Compact",
+      "parent": "g2-01",
+      "mutation": "Refine for an 850px wide embedded GUI walkthrough within landing page: only essential title, checkpoint, 5 horizontal tools, open proof table and reviewer constraint, note entry and takeover control. One soft organic membrane perimeter, clear high contrast. Show complete compact desktop design rather than oversized full application.",
+      "generation": 3,
+      "path": "g3-10.png",
+      "prompt": "Use case: ui-mockup. Generate ONE high fidelity desktop product interface concept for EPHYRA, self-hosted self-driving software. This is a real engineering workspace, not a landing page. Jellyware: soft enough to change, firm enough to trust. An on-call engineer and reviewer collaborate with an agent on trail T-4c1e0f, 'Checkout total off by a cent'. Human checkpoint C is waiting. Show evidence, failing-before/passing-after proof, 412 tests, review conversation, named teammate presence and clear checkpoint ownership, contextual tools and 'Approve and land'. Label 'Sample workspace'. Use legible humanist sans, discreet monospace identifiers. Marine organic softness, subtle mint waiting, amber accepted, cherry rollback. Avoid rectangular card grids, rigid dashboard boxes, neon cyberpunk, decorative giant jellyfish, illegible low-contrast glass. High visual craft, usable density, believable controls, 1536x1024 landscape composition. No device frame.  Exact product facts: checkpoints A Cause, B Plan, C Proof; 412 passed, 0 failed, 6 regression probes, 1 intent probe, 2 changed files, 31 lines. Reviewer note: 'Keep the receipt rounding as is; finance reads those.' Show named people as illustrative participants, not fabricated verification claims. No invented code diff or test log. Tools Review, Evidence, Files, Activity, Discuss. Human takeover / return to agent.  Final generation concept g3-10 current_compact. Parent design description: Retain fine flowing trail and excellent typography. Introduce a SINGLE pale translucent membrane behind central reading surface, small amber gel tool dock; inline shared reviewer constraint and claim/release. Remove box outlines completely.. Targeted refinement: Refine for an 850px wide embedded GUI walkthrough within landing page: only essential title, checkpoint, 5 horizontal tools, open proof table and reviewer constraint, note entry and takeover control. One soft organic membrane perimeter, clear high contrast. Show complete compact desktop design rather than oversized full application. Strictly keep proof values as given. Before: fail. After: pass. Checkpoint C waiting, NOT already approved. Reviewer constraint text exact. Sample-only people; no fake promises of live production connection. Draw a professional feasible product interface with organic jellyware identity, not a generic rounded dashboard.",
+      "scores": [
+        4.5,
+        4.5,
+        4.9,
+        4.7,
+        4.5,
+        3.7
+      ],
+      "cell": [
+        2,
+        2
+      ],
+      "assessment": "Strong material character and compact tool vocabulary; decorative jellyfish and exaggerated perimeter reduce real workspace efficiency."
+    }
+  ]
+}
