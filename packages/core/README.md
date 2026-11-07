@@ -45,6 +45,11 @@ resume on release. Spend requests retain their purpose and amount until a non-sh
 decision; approval starts the respondent run and rejection records the decision and
 continues without the run. No proof is inferred from that decision.
 
+Proof completion requires a recorded patch head, matching trail ID, revision, risk, base and head,
+and the canonical SHA-256 digest of the exact bundle. `proofDigest`, `canonicalJson`, and `sha256Hex`
+are pure exports. Tests compare the digest with Node's independent implementation and the journal's
+actual proof pin. This binds a submitted bundle; it does not independently attest that its commands ran.
+
 Rollback stores the reported watch evidence, asks for rollback, and waits for a
 `rollback_completed` receipt before starting the next revision's research with that
 evidence as a note. Clean watch completion registers a regression probe and resumes

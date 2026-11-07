@@ -7,3 +7,4 @@ export * from "./ids.ts";
 
 export * from "./lifecycle.ts";
 export * from "./console.ts";
+export * from "./digest.ts";
