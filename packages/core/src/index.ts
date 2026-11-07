@@ -6,3 +6,4 @@ export * from "./ids.ts";
 // The core lane adds: export * from "./lifecycle.ts";
 
 export * from "./lifecycle.ts";
+export * from "./console.ts";
