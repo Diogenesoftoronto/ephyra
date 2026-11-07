@@ -13,6 +13,14 @@ export const COMMANDS = [
   { id: "settings", label: "Open settings", key: "s", detail: "Repository, model access and account" },
 ] as const;
 
+export function searchCommands(query: string) {
+  const needle = query.trim().toLowerCase();
+  const byName = COMMANDS.filter((command) => `${command.id} ${command.label}`.toLowerCase().includes(needle));
+  const byDescription = COMMANDS.filter((command) =>
+    !byName.includes(command) && command.detail.toLowerCase().includes(needle));
+  return [...byName, ...byDescription];
+}
+
 export function typingTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
@@ -35,14 +43,16 @@ export function CommandMenu({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [theme, setTheme] = useState<string | undefined>();
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const restore = useRef<HTMLElement | null>(null);
   const prefix = useRef(0);
   const id = useId();
-  const matches = COMMANDS.filter((c) => `${c.label} ${c.detail}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const matches = searchCommands(query);
   const show = () => {
     restore.current = document.activeElement as HTMLElement;
+    setTheme(restore.current?.closest<HTMLElement>("[data-theme]")?.dataset.theme);
     setQuery("");
     setActive(0);
     setOpen(true);
@@ -123,6 +133,7 @@ export function CommandMenu({
       {createPortal(
         <dialog
           ref={dialog}
+          data-theme={theme}
           className="command-menu"
           aria-labelledby={`${id}-title`}
           onCancel={(event) => {
