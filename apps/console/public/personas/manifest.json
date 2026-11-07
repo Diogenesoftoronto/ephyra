@@ -1,0 +1,430 @@
+{
+ "generated": "2026-11-07",
+ "note": "Loops are opaque on the cut E dark background; stills and marks are transparent. See design/brand/PERSONAS.md.",
+ "files": [
+  {
+   "file": "bell-64.webp",
+   "persona": "bell",
+   "kind": "still",
+   "bytes": 1982,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "bell.gif",
+   "persona": "bell",
+   "kind": "loop",
+   "bytes": 559217,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "bell.mp4",
+   "persona": "bell",
+   "kind": "loop",
+   "bytes": 182387,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "bell.svg",
+   "persona": "bell",
+   "kind": "mark",
+   "bytes": 774,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "bell.webm",
+   "persona": "bell",
+   "kind": "loop",
+   "bytes": 108548,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "bell.webp",
+   "persona": "bell",
+   "kind": "still",
+   "bytes": 28664,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  },
+  {
+   "file": "lappet-64.webp",
+   "persona": "lappet",
+   "kind": "still",
+   "bytes": 1516,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "lappet.gif",
+   "persona": "lappet",
+   "kind": "loop",
+   "bytes": 481676,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "lappet.mp4",
+   "persona": "lappet",
+   "kind": "loop",
+   "bytes": 145768,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "lappet.svg",
+   "persona": "lappet",
+   "kind": "mark",
+   "bytes": 554,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "lappet.webm",
+   "persona": "lappet",
+   "kind": "loop",
+   "bytes": 60610,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "lappet.webp",
+   "persona": "lappet",
+   "kind": "still",
+   "bytes": 23624,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  },
+  {
+   "file": "nema-64.webp",
+   "persona": "nema",
+   "kind": "still",
+   "bytes": 1666,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "nema.gif",
+   "persona": "nema",
+   "kind": "loop",
+   "bytes": 399043,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "nema.mp4",
+   "persona": "nema",
+   "kind": "loop",
+   "bytes": 113002,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "nema.svg",
+   "persona": "nema",
+   "kind": "mark",
+   "bytes": 704,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "nema.webm",
+   "persona": "nema",
+   "kind": "loop",
+   "bytes": 58137,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "nema.webp",
+   "persona": "nema",
+   "kind": "still",
+   "bytes": 29034,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  },
+  {
+   "file": "rho-64.webp",
+   "persona": "rho",
+   "kind": "still",
+   "bytes": 1434,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "rho.gif",
+   "persona": "rho",
+   "kind": "loop",
+   "bytes": 432547,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "rho.mp4",
+   "persona": "rho",
+   "kind": "loop",
+   "bytes": 145376,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "rho.svg",
+   "persona": "rho",
+   "kind": "mark",
+   "bytes": 523,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "rho.webm",
+   "persona": "rho",
+   "kind": "loop",
+   "bytes": 104303,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "rho.webp",
+   "persona": "rho",
+   "kind": "still",
+   "bytes": 22988,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  },
+  {
+   "file": "sheet.webp",
+   "persona": null,
+   "kind": "sheet",
+   "bytes": 66940,
+   "width": 1984,
+   "height": 593,
+   "alpha": false
+  },
+  {
+   "file": "turri-64.webp",
+   "persona": "turri",
+   "kind": "still",
+   "bytes": 1838,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "turri.gif",
+   "persona": "turri",
+   "kind": "loop",
+   "bytes": 386085,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "turri.mp4",
+   "persona": "turri",
+   "kind": "loop",
+   "bytes": 137199,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "turri.svg",
+   "persona": "turri",
+   "kind": "mark",
+   "bytes": 646,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "turri.webm",
+   "persona": "turri",
+   "kind": "loop",
+   "bytes": 81209,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "turri.webp",
+   "persona": "turri",
+   "kind": "still",
+   "bytes": 29192,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  },
+  {
+   "file": "velum-64.webp",
+   "persona": "velum",
+   "kind": "still",
+   "bytes": 1582,
+   "width": 64,
+   "height": 64,
+   "alpha": true
+  },
+  {
+   "file": "velum-typing.gif",
+   "persona": "velum",
+   "kind": "working-loop",
+   "bytes": 548564,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum-typing.mp4",
+   "persona": "velum",
+   "kind": "working-loop",
+   "bytes": 278054,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum-typing.webm",
+   "persona": "velum",
+   "kind": "working-loop",
+   "bytes": 204104,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum.gif",
+   "persona": "velum",
+   "kind": "loop",
+   "bytes": 396047,
+   "width": 256,
+   "height": 256,
+   "fps": 10.0,
+   "frames": 38,
+   "duration_s": 3.8,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum.mp4",
+   "persona": "velum",
+   "kind": "loop",
+   "bytes": 117304,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum.svg",
+   "persona": "velum",
+   "kind": "mark",
+   "bytes": 611,
+   "width": 32,
+   "height": 32
+  },
+  {
+   "file": "velum.webm",
+   "persona": "velum",
+   "kind": "loop",
+   "bytes": 53352,
+   "width": 512,
+   "height": 512,
+   "fps": 24.0,
+   "duration_s": 3.75,
+   "background": "#070f18",
+   "alpha": false
+  },
+  {
+   "file": "velum.webp",
+   "persona": "velum",
+   "kind": "still",
+   "bytes": 26216,
+   "width": 512,
+   "height": 512,
+   "alpha": true
+  }
+ ]
+}

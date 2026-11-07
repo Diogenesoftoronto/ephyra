@@ -5,6 +5,7 @@ import { FakeApi, type FakeOptions } from "../src/fake/api.ts";
 import { STORY_NOW } from "../src/fake/fixtures.ts";
 import { ClockProvider } from "../src/lib/clock.tsx";
 import "../src/theme.css";
+import "../src/ui/ui.css";
 import "../src/layout.css";
 
 declare module "@storybook/react-vite" {
