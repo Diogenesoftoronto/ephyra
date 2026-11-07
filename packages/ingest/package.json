@@ -4,7 +4,14 @@
   "private": true,
   "type": "module",
   "description": "OTLP ingestion, signal normalisation, fingerprinting, dedupe.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit -p ." },
-  "dependencies": { "@ephyra/core": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@ephyra/core": "workspace:*",
+    "hono": "^4.13.17"
+  }
 }
