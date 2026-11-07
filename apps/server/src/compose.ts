@@ -16,7 +16,12 @@ import { LocalRunner } from "@ephyra/runner";
 import { ClaudeCodeAgent, CodexAgent, buildProof } from "@ephyra/agent";
 import { PlainGitAdapter } from "@ephyra/forge";
 import { MemoryAudit } from "./audit.ts";
-import type { Config } from "./config.ts";
+import { approverDids, type Config } from "./config.ts";
+import { SecretBox } from "./auth/crypto.ts";
+import { HostedDecide, HostedExtract } from "./auth/hosted.ts";
+import { NotOrganicSignIn } from "./auth/notorganic.ts";
+import { authRoutes } from "./auth/routes.ts";
+import { ConvexAuthStore, MemoryAuthStore } from "./auth/store.ts";
 import { createApp } from "./http/app.ts";
 import { ConvexAudit, ConvexOperationLedger, ConvexRuntimeStore, ConvexSignalStore, convexClient } from "./convex/stores.ts";
 import { MemoryOperationLedger } from "./orchestrator/effects.ts";
@@ -33,6 +38,8 @@ export const VERSION = "0.1.0-prealpha";
 
 export type Composed = {
   app: Hono;
+  decide: DecideBackend | null;
+  signIn: NotOrganicSignIn | null;
   mode: "memory" | "convex";
   ctx: ServerContext;
   engine: Engine;
@@ -141,6 +148,8 @@ function quota(perMinute: number) {
 
 export type ComposeOverrides = {
   startJobs?: boolean;
+  /** Replaces the fetch used to talk to Not Organic (tests). */
+  notOrganicFetch?: import("./auth/crypto.ts").Fetch;
   /** Test/dev injection points. */
   agent?: CodingAgent;
   runner?: Runner;
@@ -184,9 +193,24 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
 
   const g = git(repo.mirrorDir);
   const budget: Budget = { tokensUsed: 0, tokensMax: 2_000_000, wallclockMaxS: 4 * 3600, spendMicrousdUsed: 0, spendMicrousdMax: 0 };
+  const approvers = new Set(approverDids(config));
+  let signIn: NotOrganicSignIn | null = null;
+  if (config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY) {
+    signIn = new NotOrganicSignIn(
+      {
+        issuer: config.NOTORGANIC_ISSUER, authorizationUrl: config.NOTORGANIC_AUTHORIZATION_URL,
+        publicOrigin: config.EPHYRA_PUBLIC_ORIGIN, product: config.NOTORGANIC_PRODUCT,
+        scopes: ["wallet:read", "usage:read", "judgement:evaluate", "extraction:run"],
+      },
+      client ? new ConvexAuthStore(client, secret) : new MemoryAuthStore(),
+      await SecretBox.fromBase64(config.EPHYRA_SESSION_KEY),
+      opts.notOrganicFetch,
+    );
+  }
+  const billingDid = config.EPHYRA_BILLING_DID ?? [...approvers][0];
   const configured = backends(config);
-  const extract = configured.extract;
-  const decide = opts.decide ?? configured.decide;
+  const extract = config.EPHYRA_EXTRACT === "notorganic" && signIn && billingDid ? new HostedExtract(signIn, billingDid) : configured.extract;
+  const decide = opts.decide ?? (config.EPHYRA_DECIDE === "notorganic" && signIn && billingDid ? new HostedDecide(signIn, billingDid) : configured.decide);
   const profile: ServiceProfile = {
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
@@ -234,8 +258,13 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     reconciliations: client ? await (ledger as ConvexOperationLedger).reconciliations() : engine.reconciliations,
     backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null },
     repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
+    signIn: signIn ? { provider: "notorganic", product: config.NOTORGANIC_PRODUCT, approvers: approvers.size } : null,
   });
-  const api = createApp(config.EPHYRA_API_TOKEN, port, ingest);
+  const api = createApp(
+    config.EPHYRA_API_TOKEN, port, ingest,
+    signIn ? (token) => signIn!.authenticate(token) : undefined,
+    { requireSignIn: Boolean(signIn), approvers },
+  );
   const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {
     if (!client) return { store: "memory" as const };
@@ -246,12 +275,16 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     const h = await health();
     return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
   });
+  if (signIn) app.route("/auth", authRoutes(signIn, approvers));
   app.route("/", api);
 
   if (opts.startJobs !== false) {
     await store.recoverRunning?.();
     jobs.start();
   }
-  log("composed", { mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id });
-  return { app, mode, ctx, engine, jobs, health, close: async () => { jobs.stop(); } };
+  log("composed", {
+    mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id,
+    signIn: Boolean(signIn), approvers: approvers.size,
+  });
+  return { app, decide, signIn, mode, ctx, engine, jobs, health, close: async () => { jobs.stop(); } };
 }

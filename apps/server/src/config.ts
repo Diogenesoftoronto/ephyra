@@ -17,13 +17,25 @@ const Config = z.object({
   EPHYRA_FORGE: z.enum(["plain", "radicle", "tangled"]).default("plain"),
   EPHYRA_DATA_DIR: z.string().default("/data"),
 
+  // Sign in with Not Organic. Enabled when EPHYRA_PUBLIC_ORIGIN and EPHYRA_SESSION_KEY are set; then changing
+  // trails needs a signed-in account listed in EPHYRA_APPROVER_DIDS.
+  EPHYRA_PUBLIC_ORIGIN: z.string().url().optional(),
+  EPHYRA_SESSION_KEY: optional,
+  EPHYRA_APPROVER_DIDS: z.string().default(""),
+  NOTORGANIC_ISSUER: z.string().url().default("https://api.notorganic.info"),
+  NOTORGANIC_AUTHORIZATION_URL: z.string().url().default("https://id.notorganic.info/authorize"),
+  /** Product id the gateway binds Ephyra's client origin to. */
+  NOTORGANIC_PRODUCT: z.string().default("notorganic"),
+  /** Whose wallet pays for hosted models (defaults to the first approver). */
+  EPHYRA_BILLING_DID: optional,
+
   // Policy files (optional; shadow-mode templates otherwise).
   EPHYRA_AUTONOMY_FILE: optional,
   EPHYRA_THRESHOLDS_FILE: optional,
 
   // System One backends. Each is optional; without a decide backend triage routes every signal to a human.
-  EPHYRA_EXTRACT: z.enum(["parser", "workers-ai", "none"]).default("parser"),
-  EPHYRA_DECIDE: z.enum(["typesafe", "systemone", "none"]).default("none"),
+  EPHYRA_EXTRACT: z.enum(["parser", "workers-ai", "notorganic", "none"]).default("parser"),
+  EPHYRA_DECIDE: z.enum(["typesafe", "systemone", "notorganic", "none"]).default("none"),
   TYPESAFE_API_KEY: optional,
   TYPESAFE_MODEL: z.string().default("jev-1.14"),
   EPHYRA_SYSTEMONE_URL: optional,
@@ -50,5 +62,21 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   if (config.EPHYRA_EXTRACT === "workers-ai" && !(config.CLOUDFLARE_ACCOUNT_ID && config.CLOUDFLARE_AI_API_TOKEN)) {
     throw new Error("EPHYRA_EXTRACT=workers-ai needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_API_TOKEN");
   }
+  const signIn = Boolean(config.EPHYRA_PUBLIC_ORIGIN || config.EPHYRA_SESSION_KEY);
+  if (signIn && !(config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY)) {
+    throw new Error("Not Organic sign-in needs both EPHYRA_PUBLIC_ORIGIN and EPHYRA_SESSION_KEY");
+  }
+  if (config.EPHYRA_PUBLIC_ORIGIN && new URL(config.EPHYRA_PUBLIC_ORIGIN).origin !== config.EPHYRA_PUBLIC_ORIGIN) {
+    throw new Error("EPHYRA_PUBLIC_ORIGIN must be a bare origin (scheme://host[:port]) with no path");
+  }
+  const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic";
+  if (hosted && !signIn) throw new Error("hosted Not Organic models need sign-in configured (EPHYRA_PUBLIC_ORIGIN, EPHYRA_SESSION_KEY)");
+  if (hosted && !(config.EPHYRA_BILLING_DID || approverDids(config).length)) {
+    throw new Error("hosted Not Organic models need EPHYRA_BILLING_DID or EPHYRA_APPROVER_DIDS");
+  }
   return config;
+}
+
+export function approverDids(config: Config): string[] {
+  return config.EPHYRA_APPROVER_DIDS.split(",").map((d) => d.trim()).filter(Boolean);
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
-import { auth, type AuthEnv } from "./auth.ts";
+import { auth, type AuthEnv, type SessionResolver } from "./auth.ts";
 
 export class StaleApproval extends Error {}
 /** The state machine refused the event (e.g. claiming a closed trail). */
@@ -20,10 +20,30 @@ export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "a
 const decision = z.object({ checkpoint: z.enum(["A", "B", "C"]), verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
 const spendDecision = z.object({ verdict: z.enum(["approve", "revise", "reject"]), note: z.string().max(4000).optional() });
 
-export function createApp(token: string, port: HttpPort, otlp = new Hono()): Hono<AuthEnv> {
+/**
+ * Who may change trails. When `requireSignIn` is set (Not Organic sign-in configured), decisions and actions
+ * need a signed-in account on the approver list; the service token alone can no longer approve anything.
+ */
+export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<string> };
+
+export function createApp(
+  token: string, port: HttpPort, otlp = new Hono(), sessions?: SessionResolver,
+  approval: ApprovalPolicy = { requireSignIn: false, approvers: new Set() },
+): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
   app.get("/healthz", (c) => c.json({ ok: true }));
-  app.use("/v1/*", auth(token));
+  app.use("/v1/*", auth(token, sessions));
+  // Every mutating /v1 route is a human decision or action.
+  app.use("/v1/*", async (c, next) => {
+    if (c.req.method === "GET" || !approval.requireSignIn) return next();
+    if (c.get("principalKind") !== "human") {
+      return c.json({ error: "sign in with Not Organic (`ephyra login`) to change trails" }, 403);
+    }
+    if (!approval.approvers.has(c.get("principal"))) {
+      return c.json({ error: "this Not Organic account is not an approver on this deployment" }, 403);
+    }
+    return next();
+  });
   app.get("/v1/inbox", async (c) => c.json(await port.inbox()));
   app.get("/v1/trails", async (c) => c.json(await port.trails(c.req.query("state"))));
   app.get("/v1/trails/:id", async (c) => {
