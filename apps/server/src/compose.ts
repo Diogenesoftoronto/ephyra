@@ -12,7 +12,7 @@ import { GitJournal } from "@ephyra/journal";
 import {
   AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, checkpointMode, parseAutonomy, parseThresholds, type AutonomyPolicy,
 } from "@ephyra/policy";
-import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract } from "@ephyra/models";
+import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract, dpopProof } from "@ephyra/models";
 import { LocalRunner } from "@ephyra/runner";
 import { AmpAgent, ClaudeCodeAgent, CodexAgent, buildProof, type AmpThreadStore } from "@ephyra/agent";
 import { PlainGitAdapter } from "@ephyra/forge";
@@ -24,7 +24,11 @@ import { NotOrganicSignIn } from "./auth/notorganic.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { ConvexAuthStore, MemoryAuthStore } from "./auth/store.ts";
 import { createApp } from "./http/app.ts";
-import { consoleRoutes } from "./http/console.ts";
+import { consoleRoutes, type ConsolePort } from "./http/console.ts";
+import { voiceRoutes } from "./http/voice.ts";
+import { VoiceService } from "./voice.ts";
+import { voiceContext } from "./voice-context.ts";
+import { CompatibleSpeechProvider, type SpeechProvider } from "./voice-provider.ts";
 import { consoleStatic, hasConsole } from "./http/static.ts";
 import { activity } from "./activity.ts";
 import { ConvexRunStore, MemoryRunStore, RunBroker, RunRecorder, type RunStore } from "./runs.ts";
@@ -153,6 +157,7 @@ function knownSecrets(config: Config): string[] {
   return [
     config.EPHYRA_API_TOKEN, config.EPHYRA_CONVEX_SECRET, config.EPHYRA_SESSION_KEY, config.TYPESAFE_API_KEY, config.EPHYRA_SYSTEMONE_KEY,
     config.CLOUDFLARE_AI_API_TOKEN, config.EPHYRA_DRAFT_ANTHROPIC_API_KEY, config.EPHYRA_DRAFT_OPENAI_API_KEY, process.env.AMP_API_KEY,
+    config.EPHYRA_VOICE_API_KEY,
   ].filter((v): v is string => typeof v === "string" && v.length >= 8);
 }
 
@@ -219,6 +224,7 @@ export type ComposeOverrides = {
   decide?: DecideBackend;
   /** Replaces the configured Velum model (tests: nothing here may touch the network). */
   draftModel?: DraftModel;
+  speechProvider?: SpeechProvider;
 };
 
 export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
@@ -274,6 +280,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
           "wallet:read", "usage:read", "judgement:evaluate", "extraction:run",
           // Velum on Not Organic chat needs the model's inference scope; asked for only when it is in use.
           ...(config.EPHYRA_DRAFT === "notorganic" ? [`infer:${config.EPHYRA_DRAFT_MODEL ?? "balanced"}`] : []),
+          ...(config.EPHYRA_VOICE === "notorganic" ? [...new Set([config.EPHYRA_VOICE_STT_MODEL!, config.EPHYRA_VOICE_TTS_MODEL!])].map(m => `infer:${m}`) : []),
         ],
       },
       client ? new ConvexAuthStore(client, secret) : new MemoryAuthStore(),
@@ -348,14 +355,27 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, git: g, audit, baseRef: repo.baseRef, now, id: randomUUID, log,
     velum: new Velum({ model: draftModel, usage, now, id: randomUUID }),
   });
+  const consolePort: ConsolePort = {
+    usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
+    runs: runStore, broker: runBroker,
+  };
+  const speech = opts.speechProvider ?? (config.EPHYRA_VOICE === "none" ? null : new CompatibleSpeechProvider({
+    kind: config.EPHYRA_VOICE, billedTo: config.EPHYRA_VOICE === "notorganic" ? "notorganic" : config.EPHYRA_VOICE_API_KEY ? "byok" : "unknown",
+    baseUrl: config.EPHYRA_VOICE === "notorganic" ? new URL("/v1", config.NOTORGANIC_ISSUER).href : config.EPHYRA_VOICE_URL!,
+    transcriptionModel: config.EPHYRA_VOICE_STT_MODEL!, speechModel: config.EPHYRA_VOICE_TTS_MODEL!, voice: config.EPHYRA_VOICE_NAME!,
+    ...(config.EPHYRA_VOICE === "notorganic" ? { maxCostMicrousd: config.EPHYRA_VOICE_MAX_COST_MICROUSD, fetcher: signIn!.fetch as typeof fetch } : {}),
+    headers: async (url): Promise<Record<string, string>> => {
+      if (config.EPHYRA_VOICE !== "notorganic") return config.EPHYRA_VOICE_API_KEY ? { authorization: `Bearer ${config.EPHYRA_VOICE_API_KEY}` } : {};
+      const creds = await signIn!.credentialsFor(billingDid!);
+      return { authorization: `DPoP ${creds.token}`, dpop: await dpopProof(url, creds.token, creds.keys) };
+    },
+  }));
+  const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), secrets: knownSecrets(config) });
   const api = createApp(
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
     { requireSignIn: Boolean(signIn), approvers },
-    (approval) => consoleRoutes({
-      usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
-      runs: runStore, broker: runBroker,
-    }, approval),
+    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice)),
   );
   const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {

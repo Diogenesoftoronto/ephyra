@@ -51,6 +51,14 @@ const Config = z.object({
   EPHYRA_DRAFT_MODEL: optional,
   EPHYRA_DRAFT_ANTHROPIC_API_KEY: optional,
   EPHYRA_DRAFT_OPENAI_API_KEY: optional,
+  // Speech remains optional. Explicit models and voice prevent a silent provider/voice fallback.
+  EPHYRA_VOICE: z.enum(["none", "notorganic", "compatible"]).default("none"),
+  EPHYRA_VOICE_URL: z.string().url().optional(),
+  EPHYRA_VOICE_API_KEY: optional,
+  EPHYRA_VOICE_STT_MODEL: optional,
+  EPHYRA_VOICE_TTS_MODEL: optional,
+  EPHYRA_VOICE_NAME: optional,
+  EPHYRA_VOICE_MAX_COST_MICROUSD: z.coerce.number().int().positive().max(10_000_000).default(100_000),
   /** Built web console, served at /app/ when the directory exists. */
   EPHYRA_CONSOLE_DIR: z.string().default(join(import.meta.dir, "../../console/dist")),
 
@@ -91,7 +99,18 @@ export function readConfig(env: Record<string, string | undefined>): Config {
     throw new Error("EPHYRA_DRAFT=anthropic needs EPHYRA_DRAFT_ANTHROPIC_API_KEY");
   }
   if (config.EPHYRA_DRAFT === "openai" && !config.EPHYRA_DRAFT_OPENAI_API_KEY) throw new Error("EPHYRA_DRAFT=openai needs EPHYRA_DRAFT_OPENAI_API_KEY");
-  const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic";
+  if (config.EPHYRA_VOICE !== "none" && !(config.EPHYRA_VOICE_STT_MODEL && config.EPHYRA_VOICE_TTS_MODEL && config.EPHYRA_VOICE_NAME))
+    throw new Error("Voice needs EPHYRA_VOICE_STT_MODEL, EPHYRA_VOICE_TTS_MODEL and EPHYRA_VOICE_NAME");
+  if (config.EPHYRA_VOICE === "compatible" && !config.EPHYRA_VOICE_URL)
+    throw new Error("EPHYRA_VOICE=compatible needs EPHYRA_VOICE_URL (including /v1)");
+  if (config.EPHYRA_VOICE_URL) {
+    const url = new URL(config.EPHYRA_VOICE_URL);
+    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.search || url.hash)
+      throw new Error("EPHYRA_VOICE_URL must be an HTTP(S) base URL without credentials, query or fragment");
+    if (url.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+      throw new Error("Remote voice services require HTTPS");
+  }
+  const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic" || config.EPHYRA_VOICE === "notorganic";
   if (hosted && !signIn) throw new Error("hosted Not Organic models need sign-in configured (EPHYRA_PUBLIC_ORIGIN, EPHYRA_SESSION_KEY)");
   if (hosted && !(config.EPHYRA_BILLING_DID || approverDids(config).length)) {
     throw new Error("hosted Not Organic models need EPHYRA_BILLING_DID or EPHYRA_APPROVER_DIDS");

@@ -164,6 +164,47 @@ server stops accepting trail changes from the service token.
 carry `product: "notorganic"` (set `NOTORGANIC_PRODUCT` to match). A dedicated `ephyra` product id would need a
 release of notorganic-provider (`PRODUCT_IDS` in `packages/contracts/src/catalog.ts`).
 
+## Voice
+
+The optional voice service supplies `GET /v1/voice` and `POST /v1/voice/{transcribe,speak,reply}`. It uses the same
+authentication and approver rules as other console writes because speech and replies spend the deployment's account.
+The conversation model is the existing `EPHYRA_DRAFT` model. Speech defaults to disabled; the UI reports that state.
+
+| Setting | Purpose |
+|---|---|
+| `EPHYRA_VOICE=none\|notorganic\|compatible` | Speech provider; default `none` |
+| `EPHYRA_VOICE_STT_MODEL` | Explicit transcription model or Not Organic alias |
+| `EPHYRA_VOICE_TTS_MODEL` | Explicit synthesis model or Not Organic alias |
+| `EPHYRA_VOICE_NAME` | Voice supported by the selected synthesis model |
+| `EPHYRA_VOICE_URL` | Compatible service's base URL, including `/v1`; remote services require HTTPS, loopback may use HTTP |
+| `EPHYRA_VOICE_API_KEY` | Optional compatible service credential, kept server-side |
+| `EPHYRA_VOICE_MAX_COST_MICROUSD` | Not Organic reservation ceiling per speech request; default 100,000 microdollars, not a quoted price |
+
+Not Organic uses the billing account's DPoP-bound sign-in and adds inference scopes for the two selected audio models.
+An existing account session may need to sign in again for those scopes. Compatible services implement multipart
+`POST audio/transcriptions` (`model`, `file`, `response_format=json`) and JSON `POST audio/speech`
+(`model`, `input`, `voice`, `response_format=mp3`). Their model availability and endpoint behavior must be verified
+against that deployment. There is no model or voice fallback. Credentials and all URL selection stay on the server.
+
+Every write requires an operation key scoped to the authenticated principal. The existing operation ledger claims it
+before dispatch; pending or ambiguous results raise core `ReconciliationRequired`, never an automatic second request.
+Restart recovery uses the same ledger (durable with Convex, process-local in memory mode). Completed audio can replay
+from the bounded in-memory cache; once gone, the server returns `audio_expired` without synthesizing again. The ledger
+stores text results/receipts but no audio bytes. Requests are bounded to 4 MB of input audio, 3,000 speech characters
+and 8 MB of returned audio. The browser ends recordings after one minute.
+
+Read-only conversation context is loaded from the selected server resource, bounded, redacted and wrapped in
+`untrusted` blocks outside system instructions. It has no action tools. Document voice turns use the existing
+draft-message endpoint and proposal validation. Voice never grants approval or publication rights.
+
+Returned identities/prices are recorded exactly. Binary speech normally reports neither; these stay unknown rather
+than treating the requested alias as the actual backend or making up a price. Usage rows use the existing `draft`
+kind, Velum persona and explicit `voice.*` steps. Configured choices in capabilities are not availability attestations.
+
+Local verification covers adapter requests, replay/concurrency/restart behavior, permission gates, client-to-composed-
+server contracts and unknown costs. Live providers, DPoP audio requests, hosted ledger durability and billing remain
+unverified. The audio transport and conversation ports are exported from `src/index.ts`.
+
 ## Tests
 
 `bun test apps/server`: unit tests, Convex function tests (convex-test), and an end-to-end test that drives

@@ -69,6 +69,14 @@ the event identifies the operation and occurrence distinguishes repeated command
 the same type within that transition. Payload text is not included in the key. An
 orchestrator must persist event IDs and use the keys to deduplicate external effects.
 
+## Voice contracts
+
+`voice.ts` exports additive schemas for capabilities, selected context, conversation turns, transcription, generated
+audio and usage receipts, plus bounded recording/audio/text limits. A configured model is separate from a returned
+engine identity; unavailable identity and cost are nullable. These contracts contain no I/O and grant no approval
+or publication capability. Existing trail, proof and usage shapes are unchanged. The server and console integration
+tests validate the wire contract with recorded fixtures; real speech providers and devices remain Unverified here.
+
 ## Verification
 
 The offline tests exercise the lifecycle table, triage creation, checkpoints, rollback,
