@@ -34,6 +34,7 @@ type Props = {
   stale?: string | null;
   /** True when this person may decide. False shows why the buttons are off. */
   canDecide?: boolean;
+  unavailableReason?: string;
   onDecide?: (verdict: Verdict, note: string) => Promise<void>;
   onReload?: () => void;
 };
@@ -48,6 +49,7 @@ export function CheckpointCard({
   decision,
   stale,
   canDecide = true,
+  unavailableReason,
   onDecide,
   onReload,
 }: Props) {
@@ -144,7 +146,7 @@ export function CheckpointCard({
           <strong>{failure.title}.</strong> {failure.body}
         </p>
       )}
-      {!canDecide && <p className="muted">Only approvers can decide. You can read everything here.</p>}
+      {!canDecide && <p className="muted">{unavailableReason ?? "Only approvers can decide. You can read everything here."}</p>}
       <DecisionForm
         approveLabel={`Approve ${CHECKPOINT_NAME[checkpoint].toLowerCase()}`}
         busy={busy}

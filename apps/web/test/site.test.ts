@@ -123,6 +123,23 @@ describe("Standard.site blog", () => {
 });
 
 describe("static site", () => {
+  test("the default homepage serves the recovered GUI/TUI walkthrough and all of its assets", async () => {
+    const h = site();
+    const html = await (await get(h, "/")).text();
+    expect(html).toContain('id="gui-choice"');
+    expect(html).toContain('id="tui-choice"');
+    expect(html).toContain("Born for the terminal?");
+    expect(html).toContain('id="how"');
+    expect(html).toContain("Sample walkthrough. Buttons move through the example.");
+    for (const asset of ["tour.css", "tour.js", "console.css", "console.js", "jellyware.css", "multiplayer.js", "walkthrough.json"]) {
+      expect({ asset, status: (await get(h, `/e/${asset}`)).status }).toEqual({ asset, status: 200 });
+    }
+    const walkthrough = await (await get(h, "/e/walkthrough.json")).json() as { steps: { id: string }[] };
+    expect(walkthrough.steps.map((step) => step.id)).toEqual([
+      "triaged", "hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback",
+    ]);
+  });
+
   test("cut E is the home page by default; the other cuts stay reachable; dotfiles and traversal are refused", async () => {
     const e = await (await get(site(), "/")).text();
     expect(e).toContain("<title>Ephyra · Software that fixes itself</title>");

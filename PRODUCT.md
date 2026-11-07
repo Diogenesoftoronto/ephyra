@@ -29,9 +29,17 @@ No cyberpunk jellyfish, purple-to-blue SaaS gradients, invented metrics, or simu
 - Distinguish saved drafts, published policy refs and policy in effect.
 - Keep the actual screens and their interactive states in Storybook.
 - Make voice a primary way to discuss work, draft intent and understand evidence. Keep captions, editable dictation, interruption and usage visible.
+- Keep shared comments and review ownership beside the evidence, with authenticated authors and clear connection state.
+- Preserve drafts during shared updates, and check durable delivery before retrying an unconfirmed change.
 
 ## Accessibility & Inclusion
 
 Keyboard navigation, labelled forms, readable text contrast in both themes, mobile layouts and reduced-motion stills.
 
 The existing design/05-console.md and design/brand/PERSONAS.md are the detailed product and asset contracts.
+
+## Public landing walkthrough
+
+Cut E explains the same sample trail through graphical and terminal views. Keep its sample label visible, human checkpoints explicit, and proof readable on phones. The selected Connected Notes direction uses open reading surfaces, soft membrane edges, and curved connections.
+
+The landing discussion is a local browser demo, separate from the authenticated console. Full terminal screens stay available as selectable text. The 30-concept exploration lives in output/jellyware-exploration/manifest.json; its personas and scores are design assessments, not user research.

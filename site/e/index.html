@@ -18,6 +18,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="tour.css">
+<link rel="stylesheet" href="console.css">
+  <link rel="stylesheet" href="jellyware.css">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
 <link rel="preload" as="image" href="img/cyst.webp" type="image/webp">
@@ -32,28 +35,32 @@
     <span aria-hidden="true">ephyra</span>
   </a>
   <nav class="bar-nav" aria-label="Site">
-    <a class="bar-link" href="/blog/">Journal</a>
+    <a class="bar-link bar-how" href="#how">How it works</a>
+    <a class="bar-link bar-journal" href="/blog/">Journal</a>
     <a class="bar-link" href="/pricing">Pricing</a>
   </nav>
 </header>
 
-<main class="reel" style="--n: 7">
+<main id="main">
+<div class="reel" style="--n: 7">
   <div class="stage">
     <canvas class="scene" role="img" aria-label="Drawing: the immortal jellyfish&rsquo;s life cycle as a bug fix. Hurt by an error in production, the jellyfish curls into a ball and sinks along a trail to git, re-roots as a polyp and buds a new one. Proven and approved, it rises back to production and sets. A bad fix sinks back to git as a revert, to be tried again."></canvas>
     <span class="tag tag-prod" aria-hidden="true">production</span>
     <span class="tag tag-git" aria-hidden="true">git</span>
     <p class="plate" aria-hidden="true"><i>Turritopsis dohrnii</i><span>the immortal jellyfish</span></p>
+    <p class="event" aria-hidden="true"></p>
 
     <div class="copy">
       <div class="stanza">
         <h1 class="ln ln-head" data-s="0"><span class="ph">Software that</span> <span class="ph">fixes itself.</span></h1>
+        <p class="intro">Open source and self-hosted. <span class="badge">Pre-alpha</span> <a class="intro-link" href="#how">See the console <span aria-hidden="true">↓</span></a></p>
         <p class="ln" data-s="1"><span class="ph">It lives on your box,</span> <span class="ph">watches <span class="hl" data-hl="prod">production</span> and hunts <span class="mint">bugs</span>.</span></p>
         <p class="ln" data-s="2"><span class="ph">Each one becomes a <span class="amber">trail</span>:</span> <span class="ph">evidence, repro, patch.</span></p>
         <p class="ln" data-s="3"><span class="ph">It proves each fix.</span> <span class="ph">You approve what matters.</span></p>
         <p class="ln" data-s="4"><span class="ph">It lands on Radicle,</span> <span class="ph">Tangled or plain <span class="hl" data-hl="git">git</span>.</span></p>
         <p class="ln" data-s="5"><span class="ph">Good fixes <span class="amber">set</span>.</span> <span class="ph">Bad ones <span class="cherry">undo themselves</span>.</span></p>
-        <p class="ln ln-close" data-s="6"><span class="ph"><span class="amber">Jellyware</span>: soft enough to change,</span> <span class="ph">firm enough to trust.</span></p>
-        <p class="cta"><a class="btn" href="/blog/posts/trails-not-pull-requests">Read the design</a><span class="status">Open source, pre-alpha.</span></p>
+        <p class="ln ln-close" data-s="6"><span class="ph">Jellyware: soft enough to change,</span> <span class="ph">firm enough to trust.</span></p>
+        <p class="cta"><a class="btn" href="/blog/posts/trails-not-pull-requests">Read the design</a></p>
       </div>
     </div>
 
@@ -67,7 +74,167 @@
   <div class="snaps" aria-hidden="true">
     <i style="--k: 0"></i><i style="--k: 1"></i><i style="--k: 2"></i><i style="--k: 3"></i><i style="--k: 4"></i><i style="--k: 5"></i><i style="--k: 6"></i>
   </div>
+</div>
+
+<section class="tour" id="how" aria-labelledby="how-title">
+  <div class="tour-head">
+    <h2 id="how-title">One bug, start to finish</h2>
+    <p class="lede">A sample checkout bug, from the first error to the watched fix. Follow it in the graphical console or the terminal.</p>
+  </div>
+  <div class="console-switch">
+    <div class="console-choices" role="group" aria-label="Console view">
+      <button id="gui-choice" type="button" data-console-view="gui" aria-pressed="true" aria-controls="gui-panel">Graphical <span>GUI</span></button>
+      <button id="tui-choice" type="button" data-console-view="tui" aria-pressed="false" aria-controls="tui-panel">Terminal <span>TUI</span></button>
+    </div>
+    <button class="terminal-invite" type="button">Born for the terminal? <span aria-hidden="true">→</span></button>
+    <span class="console-view-note" hidden>Same checkpoints. Your keyboard.</span>
+  </div>
+  <div class="tour-body">
+    <div class="term-col">
+      <figure class="term">
+        <div class="term-bar">
+          <span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="term-cmd">ephyra inbox</span>
+          <span class="term-tag"><span class="tag-long">Sample data · real CLI output</span><span class="tag-short">sample data</span></span>
+          <span class="term-nav">
+            <button class="term-prev" type="button" aria-label="Previous step">‹<span> Previous</span></button>
+            <span class="term-count" aria-live="polite"></span>
+            <button class="term-next" type="button" aria-label="Next step"><span>Next </span>›</button>
+          </span>
+        </div>
+        <div id="gui-panel" class="gui-screen" role="region" aria-label="Graphical trail walkthrough" tabindex="0"></div>
+        <div id="tui-panel" class="term-screen" hidden role="img" aria-label="Terminal"><pre class="term-pre"></pre><div class="term-focus"></div></div>
+        <div class="term-strip" hidden aria-hidden="true"></div>
+        <div class="gui-example-note">Sample walkthrough. Buttons move through the example.</div>
+        <div class="term-tools"><span>← → to browse steps</span><button class="term-read" type="button">Read the full screen</button></div>
+      </figure>
+    </div>
+    <ol class="steps">
+      <li class="step" data-step="triaged">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>01</b> triage</p>
+        <h3>It notices, and decides it&rsquo;s worth a fix</h3>
+        <p>Thirty-seven checkout errors share one fingerprint. Two small models triage them: real, not a duplicate, medium risk. A trail opens in git, and an agent starts on it.</p>
+      </li>
+      <li class="step" data-step="hypothesis" data-gate="A">
+        <span class="bead" aria-hidden="true" data-gate="A"></span>
+        <p class="step-n"><b>02</b> checkpoint A</p>
+        <h3>Is this the right cause?</h3>
+        <p>The agent writes down what it thinks is wrong, and why. You read a page, not a diff. In checkout, policy says a person agrees before any code is written: press <kbd>a</kbd>.</p>
+      </li>
+      <li class="step" data-step="explain">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>03</b> evidence</p>
+        <h3>Ask why</h3>
+        <p>Press <kbd>e</kbd> to see what the hypothesis rests on: the error stream, the commit that started it, past trails, and the agent session that wrote that commit.</p>
+      </li>
+      <li class="step" data-step="revise">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>04</b> checkpoint A</p>
+        <h3>Or push back</h3>
+        <p>Press <kbd>r</kbd> and write a note. The agent gets it with the trail and tries again. Here, nothing is built until someone approves.</p>
+      </li>
+      <li class="step" data-step="plan" data-gate="B">
+        <span class="bead" aria-hidden="true" data-gate="B"></span>
+        <p class="step-n"><b>05</b> checkpoint B</p>
+        <h3>Reproduced, and a plan</h3>
+        <p>It reproduced the bug with a probe that fails on main, then planned the smallest fix. Comments stay on the trail, where the agent and the next reviewer see them.</p>
+      </li>
+      <li class="step" data-step="proof" data-gate="C">
+        <span class="bead" aria-hidden="true" data-gate="C"></span>
+        <p class="step-n"><b>06</b> checkpoint C</p>
+        <h3>Proof, before you look</h3>
+        <p>The fix arrives with its evidence. The probe passes now, so do 412 tests and six regression probes, replayed traffic shows nothing unexplained, and the diff is two files. Approving lands it.</p>
+      </li>
+      <li class="step" data-step="watching">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>07</b> landing</p>
+        <h3>It lands where you work</h3>
+        <p>This one lands as a Radicle patch. It could be a Tangled pull, a plain git ref or a live change in your devenv. Then it watches production for two hours.</p>
+      </li>
+      <li class="step" data-step="set">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>08</b> watch</p>
+        <h3>It sets</h3>
+        <p>Two quiet hours later the trail closes. Its repro joins the regression probes, so this bug can&rsquo;t come back unnoticed.</p>
+      </li>
+      <li class="step" data-step="rollback" data-undo>
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>09</b> rollback</p>
+        <h3>Or it undoes itself</h3>
+        <p>A different fix, on a low-risk edge, landed without asking anyone. Twenty-seven minutes later a new error showed up in the file it touched, so Ephyra reverted it and reopened the trail.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="policy" id="policy" aria-labelledby="policy-title">
+  <div class="policy-head">
+    <h2 id="policy-title">You decide where it asks</h2>
+    <p class="lede">One Markdown file in your repo says where a person decides, how a fix lands and how long it&rsquo;s watched.</p>
+    <p class="lede">Checkout asks at A, B and C. Docs can land on their own once you enable that area. This example starts in shadow mode: every trail still waits for you.</p>
+  </div>
+  <div class="policy-grid">
+    <figure class="file">
+      <figcaption><b>ephyra/autonomy.md</b><span class="gates" aria-label="Checkpoints"><span><b>A</b> cause</span><span><b>B</b> plan</span><span><b>C</b> proof and landing</span></span></figcaption>
+<pre># Autonomy policy
+
+## defaults
+mode: shadow
+checkpoints: A=advisory B=advisory C=blocking
+landing: trail_ref
+watch: 2h
+
+## area: checkout
+paths: services/checkout/**
+risk: medium
+checkpoints: A=blocking B=blocking C=blocking
+landing: radicle_patch
+watch: 2h
+
+Money moves here. A person reads the
+hypothesis and the plan before any code.
+
+## area: docs
+paths: docs/**, **/*.md
+risk: low
+checkpoints: A=advisory B=advisory C=advisory
+landing: auto_land
+watch: 1h</pre>
+    </figure>
+    <div class="keys">
+      <h3>The inbox, by key</h3>
+      <dl class="primary-keys">
+        <dt><kbd>a</kbd></dt><dd>approve the checkpoint; at C, this lands it</dd>
+        <dt><kbd>r</kbd></dt><dd>send it back with a note</dd>
+        <dt><kbd>e</kbd></dt><dd>explain: the evidence behind it</dd>
+        <dt><kbd>t</kbd></dt><dd>claim a checkpoint review; release it before deciding</dd>
+        <dt><kbd>x</kbd></dt><dd>kill the trail, with a reason</dd>
+      </dl>
+      <details class="all-keys" hidden>
+        <summary>All the keys</summary>
+        <dl></dl>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="start" id="start" aria-labelledby="start-title">
+  <div class="start-inner">
+    <h2 id="start-title">Explore the pre-alpha</h2>
+    <p class="lede">Ephyra is open source and pre-alpha. It is built to run on your own hardware or Railway, with no GitHub, and to land on Radicle, Tangled or plain git. The design explains how trails, checkpoints and landing work.</p>
+    <p class="actions"><a class="btn" href="#how">Explore the console</a><a class="btn-ghost" href="/blog/posts/trails-not-pull-requests">Read the design</a></p>
+  </div>
+</section>
 </main>
+
+<dialog class="screen-dialog" aria-labelledby="screen-title">
+  <div class="screen-heading">
+    <div><p>Sample data · real CLI output</p><h2 id="screen-title">Full terminal screen</h2></div>
+    <form method="dialog"><button class="screen-close" autofocus>Close</button></form>
+  </div>
+  <div class="screen-content" tabindex="0" role="region" aria-label="Scrollable walkthrough details"><pre></pre><div class="gui-reader" hidden></div></div>
+</dialog>
 
 <footer class="foot">
   <nav class="foot-nav" aria-label="Site and legal">
@@ -83,5 +250,6 @@
 </footer>
 
 <script src="main.js" defer></script>
+<script src="tour.js" type="module"></script>
 </body>
 </html>

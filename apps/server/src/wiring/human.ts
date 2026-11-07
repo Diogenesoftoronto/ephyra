@@ -1,6 +1,8 @@
 // Humans at the checkpoints: inbox items, decisions bound to a revision, actions, and the audit trail.
 import type { Decision, InboxItem, Trail, TrailEvent } from "@ephyra/core";
-import { StaleApproval, type DecisionInput, type HttpPort } from "../http/app.ts";
+import { createHash } from 'node:crypto';
+import { z } from 'zod';
+import { InvalidTransition, StaleApproval, type DecisionInput, type HttpPort } from "../http/app.ts";
 import type { AuditEvent, AuditInput } from "../audit.ts";
 import type { HandlerSlice, ServerContext } from "./context.ts";
 
@@ -63,13 +65,19 @@ export function humanHandlers(ctx: ServerContext): HandlerSlice {
         }),
       });
     },
-    reply_comment: async (effect, trail) => {
-      ctx.log("trail reply", { trail: trail.short, text: effect.text.slice(0, 200) });
+    reply_comment: async (_effect, trail) => {
+      ctx.log("trail comment recorded", { trail: trail.short });
     },
   };
 }
 
 const ACTIONS = ["comment", "claim", "release", "park", "resume", "kill", "land"] as const;
+
+/** UUIDv8 namespace for a collaboration intent, independent of delivery time and later trail state. */
+export function collaborationEventId(trail: string, principal: string, action: string, key: string): string {
+  const hex = createHash('sha256').update(JSON.stringify(['ephyra:collaboration:v1', trail, principal, action, key])).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
 
 /** The HTTP port: reads go to the projection; decisions and actions go through the engine and the audit log. */
 export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
@@ -93,9 +101,12 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
     },
     trails: (state) => ctx.trails.list(state ? { states: [state as Trail["state"]] } : undefined),
     async trail(id) {
-      const trail = await ctx.trails.get(id) ?? (await ctx.trails.list()).find((t) => t.short === id) ?? null;
+      const projected = await ctx.trails.get(id) ?? (await ctx.trails.list()).find((t) => t.short === id) ?? null;
+      const durableId = projected?.id ?? (z.uuid().safeParse(id).success ? id : null);
+      const durable = durableId ? await ctx.journal.read(durableId) : null;
+      const trail = durable?.trail ?? projected;
       if (!trail) return null;
-      const events = await ctx.trails.events(trail.id);
+      const events = durable?.events ?? await ctx.trails.events(trail.id);
       // Only journal-owned review documents. Never accept arbitrary application paths from the browser.
       const paths = ["hypothesis.md", "plan.md"];
       const before = await ctx.journal.read(trail.id);
@@ -107,6 +118,18 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       // A moved journal cannot supply the text for the reviewed revision. The caller can reload.
       if (before?.head !== after?.head) for (const a of artefacts) a.content = null;
       return { trail, events, artefacts };
+    },
+    async operationStatus(id, action, key, principal) {
+      if (!z.uuid().safeParse(id).success) return null;
+      const durable = await ctx.journal.read(id);
+      if (!durable) return null;
+      const eventId = collaborationEventId(id, principal, action, key);
+      return { status: durable.events.some((event) => event.id === eventId) ? 'recorded' : 'not_found' };
+    },
+    // The route has already checked `path` with isReadableFile; unknown trails read as missing.
+    async file(id, path) {
+      const trail = await ctx.trails.get(id);
+      return trail ? ctx.journal.readFile(trail.id, path) : null;
     },
     async decide(id: string, input: DecisionInput, principal: string) {
       const trail = await ctx.trails.get(id);
@@ -126,27 +149,31 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
         by: "human", who: principal, at: new Date().toISOString(), verdict: input.verdict,
         ...(input.note ? { note: input.note } : {}),
       };
-      await record(principal, input.checkpoint === "spend" ? "spend.decide" : "checkpoint.decide", id,
+      await record(principal, input.checkpoint === "spend" ? "spend.decide.requested" : "checkpoint.decide.requested", id,
         { checkpoint: input.checkpoint, verdict: input.verdict, bound });
       if (input.checkpoint === "spend") {
-        await ctx.emit({ trail: id, actor: human(principal), type: "spend_decided", data: { decision } });
+        await ctx.emit({ trail: id, actor: human(principal), type: "spend_decided", data: { decision }, expectedBound: bound });
       } else {
         await ctx.emit({ trail: id, actor: human(principal), type: "checkpoint_decided",
-          data: { checkpoint: input.checkpoint, decision } });
+          data: { checkpoint: input.checkpoint, decision }, expectedBound: bound });
       }
       await ctx.inbox.remove(itemId);
     },
-    async action(id: string, action: string, input: unknown, principal: string) {
+    async action(id: string, action: string, input: unknown, principal: string, operationKey?: string) {
       if (!(ACTIONS as readonly string[]).includes(action)) throw new Error(`unknown action ${action}`);
       const body = (input ?? {}) as { text?: string; reason?: string };
-      await record(principal, `trail.${action}`, id, body);
+      if (action === 'comment' && (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 4000)) {
+        throw new InvalidTransition('Comment must contain 1 to 4000 characters');
+      }
+      // The audit records a request attempt. Only the journal event is evidence that a change was applied.
+      await record(principal, `trail.${action}.requested`, id, action === 'comment' ? { characters: body.text!.length } : body);
       const actor = human(principal);
+      const keyed = operationKey ? { eventId: collaborationEventId(id, principal, action, operationKey) } : {};
       switch (action as (typeof ACTIONS)[number]) {
         case "comment":
-          return ctx.emit({ trail: id, actor, type: "human_comment",
-            data: { text: String(body.text ?? "").slice(0, 4000), isRequest: false } });
-        case "claim": return ctx.emit({ trail: id, actor, type: "claimed_by_human", data: {} });
-        case "release": return ctx.emit({ trail: id, actor, type: "released_by_human", data: {} });
+          return ctx.emit({ trail: id, actor, type: "human_comment", ...keyed, data: { text: body.text!, isRequest: false } });
+        case "claim": return ctx.emit({ trail: id, actor, type: "claimed_by_human", ...keyed, data: {} });
+        case "release": return ctx.emit({ trail: id, actor, type: "released_by_human", ...keyed, data: {} });
         case "park": return ctx.emit({ trail: id, actor, type: "parked", data: { reason: String(body.reason ?? "parked by a human") } });
         case "resume": return ctx.emit({ trail: id, actor, type: "resumed", data: {} });
         case "kill": return ctx.emit({ trail: id, actor, type: "killed", data: { reason: String(body.reason ?? "killed by a human") } });

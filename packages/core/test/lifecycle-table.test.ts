@@ -16,7 +16,7 @@ const original = Trail.parse({
   mirrors: {}, createdAt: now, updatedAt: now,
 });
 const event = (type: string, data: unknown, eventId = other) => TrailEvent.parse({
-  schema: 1, id: eventId, trail: id, rev: 1, at: now, actor: { kind: 'system', id: 'test' }, type, data,
+  schema: 1, id: eventId, trail: id, rev: 1, at: now, actor: { kind: 'human', id: 'test' }, type, data,
 });
 const decision = (verdict: 'approve' | 'revise' | 'reject', shadow = false) => ({
   by: 'human', at: now, verdict, shadow,
@@ -73,9 +73,9 @@ const cases: Case[] = [
   { name: 'resume', state: 'parked', patch: { resumeTo: 'patching' }, type: 'resumed', data: {}, next: 'patching', effects: ['start_agent'] },
   { name: 'resume from triage park starts research', state: 'parked', patch: { resumeTo: 'triaged' }, type: 'resumed', data: {}, next: 'researching', effects: ['start_agent'] },
   { name: 'resume into proving re-runs proof', state: 'parked', patch: { resumeTo: 'proving' }, type: 'resumed', data: {}, next: 'proving', effects: ['run_proof'] },
-  { name: 'claim', state: 'patching', type: 'claimed_by_human', data: {}, next: 'handed_off', effects: ['stop_agent'] },
-  { name: 'revision', state: 'patching', type: 'human_revision', data: { head: sha }, next: 'handed_off', effects: ['stop_agent', 'run_proof'] },
-  { name: 'release', state: 'handed_off', patch: { resumeTo: 'proving' }, type: 'released_by_human', data: {}, next: 'proving' },
+  { name: 'claim', state: 'ready', type: 'claimed_by_human', data: {}, next: 'handed_off' },
+  { name: 'revision', state: 'handed_off', patch: { owner: { kind: 'human', id: 'test' }, resumeTo: 'ready' }, type: 'human_revision', data: { head: sha }, next: 'handed_off', effects: ['run_proof'] },
+  { name: 'release', state: 'handed_off', patch: { owner: { kind: 'human', id: 'test' }, resumeTo: 'planned' }, type: 'released_by_human', data: {}, next: 'planned' },
   { name: 'kill', state: 'patching', type: 'killed', data: { reason: 'stop' }, next: 'abandoned', effects: ['stop_agent'] },
   { name: 'signal proving', state: 'proving', type: 'new_signal', data: { signalId: other, severity: 3 }, next: 'proving', effects: ['run_proof'] },
   { name: 'signal ready', state: 'ready', type: 'new_signal', data: { signalId: other, severity: 3 }, next: 'proving', effects: ['run_proof'] },
@@ -169,7 +169,9 @@ test('watch evidence and human revision bind later proof to the new revision', (
   expect(result.ok && result.trail.rev).toBe(2);
   expect(result.ok && result.effects[1]).toMatchObject({ type: 'start_agent', note: 'watch/log' });
   const revisedHead = 'b'.repeat(40);
-  const revised = transition(original, event('human_revision', { head: revisedHead }), ctx);
+  const held = transition({ ...original, state: 'ready' }, event('claimed_by_human', {}), ctx);
+  if (!held.ok) throw new Error(held.error);
+  const revised = transition(held.trail, event('human_revision', { head: revisedHead }), ctx);
   expect(revised.ok && revised.trail.rev).toBe(2);
   if (!revised.ok) return;
   const proof = { ...bundle(true), rev: 2, head: revisedHead };
@@ -287,4 +289,64 @@ test('proof binding rejects substitutions and leaves the input trail unchanged',
       // Altering proof contents while retaining the original digest must fail as well.
       expect(transition(proving, completion({ ...good, env: { runner: 'substituted' } }, proofDigest(good)), ctx).ok).toBe(false);
     }));
+});
+
+test('review ownership is exclusive, checkpoint-only, and never claims to cancel active work', () => {
+  fc.assert(fc.property(fc.constantFrom('hypothesised', 'planned', 'ready'), fc.string({ minLength: 1 }), (state, owner) => {
+    const claim = { ...event('claimed_by_human', {}), actor: { kind: 'human' as const, id: owner } };
+    const held = transition({ ...original, state }, claim, ctx);
+    expect(held.ok).toBe(true);
+    if (!held.ok) return;
+    expect(held.trail.owner).toEqual(claim.actor);
+    expect(held.trail.rev).toBe(original.rev);
+    expect(held.effects).toEqual([]);
+    expect(transition(held.trail, { ...claim, actor: { kind: 'human', id: owner + '-other' } }, ctx).ok).toBe(false);
+    const release = { ...event('released_by_human', {}), actor: claim.actor };
+    expect(transition(held.trail, { ...release, actor: { kind: 'human', id: owner + '-other' } }, ctx).ok).toBe(false);
+    const released = transition(held.trail, release, ctx);
+    expect(released.ok && released.trail.state).toBe(state);
+    expect(released.ok && released.trail.owner).toBeUndefined();
+    expect(released.ok && released.effects).toEqual([]);
+    expect(transition(held.trail, event('human_comment', { text: 'A shared note', isRequest: false }), ctx).ok).toBe(true);
+    for (const type of ['parked', 'killed']) expect(transition(held.trail, event(type, { reason: 'x' }), ctx).ok).toBe(false);
+  }));
+  for (const state of ['researching', 'reproducing', 'patching', 'proving', 'landing', 'watching', 'parked'] as const) {
+    expect(transition({ ...original, state }, event('claimed_by_human', {}), ctx).ok).toBe(false);
+  }
+  expect(transition({ ...original, state: 'planned' },
+    { ...event('claimed_by_human', {}), actor: { kind: 'system', id: 'test' } }, ctx).ok).toBe(false);
+});
+
+test('a signal during a held C review invalidates proof; release retains the queued proof without duplicate work', () => {
+  const held = transition({ ...original, state: 'ready' }, event('claimed_by_human', {}), ctx);
+  if (!held.ok) throw new Error(held.error);
+  const invalidated = transition(held.trail, event('new_signal', { signalId: other }), ctx);
+  expect(invalidated.ok && invalidated.trail).toMatchObject({ state: 'handed_off', resumeTo: 'proving' });
+  if (!invalidated.ok) return;
+  expect(invalidated.effects.map((e) => e.type)).toEqual(['run_proof']);
+  const released = transition(invalidated.trail, event('released_by_human', {}), ctx);
+  expect(released.ok && released.trail.state).toBe('proving');
+  expect(released.ok && released.trail.owner).toBeUndefined();
+  expect(released.ok && released.effects).toEqual([]);
+  const checked = transition(invalidated.trail, event('proof_completed', { bundle: bundle(true), digest: proofDigest(bundle(true)) }), ctx);
+  expect(checked.ok && checked.trail.resumeTo).toBe('ready');
+  if (checked.ok) expect(transition(checked.trail, event('released_by_human', {}), ctx).ok).toBe(true);
+});
+
+test('failed proof ends a review claim before restarting work or parking, so the owner cannot get stranded', () => {
+  for (const proofAttempts of [0, 2]) {
+    const held = transition({ ...original, state: 'ready', attempts: { proof: proofAttempts, maxProof: 3 } },
+      event('claimed_by_human', {}), ctx);
+    if (!held.ok) throw new Error(held.error);
+    const invalidated = transition(held.trail, event('new_signal', { signalId: other }), ctx);
+    if (!invalidated.ok) throw new Error(invalidated.error);
+    const failed = transition(invalidated.trail,
+      event('proof_completed', { bundle: bundle(false), digest: proofDigest(bundle(false)) }), ctx);
+    expect(failed.ok).toBe(true);
+    if (!failed.ok) continue;
+    expect(failed.trail.owner).toBeUndefined();
+    expect(failed.trail.state).toBe(proofAttempts === 2 ? 'parked' : 'patching');
+    expect(failed.trail.resumeTo).toBe(proofAttempts === 2 ? 'proving' : undefined);
+    expect(failed.effects.map((effect) => effect.type)).toEqual(proofAttempts === 2 ? ['notify_inbox'] : ['start_agent']);
+  }
 });
