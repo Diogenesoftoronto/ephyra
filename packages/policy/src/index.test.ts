@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { evaluateProof, evaluateWatch, requiredProof } from "./index.ts";
+import { renderAutonomy, evaluateProof, evaluateWatch, requiredProof } from "./index.ts";
 import type { WatchConfig, WatchObservations, Risk } from "@ephyra/core";
 
 describe("proof", () => {
@@ -273,4 +273,27 @@ test("parser handles overrides, prose, and line-numbered errors", () => {
   }
   expect(() => parseAutonomy("## area:\n")).toThrow("line 1");
   expect(parseAutonomy(AUTONOMY_TEMPLATE).warnings).toEqual([]);
+});
+
+test("autonomy template renders back to the same policy", () => {
+  const policy = parseAutonomy(AUTONOMY_TEMPLATE);
+  expect(parseAutonomy(renderAutonomy(policy))).toEqual(policy);
+});
+
+test("rendered generated policies preserve fields and prose", () => {
+  fc.assert(fc.property(
+    fc.array(fc.record({
+      risk: fc.constantFrom("low", "medium", "high", "critical"),
+      userFacing: fc.boolean(),
+      prose: fc.constantFrom("", "A plain sentence.\n", "First line.\nSecond line.\n"),
+      path: fc.constantFrom("src/a/**", "apps/site/**"),
+    }), { maxLength: 8 }),
+    (areas) => {
+      const text = areas.map((area, i) =>
+        `## area: area-${i}\npaths: ${area.path}\nrisk: ${area.risk}\n` +
+        `user_facing: ${area.userFacing}\n${area.prose}`).join("");
+      const policy = parseAutonomy(text);
+      expect(parseAutonomy(renderAutonomy(policy))).toEqual(policy);
+    },
+  ));
 });

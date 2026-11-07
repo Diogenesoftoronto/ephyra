@@ -178,3 +178,27 @@ export function parseAutonomy(md: string): AutonomyPolicy {
   });
   return policy;
 }
+
+/** Render a parser-representable policy as autonomy markdown. */
+export function renderAutonomy(policy: AutonomyPolicy): string {
+  const checkpoints = (values: Partial<Record<Checkpoint, "advisory" | "blocking">>) =>
+    (["A", "B", "C"] as const).filter((key) => values[key]).map((key) => `${key}=${values[key]}`).join(" ");
+  const d = policy.defaults;
+  let result = `## defaults\nmode: ${d.mode}\ncheckpoints: ${checkpoints(d.checkpoints)}\n`;
+  result += `landing: ${d.landing.join(", ")}\nwatch: ${d.watch}\ndecide: ${d.decide}\n`;
+  for (const area of policy.areas) {
+    result += `## area: ${area.name}\n`;
+    if (area.paths.length) result += `paths: ${area.paths.join(", ")}\n`;
+    if (area.ui.length) result += `ui: ${area.ui.join(", ")}\n`;
+    result += `risk: ${area.risk}\nuser_facing: ${area.user_facing}\n`;
+    if (area.voxq_budget_usd !== undefined) result += `voxq_budget_usd: ${area.voxq_budget_usd}\n`;
+    if (area.mode !== undefined) result += `mode: ${area.mode}\n`;
+    if (Object.keys(area.overrides).length) result += `checkpoints: ${checkpoints(area.overrides)}\n`;
+    if (area.landing !== undefined) result += `landing: ${area.landing.join(", ")}\n`;
+    if (area.watch !== undefined) result += `watch: ${area.watch}\n`;
+    if (area.decide !== undefined) result += `decide: ${area.decide}\n`;
+    result += area.prose;
+    if (area.prose && !area.prose.endsWith("\n")) result += "\n";
+  }
+  return result;
+}
