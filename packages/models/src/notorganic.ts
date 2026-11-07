@@ -18,8 +18,9 @@ abstract class NotOrganicClient {
   protected async send(path: string, body: unknown, opts: { idempotencyKey: string; signal?: AbortSignal }) {
     const url = new URL(path, this.options.endpoint).href;
     const token = await this.options.tokenProvider.getAccessToken();
-    const proof = await dpopProof(url, token, this.options.keys);
-    return postJson(url, body, { Authorization: `DPoP ${token}`, DPoP: proof }, {
+    return postJson(url, body, async () => ({
+      Authorization: `DPoP ${token}`, DPoP: await dpopProof(url, token, this.options.keys),
+    }), {
       ...this.options.http, key: opts.idempotencyKey, signal: opts.signal,
     });
   }
