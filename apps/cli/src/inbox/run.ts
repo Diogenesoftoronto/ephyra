@@ -3,7 +3,7 @@ import { inboxReducer, type InboxState, type Command } from "./reducer";
 import { renderInbox } from "./render-ansi";
 import { emitKeypressEvents } from "node:readline";
 
-async function execute(client: Client, cmd: Command) {
+export async function execute(client: Client, cmd: Command) {
 	const { item, action, note } = cmd;
 	if (action === "approve" && item.kind === "spend")
 		return client.spend(item.trailId, "approve");
@@ -13,7 +13,20 @@ async function execute(client: Client, cmd: Command) {
 			verdict: action === "approve" ? "approve" : "revise",
 			...(note ? { note } : {}),
 		});
-	if (action === "open") return item.landingUrl ?? "Landing URL unavailable";
+	if (action === "open") {
+		if (!item.landingUrl) throw new Error("Landing URL unavailable");
+		const url = new URL(item.landingUrl);
+		if (!["http:", "https:"].includes(url.protocol))
+			throw new Error("Unsupported landing URL");
+		const program = process.platform === "darwin" ? "open" : "xdg-open";
+		const proc = Bun.spawn([program, url.href], {
+			stdout: "ignore",
+			stderr: "ignore",
+		});
+		if ((await proc.exited) !== 0)
+			throw new Error("Could not open landing URL");
+		return "Opened landing";
+	}
 	if (action === "evidence")
 		return item.evidenceIndex ?? "Evidence index unavailable";
 	return client.action(
@@ -36,7 +49,12 @@ export async function terminal(client: Client) {
 		return ansiTerminal(client, state);
 	}
 	const { createCliRenderer, TextRenderable } = tui;
-	const renderer = await createCliRenderer({ exitOnCtrlC: true });
+	let renderer: Awaited<ReturnType<typeof createCliRenderer>>;
+	try {
+		renderer = await createCliRenderer({ exitOnCtrlC: true });
+	} catch {
+		return ansiTerminal(client, state);
+	}
 	const view = new TextRenderable(renderer, {
 		content: renderInbox(state),
 		width: "100%",
@@ -62,6 +80,7 @@ export async function terminal(client: Client) {
 	};
 	const timer = setInterval(refresh, 30000);
 	renderer.keyInput.on("keypress", async (key) => {
+		if (busy) return;
 		if (key.name === "q" && !state.modal) {
 			clearInterval(timer);
 			renderer.destroy();
@@ -79,28 +98,10 @@ export async function terminal(client: Client) {
 		draw();
 		if (!result.command || busy) return;
 		busy = true;
-		const before = state;
-		const cmd = result.command;
-		if (["approve", "kill", "park"].includes(cmd.action))
-			state = {
-				...state,
-				items: state.items.filter((i) => i !== cmd.item),
-				selected: Math.max(0, Math.min(state.selected, state.items.length - 2)),
-			};
-		draw();
-		try {
-			const data = await execute(client, cmd);
-			if (cmd.action === "open" || cmd.action === "evidence")
-				state = { ...state, error: JSON.stringify(data) };
-		} catch (error) {
-			state = {
-				...before,
-				error:
-					error instanceof ApiError && error.status === 409
-						? error.message
-						: "Action failed or outcome unknown; refresh before retrying",
-			};
-		}
+		state = await runCommand(client, state, result.command, (next) => {
+			state = next;
+			draw();
+		});
 		busy = false;
 		draw();
 	});
@@ -166,33 +167,49 @@ async function ansiTerminal(
 				draw();
 				if (!result.command) return;
 				busy = true;
-				const before = state;
-				const cmd = result.command;
-				if (["approve", "kill", "park"].includes(cmd.action)) {
-					const items = state.items.filter((item) => item !== cmd.item);
-					state = {
-						...state,
-						items,
-						selected: Math.max(0, Math.min(state.selected, items.length - 1)),
-					};
-				}
-				draw();
-				try {
-					const data = await execute(client, cmd);
-					if (cmd.action === "open" || cmd.action === "evidence")
-						state = { ...state, error: String(data) };
-				} catch (error) {
-					state = {
-						...before,
-						error:
-							error instanceof ApiError && error.status === 409
-								? error.message
-								: "Action failed or outcome unknown; refresh before retrying",
-					};
-				}
+				state = await runCommand(client, state, result.command, (next) => {
+					state = next;
+					draw();
+				});
 				busy = false;
 				draw();
 			},
 		);
 	});
+}
+
+/** Applies a reversible local update while the server processes a command. */
+export async function runCommand(
+	client: Client,
+	state: InboxState,
+	cmd: Command,
+	update: (state: InboxState) => void,
+): Promise<InboxState> {
+	const before = state;
+	if (
+		["approve", "revise", "kill", "park", "resume", "claim", "land"].includes(
+			cmd.action,
+		)
+	) {
+		const items = state.items.filter((item) => item !== cmd.item);
+		state = {
+			...state,
+			items,
+			selected: Math.max(0, Math.min(state.selected, items.length - 1)),
+			error: undefined,
+		};
+		update(state);
+	}
+	try {
+		const result = await execute(client, cmd);
+		if (cmd.action === "open" || cmd.action === "evidence")
+			return { ...state, error: String(result) };
+		return state;
+	} catch (error) {
+		const message =
+			error instanceof ApiError && error.status === 409
+				? error.message
+				: "Action failed or outcome unknown; refresh before retrying";
+		return { ...before, error: message };
+	}
 }

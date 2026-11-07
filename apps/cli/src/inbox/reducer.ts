@@ -71,7 +71,7 @@ export function inboxReducer(
 					? item.state === "parked"
 						? "resume"
 						: "park"
-					: key === "l"
+					: key === "l" && item.state === "ready"
 						? "land"
 						: key === "o"
 							? "open"
