@@ -11,6 +11,7 @@ const allowed: Record<string, string[]> = {
   "apps/cli": ["core", "policy"],
   "apps/web": [],
   "apps/server": ["core", ...ADAPTERS],
+  "apps/evals": ["core", ...ADAPTERS],
 };
 
 function files(dir: string): string[] {
