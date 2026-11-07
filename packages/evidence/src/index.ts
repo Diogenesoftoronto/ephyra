@@ -80,3 +80,7 @@ export class EntireEvidence implements EvidenceSource {
   }
   async fetch(hit: EvidenceHit) { if (!this.recordedIds.includes(hit.id)) throw new Unverified("unrecorded checkpoint"); const r = await this.run(["entire", "checkpoint", "explain", hit.id], this.repo); if (r.code) throw new Unverified("entire checkpoint explain"); return { mediaType: "text/plain", content: r.stdout }; }
 }
+
+export * from "./openobserve.ts";
+export * from "./trails.ts";
+export * from "./voxq.ts";
