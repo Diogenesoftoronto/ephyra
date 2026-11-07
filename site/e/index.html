@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ephyra · Software that fixes itself</title>
+<meta name="description" content="Like the immortal jellyfish, Ephyra doesn't let your software die of a bug. A production error becomes a trail down to git: evidence, repro, patch, proof, your approval. The fix lands on Radicle, Tangled or plain git, rises back to production, and bad fixes undo themselves. Open source, pre-alpha.">
+<meta name="theme-color" content="#16212f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef3f5" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
+<meta property="og:title" content="Ephyra · Software that fixes itself">
+<meta property="og:description" content="Jellyware: soft enough to change, firm enough to trust.">
+<meta property="og:image" content="../assets/og/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
+<link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
+<link rel="preload" as="image" href="img/cyst.webp" type="image/webp">
+<!-- js: the drawing exists. motion: the scroll film exists. Without motion the page is its own end state. -->
+<script>(function (d) { d.classList.add("js"); if (!matchMedia("(prefers-reduced-motion: reduce)").matches) d.classList.add("motion"); })(document.documentElement);</script>
+</head>
+<body>
+
+<header class="bar">
+  <a class="logo" href="/" aria-label="Ephyra, home">
+    <img src="../assets/brand/logo.svg" alt="" width="28" height="28">
+    <span aria-hidden="true">ephyra</span>
+  </a>
+  <nav class="bar-nav" aria-label="Site">
+    <a class="bar-link" href="/blog/">Journal</a>
+    <a class="bar-link" href="/pricing">Pricing</a>
+  </nav>
+</header>
+
+<main class="reel" style="--n: 7">
+  <div class="stage">
+    <canvas class="scene" role="img" aria-label="Drawing: the immortal jellyfish&rsquo;s life cycle as a bug fix. Hurt by an error in production, the jellyfish curls into a ball and sinks along a trail to git, re-roots as a polyp and buds a new one. Proven and approved, it rises back to production and sets. A bad fix sinks back to git as a revert, to be tried again."></canvas>
+    <span class="tag tag-prod" aria-hidden="true">production</span>
+    <span class="tag tag-git" aria-hidden="true">git</span>
+    <p class="plate" aria-hidden="true"><i>Turritopsis dohrnii</i><span>the immortal jellyfish</span></p>
+
+    <div class="copy">
+      <div class="stanza">
+        <h1 class="ln ln-head" data-s="0"><span class="ph">Software that</span> <span class="ph">fixes itself.</span></h1>
+        <p class="ln" data-s="1"><span class="ph">It lives on your box,</span> <span class="ph">watches <span class="hl" data-hl="prod">production</span> and hunts <span class="mint">bugs</span>.</span></p>
+        <p class="ln" data-s="2"><span class="ph">Each one becomes a <span class="amber">trail</span>:</span> <span class="ph">evidence, repro, patch.</span></p>
+        <p class="ln" data-s="3"><span class="ph">It proves each fix.</span> <span class="ph">You approve what matters.</span></p>
+        <p class="ln" data-s="4"><span class="ph">It lands on Radicle,</span> <span class="ph">Tangled or plain <span class="hl" data-hl="git">git</span>.</span></p>
+        <p class="ln" data-s="5"><span class="ph">Good fixes <span class="amber">set</span>.</span> <span class="ph">Bad ones <span class="cherry">undo themselves</span>.</span></p>
+        <p class="ln ln-close" data-s="6"><span class="ph"><span class="amber">Jellyware</span>: soft enough to change,</span> <span class="ph">firm enough to trust.</span></p>
+        <p class="cta"><a class="btn" href="/blog/posts/trails-not-pull-requests">Read the design</a><span class="status">Open source, pre-alpha.</span></p>
+      </div>
+    </div>
+
+    <div class="scene-box" aria-hidden="true"></div>
+
+    <svg class="cue" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div class="snaps" aria-hidden="true">
+    <i style="--k: 0"></i><i style="--k: 1"></i><i style="--k: 2"></i><i style="--k: 3"></i><i style="--k: 4"></i><i style="--k: 5"></i><i style="--k: 6"></i>
+  </div>
+</main>
+
+<footer class="foot">
+  <nav class="foot-nav" aria-label="Site and legal">
+    <a href="/blog/">Journal</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/security">Security</a>
+    <a href="/legal/terms">Terms</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/acceptable-use">Acceptable use</a>
+    <a href="/legal/providers">Service providers</a>
+  </nav>
+  <p>“Jellyware” is <a href="https://ampcode.com/podcast/season-02/episode-02" rel="noopener">Amp’s word</a>.</p>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
