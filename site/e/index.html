@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="tour.css">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
 <link rel="preload" as="image" href="img/cyst.webp" type="image/webp">
@@ -32,12 +33,14 @@
     <span aria-hidden="true">ephyra</span>
   </a>
   <nav class="bar-nav" aria-label="Site">
+    <a class="bar-link bar-how" href="#how">How it works</a>
     <a class="bar-link" href="/blog/">Journal</a>
     <a class="bar-link" href="/pricing">Pricing</a>
   </nav>
 </header>
 
-<main class="reel" style="--n: 7">
+<main id="main">
+<div class="reel" style="--n: 7">
   <div class="stage">
     <canvas class="scene" role="img" aria-label="Drawing: the immortal jellyfish&rsquo;s life cycle as a bug fix. Hurt by an error in production, the jellyfish curls into a ball and sinks along a trail to git, re-roots as a polyp and buds a new one. Proven and approved, it rises back to production and sets. A bad fix sinks back to git as a revert, to be tried again."></canvas>
     <span class="tag tag-prod" aria-hidden="true">production</span>
@@ -67,6 +70,134 @@
   <div class="snaps" aria-hidden="true">
     <i style="--k: 0"></i><i style="--k: 1"></i><i style="--k: 2"></i><i style="--k: 3"></i><i style="--k: 4"></i><i style="--k: 5"></i><i style="--k: 6"></i>
   </div>
+</div>
+
+<section class="tour" id="how" aria-labelledby="how-title">
+  <div class="tour-head">
+    <h2 id="how-title">One bug, start to finish</h2>
+    <p class="lede">A checkout total is off by a cent. Here is the trail it becomes, in Ephyra&rsquo;s terminal inbox, and the three times it asks a person.</p>
+  </div>
+  <div class="tour-body">
+    <div class="term-col">
+      <figure class="term" role="img" aria-label="Terminal">
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-cmd">ephyra inbox</span><span class="term-count"></span></div>
+        <div class="term-screen"><pre class="term-pre"></pre><div class="term-focus"></div></div>
+      </figure>
+      <p class="term-note">An example trail. Every screen is the inbox&rsquo;s own output.</p>
+    </div>
+    <ol class="steps">
+      <li class="step" data-step="triaged">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>01</b> triage</p>
+        <h3>It notices, and decides it&rsquo;s worth a fix</h3>
+        <p>Thirty-seven checkout errors share one fingerprint. Two small models triage them in seconds: real, not a duplicate, medium risk. A trail opens in git, and an agent starts on it.</p>
+      </li>
+      <li class="step" data-step="hypothesis" data-gate="A">
+        <span class="bead" aria-hidden="true" data-gate="A"></span>
+        <p class="step-n"><b>02</b> checkpoint A</p>
+        <h3>Is this the right cause?</h3>
+        <p>The agent writes down what it thinks is wrong, and why. You read a page, not a diff. In checkout, policy says a person agrees before any code is written: press <kbd>a</kbd>.</p>
+      </li>
+      <li class="step" data-step="explain">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>03</b> evidence</p>
+        <h3>Ask why</h3>
+        <p>Press <kbd>e</kbd> to see what the hypothesis rests on: the error stream, the commit that started it, past trails, and the agent session that wrote that commit.</p>
+      </li>
+      <li class="step" data-step="revise">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>04</b> checkpoint A</p>
+        <h3>Or push back</h3>
+        <p>Press <kbd>r</kbd> and write a note. The agent gets it with the trail and tries again. Here, nothing is built until someone approves.</p>
+      </li>
+      <li class="step" data-step="plan" data-gate="B">
+        <span class="bead" aria-hidden="true" data-gate="B"></span>
+        <p class="step-n"><b>05</b> checkpoint B</p>
+        <h3>Reproduced, and a plan</h3>
+        <p>It reproduced the bug with a probe that fails on main, then planned the smallest fix. Comments stay on the trail, where the agent and the next reviewer see them.</p>
+      </li>
+      <li class="step" data-step="proof" data-gate="C">
+        <span class="bead" aria-hidden="true" data-gate="C"></span>
+        <p class="step-n"><b>06</b> checkpoint C</p>
+        <h3>Proof, before you look</h3>
+        <p>The fix arrives with its evidence. The probe passes now, so do 412 tests and six regression probes, replayed traffic shows nothing unexplained, and the diff is two files. Approving lands it.</p>
+      </li>
+      <li class="step" data-step="watching">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>07</b> landing</p>
+        <h3>It lands where you work</h3>
+        <p>This one lands as a Radicle patch. It could be a Tangled pull, a plain git ref or a live change in your devenv. Then it watches production for two hours.</p>
+      </li>
+      <li class="step" data-step="set">
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>08</b> watch</p>
+        <h3>It sets</h3>
+        <p>Two quiet hours later the trail closes. Its repro joins the regression probes, so this bug can&rsquo;t come back unnoticed.</p>
+      </li>
+      <li class="step" data-step="rollback" data-undo>
+        <span class="bead" aria-hidden="true"></span>
+        <p class="step-n"><b>09</b> rollback</p>
+        <h3>Or it undoes itself</h3>
+        <p>A different fix, on a low-risk edge, landed without asking anyone. Twenty-seven minutes later a new error showed up in the file it touched, so Ephyra reverted it and reopened the trail.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="policy" id="policy" aria-labelledby="policy-title">
+  <div class="policy-head">
+    <h2 id="policy-title">You decide where it asks</h2>
+    <p class="lede">One Markdown file in your repo says which areas need a person at which checkpoint, how a fix lands and how long it&rsquo;s watched. Checkout asks three times. Docs land on their own.</p>
+    <p class="lede">New repos start in shadow mode: policy decides alongside you, and every trail still waits for a person until you switch an area on.</p>
+  </div>
+  <div class="policy-grid">
+    <figure class="file">
+      <figcaption><b>ephyra/autonomy.md</b></figcaption>
+<pre># Autonomy policy
+
+## defaults
+mode: shadow
+checkpoints: A=advisory B=advisory C=blocking
+landing: trail_ref
+watch: 2h
+
+## area: checkout
+paths: services/checkout/**
+risk: medium
+checkpoints: A=blocking B=blocking C=blocking
+landing: radicle_patch
+watch: 2h
+
+Money moves here. A person reads the
+hypothesis and the plan before any code.
+
+## area: docs
+paths: docs/**, **/*.md
+risk: low
+checkpoints: A=advisory B=advisory C=advisory
+landing: auto_land
+watch: 1h</pre>
+    </figure>
+    <div class="keys">
+      <h3>The inbox, by key</h3>
+      <dl>
+        <dt><kbd>a</kbd></dt><dd>approve the checkpoint, or the spend</dd>
+        <dt><kbd>r</kbd></dt><dd>send it back with a note</dd>
+        <dt><kbd>e</kbd></dt><dd>explain: the evidence behind it</dd>
+        <dt><kbd>t</kbd></dt><dd>take over: the agent stops, it&rsquo;s yours</dd>
+        <dt><kbd>x</kbd></dt><dd>kill the trail, with a reason</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="start" id="start" aria-labelledby="start-title">
+  <div class="start-inner">
+    <h2 id="start-title">Run it on your own box</h2>
+    <p class="lede">Open source and pre-alpha. It runs on Railway or your own hardware, needs no GitHub, and lands on Radicle, Tangled or plain git.</p>
+    <p class="actions"><a class="btn" href="/blog/posts/trails-not-pull-requests">Read the design</a><a class="btn-ghost" href="/pricing">Pricing</a></p>
+  </div>
+</section>
 </main>
 
 <footer class="foot">
@@ -83,5 +214,6 @@
 </footer>
 
 <script src="main.js" defer></script>
+<script src="tour.js" defer></script>
 </body>
 </html>

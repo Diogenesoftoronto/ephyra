@@ -1,0 +1,215 @@
+/* Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
+   The terminal's screens come from walkthrough.json (rendered by the CLI's own view). The terminal stays dark in
+   both themes, like a real one. Colour is state here too: mint is waiting on you, amber holds, cherry undoes. */
+
+:root {
+  --tour-line: oklch(0.24 0.03 60 / 0.14);
+  --tour-trail: oklch(0.52 0.135 52 / 0.55);
+  --tour-panel: oklch(0.992 0.006 85);
+  --term-bg: #0f151d;
+  --term-edge: oklch(0.24 0.03 60 / 0.16);
+  --term-shadow: 0 1px 0 oklch(1 0 0 / .5) inset, 0 30px 70px -36px oklch(0.3 0.06 60 / .55), 0 8px 20px -14px oklch(0.3 0.06 60 / .35);
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  /* Terminal palette; tour.js replaces these with the CLI's PALETTE so the page and the terminal agree. */
+  --t-fg: #e9e4d8; --t-strong: #f7f3ea; --t-muted: #a49c8e; --t-dim: #5d646e; --t-border: #7c8591;
+  --t-amber: #f0a43a; --t-mint: #5fdccb; --t-cherry: #f2705e; --t-key: #f0a43a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tour-line: oklch(0.95 0.015 85 / 0.12);
+    --tour-trail: oklch(0.8 0.15 72 / 0.5);
+    --tour-panel: oklch(0.2 0.026 246);
+    --term-edge: oklch(1 0 0 / 0.09);
+    --term-shadow: 0 30px 80px -40px oklch(0 0 0 / .8), 0 0 0 1px oklch(1 0 0 / .04);
+  }
+}
+:root[data-theme="dark"] {
+  --tour-line: oklch(0.95 0.015 85 / 0.12);
+  --tour-trail: oklch(0.8 0.15 72 / 0.5);
+  --tour-panel: oklch(0.2 0.026 246);
+  --term-edge: oklch(1 0 0 / 0.09);
+  --term-shadow: 0 30px 80px -40px oklch(0 0 0 / .8), 0 0 0 1px oklch(1 0 0 / .04);
+}
+
+/* Once the hero has scrolled away, the header sits on the page instead of the water. */
+.bar { transition: background-color .25s, box-shadow .25s; }
+.bar.solid {
+  background: color-mix(in oklab, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 var(--tour-line);
+}
+
+/* Phones keep the header to two links; the page flows into the walkthrough anyway. */
+@media (max-width: 30rem) { .bar-how { display: none; } }
+.bar-nav .bar-link { white-space: nowrap; }
+
+/* ---------- shared section type ---------- */
+.tour, .policy, .start {
+  --pad-x: max(var(--gutter), calc((100% - 92rem) / 2));
+  padding-inline: var(--pad-x);
+}
+.tour h2, .policy h2, .start h2 {
+  margin: 0 0 .45em;
+  font-family: var(--font-display); font-weight: 790; font-stretch: 84%;
+  font-size: clamp(2.1rem, 4.4vw, 3.6rem); line-height: .96; letter-spacing: -.016em;
+  text-wrap: balance;
+}
+.lede { margin: 0; max-width: 36em; color: var(--muted); font-size: clamp(1.05rem, 1.35vw, 1.22rem); line-height: 1.5; text-wrap: pretty; }
+kbd {
+  display: inline-block; min-width: 1.6em; padding: .08em .42em .12em; margin: 0 .08em;
+  border: 1px solid var(--tour-line); border-bottom-width: 2px; border-radius: 6px;
+  background: var(--tour-panel); color: var(--ink);
+  font: 600 .86em/1.25 var(--mono); text-align: center; vertical-align: .06em;
+}
+
+/* ---------- the tour ---------- */
+.tour { padding-top: clamp(4.5rem, 14svh, 9rem); padding-bottom: clamp(3rem, 10svh, 7rem); }
+.tour-head { max-width: 46rem; margin-bottom: clamp(1.5rem, 5svh, 3.5rem); }
+.tour-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+
+.steps { position: relative; list-style: none; margin: 0; padding: 0 0 0 2.25rem; counter-reset: step; }
+.steps::before {                                   /* the trail the steps hang on, like the hero's */
+  content: ""; position: absolute; left: calc(.7rem - 1px); top: 1.2rem; bottom: 1.2rem;
+  border-left: 2px dotted var(--tour-trail);
+}
+.step { position: relative; padding: 1.4rem 0 1.6rem; }
+.step h3 {
+  margin: 0 0 .35em; font-family: var(--font-display); font-weight: 680; font-stretch: 90%;
+  font-size: clamp(1.3rem, 1.9vw, 1.65rem); line-height: 1.12; letter-spacing: -.006em; text-wrap: balance;
+}
+.step p { margin: 0; max-width: 32em; font-size: 1.02rem; line-height: 1.55; text-wrap: pretty; }
+.step-n {
+  display: flex; gap: .6em; align-items: baseline; margin: 0 0 .5em !important;
+  font: 600 .74rem/1 var(--mono) !important; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.step-n b { color: var(--ink); font-weight: 700; }
+.bead {
+  position: absolute; left: -2.25rem; top: 1.25rem; width: 1.4rem; height: 1.4rem; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg); border: 2px solid var(--tour-trail);
+  font: 700 .72rem/1 var(--mono); color: var(--jelly-deep);
+  transition: background-color .3s, border-color .3s, color .3s, transform .3s var(--ease-out);
+}
+.step[data-gate] .bead::after { content: attr(data-gate); }
+.step[data-undo] .bead { border-color: color-mix(in oklab, var(--cherry) 70%, transparent); }
+
+/* With the live terminal, steps take turns: the one in view is sharp, the rest wait, like the stanza above. */
+.tour.live .step { opacity: .34; transition: opacity .35s; }
+.tour.live .step.is-past { opacity: .55; }
+.tour.live .step.is-on { opacity: 1; }
+.tour.live .step.is-on .bead, .tour.live .step.is-past .bead { background: var(--jelly); border-color: var(--jelly); color: var(--on-jelly); }
+.tour.live .step.is-on .bead { transform: scale(1.18); }
+.tour.live .step[data-undo].is-on .bead { background: var(--cherry); border-color: var(--cherry); color: #fff; }
+.tour.live .step[data-gate].is-on .bead { box-shadow: 0 0 0 5px color-mix(in oklab, var(--glow) 30%, transparent); }
+
+/* ---------- the terminal ---------- */
+.term-col { display: none; }
+.tour.live .term-col { display: block; }
+.term {
+  margin: 0; overflow: hidden; border-radius: 12px; background: var(--term-bg);
+  border: 1px solid var(--term-edge); box-shadow: var(--term-shadow);
+}
+.term-bar {
+  display: flex; align-items: center; gap: .8rem; height: 2.15rem; padding: 0 .85rem;
+  border-bottom: 1px solid oklch(1 0 0 / .07); color: var(--t-muted); font: 500 .76rem/1 var(--mono);
+}
+.term-dots { display: flex; gap: .38rem; }
+.term-dots i { width: .62rem; height: .62rem; border-radius: 50%; background: oklch(1 0 0 / .14); }
+.term-cmd { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-fg); }
+.term-cmd::before { content: "$ "; color: var(--t-amber); font-weight: 700; }
+.term-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.term-count b { color: var(--t-fg); font-weight: 600; }
+.term-screen { position: relative; overflow: hidden; padding: .75rem .9rem .9rem; }
+.term-pre {
+  position: relative; margin: 0; color: var(--t-fg);
+  font-family: var(--mono); font-size: 13px; line-height: 1.32; white-space: pre;
+  font-variant-ligatures: none; -webkit-font-smoothing: antialiased;
+  will-change: transform;
+}
+.motion .term-pre { transition: transform .45s var(--ease-out); }
+.term-pre .r { display: block; height: 1.32em; }
+.motion .term-pre .r { transition: opacity .3s; }
+.term-pre .r.dim { opacity: .4; }
+.term-pre i { display: inline-block; width: 1ch; text-align: center; font-style: normal; }   /* one cell, whatever the font */
+.term-pre .b { font-weight: 700; }
+.t-fg { color: var(--t-fg); } .t-strong { color: var(--t-strong); } .t-muted { color: var(--t-muted); }
+.t-dim { color: var(--t-dim); } .t-border { color: var(--t-border); } .t-amber { color: var(--t-amber); }
+.t-mint { color: var(--t-mint); } .t-cherry { color: var(--t-cherry); } .t-key { color: var(--t-key); }
+.term-pre .press { border-radius: 3px; background: color-mix(in oklab, var(--t-amber) 26%, transparent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--t-amber) 26%, transparent); }
+.motion .term-pre .press { animation: press 1.8s var(--ease-out) infinite; }
+@keyframes press {
+  0%, 100% { background: color-mix(in oklab, var(--t-amber) 12%, transparent); box-shadow: 0 0 0 2px transparent; }
+  30% { background: color-mix(in oklab, var(--t-amber) 42%, transparent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--t-amber) 30%, transparent); }
+}
+.term-focus {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: 0;
+  border: 1.5px solid color-mix(in oklab, var(--t-amber) 85%, transparent); border-radius: 7px;
+  background: color-mix(in oklab, var(--t-amber) 6%, transparent);
+}
+.term-focus.on { opacity: 1; }
+.motion .term-focus { transition: left .4s var(--ease-out), top .4s var(--ease-out), width .4s var(--ease-out), height .4s var(--ease-out), opacity .3s; }
+.term-swap { animation: swap .26s var(--ease-out); }
+@keyframes swap { from { opacity: .25; } to { opacity: 1; } }
+.term-note { margin: .7rem .2rem 0; color: var(--muted); font-size: .84rem; }
+
+/* Wide screens: the steps on the left, the terminal pinned on the right. */
+@media (min-width: 70rem) {
+  .tour.live .tour-body { grid-template-columns: minmax(17rem, .62fr) minmax(0, 1.38fr); gap: clamp(2rem, 4vw, 4.5rem); align-items: start; }
+  .tour.live .term-col { grid-column: 2; grid-row: 1; position: sticky; top: calc(var(--head-h) + 2.5svh); }
+  .tour.live .steps { grid-column: 1; grid-row: 1; padding-bottom: 30svh; }
+  .tour.live .step { min-height: 58svh; padding-top: 16svh; }
+  .tour.live .step:first-child { padding-top: 4svh; }
+  .tour.live .step .bead { top: calc(16svh - .15rem); }
+  .tour.live .step:first-child .bead { top: calc(4svh - .15rem); }
+  .tour.live .steps::before { top: 4svh; }
+}
+/* Narrower: the terminal pinned at the top, a window onto it that pans to what each step is about. */
+@media (max-width: 69.99rem) {
+  .tour.live .term-col { position: sticky; top: var(--head-h); z-index: 3; padding: .5rem 0 .75rem; background: linear-gradient(var(--bg) 85%, transparent); }
+  .tour.live .term-note { display: none; }
+  .tour.live .steps { padding-bottom: 36svh; }
+  .tour.live .step { min-height: 46svh; padding-top: 10svh; }
+  .tour.live .step:first-child { padding-top: 2svh; }
+  .tour.live .step .bead { top: calc(10svh - .15rem); }
+  .tour.live .step:first-child .bead { top: calc(2svh - .15rem); }
+}
+
+/* ---------- policy ---------- */
+.policy { padding-top: clamp(3rem, 10svh, 7rem); padding-bottom: clamp(3rem, 10svh, 7rem); border-top: 1px solid var(--tour-line); }
+.policy-head { max-width: 46rem; margin-bottom: clamp(1.5rem, 4svh, 2.75rem); }
+.policy-head .lede + .lede { margin-top: .8em; }
+.policy-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+@media (min-width: 60rem) { .policy-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.75rem; } }
+.file { margin: 0; overflow: hidden; border-radius: 12px; background: var(--term-bg); border: 1px solid var(--term-edge); box-shadow: var(--term-shadow); }
+.file figcaption {
+  display: flex; align-items: center; gap: .6rem; height: 2.15rem; padding: 0 .9rem;
+  border-bottom: 1px solid oklch(1 0 0 / .07); color: var(--t-muted); font: 500 .76rem/1 var(--mono);
+}
+.file figcaption b { color: var(--t-fg); font-weight: 600; }
+.file pre {
+  margin: 0; padding: .9rem 1rem 1.1rem; overflow-x: auto; color: var(--t-fg);
+  font: 400 clamp(12px, 1.05vw, 13.5px)/1.5 var(--mono); white-space: pre; tab-size: 2;
+}
+.file .md-h { color: var(--t-amber); font-weight: 700; }
+.file .md-k { color: var(--t-muted); }
+.file .md-v { color: var(--t-strong); }
+.file .md-p { color: var(--t-mint); }
+.keys { margin: 0; padding: .3rem 1.1rem 1rem; border-radius: 12px; background: var(--tour-panel); border: 1px solid var(--tour-line); }
+.keys h3 { margin: .8rem 0 .5rem; font-family: var(--font-display); font-weight: 680; font-stretch: 90%; font-size: 1.15rem; }
+.keys dl { display: grid; grid-template-columns: max-content 1fr; gap: .45rem .9rem; margin: 0; align-items: baseline; }
+.keys dt { margin: 0; white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); font-size: .95rem; line-height: 1.4; }
+
+/* ---------- start ---------- */
+.start { padding-top: clamp(3rem, 10svh, 7rem); padding-bottom: clamp(3.5rem, 10svh, 7rem); border-top: 1px solid var(--tour-line); }
+.start-inner { max-width: 46rem; }
+.start .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.5rem; }
+.btn-ghost {
+  display: inline-flex; align-items: center; min-height: 48px; padding: .7rem 1.2rem; border-radius: 999px;
+  border: 1.5px solid var(--tour-line); font-weight: 600; text-decoration: none;
+}
+.btn-ghost:hover { border-color: var(--jelly); }
+
+@media (prefers-reduced-motion: reduce) {
+  .term-swap { animation: none; }
+}
