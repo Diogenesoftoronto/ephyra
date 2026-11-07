@@ -12,12 +12,15 @@ export function voiceContext(console: ConsolePort, port: HttpPort) {
       case "trail": {
         const detail = await port.trail(context.id);
         if (!detail) throw new VoiceError(404, "This trail is no longer available.");
-        return { label: `${detail.trail.short}: ${detail.trail.title}`, data: detail };
+        return { label: `${detail.trail.short}, revision ${detail.trail.rev}: ${detail.trail.title}`, data: detail };
       }
       case "run": {
         const run = await console.runs.get(context.id);
         if (!run) throw new VoiceError(404, "This run is no longer available.");
-        return { label: `Run ${run.id}`, data: { run, events: await console.runs.events(run.id, undefined, 80), eventLimit: 80 } };
+        return {
+          label: `Run ${run.id}`,
+          data: { run, events: await console.runs.events(run.id, undefined, 80), eventLimit: 80 },
+        };
       }
       case "draft": {
         const draft = await console.drafts.get(context.id);
@@ -26,13 +29,22 @@ export function voiceContext(console: ConsolePort, port: HttpPort) {
       case "usage": {
         const to = console.now();
         const trails = await console.trails();
-        const summary = summarizeUsage(await console.usage.list(), { from: new Date(to.getTime() - 7 * DAY_MS), to },
-          new Map(trails.map(t => [t.id, { id: t.id, short: t.short, title: t.title, budget: t.budget }])));
+        const summary = summarizeUsage(
+          await console.usage.list(),
+          { from: new Date(to.getTime() - 7 * DAY_MS), to },
+          new Map(trails.map((t) => [t.id, { id: t.id, short: t.short, title: t.title, budget: t.budget }])),
+        );
         return { label: "Usage, last 7 days", data: summary };
       }
-      case "overview": return { label: "Application overview", data: {
-        inbox: await port.inbox(), recentActivity: await console.activity(30), documents: (await console.docs.list()).map(d => ({ path: d.path, kind: d.kind })),
-      } };
+      case "overview":
+        return {
+          label: "Application overview",
+          data: {
+            inbox: await port.inbox(),
+            recentActivity: await console.activity(30),
+            documents: (await console.docs.list()).map((d) => ({ path: d.path, kind: d.kind })),
+          },
+        };
     }
   };
 }

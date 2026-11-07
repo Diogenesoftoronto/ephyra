@@ -26,6 +26,9 @@ import { ConvexAuthStore, MemoryAuthStore } from "./auth/store.ts";
 import { createApp } from "./http/app.ts";
 import { consoleRoutes, type ConsolePort } from "./http/console.ts";
 import { voiceRoutes } from "./http/voice.ts";
+import { tutorRoutes } from "./http/tutor.ts";
+import { AmpersandDraftModel, TUTOR_MODEL } from "./humans.ts";
+import { TutorService, NotOrganicTutorBackend, DirectTutorBackend, type TutorBackend } from "./tutor.ts";
 import { VoiceService } from "./voice.ts";
 import { voiceContext } from "./voice-context.ts";
 import { CompatibleSpeechProvider, type SpeechProvider } from "./voice-provider.ts";
@@ -157,7 +160,7 @@ function knownSecrets(config: Config): string[] {
   return [
     config.EPHYRA_API_TOKEN, config.EPHYRA_CONVEX_SECRET, config.EPHYRA_SESSION_KEY, config.TYPESAFE_API_KEY, config.EPHYRA_SYSTEMONE_KEY,
     config.CLOUDFLARE_AI_API_TOKEN, config.EPHYRA_DRAFT_ANTHROPIC_API_KEY, config.EPHYRA_DRAFT_OPENAI_API_KEY, process.env.AMP_API_KEY,
-    config.EPHYRA_VOICE_API_KEY,
+    config.EPHYRA_VOICE_API_KEY, config.EPHYRA_HUMANS_API_KEY,
   ].filter((v): v is string => typeof v === "string" && v.length >= 8);
 }
 
@@ -189,11 +192,13 @@ function ampThreadsFrom(store: RuntimeStore): AmpThreadStore {
   };
 }
 
-function draftModelFor(config: Config, signIn: NotOrganicSignIn | null, billingDid: string | undefined): DraftModel | null {
+function draftModelFor(config: Config, signIn: NotOrganicSignIn | null, billingDid: string | undefined,
+  ledger: import("@ephyra/core").OperationLedger): DraftModel | null {
   switch (config.EPHYRA_DRAFT) {
     case "notorganic": return signIn && billingDid ? new NotOrganicDraftModel(signIn, billingDid, config.EPHYRA_DRAFT_MODEL) : null;
     case "anthropic": return new AnthropicDraftModel(config.EPHYRA_DRAFT_ANTHROPIC_API_KEY!, config.EPHYRA_DRAFT_MODEL);
     case "openai": return new OpenAiDraftModel(config.EPHYRA_DRAFT_OPENAI_API_KEY!, config.EPHYRA_DRAFT_MODEL);
+    case "ampersand": return new AmpersandDraftModel(config.EPHYRA_HUMANS_API_KEY!, ledger);
     case "fake": return new FakeDraftModel();
     default: return null;
   }
@@ -225,6 +230,7 @@ export type ComposeOverrides = {
   /** Replaces the configured Velum model (tests: nothing here may touch the network). */
   draftModel?: DraftModel;
   speechProvider?: SpeechProvider;
+  tutorBackend?: TutorBackend;
 };
 
 export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
@@ -280,7 +286,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
           "wallet:read", "usage:read", "judgement:evaluate", "extraction:run",
           // Velum on Not Organic chat needs the model's inference scope; asked for only when it is in use.
           ...(config.EPHYRA_DRAFT === "notorganic" ? [`infer:${config.EPHYRA_DRAFT_MODEL ?? "balanced"}`] : []),
-          ...(config.EPHYRA_VOICE === "notorganic" ? [...new Set([config.EPHYRA_VOICE_STT_MODEL!, config.EPHYRA_VOICE_TTS_MODEL!])].map(m => `infer:${m}`) : []),
+          ...(config.EPHYRA_TUTOR === "notorganic" ? [`infer:${TUTOR_MODEL}`] : []),
+          ...(config.EPHYRA_VOICE === "notorganic"
+            ? [...new Set([config.EPHYRA_VOICE_STT_MODEL!, config.EPHYRA_VOICE_TTS_MODEL!])].map(m => `infer:${m}`) : []),
         ],
       },
       client ? new ConvexAuthStore(client, secret) : new MemoryAuthStore(),
@@ -294,7 +302,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const extract = config.EPHYRA_EXTRACT === "notorganic" && signIn && billingDid ? new HostedExtract(signIn, billingDid, hosted) : configured.extract;
   const decide = opts.decide
     ?? (config.EPHYRA_DECIDE === "notorganic" && signIn && billingDid ? new HostedDecide(signIn, billingDid, hosted) : configured.decide);
-  const draftModel = opts.draftModel ?? draftModelFor(config, signIn, billingDid);
+  const draftModel = opts.draftModel ?? draftModelFor(config, signIn, billingDid, ledger);
   const profile: ServiceProfile = {
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
@@ -353,7 +361,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const now = () => new Date();
   const drafts = new DraftService({
     store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, git: g, audit, baseRef: repo.baseRef, now, id: randomUUID, log,
-    velum: new Velum({ model: draftModel, usage, now, id: randomUUID }),
+    velum: new Velum({ model: draftModel, usage, now, id: randomUUID, secrets: knownSecrets(config) }),
   });
   const consolePort: ConsolePort = {
     usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
@@ -371,11 +379,15 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
   }));
   const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), secrets: knownSecrets(config) });
+  const tutorBackend = opts.tutorBackend ?? (config.EPHYRA_TUTOR === "notorganic"
+    ? new NotOrganicTutorBackend(signIn!, billingDid!, config.EPHYRA_TUTOR_MAX_COST_MICROUSD)
+    : config.EPHYRA_TUTOR === "ampersand" ? new DirectTutorBackend(new AmpersandDraftModel(config.EPHYRA_HUMANS_API_KEY!, ledger, TUTOR_MODEL)) : null);
+  const tutor = new TutorService({ backend: tutorBackend, port, ledger, usage, secrets: knownSecrets(config) });
   const api = createApp(
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
     { requireSignIn: Boolean(signIn), approvers },
-    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice)),
+    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice)).route("/", tutorRoutes(tutor)),
   );
   const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {
