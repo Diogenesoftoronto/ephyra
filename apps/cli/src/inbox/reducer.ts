@@ -157,7 +157,7 @@ export function inboxReducer(
 					? item.state === "parked"
 						? "resume"
 						: "park"
-					: key === "l" && item.state === "ready"
+					: key === "l" && item.state === "ready" && item.kind !== "checkpoint"
 						? "land"
 						: key === "o"
 							? "open"
@@ -172,7 +172,8 @@ export function availableKeys(item: InboxItem | undefined): Set<string> {
 	for (const k of ["x", "c", "t", "p", "e"]) keys.add(k);
 	if (item.kind === "checkpoint" || item.kind === "spend") keys.add("a");
 	if (item.kind === "checkpoint") keys.add("r");
-	if (item.state === "ready") keys.add("l");
+	// At checkpoint C, approving is what lands the trail; `l` is for a ready trail whose C is already approved.
+	if (item.state === "ready" && item.kind !== "checkpoint") keys.add("l");
 	if (item.landingUrl) keys.add("o");
 	return keys;
 }

@@ -100,3 +100,18 @@ export function wrap(text: string, w: number): string[] {
 	}
 	return out;
 }
+
+/** The last `w` columns of a string: the end of what's being typed. */
+export function tail(s: string, w: number): string {
+	if (w <= 0) return "";
+	const chars = Array.from(s);
+	let out = "";
+	let n = 0;
+	for (let i = chars.length - 1; i >= 0; i--) {
+		const c = cols(chars[i]!);
+		if (n + c > w) break;
+		out = chars[i] + out;
+		n += c;
+	}
+	return out;
+}

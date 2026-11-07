@@ -11,7 +11,7 @@ export const PALETTE: Record<Tone, string> = {
 	amber: "#f0a43a",
 	mint: "#5fdccb",
 	cherry: "#f2705e",
-	key: "#f0a43a",
+	key: "#f7f3ea",
 };
 
 const rgb = (hex: string) =>

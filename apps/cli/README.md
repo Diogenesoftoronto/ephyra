@@ -12,7 +12,11 @@ Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in w
 - **Spend, parked and notice items** show what's asked and the budget.
 - A rail shows how far the trail has got (signal → evidence → hypothesis → repro → plan → patch → proof → land → watch) and where A, B and C sit. Below it is the trail's activity.
 
-Keys: `j`/`k` move, `a` approve, `r` revise with a note, `x` kill with a reason, `c` comment, `t` take over, `p` park or resume, `o` open the landing or the agent's thread, `l` land (ready trails only), `e` explain (the evidence index), `J`/`K` scroll, `?` lists the keys, `esc` goes back, and `q` quits. The hint bar shows only the keys that do something for the selected item.
+Keys: `j`/`k` move, `a` approve, `r` revise with a note, `x` kill with a reason, `c` comment, `t` take over, `p` park or resume, `o` open the landing or the agent's thread, `l` land a ready trail whose proof is already approved, `e` explain (the evidence index), `J`/`K` scroll, `?` lists the keys, `esc` goes back, and `q` quits. The hint bar shows only the keys that do something for the selected item. At checkpoint C it reads `a approve and land`, because approving C is what lands the trail. While you write a note, it shows only `enter send · esc cancel`.
+
+Colour means state and nothing else: mint is waiting on you (a blocking checkpoint, a spend, the key that answers it), amber is work that holds (stages done, proof passed, a landing), cherry is a failure or an undo. Keys, labels and the selection are neutral.
+
+Under 60 columns the inbox goes detail-first: the selected item gets the whole screen, its title says where it sits in the list (`1 of 4`), and `j`/`k` move. From 60 to 79 columns the list stacks above the detail; from 80, they sit side by side.
 
 The detail pane reads the trail and its journal files through `GET /v1/trails/:id` and `GET /v1/trails/:id/file?path=` (an allow-list on the server). Each is fetched once per thing to judge: the same trail at its next checkpoint is fetched again. After a change, the list refreshes from the server right away, and every 30 seconds otherwise. A stale decision shows a 409 message, and its optimistic update is rolled back.
 

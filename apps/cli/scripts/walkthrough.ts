@@ -46,9 +46,9 @@ const page = (command: string, lines: Line[], w = W, h = H) => {
 		const used = l.reduce((n, x) => n + x.text.length, 0);
 		return used < w ? [...l, { text: " ".repeat(w - used) }] : l;
 	};
-	const prompt = (rest: Line): Line => pad([{ text: "$ ", tone: "amber", bold: true }, ...rest]);
+	const prompt = (rest: Line): Line => pad([{ text: "$ ", tone: "muted", bold: true }, ...rest]);
 	const rows: Line[] = [prompt([{ text: command, tone: "strong" }]), pad([]), ...output.slice(0, h - 4).map(pad), pad([])];
-	rows.push(prompt([{ text: "▏", tone: "amber" }]));
+	rows.push(prompt([{ text: "▏", tone: "strong" }]));
 	while (rows.length < h) rows.push(pad([]));
 	return pack(rows.slice(0, h));
 };
@@ -76,22 +76,24 @@ const rolledBack = (w: number, h: number) =>
 
 /**
  * The walkthrough's steps, in order. Each has the real screen at two sizes: `wide` for desktops (W×H) and `narrow`
- * for phones (46 columns; the inbox stacks its list above the detail). `key` is what's pressed to arrive here.
+ * for phones (40 columns; the inbox's narrow, detail-first layout). `key` is what's pressed to arrive here.
  */
 type Step = { id: string; command: string; key: string | null; wide: unknown; narrow: unknown };
-const NW = 46;
-const NH = 34;
+// Phones get the narrow layout at 40 columns (about 13px type), tall enough that nothing is cut off: the page
+// shows a window onto it and pans to what each step is about.
+const NW = 40;
+const NH = 56;
 const inbox = (s: InboxState) => ({ wide: screen(s), narrow: screen(s, NW, NH) });
 const steps: Step[] = [
-	{ id: "triaged", command: "ephyra show T-4c1e0f", key: null, wide: show("triaged", W, H), narrow: show("triaged", NW, 26) },
+	{ id: "triaged", command: "ephyra show T-4c1e0f", key: null, wide: show("triaged", W, H), narrow: show("triaged", NW, NH) },
 	{ id: "hypothesis", command: "ephyra inbox", key: null, ...inbox(at(DEMO_ITEMS.A, "hypothesis")) },
 	{ id: "explain", command: "ephyra inbox", key: "e", ...inbox(evidence) },
 	{ id: "revise", command: "ephyra inbox", key: "r", ...inbox(revising) },
 	{ id: "plan", command: "ephyra inbox", key: "a", ...inbox(at(DEMO_ITEMS.B, "plan")) },
 	{ id: "proof", command: "ephyra inbox", key: "a", ...inbox(at(DEMO_ITEMS.C, "proof")) },
-	{ id: "watching", command: "ephyra show T-4c1e0f", key: "a", wide: show("watching", W, H), narrow: show("watching", NW, 30) },
-	{ id: "set", command: "ephyra show T-4c1e0f", key: null, wide: show("set", W, H), narrow: show("set", NW, 30) },
-	{ id: "rollback", command: "ephyra show T-738495", key: null, wide: rolledBack(W, H), narrow: rolledBack(NW, 30) },
+	{ id: "watching", command: "ephyra show T-4c1e0f", key: "a", wide: show("watching", W, H), narrow: show("watching", NW, NH) },
+	{ id: "set", command: "ephyra show T-4c1e0f", key: null, wide: show("set", W, H), narrow: show("set", NW, NH) },
+	{ id: "rollback", command: "ephyra show T-738495", key: null, wide: rolledBack(W, H), narrow: rolledBack(NW, NH) },
 ];
 
 const data = {
