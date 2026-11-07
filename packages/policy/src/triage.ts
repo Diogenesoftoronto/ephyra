@@ -43,7 +43,7 @@ export function interpretPolicyAnswer(
       options.checkpoint === "C" &&
       a?.type === "choice" &&
       a.choice === "approve") ||
-    !thresholds[response.model] ||
+    !Object.hasOwn(thresholds, response.model) ||
     a?.type !== "choice" ||
     a.confidence < thresholds[response.model]!.confidence ||
     !["approve", "revise", "reject"].includes(a.choice)
@@ -161,7 +161,9 @@ export function applyTriage(
   candidates?: Candidates,
   signalKind?: Signal["kind"],
 ): TriageResult {
-  const t = thresholds[judgement.model];
+  const t = Object.hasOwn(thresholds, judgement.model)
+    ? thresholds[judgement.model]
+    : undefined;
   const a = judgement.answers;
   const choice = (key: string) => {
     const x = a[key];
@@ -239,6 +241,15 @@ export function applyTriage(
   ) {
     result.route = "ignore";
     reasons.push("not actionable or confident ignore");
+  }
+  if (
+    t &&
+    route?.choice === "ignore" &&
+    probability(route) < t.ignore &&
+    actionable >= t.actionable
+  ) {
+    result.route = "research_only";
+    reasons.push("ignore probability below threshold");
   }
   const frame = extraction.answers.top_app_frame;
   if (t && frame?.value === null && (frame.p_null ?? 0) > 0.8) {

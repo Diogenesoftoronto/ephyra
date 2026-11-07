@@ -100,6 +100,8 @@ test("ignore, severity, confidence and identity rows", () => {
   expect(run(r).route).toBe("ignore");
   r.answers.actionable = { type: "noul", noul: 0.4 };
   expect(run(r).route).toBe("auto_fix");
+  r.answers.route = choice("ignore", 0.799);
+  expect(run(r).route).toBe("research_only");
   r.answers.route = choice("ignore", 0.8);
   expect(run(r).route).toBe("ignore");
   r.answers.route = choice("auto_fix");
@@ -115,6 +117,8 @@ test("ignore, severity, confidence and identity rows", () => {
   expect(run(r).route).toBe("research_only");
   r.answers.duplicate_of = choice("none");
   r.answers.route = choice("auto_fix", 1, 0.499);
+  expect(run(r).route).toBe("research_only");
+  r.model = "toString";
   expect(run(r).route).toBe("research_only");
   r.model = "unknown";
   expect(run(r)).toMatchObject({ route: "research_only", notifyHuman: true });
