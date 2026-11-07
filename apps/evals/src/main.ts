@@ -13,13 +13,13 @@ import { tracePayload,uploadRun } from './arize';
 import { git } from './local';
 import type { SuiteRunner } from './common';
 export function parseArgs(args:string[]){
-  if(args[0]!=='run')throw new Error('Usage: run --suite <name|all> [--backend fixture|parser|typesafe|workers-ai] [--agent mock|claude-code|codex|amp] [--live] [--arize] [--limit N]');
+  if(args[0]!=='run')throw new Error('Usage: run --suite <name|all> [--backend fixture|parser|typesafe|workers-ai|typesafe-workers-ai] [--agent mock|claude-code|codex|amp] [--live] [--arize] [--limit N]');
   const flags=new Map<string,string|boolean>();
   for(let i=1;i<args.length;i++){const k=args[i]!;if(['--live','--arize'].includes(k)){flags.set(k,true);continue;}if(!['--suite','--backend','--agent','--limit'].includes(k)||!args[i+1]||args[i+1]!.startsWith('--'))throw new Error(`invalid option ${k}`);flags.set(k,args[++i]!);}
   const suite=String(flags.get('--suite')??'all');if(suite!=='all'&&!SUITES.includes(suite as Suite))throw new Error('invalid suite');
   const live=flags.has('--live');const backend=String(flags.get('--backend')??(live?'typesafe':'fixture'));const agent=String(flags.get('--agent')??(live?'codex':'mock'));
-  if(!['fixture','parser','typesafe','workers-ai'].includes(backend)||!['mock','claude-code','codex','amp'].includes(agent))throw new Error('unknown backend or agent');
-  if(!live&&(backend==='typesafe'||backend==='workers-ai'||agent!=='mock'))throw new Error('real backends and agents require --live');
+  if(!['fixture','parser','typesafe','workers-ai','typesafe-workers-ai'].includes(backend)||!['mock','claude-code','codex','amp'].includes(agent))throw new Error('unknown backend or agent');
+  if(!live&&(backend==='typesafe'||backend==='workers-ai'||backend==='typesafe-workers-ai'||agent!=='mock'))throw new Error('real backends and agents require --live');
   if(live&&backend==='fixture')throw new Error('fixture backend cannot be labeled live');
   const limit=flags.has('--limit')?Number(flags.get('--limit')):undefined;if(limit!==undefined&&(!Number.isInteger(limit)||limit<1))throw new Error('invalid limit');
   return {suite,live,backend,agent,arize:flags.has('--arize'),limit};
@@ -50,7 +50,7 @@ export async function run(options:ReturnType<typeof parseArgs>){
       const telemetry=new Telemetry();const runId=new Date().toISOString().replace(/[:.]/g,'-')+'-'+crypto.randomUUID().slice(0,8);
       const corpus=(await loadCorpus(suite)).slice(0,options.limit);
       if(options.live&&['triage','injection','agent'].includes(suite)){
-        const usd=suite==='agent'?Math.min(3,corpus.filter(c=>!c.input.recorded).length)*2:suite==='injection'?corpus.length*.04:options.backend==='parser'?0:corpus.length*.02;
+        const usd=suite==='agent'?Math.min(3,corpus.filter(c=>!c.input.recorded).length)*2:suite==='injection'?corpus.length*.04:options.backend==='parser'?0:corpus.length*(options.backend==='typesafe-workers-ai'?.04:.02);
         await reserveBudget(runId,usd);
       }
       const gitSha=await git(resolve(APP,'../..'),'rev-parse','HEAD');

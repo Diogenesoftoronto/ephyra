@@ -31,7 +31,7 @@ export async function decide(row:Case,extracted:ExtractionResponse,opts:Options)
 }
 export async function extract(row:Case,opts:Options):Promise<ExtractionResponse> {
   const {signal}=TriageInput.parse(row.input);const req=buildExtractionRequest(signal);
-  const worker=opts.backend==='workers-ai';
+  const worker=(opts.backend==='workers-ai'||opts.backend==='typesafe-workers-ai');
   if(worker&&!opts.live) throw new Unverified('workers-ai requires --live');
   if(worker&&(!process.env.CLOUDFLARE_ACCOUNT_ID||!process.env.CLOUDFLARE_AI_API_TOKEN))throw new Unverified('Cloudflare credentials missing');
   const backend=worker?new WorkersAiClairicExtract({alias:'workers-ai',accountId:process.env.CLOUDFLARE_ACCOUNT_ID!,credential:process.env.CLOUDFLARE_AI_API_TOKEN!,http:{retries:0,timeoutMs:20000}}):new ParserExtract();
