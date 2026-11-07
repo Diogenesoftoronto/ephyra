@@ -100,12 +100,18 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
   try {
     result = await withSandbox(deps, ctx, trail, attempt, async (runner, handle) => {
       const r = await deps.agent!.run(task, runner, handle);
-      if (payload.step === "patch" && r.outputs.head) await publishHead(runner, handle, ctx, trail, r.outputs.head);
+      if (r.ok && payload.step === "patch" && r.outputs.head) await publishHead(runner, handle, ctx, trail, r.outputs.head);
       return r;
     });
   } catch (error) {
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
       data: { step: payload.step, reason: String(error).slice(0, 500), retryable: priorFailures < 2 } });
+    return;
+  }
+  // A failed turn's artefacts are not successful step evidence (e.g. Amp reauthentication).
+  if (!result.ok) {
+    await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
+      data: { step: payload.step, reason: result.error ?? "coding agent returned an unsuccessful turn", retryable: false } });
     return;
   }
   // Link the agent's own thread (Amp) to the trail the first time we see it, so the inbox can open it.
