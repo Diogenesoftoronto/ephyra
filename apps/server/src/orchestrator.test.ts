@@ -24,3 +24,32 @@ describe("local orchestration", () => {
     expect(calls).toBe(1);
   });
 });
+
+test("effects wait for journal acknowledgement and conflicts recompute", async () => {
+  let calls = 0;
+  let transitions = 0;
+  const handlers = { stop_agent: async () => { calls++; } } as unknown as EffectHandlers;
+  const engine = new LocalOrchestrator((t) => {
+    transitions++;
+    return { ok: true, trail: t, effects: [effect] };
+  }, policy, handlers);
+  engine.trails.set(trail.id, trail);
+  await engine.apply(event);
+  expect(calls).toBe(0);
+  let head = "one";
+  let attempts = 0;
+  const journal = {
+    read: async () => ({ head, trail, events: [] }),
+    append: async () => {
+      attempts++;
+      if (attempts === 1) { head = "two"; throw new Error("conflict"); }
+      return "three";
+    },
+  } as unknown as import("@ephyra/core").Journal;
+  await engine.publish(journal);
+  expect(attempts).toBe(2);
+  expect(transitions).toBe(3);
+  expect(calls).toBe(1);
+  await engine.publish(journal);
+  expect(calls).toBe(1);
+});
