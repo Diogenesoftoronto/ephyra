@@ -1,8 +1,9 @@
-import { compose, VERSION } from "./compose.ts";
+import { VERSION } from "./compose.ts";
+import { composeApplication } from "./application.ts";
 import { readConfig } from "./config.ts";
 
 const config = readConfig(process.env);
-const composed = await compose(config);
+const composed = await composeApplication(config);
 const server = Bun.serve({ hostname: "0.0.0.0", port: config.PORT, fetch: composed.app.fetch });
 console.log(JSON.stringify({ msg: "ephyra server listening", port: server.port, mode: composed.mode, version: VERSION }));
 

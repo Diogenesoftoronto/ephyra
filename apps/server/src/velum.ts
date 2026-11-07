@@ -99,11 +99,12 @@ export class OpenAiDraftModel implements DraftModel {
   readonly billedTo = "byok" as const;
   get requestedModel() { return this.model; }
   constructor(private readonly apiKey: string, private readonly model = "gpt-6.1-sol", private readonly fetcher: Fetch = fetch,
-    private readonly endpoint = "https://api.openai.com/v1/chat/completions") {}
+    private readonly endpoint = "https://api.openai.com/v1/chat/completions",
+    private readonly tokenParameter: "max_completion_tokens" | "max_tokens" = "max_completion_tokens") {}
   async complete(req: DraftRequest): Promise<DraftCompletion> {
     const { max_tokens, ...body } = chatBody(this.model, req);
     const raw = await postJson(this.fetcher, "OpenAI", this.endpoint,
-      { authorization: `Bearer ${this.apiKey}`, "idempotency-key": req.idempotencyKey }, { ...body, max_completion_tokens: max_tokens }, req.signal);
+      { authorization: `Bearer ${this.apiKey}`, "idempotency-key": req.idempotencyKey }, { ...body, [this.tokenParameter]: max_tokens }, req.signal);
     // OpenAI does not report a price; the cost stays unknown rather than estimated.
     return { ...readChat("OpenAI", raw), costMicrousd: null };
   }
@@ -213,16 +214,22 @@ function chatFor(draft: Draft, text: string, quotes: Quote[]): ChatMessage[] {
   return out;
 }
 
-export type VelumDeps = { model: DraftModel | null; usage: UsageRecorder; now: () => Date; id: () => string; secrets?: string[] };
+export type VelumDeps = {
+  model: DraftModel | null; resolveModel?: () => Promise<DraftModel | null>; usage: UsageRecorder;
+  now: () => Date; id: () => string; secrets?: string[];
+};
 
 export class Velum {
   constructor(private readonly deps: VelumDeps) {}
 
   /** The messages to append after a human message: Velum's reply, plus system notes about anything dropped. Never throws. */
   async reply(draft: Draft, text: string, quotes: Quote[], humanMessageId: string): Promise<DraftMessage[]> {
-    const { model, usage, now, id } = this.deps;
+    const { usage, now, id } = this.deps;
     const system = (body: string): DraftMessage => ({ id: id(), at: now().toISOString(), role: "system", text: body });
-    if (!model) return [system("Velum is not configured on this deployment (EPHYRA_DRAFT=none). You can still edit the document by hand.")];
+    let model: DraftModel | null;
+    try { model = this.deps.resolveModel ? await this.deps.resolveModel() : this.deps.model; }
+    catch { return [system("Model access is unavailable. Check your selected model and sign-in in Settings. You can still edit the document by hand.")]; }
+    if (!model) return [system("Velum is not configured. Choose model access in Settings. You can still edit the document by hand.")];
     const replyId = id();
     const key = `draft:${draft.id}:${humanMessageId}`;
     const started = Date.now();

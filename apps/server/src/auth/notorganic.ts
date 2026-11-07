@@ -56,7 +56,7 @@ export class NotOrganicSignIn {
   expireCachedTokens(): void { this.cache.clear(); }
 
   /** Start a login. `browser` is a random value the caller sets as an HttpOnly cookie. */
-  async begin(browser: string, cliChallenge?: string): Promise<string> {
+  async begin(browser: string, cliChallenge?: string, additionalScopes: string[] = []): Promise<string> {
     if (cliChallenge !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(cliChallenge)) throw new SignInError(400, "invalid CLI challenge");
     const state = randomToken();
     const verifier = randomToken();
@@ -67,7 +67,8 @@ export class NotOrganicSignIn {
     const url = new URL(this.config.authorizationUrl);
     const params = {
       client_id: this.config.publicOrigin, redirect_uri: this.redirectUri, response_type: "code", code_challenge_method: "S256",
-      code_challenge: await sha256b64url(verifier), scope: this.config.scopes.join(" "), state, prompt: "select_account",
+      code_challenge: await sha256b64url(verifier),
+      scope: [...new Set([...this.config.scopes, ...additionalScopes])].join(" "), state, prompt: "select_account",
     };
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
     return url.toString();
@@ -177,6 +178,14 @@ export class NotOrganicSignIn {
       this.inflight.set(record.sessionHash, pending);
     }
     return pending;
+  }
+
+  /** Scope metadata comes from the issuer's sealed grant, never from a browser claim. */
+  async hasScope(did: string, scope: string): Promise<boolean> {
+    const record = await this.store.latestSessionFor(did, Date.now());
+    if (!record) return false;
+    const sealed = await this.box.open<Sealed>(record.sealed);
+    return sealed.scope.split(/\s+/).includes(scope);
   }
 
   private async refresh(record: SessionRecord) {

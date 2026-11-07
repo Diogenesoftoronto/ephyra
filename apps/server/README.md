@@ -2,6 +2,38 @@
 
 The control plane: OTLP ingest, triage, the trail engine, effect wiring, the HTTP API and the inbox.
 
+## Personal accounts and setup
+
+`composeApplication` routes signed-in humans to their own workspace; service tokens retain the deployment workspace.
+Not Organic supplies the authenticated DID. Each account can configure its HTTPS repository/branch, optional Git token,
+and Hosted, OpenAI, Anthropic-compatible Messages, or OpenAI-compatible Chat Completions model access.
+Personal configuration never inherits deployment provider credentials, policy overrides, or the trusted local runner.
+Personal code execution and speech remain unconfigured; saved model access powers Velum's document drafting.
+
+`GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding}` requires an authenticated human,
+`X-Ephyra-Account` matching that DID, an `Idempotency-Key`, and `expectedVersion`. Cookie writes also require same-origin
+browser requests. Keys and repository tokens are encrypted with `EPHYRA_SESSION_KEY`; responses and operation receipts
+contain only public settings. Completed receipts are immutable, pending receipts require reconciliation, and versions
+prevent concurrent saves from overwriting each other. Save-time model listing performs no billable generation.
+
+Project data is namespaced in Convex, including audit chains, idempotency keys, jobs, usage, runs and drafts. An omitted
+workspace means the legacy deployment namespace only. The browser binds every project request with `X-Ephyra-Workspace`;
+stale account/repository writes are refused. Changing repository or branch selects a separate namespace and mirror,
+preserving previous work. Current account queues resume at boot. Hosted model changes may need another sign-in to grant
+the exact inference scope; no fallback model is chosen.
+
+Repository setup fetches one shallow branch over public HTTPS smart Git with DNS pinning, disabled redirects/hooks,
+isolated Git configuration and transient credentials. Provider HTTPS requests use the same public-destination policy.
+Local/private-network endpoints, SSH URLs and dumb HTTP Git are not supported by hosted account setup. Existing
+deployment configuration remains available for self-hosted local integrations. Repository fetches have time/output/disk
+bounds; disk polling can briefly exceed the configured 512 MB limit.
+
+Verified offline: account ownership and Origin checks, cross-account workspace isolation, scoped Convex persistence,
+CAS/idempotent receipts, encryption and credential removal, real local Git fixtures, provider protocol/usage attribution,
+and desktop/phone sign-in → optional key → draft → sign-out. Public models.dev metadata and pinned HTTPS transport have
+also been read live without credentials. Real account inference, paid settlement, private forge credentials and personal
+sandbox execution remain Unverified.
+
 ## How it fits together
 
 `event → state machine (core/lifecycle) → git journal (CAS) → projection → effects`. Effects run through

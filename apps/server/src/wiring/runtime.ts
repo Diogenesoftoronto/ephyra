@@ -121,6 +121,7 @@ export class JobLoop {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running = 0;
   private stopped = false;
+  private started = false;
 
   constructor(
     private readonly store: RuntimeStore,
@@ -135,8 +136,8 @@ export class JobLoop {
     this.kick();
   }
 
-  start(): void { this.stopped = false; this.kick(); }
-  stop(): void { this.stopped = true; if (this.timer) clearTimeout(this.timer); }
+  start(): void { if (this.started) return; this.started = true; this.stopped = false; this.kick(); }
+  stop(): void { this.started = false; this.stopped = true; if (this.timer) clearTimeout(this.timer); }
 
   private kick(): void {
     if (this.stopped) return;
