@@ -1,0 +1,3 @@
+.proposal-body { display: grid; gap: .75rem; min-width: 0; }
+.proposal-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.proposal-doc > summary { cursor: pointer; margin-bottom: .5rem; }

@@ -1,0 +1,9 @@
+.inbox-split { display: grid; gap: 1.25rem; grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); align-items: start; }
+.inbox-list-pane, .inbox-detail-pane { min-width: 0; }
+.inbox-back { margin: 0 0 .75rem; }
+@media (min-width: 901px) { .inbox-back { display: none; } }
+@media (max-width: 900px) {
+  .inbox-split { grid-template-columns: minmax(0, 1fr); }
+  .inbox-split[data-detail="true"] .inbox-list-pane { display: none; }
+  .inbox-split[data-detail="false"] .inbox-detail-pane { display: none; }
+}

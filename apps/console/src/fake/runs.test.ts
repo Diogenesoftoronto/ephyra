@@ -6,7 +6,8 @@ import { ConsoleClient, parseSseFrame } from "../api.ts";
 import { FakeApi } from "./api.ts";
 import { AUTONOMY_MD } from "./fixtures.ts";
 import { RUN_IDS } from "./runs.ts";
-import { mapMessage, renderSketch, replaceAreas, sketchesOf } from "./sketch.ts";
+import { mapMessage } from "../lib/protocol.ts";
+import { renderSketch, replaceAreas, sketchesOf } from "./sketch.ts";
 import { lintAutonomy } from "./autonomy.ts";
 
 describe("run fixtures", () => {

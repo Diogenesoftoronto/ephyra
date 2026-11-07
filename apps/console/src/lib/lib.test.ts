@@ -87,3 +87,25 @@ describe("warnings", () => {
     expect(splitWarnings(["line 7: invalid risk", "line 4: unknown key x"])).toEqual({ errors: ["line 7: invalid risk"], notes: ["line 4: unknown key x"] });
   });
 });
+
+import { diffSketches, changedCount } from "./sketch-diff.ts";
+import type { AreaSketch } from "@ephyra/core";
+
+const area = (name: string, over: Partial<AreaSketch> = {}): AreaSketch =>
+  ({ name, intent: "x", paths: ["a/**"], risk: "low", level: "propose", userFacing: false, ...over });
+
+describe("diffSketches", () => {
+  test("added, removed, changed and same are told apart, and changed lists its fields", () => {
+    const d = diffSketches([area("a"), area("b"), area("c")], [area("a"), area("b", { level: "auto", risk: "high" }), area("d")]);
+    expect(d.map((c) => [c.name, c.kind])).toEqual([["a", "same"], ["b", "changed"], ["d", "added"], ["c", "removed"]]);
+    const b = d[1]!;
+    expect(b.kind === "changed" && b.fields.map((f) => [f.field, f.before, f.after])).toEqual([["level", "Propose", "Auto-land"], ["risk", "low", "high"]]);
+    expect(changedCount(d)).toBe(3);
+  });
+  test("identical maps have no changes", () => {
+    fc.assert(fc.property(fc.array(fc.constantFrom("a", "b", "c"), { maxLength: 3 }), (names) => {
+      const maps = [...new Set(names)].map((n) => area(n));
+      expect(changedCount(diffSketches(maps, maps))).toBe(0);
+    }));
+  });
+});

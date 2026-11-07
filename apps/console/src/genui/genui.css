@@ -1,0 +1,14 @@
+/* Layout only. */
+.gu-stack { display: grid; gap: .9rem; }
+.gu-group { border: 0; margin: 0; padding: 0; display: grid; gap: .5rem; min-width: 0; }
+.gu-group > legend { padding: 0; font-weight: 600; margin-bottom: .25rem; }
+.gu-row { display: flex; gap: .4rem; align-items: center; min-width: 0; }
+.gu-row > input { flex: 1; min-width: 0; }
+.gu-matrix-row { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; }
+.gu-checks { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.gu-check { display: inline-flex; gap: .4rem; align-items: center; }
+.gu-add, .gu-icon { justify-self: start; cursor: pointer; background: none; border: 0; padding: .1rem .3rem; text-decoration: underline; }
+.gu-icon { text-decoration: none; font-size: 1.2rem; }
+.gu-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.gu-diff { display: grid; gap: .4rem; }
+.gu-note p { margin: 0; }

@@ -11,10 +11,10 @@ import {
 } from "../api.ts";
 import { filterEntries, summarize } from "../lib/usage.ts";
 import { hasBlocking } from "../lib/warnings.ts";
-import { FORM_PREFIX } from "../genui/form-message.ts";
+import { FORM_PREFIX, MAP_PREFIX } from "../lib/protocol.ts";
 import { areaFormSpec, checkpointFormSpec } from "./specs.ts";
 import { makeRuns, type RunBundle } from "./runs.ts";
-import { MAP_PREFIX, replaceAreas, sketchesOf } from "./sketch.ts";
+import { replaceAreas, sketchesOf } from "./sketch.ts";
 import { lintAutonomy, readAreaForm, upsertArea, type AreaForm } from "./autonomy.ts";
 import {
   emptyDraft, fakeDigest, makeActivity, makeDocs, makeEvents, makeInbox, makeTrails, makeUsage, ME, STORY_NOW,
@@ -30,6 +30,8 @@ export type FakeOptions = {
   fail?: Partial<Record<keyof ConsoleApi, Error>>;
   /** Trail ids whose open checkpoint is stale: a decision on them answers 409. */
   staleTrails?: readonly string[];
+  /** Trail ids that moved after their inbox item was made: the card is stale on arrival, and a reload re-binds it. */
+  movedTrails?: readonly string[];
   /** When false, writes by this principal answer 403. */
   approver?: boolean;
   velumUnavailable?: boolean;
@@ -60,6 +62,8 @@ export class FakeApi implements ConsoleApi {
   private ops = new Map<string, unknown>();
   private runBundles: RunBundle[];
   private released = new Map<string, number>();
+  private refreshed = new Set<string>();
+  private inboxReads = 0;
   private tick = 0;
   private counter = 0;
   /** Every write that reached the fake, for tests: [method, args]. */
@@ -75,6 +79,10 @@ export class FakeApi implements ConsoleApi {
     this.runBundles = empty ? [] : makeRuns(this.trails, this.now);
     for (const t of this.trails) this.events.set(t.id, makeEvents(t, this.now));
     if (!empty) this.seedDrafts(options.seedConversation !== false);
+    for (const id of options.movedTrails ?? []) {
+      const t = this.trails.find((x) => x.id === id);
+      if (t) { t.rev += 1; t.head = fakeDigest(`moved-${id}`).slice(0, 40); }
+    }
   }
 
   // ── plumbing ──
@@ -128,7 +136,18 @@ export class FakeApi implements ConsoleApi {
     return structuredClone({ entries: rows.slice(start, next), ...(next < rows.length ? { cursor: String(next) } : {}) });
   }
 
-  async inbox() { await this.gate("inbox"); return structuredClone(this.inboxItems); }
+  async inbox() {
+    await this.gate("inbox");
+    this.inboxReads += 1;
+    if (this.inboxReads > 1) for (const id of this.options.movedTrails ?? []) this.rebind(id);
+    return structuredClone(this.inboxItems);
+  }
+
+  private rebind(trailId: string): void {
+    const t = this.trails.find((x) => x.id === trailId);
+    if (!t) return;
+    this.inboxItems = this.inboxItems.map((i) => (i.trailId === trailId ? { ...i, bound: { ...i.bound, rev: t.rev, ...(t.head ? { head: t.head } : {}) } } : i));
+  }
 
   private bundle(id: string): RunBundle {
     const b = this.runBundles.find((x) => x.run.id === id);
@@ -215,7 +234,10 @@ export class FakeApi implements ConsoleApi {
     return this.once(op, () => {
       const trail = this.trails.find((t) => t.id === trailId);
       if (!trail) throw new ApiError(404, "not found");
-      if (this.options.staleTrails?.includes(trailId)) throw new ApiError(409, "approval is stale");
+      if (this.options.staleTrails?.includes(trailId) && !this.refreshed.has(trailId)) {
+        this.refreshBinding(trail);
+        throw new ApiError(409, "approval is stale");
+      }
       this.writes.push(["decide", { trailId, ...input }]);
       const decision = { by: "human" as const, who: ME, at: this.stamp(), verdict: input.verdict, ...(input.note ? { note: input.note } : {}) };
       if (input.checkpoint === "spend") {
@@ -342,6 +364,14 @@ export class FakeApi implements ConsoleApi {
   }
 
   // ── internals ──
+  /** Model a trail that moved after the inbox item was made: a new head and revision, so a reload shows a fresh binding. */
+  private refreshBinding(trail: Trail): void {
+    this.refreshed.add(trail.id);
+    trail.rev += 1;
+    trail.head = fakeDigest(`head-${trail.id}-${trail.rev}`).slice(0, 40);
+    this.rebind(trail.id);
+  }
+
   /** For makeActivityFor. */
   snapshot() { return { trails: this.trails, now: this.now, empty: this.options.empty === true }; }
 

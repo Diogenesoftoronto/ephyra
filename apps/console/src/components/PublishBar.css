@@ -1,0 +1,5 @@
+.publish, .publish-conflict, .publish-confirm { display: grid; gap: .6rem; justify-items: start; }
+.publish-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.publish-facts { display: grid; gap: .5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0 0 .75rem; }
+.publish-facts dt { font-size: .82rem; color: var(--muted); }
+.publish-facts dd { margin: 0; overflow-wrap: anywhere; }

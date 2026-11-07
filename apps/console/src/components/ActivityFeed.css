@@ -1,0 +1,6 @@
+.activity-feed { display: grid; gap: .25rem; }
+.activity-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .75rem; align-items: center; padding: .5rem 0; }
+.activity-noface { width: 32px; height: 32px; }
+.activity-main { min-width: 0; }
+.activity-meta { display: flex; flex-wrap: wrap; gap: .25rem .75rem; font-size: .85rem; }
+@media (max-width: 480px) { .activity-row { grid-template-columns: auto minmax(0, 1fr); } .activity-row > :last-child { grid-column: 2; justify-self: start; } }

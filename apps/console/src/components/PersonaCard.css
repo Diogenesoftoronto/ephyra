@@ -1,0 +1,9 @@
+.persona-card { display: grid; gap: .75rem; align-content: start; }
+.persona-head { display: flex; gap: 1rem; align-items: center; }
+.persona-name { margin: 0; }
+.persona-namesake { margin: 0; font-size: .9rem; }
+.persona-does { display: flex; flex-wrap: wrap; gap: .4rem .75rem; margin: 0; }
+.persona-recent { display: grid; gap: .5rem; }
+.persona-recent li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .6rem; align-items: baseline; }
+.persona-recent li > .muted { grid-column: 2; font-size: .85rem; }
+.persona-spend { margin: 0; }

@@ -1,0 +1,9 @@
+.cp-decided { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.cp-note { margin-top: .5rem; overflow-wrap: anywhere; }
+.cp-summary { margin-bottom: .75rem; overflow-wrap: anywhere; }
+.cp-bound { display: grid; gap: .5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); margin: 0 0 .75rem; }
+.cp-bound dt { font-size: .82rem; }
+.cp-bound dd { margin: 0; }
+.cp-stale { display: grid; gap: .4rem; justify-items: start; margin-bottom: .75rem; }
+.cp-error { margin-bottom: .75rem; }
+.cp-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }

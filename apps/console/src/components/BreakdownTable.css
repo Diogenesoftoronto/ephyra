@@ -1,0 +1,2 @@
+.breakdown-pick { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.breakdown-spend { display: grid; gap: .25rem; min-width: 8rem; }

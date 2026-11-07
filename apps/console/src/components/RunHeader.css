@@ -1,0 +1,3 @@
+.run-header { display: grid; gap: .6rem; }
+.run-header-who, .run-header-status, .run-header-links { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; }
+.run-header-usage, .run-header-error { margin: 0; overflow-wrap: anywhere; }

@@ -1,0 +1,6 @@
+.draft-back { margin: 0; }
+.draft-layout { display: grid; gap: 1.25rem; align-items: start; min-width: 0; }
+.draft-layout[data-wide="true"] { grid-template-columns: minmax(0, 1.2fr) minmax(22rem, 1fr); }
+.draft-main { min-width: 0; }
+.draft-chat { position: sticky; top: 1rem; min-width: 0; }
+.draft-map-actions { display: flex; flex-wrap: wrap; gap: .5rem; }

@@ -1,0 +1,7 @@
+.mapdiff { display: grid; gap: .75rem; }
+.mapdiff-item { display: grid; gap: .3rem; padding-left: .75rem; border-left: 3px solid var(--line); }
+.mapdiff-head { display: flex; gap: .5rem; align-items: center; }
+.mapdiff-fields { display: grid; gap: .25rem; margin: 0; }
+.mapdiff-fields dt { font-size: .82rem; color: var(--muted); }
+.mapdiff-fields dd { margin: 0; overflow-wrap: anywhere; }
+.mapdiff-before { text-decoration: line-through; }

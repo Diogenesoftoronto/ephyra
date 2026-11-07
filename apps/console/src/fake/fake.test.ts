@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ActivityItem, Draft, PolicyDoc, Trail, TrailEvent, UsageEntry, UsageSummary } from "@ephyra/core";
 import { z } from "zod";
 import { ApiError, InboxItemSchema } from "../api.ts";
-import { formMessage } from "../genui/form-message.ts";
+import { formMessage } from "../lib/protocol.ts";
 import { readSpec } from "../genui/spec.ts";
 import { FakeApi } from "./api.ts";
 import { STORY_NOW, makeTrails } from "./fixtures.ts";
