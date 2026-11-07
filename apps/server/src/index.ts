@@ -5,3 +5,5 @@ export * from "./config.ts";
 export * from "./db/migrate.ts";
 export * from "./db/pg-operation-ledger.ts";
 export * from "./db/pg-signal-store.ts";
+export * from "./http/app.ts";
+export * from "./http/auth.ts";
