@@ -3,7 +3,14 @@
 .devenv
 .direnv
 **/node_modules
-site
+# The web image copies only the published cuts; drafts and source media stay out.
+site/*
+!site/index.html
+!site/main.js
+!site/styles.css
+!site/assets
+!site/b
+!site/c
 research
 design
 .env

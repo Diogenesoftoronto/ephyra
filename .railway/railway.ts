@@ -35,5 +35,24 @@ export default defineRailway(() => {
     },
   });
 
-  return project("ephyra", { resources: [db, journal, server] });
+  // Public site: landing, journal (Standard.site on AT Protocol), pricing, legal, robots/sitemap/llms.txt.
+  const web = service("web", {
+    build: { builder: "DOCKERFILE", dockerfilePath: "infra/docker/Dockerfile.web" },
+    healthcheck: "/healthz",
+    healthcheckTimeout: 30,
+    replicas: { [region]: 1 },
+    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
+    networking: { serviceDomains: { web: { port: 3000 } } },
+    env: {
+      PORT: "3000",
+      // Renamed from the generated web-production-a088f domain. The journal's publication record must name this origin.
+      EPHYRA_SITE_ORIGIN: "https://ephyra-site.up.railway.app",
+      EPHYRA_HOME_CUT: "",
+      // Standard.site publication on the Ephyra PDS identity (ephyra.pds.notorganic.info).
+      EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
+      EPHYRA_API_ORIGIN: "https://server-production-932f.up.railway.app",
+    },
+  });
+
+  return project("ephyra", { resources: [db, journal, server, web] });
 });
