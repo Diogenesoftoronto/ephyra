@@ -12,3 +12,6 @@ dist/
 site/_sources/
 # lockfile is regenerated at integration time while parallel lanes run
 bun.lock
+
+# per-lane git worktrees used during parallel builds
+.lanes/
