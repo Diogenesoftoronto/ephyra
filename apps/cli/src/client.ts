@@ -1,4 +1,9 @@
-import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
+import {
+	shortId,
+	type InboxItem,
+	type Trail,
+	type TrailEvent,
+} from "@ephyra/core";
 
 export class ApiError extends Error {
 	constructor(readonly status: number) {
@@ -26,13 +31,23 @@ export class Client {
 			headers["Content-Type"] = "application/json";
 			headers["Idempotency-Key"] = crypto.randomUUID();
 		}
-		const res = await this.fetcher(new URL(path, this.url), {
-			method: body === undefined ? "GET" : "POST",
-			headers,
-			...(body === undefined ? {} : { body: JSON.stringify(body) }),
-		});
+		let res: Response;
+		try {
+			res = await this.fetcher(new URL(path, this.url), {
+				method: body === undefined ? "GET" : "POST",
+				headers,
+				...(body === undefined ? {} : { body: JSON.stringify(body) }),
+			});
+		} catch {
+			throw new Error(
+				body === undefined
+					? "API connection failed"
+					: "API write outcome unknown; reconcile before retrying",
+			);
+		}
 		if (!res.ok) throw new ApiError(res.status);
-		return (await res.json()) as T;
+		const text = await res.text();
+		return (text ? JSON.parse(text) : null) as T;
 	}
 	health() {
 		return this.request<unknown>("/healthz");
@@ -45,7 +60,17 @@ export class Client {
 			`/v1/trails${state ? `?state=${encodeURIComponent(state)}` : ""}`,
 		);
 	}
-	show(id: string) {
+	async show(id: string) {
+		if (/^T-/i.test(id)) {
+			const matches = (await this.trails()).filter(
+				(t) => shortId(t.id).toLowerCase() === id.toLowerCase(),
+			);
+			if (matches.length !== 1)
+				throw new Error(
+					matches.length ? "Ambiguous short ID" : "Trail not found",
+				);
+			id = matches[0]!.id;
+		}
 		return this.request<Detail>(`/v1/trails/${encodeURIComponent(id)}`);
 	}
 	action(id: string, action: string, body: unknown = {}) {

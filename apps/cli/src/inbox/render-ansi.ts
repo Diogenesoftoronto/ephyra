@@ -12,8 +12,8 @@ export function renderInbox(
 		"",
 		...state.items.flatMap((i, n) => [
 			`${n === state.selected ? ">" : " "} ${i.short}  sev ${i.severity}  ${i.area}  ${i.risk}  ` +
-            `${i.checkpoint ?? i.kind}  ${i.blocking ? "blocking" : "advisory"}` +
-            `${i.shadowVerdict === "approve" ? "  would auto-approve" : ""}`,
+				`${i.checkpoint ?? i.kind}  ${i.blocking ? "blocking" : "advisory"}` +
+				`${i.shadowVerdict === "approve" ? "  would auto-approve" : ""}`,
 			`  ${i.title}: ${i.artefact.summary}`,
 		]),
 		...(state.error ? [`Error: ${state.error}`] : []),

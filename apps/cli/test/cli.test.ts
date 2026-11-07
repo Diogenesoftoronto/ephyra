@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import fc from "fast-check";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -46,16 +46,24 @@ test("navigation and empty", () => {
 });
 test("random sequences retain bounds", () =>
 	fc.assert(
-		fc.property(fc.array(fc.string({ maxLength: 2 })), (keys) => {
-			let s = state;
-			for (const key of keys) {
-				const result = inboxReducer(s, key);
-				if (result.command) expect(s.items[s.selected]).toBeDefined();
-				s = result.state;
-				expect(s.selected).toBeGreaterThanOrEqual(0);
-				expect(s.selected).toBeLessThan(s.items.length);
-			}
-		}),
+		fc.property(
+			fc.array(
+				fc.oneof(
+					fc.string({ maxLength: 2 }),
+					fc.constantFrom(..."jkarxctpole", "return", "escape", "backspace"),
+				),
+			),
+			(keys) => {
+				let s = state;
+				for (const key of keys) {
+					const result = inboxReducer(s, key);
+					if (result.command) expect(s.items[s.selected]).toBeDefined();
+					s = result.state;
+					expect(s.selected).toBeGreaterThanOrEqual(0);
+					expect(s.selected).toBeLessThan(s.items.length);
+				}
+			},
+		),
 	));
 test("client uses bearer and typed paths", async () => {
 	const calls: any[] = [];
@@ -82,7 +90,12 @@ test("init preserves files and refspecs", async () => {
 			{ cwd: dir },
 		);
 		await init(dir);
+		await writeFile(join(dir, "ephyra/autonomy.md"), "custom");
 		await init(dir);
+		expect(await readFile(join(dir, "ephyra/autonomy.md"), "utf8")).toBe(
+			"custom",
+		);
+		await init(dir, "origin", true);
 		expect(await readFile(join(dir, "ephyra/autonomy.md"), "utf8")).toContain(
 			"mode: shadow",
 		);
@@ -93,7 +106,17 @@ test("init preserves files and refspecs", async () => {
 			.stdout.toString()
 			.trim()
 			.split("\n");
-		expect(config).toHaveLength(1);
+		expect(config).toEqual(["+refs/ephyra/*:refs/ephyra/*"]);
+		const fetchSpecs = Bun.spawnSync(
+			["git", "config", "--get-all", "remote.origin.fetch"],
+			{ cwd: dir },
+		)
+			.stdout.toString()
+			.trim()
+			.split("\n");
+		expect(
+			fetchSpecs.filter((spec) => spec === "+refs/ephyra/*:refs/ephyra/*"),
+		).toHaveLength(1);
 	} finally {
 		await rm(dir, { recursive: true, force: true });
 	}

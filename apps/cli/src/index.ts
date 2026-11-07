@@ -3,3 +3,4 @@ export * from "./inbox/reducer";
 export * from "./inbox/render-ansi";
 export * from "./init";
 export * from "./inbox/run";
+export * from "./commands/cli";
