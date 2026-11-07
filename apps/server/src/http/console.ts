@@ -3,7 +3,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { ActivityItem, AgentRun, AgentRunEvent, AreaSketch, Draft, PERSONAS, PersonaId, PolicyDoc, UsageEntry, UsageSummary, type Trail } from "@ephyra/core";
-import { BadCursor, DAY_MS, DEFAULT_WINDOW_DAYS, MAX_WINDOW_DAYS, pageEntries, summarizeUsage, type TrailInfo, type UsageFilter, type UsageStore } from "../usage.ts";
+import { BadCursor, DAY_MS, DEFAULT_WINDOW_DAYS, MAX_WINDOW_DAYS, pageEntries, summarizeUsage, type TrailInfo, type UsageFilter,
+  type UsageStore } from "../usage.ts";
 import { DraftError, type DraftService } from "../drafts.ts";
 import type { PolicyDocs } from "../docs.ts";
 import type { RunBroker, RunStore } from "../runs.ts";
@@ -113,7 +114,8 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
     const status = c.req.query("status");
     if (status !== undefined && !(RUN_STATUSES as readonly string[]).includes(status)) throw new BadQuery("unknown status");
     const trail = c.req.query("trail");
-    const runs = await port.runs.list({ limit: int(c.req.query("limit"), 50, 1, 200), ...(trail ? { trail } : {}), ...(status ? { status: status as AgentRun["status"] } : {}) });
+    const runs = await port.runs.list({ limit: int(c.req.query("limit"), 50, 1, 200), ...(trail ? { trail } : {}),
+      ...(status ? { status: status as AgentRun["status"] } : {}) });
     return c.json(z.array(AgentRun).parse(runs));
   });
   app.get("/v1/runs/:id", async (c) => {
@@ -158,7 +160,7 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
 
   app.post("/v1/drafts", async (c) => {
     const { path } = await body(c, z.object({ path: z.string().min(1).max(200) }));
-    return c.json(out(await port.drafts.create(path, c.get("principal"))), 201);
+    return c.json(out(await port.drafts.create(path, c.get("principal"))));
   });
   app.get("/v1/drafts", async (c) => {
     const status = c.req.query("status");

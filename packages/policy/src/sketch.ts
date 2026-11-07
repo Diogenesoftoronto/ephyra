@@ -26,7 +26,9 @@ export function effectiveLevel(sketch: Pick<AreaSketch, "level" | "risk">): Auto
 export function sketchIssues(sketch: AreaSketch): { errors: string[]; notes: string[] } {
   const errors: string[] = [];
   const notes: string[] = [];
-  for (const p of sketch.paths) if (!p.trim() || /[,\r\n]/.test(p)) errors.push(`${sketch.name}: path "${p.slice(0, 40)}" is empty or contains a comma or newline`);
+  for (const p of sketch.paths) {
+    if (!p.trim() || /[,\r\n]/.test(p)) errors.push(`${sketch.name}: path "${p.slice(0, 40)}" is empty or contains a comma or newline`);
+  }
   if (sketch.level !== effectiveLevel(sketch)) notes.push(`${sketch.name}: critical areas never auto-land, so the level is applied as Patch`);
   return { errors, notes };
 }

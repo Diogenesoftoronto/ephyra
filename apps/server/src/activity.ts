@@ -92,7 +92,8 @@ export async function activity(deps: ActivityDeps, limit: number): Promise<Activ
     const w = entry.checkpoint ? WAITING_ON[entry.checkpoint] : null;
     items.push({
       id: `inbox:${entry.id}`, at: entry.createdAt, persona: w?.persona ?? null, status: "waiting", trailId: entry.trailId, short: entry.short, engine: null,
-      summary: entry.kind === "spend" ? `Waiting for you to approve spend on ${entry.short}` : `Waiting for you to review ${w?.what ?? "a checkpoint"} for ${entry.short}`,
+      summary: entry.kind === "spend" ? `Waiting for you to approve spend on ${entry.short}`
+        : `Waiting for you to review ${w?.what ?? "a checkpoint"} for ${entry.short}`,
     });
   }
 

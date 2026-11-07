@@ -50,7 +50,8 @@ const URL_RE = /https:\/\/[^\s"'<>)\]]+/;
 const asksForPortal = (name: string, args: string) => /shell|bash|command/i.test(name) && /orb\s+portal|--portal/.test(args);
 
 /** Claude Code `--output-format stream-json` and Amp `--stream-json`. */
-export function claudeStreamNormalizer(options: Pick<AgentRunOptions, "onExecutor" | "secrets"> & { threadUrl?: (id: string) => string | undefined } = {}): StreamNormalizer {
+export function claudeStreamNormalizer(options: Pick<AgentRunOptions,
+  "onExecutor" | "secrets"> & { threadUrl?: (id: string) => string | undefined } = {}): StreamNormalizer {
   const secrets = options.secrets ?? [];
   const tools = new Map<string, { name: string; portal: boolean }>();
   return {
@@ -109,19 +110,24 @@ export function codexNormalizer(options: Pick<AgentRunOptions, "secrets"> = {}):
   const started = new Set<string>();
   const call = (item: Json): RunEventDraft | null => {
     const callId = String(item.id ?? "");
-    if (item.type === "command_execution") return { type: "tool_call", tool: { callId, name: "shell", args: clip(stringify({ command: item.command }), LIMITS.args, secrets) } };
+    if (item.type === "command_execution") return { type: "tool_call", tool: { callId, name: "shell", args: clip(stringify({ command: item.command }),
+      LIMITS.args, secrets) } };
     if (item.type === "mcp_tool_call") {
-      return { type: "tool_call", tool: { callId, name: `${item.server ?? "mcp"}.${item.tool ?? "tool"}`, args: clip(stringify(item.arguments ?? {}), LIMITS.args, secrets) } };
+      return { type: "tool_call", tool: { callId, name: `${item.server ?? "mcp"}.${item.tool ?? "tool"}`, args: clip(stringify(item.arguments ?? {}),
+        LIMITS.args, secrets) } };
     }
-    if (item.type === "file_change") return { type: "tool_call", tool: { callId, name: "apply_patch", args: clip(stringify(item.changes ?? []), LIMITS.args, secrets) } };
-    if (item.type === "web_search") return { type: "tool_call", tool: { callId, name: "web_search", args: clip(stringify({ query: item.query }), LIMITS.args, secrets) } };
+    if (item.type === "file_change") return { type: "tool_call", tool: { callId, name: "apply_patch", args: clip(stringify(item.changes ?? []), LIMITS.args,
+      secrets) } };
+    if (item.type === "web_search") return { type: "tool_call", tool: { callId, name: "web_search", args: clip(stringify({ query: item.query }), LIMITS.args,
+      secrets) } };
     return null;
   };
   const result = (item: Json): RunEventDraft | null => {
     const callId = String(item.id ?? "");
     if (item.type === "command_execution") {
       const failed = item.status === "failed" || (typeof item.exit_code === "number" && item.exit_code !== 0);
-      return { type: "tool_result", tool: { callId, name: "shell", result: clip(String(item.aggregated_output ?? ""), LIMITS.result, secrets), ...(failed ? { isError: true } : {}) } };
+      return { type: "tool_result", tool: { callId, name: "shell", result: clip(String(item.aggregated_output ?? ""), LIMITS.result, secrets),
+        ...(failed ? { isError: true } : {}) } };
     }
     if (item.type === "mcp_tool_call") {
       const failed = item.status === "failed" || Boolean(item.error);
@@ -130,7 +136,8 @@ export function codexNormalizer(options: Pick<AgentRunOptions, "secrets"> = {}):
     }
     if (item.type === "file_change") {
       const failed = item.status === "failed";
-      return { type: "tool_result", tool: { callId, name: "apply_patch", result: clip(failed ? "The patch failed" : "Applied", LIMITS.result, secrets), ...(failed ? { isError: true } : {}) } };
+      return { type: "tool_result", tool: { callId, name: "apply_patch", result: clip(failed ? "The patch failed" : "Applied", LIMITS.result, secrets),
+        ...(failed ? { isError: true } : {}) } };
     }
     if (item.type === "web_search") return { type: "tool_result", tool: { callId, name: "web_search", result: "Done" } };
     return null;
@@ -149,7 +156,8 @@ export function codexNormalizer(options: Pick<AgentRunOptions, "secrets"> = {}):
         }
         case "item.completed": {
           if (!item) return [];
-          if (item.type === "agent_message" && String(item.text ?? "").trim()) return [{ type: "message", text: clip(String(item.text), LIMITS.text, secrets) }];
+          if (item.type === "agent_message" && String(item.text ?? "").trim()) return [{ type: "message", text: clip(String(item.text), LIMITS.text,
+            secrets) }];
           if (item.type === "reasoning" && String(item.text ?? "").trim()) return [{ type: "reasoning", text: clip(String(item.text), LIMITS.text, secrets) }];
           const out: RunEventDraft[] = [];
           if (!started.has(String(item.id))) { const c = call(item); if (c) out.push(c); }

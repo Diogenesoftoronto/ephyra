@@ -22,7 +22,8 @@ function parseOutput(provider: "claude" | "codex", stdout: string, model: string
   } catch {
     throw new Unverified("agent JSON output");
   }
-  const completion = provider === "claude" ? (stream ? events.find(event => event.type === "result") : events[0]) : events.find(event => event.type === "turn.completed");
+  const completion = provider === "codex" ? events.find(event => event.type === "turn.completed")
+    : stream ? events.find(event => event.type === "result") : events[0];
   const usage = completion?.usage;
   if (!usage || typeof usage.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
     throw new Unverified("agent usage");
@@ -56,7 +57,8 @@ abstract class CliAgent implements CodingAgent {
       ? new LineFeed(this.provider === "codex" ? codexNormalizer(opts.secrets ? { secrets: opts.secrets } : {})
         : claudeStreamNormalizer(opts.secrets ? { secrets: opts.secrets } : {}), opts.onEvent)
       : null;
-    const run = await execute(runner, handle, cliCommand(this.provider, this.model, task, stream), remaining(), undefined, feed ? (c) => feed.write(c) : undefined);
+    const run = await execute(runner, handle, cliCommand(this.provider, this.model, task, stream), remaining(), undefined,
+      feed ? (c) => feed.write(c) : undefined);
     await feed?.finish();
     if (run.exit !== 0) throw new Unverified("agent CLI failure");
     const usage = parseOutput(this.provider, run.stdout, this.model, stream);

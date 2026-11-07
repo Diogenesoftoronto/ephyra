@@ -119,7 +119,8 @@ export class RunBroker {
     return new Promise((resolve) => {
       const set = this.waiters.get(runId) ?? new Set();
       this.waiters.set(runId, set);
-      const done = () => { clearTimeout(timer); set.delete(done); if (!set.size) this.waiters.delete(runId); signal?.removeEventListener("abort", done); resolve(); };
+      const done = () => { clearTimeout(timer); set.delete(done); if (!set.size) this.waiters.delete(runId); signal?.removeEventListener("abort",
+        done); resolve(); };
       const timer = setTimeout(done, ms);
       set.add(done);
       signal?.addEventListener("abort", done, { once: true });
@@ -136,7 +137,8 @@ export type RunHandle = {
   /** Details that become known mid-run: orb/sandbox id, Amp thread URL, portal URL. */
   executor(patch: Partial<AgentRun["executor"]>): void;
   /** Flush buffered events and close the run. */
-  finish(end: { status: Exclude<AgentRun["status"], "running">; engine?: string; usage?: { tokens: number | null; costMicrousd: number | null }; error?: string }): Promise<void>;
+  finish(end: { status: Exclude<AgentRun["status"],
+    "running">; engine?: string; usage?: { tokens: number | null; costMicrousd: number | null }; error?: string }): Promise<void>;
 };
 
 const FLUSH_MS = 250;

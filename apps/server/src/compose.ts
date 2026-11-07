@@ -54,6 +54,8 @@ export type Composed = {
   mode: "memory" | "convex";
   ctx: ServerContext;
   usage: UsageStore;
+  /** Audit entries written in memory mode (empty with Convex, whose log is read through its own query). */
+  memoryAudit: MemoryAudit;
   runs: RunStore;
   runBroker: RunBroker;
   drafts: DraftService;
@@ -372,12 +374,14 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   if (opts.startJobs !== false) {
     await store.recoverRunning?.();
     // A run still "running" belongs to a server that is gone (its job was just re-queued): close it rather than show it live forever.
-    await runStore.closeRunning("the server restarted while this run was in progress", new Date()).catch((e) => log("closing orphaned runs failed", { error: String(e) }));
+    await runStore.closeRunning("the server restarted while this run was in progress", new Date()).catch((e) => log("closing orphaned runs failed",
+      { error: String(e) }));
     jobs.start();
   }
   log("composed", {
     mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id,
     signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
-  return { app, decide, signIn, mode, ctx, usage: usageStore, runs: runStore, runBroker, drafts, draftModel, engine, jobs, health, close: async () => { jobs.stop(); } };
+  return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel, engine, jobs, health,
+    close: async () => { jobs.stop(); } };
 }
