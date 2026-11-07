@@ -74,3 +74,36 @@ test("client errors and ambiguous timeout propagate", async () => {
   await expect(new TypeSafeDecide({ ...base, http: { fetch: abortable, timeoutMs: 1 } }).decide(question, opts))
     .rejects.toBeInstanceOf(ReconciliationRequired);
 });
+
+test("each transport rejects unexpected identities, maps errors, retries 429 and reconciles timeouts", async () => {
+  const pair = await keys();
+  for (const kind of ["notorganic-decide", "notorganic-extract", "typesafe", "selfhosted", "workers"] as const) {
+    const isExtract = kind === "notorganic-extract" || kind === "workers";
+    const invoke = async (fetcher: typeof fetch, expectedIdentities = ["other"]) => {
+      const http = { fetch: fetcher, timeoutMs: 5, sleep: async () => {} };
+      const common = { alias: "a", expectedIdentities, http };
+      const no = { ...common, endpoint: "https://api.test", keys: pair,
+        tokenProvider: { getAccessToken: async () => "token" }, purpose: "decide.triage" as const };
+      const so = { ...common, endpoint: "https://api.test", credential: "key", model: "m",
+        supports: ["noul"] as const, purpose: "decide.triage" as const };
+      if (kind === "notorganic-decide") return new NotOrganicDecide(no).decide(question, opts);
+      if (kind === "notorganic-extract") return new NotOrganicExtract({ ...no, purpose: "extract" }).extract(extract, opts);
+      if (kind === "typesafe") return new TypeSafeDecide(so).decide(question, opts);
+      if (kind === "selfhosted") return new SystemOneHttpDecide(so, "clef").decide(question, opts);
+      return new WorkersAiClairicExtract({ ...common, accountId: "a", credential: "key" }).extract(extract, opts);
+    };
+    const result = isExtract ? extraction : decision;
+    const body = kind === "workers" ? { success: true, result } : result;
+    await expect(invoke(fake(async () => Response.json(body)))).rejects.toBeInstanceOf(UnexpectedIdentity);
+    await expect(invoke(fake(async () => new Response(null, { status: 403 })))).rejects.toBeInstanceOf(HttpError);
+    await expect(invoke(fake(async (_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("timeout")));
+    })))).rejects.toBeInstanceOf(ReconciliationRequired);
+    let calls = 0;
+    await invoke(fake(async (_input, init) => {
+      expect(new Headers(init?.headers).get("idempotency-key")).toBe("op");
+      return ++calls === 1 ? new Response(null, { status: 429, headers: { "Retry-After": "0" } }) : Response.json(body);
+    }), [result.model]);
+    expect(calls).toBe(2);
+  }
+});
