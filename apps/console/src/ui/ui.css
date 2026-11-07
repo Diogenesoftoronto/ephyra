@@ -604,10 +604,14 @@ button.ui-row {
 }
 .ui-persona::before {
   content: "";
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 3px 3px 50% 50%;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  mask: var(--persona-mark) center / contain no-repeat;
   background: var(--persona-color);
+}
+.ui-persona--text::before {
+  display: none;
 }
 
 /* ───────── Button: gel only here ───────── */

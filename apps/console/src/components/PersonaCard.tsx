@@ -28,7 +28,9 @@ export function PersonaCard({
         <PersonaAvatar persona={persona.id} size={96} live={running} />
         <div>
           <h2 className="persona-name">
-            <PersonaTag persona={persona.id}>{persona.name}</PersonaTag>
+            <PersonaTag persona={persona.id} withMark={false}>
+              {persona.name}
+            </PersonaTag>
           </h2>
           <p>
             <strong>{persona.role}</strong>
