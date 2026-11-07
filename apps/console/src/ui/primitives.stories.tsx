@@ -47,7 +47,7 @@ export const Badges: S = {
       <Badge tone="ok">proof passed</Badge>
       <Badge tone="warn">2 warnings</Badge>
       <Badge tone="bad">failed</Badge>
-      <Badge tone="info">checkpoint B</Badge>
+      <Badge tone="info">Awaiting approval</Badge>
       <Status state="running" />
       <Status state="waiting" />
       <Status state="failed" />
@@ -75,7 +75,7 @@ export const Stats: S = {
 export const Cards: S = {
   render: () => (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-      <Card title="Cart total shows NaN" meta="T-7f3a2c · cart" actions={<Badge tone="info">B</Badge>}>
+      <Card title="Cart total shows NaN" meta="T-7f3a2c · cart" actions={<Checkpoint id="B" compact />}>
         <p>
           Nema reproduced it: a coupon with no amount makes <code>subtotal</code> undefined.
         </p>

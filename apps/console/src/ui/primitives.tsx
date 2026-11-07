@@ -218,13 +218,22 @@ export function PersonaTag({
   persona,
   children,
   className,
+  withMark = true,
 }: {
   persona: PersonaId;
   children?: ReactNode;
   className?: string;
+  /** Omit the small silhouette when an avatar already identifies the persona. */
+  withMark?: boolean;
 }) {
   return (
-    <span className={cx("ui-persona", className)} style={personaStyle(persona)}>
+    <span
+      className={cx("ui-persona", !withMark && "ui-persona--text", className)}
+      style={{
+        ...personaStyle(persona),
+        ["--persona-mark" as string]: `url("/app/personas/${persona}.svg")`,
+      }}
+    >
       {children ?? persona[0]!.toUpperCase() + persona.slice(1)}
     </span>
   );

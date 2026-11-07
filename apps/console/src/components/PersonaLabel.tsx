@@ -10,7 +10,9 @@ export function PersonaLabel({ persona, size = 24 }: { persona: PersonaId | null
   return (
     <span className="persona-label">
       <PersonaAvatar persona={persona} size={size} />
-      <PersonaTag persona={persona}>{p.name}</PersonaTag>
+      <PersonaTag persona={persona} withMark={false}>
+        {p.name}
+      </PersonaTag>
     </span>
   );
 }
