@@ -2,7 +2,7 @@ import { SQL } from "bun";
 
 /** Apply each migration atomically under an advisory lock. */
 export async function migrate(sql: SQL): Promise<void> {
-  const migrations = ["001_initial", "002_signal_occurrences"];
+  const migrations = ["001_initial", "002_signal_occurrences", "003_signal_batch_start"];
   await sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(60321453)`;
     await tx`CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY)`;

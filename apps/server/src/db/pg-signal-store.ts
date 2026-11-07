@@ -1,11 +1,11 @@
 import { SQL } from "bun";
-import { Signal, type SignalStore } from "@ephyra/core";
+import { Signal, Unverified, type SignalStore } from "@ephyra/core";
 
 function parseSignal(value: unknown): Signal {
   return Signal.parse(typeof value === "string" ? JSON.parse(value) : value);
 }
 
-/** Signal batches are counted at their lastSeen timestamp; individual timestamps are not inferred. */
+/** Batches spanning a query boundary cannot be counted exactly and are rejected. */
 export class PgSignalStore implements SignalStore {
   constructor(private readonly sql: SQL) {}
 
@@ -27,8 +27,8 @@ export class PgSignalStore implements SignalStore {
       } else {
         await tx`INSERT INTO signals (id, fingerprint, signal) VALUES (${valid.id}, ${valid.fingerprint}, ${JSON.stringify(valid)}::jsonb)`;
       }
-      await tx`INSERT INTO signal_occurrences (fingerprint, observed_at, count)
-        VALUES (${valid.fingerprint}, ${valid.lastSeen}, ${valid.count})`;
+      await tx`INSERT INTO signal_occurrences (fingerprint, observed_at, count, first_seen)
+        VALUES (${valid.fingerprint}, ${valid.lastSeen}, ${valid.count}, ${valid.firstSeen})`;
       return { signal: merged, isNew: !prior };
     });
   }
@@ -44,6 +44,9 @@ export class PgSignalStore implements SignalStore {
   }
 
   async countSince(fingerprint: string, since: Date): Promise<number> {
+    const gaps = await this.sql`SELECT 1 FROM signal_occurrences WHERE fingerprint = ${fingerprint}
+      AND observed_at >= ${since} AND (first_seen IS NULL OR first_seen < ${since}) LIMIT 1`;
+    if (gaps.length) throw new Unverified("signal count across a partially observed batch");
     const rows = await this.sql`SELECT coalesce(sum(count), 0)::text AS count FROM signal_occurrences
       WHERE fingerprint = ${fingerprint} AND observed_at >= ${since}`;
     return Number(rows[0]!.count);
