@@ -13,8 +13,13 @@ export class ParserExtract implements ExtractBackend {
     const answers: ExtractionResponse["answers"] = {};
     for (const [name, field] of Object.entries(req.fields)) {
       let matches: Array<{ value: string; span: [number, number] }> = [];
-      if (name === "exception_type" && exception) matches = [{ value: exception[0], span: [exception.index, exception.index + exception[0].length] }];
-      if (name === "top_app_frame" && app) { const i = app.index! + app[0].indexOf(app[1]!); matches = [{ value: app[1]!, span: [i, i + app[1]!.length] }]; }
+      if (name === "exception_type" && exception) {
+        matches = [{ value: exception[0], span: [exception.index, exception.index + exception[0].length] }];
+      }
+      if (name === "top_app_frame" && app) {
+        const i = app.index! + app[0].indexOf(app[1]!);
+        matches = [{ value: app[1]!, span: [i, i + app[1]!.length] }];
+      }
       if (name === "touched_files") matches = frames.map(m => {
         const i = m.index! + m[0].indexOf(m[1]!);
         return { value: m[1]!, span: [i, i + m[1]!.length] };
