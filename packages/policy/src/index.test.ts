@@ -248,7 +248,9 @@ test("triage decision table and offered candidate validation", () => {
 
 test("parser handles overrides, prose, and line-numbered errors", () => {
   const policy = parseAutonomy(
-    "## defaults\nmode: enforce\n## area: cart\npaths: src/**\nlanding: trail_ref + devenv_live\nwatch: 1h\ndecide: local\ncheckpoints: B=advisory C=blocking\nKeep this.\n\n## notes\nrisk: high\n",
+    "## defaults\nmode: enforce\n## area: cart\npaths: src/**\n" +
+      "landing: trail_ref + devenv_live\nwatch: 1h\ndecide: local\n" +
+      "checkpoints: B=advisory C=blocking\nKeep this.\n\n## notes\nrisk: high\n",
   );
   expect(policy.areas[0]).toMatchObject({
     landing: ["trail_ref", "devenv_live"],
