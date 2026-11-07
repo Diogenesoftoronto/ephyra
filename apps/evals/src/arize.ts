@@ -12,6 +12,11 @@ export const ax:Ax=async(args,stdin)=>{
   if(code!==0)throw new Error(clean(`ax ${args.slice(0,2).join(' ')} failed: ${stderr||stdout}`));
   return stdout;
 };
+/** AX UI routes from Arize-ai/arize-skills arize-link; IDs remain opaque. */
+export function arizeLinks(base:string,org:string,space:string,dataset:string,experiment?:string){
+  const root=`${base}/organizations/${encodeURIComponent(org)}/spaces/${encodeURIComponent(space)}/datasets/${encodeURIComponent(dataset)}`;
+  return {datasetUrl:root+'?selectedTab=examples',experimentUrl:experiment?root+'/experiments/compare?experimentId='+encodeURIComponent(experiment):null};
+}
 export function jsonFrom(text:string):any {const start=text.search(/[\[{]/);if(start<0)throw new Error('ax returned no JSON');return JSON.parse(text.slice(start));}
 function entries(value:any):any[]{if(Array.isArray(value))return value;for(const k of ['datasets','experiments','data','results'])if(Array.isArray(value[k]))return value[k];throw new Error('ax returned no list');}
 export function experimentRows(rows:CaseResult[],examples:Map<string,string>) {
@@ -75,17 +80,20 @@ export async function uploadRun(resultPath:string,runAx:Ax=ax){
   report.arize={state:'pending',datasets:[],experiments:[],traces:null};
   const save=()=>writeFile(resultPath,JSON.stringify(report,null,2)+'\n');await save();
   try{
+    const space=jsonFrom(await runAx(['spaces','get','kmannoel Space','-o','json']));
+    const profile=Bun.TOML.parse(await readFile(`${process.env.HOME}/.arize/profiles/default.toml`,'utf8')) as any;
+    const base=profile.routing?.region?`https://app.${profile.routing.region}.arize.com`:`https://${profile.routing?.app_host??'app.arize.com'}`;
     for(const identity of [...new Set((report.cases as CaseResult[]).map(r=>r.identity))]){
       const cases=(report.cases as CaseResult[]).filter(r=>r.identity===identity);
       const corpus=(report.corpus as Case[]).filter(r=>cases.some(c=>c.case_id===r.case_id));
-      const dataset=await ensureDataset(corpus,runAx);report.arize.datasets.push({id:dataset.id,name:dataset.name,url:dataset.url});await save();
+      const dataset=await ensureDataset(corpus,runAx);report.arize.datasets.push({id:dataset.id,name:dataset.name,url:arizeLinks(base,space.organization_id,space.id,dataset.id).datasetUrl});await save();
       const name=`ephyra-${report.suite}-${String(identity).replace(/[^a-zA-Z0-9_.-]/g,'_')}-${report.gitSha.slice(0,12)}-${report.runId}`;
       const flattened=experimentRows(cases,dataset.examples);
       const created=jsonFrom(await runAx(['experiments','create','--name',name,'--dataset',dataset.id,'--file','-','-o','json'],JSON.stringify(flattened.rows)));
       if(!created.id)throw new ReconciliationRequired(name,'experiment returned no id');
       const verified=entries(jsonFrom(await runAx(['experiments','list','--dataset',dataset.id,'--limit','100','-o','json']))).find(e=>e.id===created.id);
       if(!verified)throw new Error('experiment absent from list readback');
-      report.arize.experiments.push({...created,name,datasetId:dataset.id,labelOnly:flattened.labelOnly,verified:true});await save();
+      report.arize.experiments.push({...created,name,datasetId:dataset.id,labelOnly:flattened.labelOnly,url:arizeLinks(base,space.organization_id,space.id,dataset.id,created.id).experimentUrl,verified:true});await save();
     }
     const config=await arizeConfig();
     report.arize.traces=await sendTraces(new Uint8Array(await readFile(resultPath+'.otlp')),{...config,key:report.runId});
