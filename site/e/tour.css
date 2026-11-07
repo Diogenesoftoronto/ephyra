@@ -62,6 +62,9 @@ kbd {
   font: 600 .86em/1.25 var(--mono); text-align: center; vertical-align: .06em;
 }
 
+/* Anchored sections land below the fixed header. */
+.tour, .policy, .start { scroll-margin-top: var(--head-h); }
+
 /* ---------- the tour ---------- */
 .tour { padding-top: clamp(4.5rem, 14svh, 9rem); padding-bottom: clamp(3rem, 10svh, 7rem); }
 .tour-head { max-width: 46rem; margin-bottom: clamp(1.5rem, 5svh, 3.5rem); }

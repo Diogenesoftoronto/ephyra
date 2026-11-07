@@ -201,6 +201,18 @@
   addEventListener("resize", onResize);
   splitMQ.addEventListener("change", onResize);
 
+  // In-page links. The served home page has <base href="/e/">, which would send "#how" to /e/#how and reload;
+  // scroll instead, and put the fragment on the URL the reader is actually on.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const target = document.getElementById(a.getAttribute("href").slice(1));
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: motion() ? "smooth" : "auto", block: "start" });
+    history.replaceState(null, "", `${location.pathname}${location.search}#${target.id}`);
+  });
+
   // Clicking a step jumps to it.
   steps.forEach((s, i) => s.addEventListener("click", (e) => {
     if (!data || i === current || e.target.closest("a")) return;
