@@ -2,10 +2,14 @@
 // step with the coding agent, write artefacts into the journal, emit the next event, destroy the sandbox.
 // No sandbox is kept alive while a trail waits on a human.
 import { evaluateProof } from "@ephyra/policy";
+import { Unverified, personaFor } from "@ephyra/core";
+import { executorOf, runAgent, type ExecutorInfo } from "@ephyra/agent";
 import type {
   AgentStep, AgentTask, CodingAgent, ProofBundle, ProofItem, Runner, RunnerHandle, ServiceProfile, Signal, Trail,
 } from "@ephyra/core";
 import type { HandlerSlice, ServerContext } from "./context.ts";
+import type { BilledTo, UsageRecorder } from "../usage.ts";
+import type { RunHandle, RunRecorder } from "../runs.ts";
 
 export type BuildProofFn = (options: {
   runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string; probe: string;
@@ -19,6 +23,14 @@ export type AgentDeps = {
   buildProof: BuildProofFn;
   /** Wallclock per agent step. */
   stepTimeoutS: number;
+  /** Usage ledger. Without it nothing is recorded (tests that don't care). */
+  usage?: UsageRecorder;
+  /** Who pays for the coding agent: its CLI login ("local"), a provider key ("byok"), or unknown. */
+  agentBilledTo?: BilledTo;
+  /** Live run records for the console. Without it steps run exactly the same, just unobserved. */
+  runs?: RunRecorder;
+  /** Exact secret values to scrub from run events (on top of pattern-based redaction). */
+  secrets?: string[];
 };
 
 type StepPayload = { trailId: string; rev: number; step: AgentStep; note?: string };
@@ -81,11 +93,35 @@ async function withSandbox<T>(deps: AgentDeps, ctx: ServerContext, trail: Trail,
   }
 }
 
+/** Engine identity as the agent reported it, e.g. "claude-code/claude-opus-5-5". */
+function engineOf(agent: CodingAgent | null, model?: string): string {
+  if (!agent) return "none";
+  return !model || model === agent.name ? agent.name : `${agent.name}/${model}`;
+}
+
+/** Where the step executes: the agent's own executor when it has a remote one (Amp orb or runner), otherwise the runner it was given. */
+function executorFor(agent: CodingAgent, runner: Runner): ExecutorInfo {
+  const own = executorOf(agent);
+  if (own && own.kind !== "local") return own;
+  const kinds: Record<string, ExecutorInfo["kind"]> = { local: "local", notorganic: "notorganic", railway: "railway" };
+  const kind = kinds[runner.name];
+  return { ...(own ?? {}), ...(kind ? { kind } : { kind: "runner" as const, id: runner.name }) };
+}
+
 async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload, attempt: number): Promise<void> {
   const trail = await ctx.trails.get(payload.trailId);
   if (!trail || trail.rev !== payload.rev) return; // superseded; a newer effect owns the trail now
   const actor = { kind: "agent" as const, id: deps.agent?.name ?? "none" };
+  const started = Date.now();
+  const record = (outcome: "ok" | "failed" | "unavailable", extra: { engine?: string; tokens?: number | null; cost?: number | null; note?: string }) =>
+    deps.usage?.record({
+      idempotencyKey: `agent_step:${trail.id}:${trail.rev}:${payload.step}:${attempt}`, kind: "agent_step", persona: personaFor(payload.step),
+      step: payload.step, engine: extra.engine ?? engineOf(deps.agent), trailId: trail.id, short: trail.short, tokens: extra.tokens ?? null,
+      costMicrousd: extra.cost ?? null, wallMs: Date.now() - started, outcome, billedTo: deps.agentBilledTo ?? "unknown",
+      ...(extra.note ? { note: extra.note } : {}),
+    });
   if (!deps.agent || !deps.runner) {
+    await record("unavailable", { note: "no coding agent or runner configured on this deployment" });
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
       data: { step: payload.step, reason: "no coding agent or runner configured on this deployment", retryable: false } });
     return;
@@ -97,23 +133,40 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     budget: { tokens: trail.budget.tokensMax - trail.budget.tokensUsed, wallclockS: deps.stepTimeoutS },
   };
   let result;
+  const agent = deps.agent;
+  const run: RunHandle | undefined = await deps.runs?.start({
+    id: `${trail.id}.${trail.rev}.${payload.step}.${attempt}`, trailId: trail.id, short: trail.short, step: payload.step,
+    persona: personaFor(payload.step), engine: engineOf(agent), executor: executorFor(agent, deps.runner),
+  });
   try {
     result = await withSandbox(deps, ctx, trail, attempt, async (runner, handle) => {
-      const r = await deps.agent!.run(task, runner, handle);
+      if (run && executorFor(agent, runner).kind !== "local") run.executor({ id: handle.id });
+      const r = await runAgent(agent, task, runner, handle, {
+        ...(run ? { onEvent: run.event, onExecutor: run.executor } : {}), ...(deps.secrets ? { secrets: deps.secrets } : {}),
+      });
       if (r.ok && payload.step === "patch" && r.outputs.head) await publishHead(runner, handle, ctx, trail, r.outputs.head);
       return r;
     });
   } catch (error) {
+    // Output we could not verify (Unverified) is unavailable evidence, not an observed failure.
+    await record(error instanceof Unverified ? "unavailable" : "failed", { note: String(error) });
+    await run?.finish({ status: error instanceof Unverified ? "unavailable" : "failed", error: String(error) });
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
       data: { step: payload.step, reason: String(error).slice(0, 500), retryable: priorFailures < 2 } });
     return;
   }
+  const spent = { engine: engineOf(deps.agent, result.usage.model), tokens: result.usage.tokens, cost: result.usage.costMicrousd };
   // A failed turn's artefacts are not successful step evidence (e.g. Amp reauthentication).
   if (!result.ok) {
+    await record("failed", { ...spent, note: result.error ?? "coding agent returned an unsuccessful turn" });
+    await run?.finish({ status: "failed", engine: spent.engine, usage: { tokens: spent.tokens, costMicrousd: spent.cost },
+      error: result.error ?? "coding agent returned an unsuccessful turn" });
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
       data: { step: payload.step, reason: result.error ?? "coding agent returned an unsuccessful turn", retryable: false } });
     return;
   }
+  await record("ok", spent);
+  await run?.finish({ status: "done", engine: spent.engine, usage: { tokens: spent.tokens, costMicrousd: spent.cost } });
   // Link the agent's own thread (Amp) to the trail the first time we see it, so the inbox can open it.
   const thread = result.outputs.ampThread;
   if (thread && trail.mirrors.ampThread !== thread) {
@@ -165,6 +218,22 @@ function proofFlags(ctx: ServerContext, trail: Trail) {
 async function runProof(ctx: ServerContext, deps: AgentDeps, payload: ProofPayload, attempt: number): Promise<void> {
   const trail = await ctx.trails.get(payload.trailId);
   if (!trail || trail.rev !== payload.rev || !trail.head) return;
+  const started = Date.now();
+  const record = (outcome: "ok" | "failed" | "unavailable", note?: string) => deps.usage?.record({
+    idempotencyKey: `proof:${trail.id}:${trail.rev}:${attempt}`, kind: "proof", persona: personaFor("proof"), step: "proof",
+    engine: deps.runner?.name ?? "none", trailId: trail.id, short: trail.short, tokens: null, costMicrousd: null,
+    wallMs: Date.now() - started, outcome, billedTo: deps.runner?.name === "local" ? "local" : "unknown", ...(note ? { note } : {}),
+  });
+  try {
+    await proofRun(ctx, deps, payload, attempt, trail);
+  } catch (error) {
+    await record(error instanceof Unverified ? "unavailable" : "failed", String(error));
+    throw error;
+  }
+  await record("ok");
+}
+
+async function proofRun(ctx: ServerContext, deps: AgentDeps, _payload: ProofPayload, attempt: number, trail: Trail): Promise<void> {
   const events = await ctx.trails.events(trail.id);
   const repro = [...events].reverse().find((e) => e.type === "repro_completed" && e.data.ok);
   const probe = repro?.type === "repro_completed" ? repro.data.probe : undefined;

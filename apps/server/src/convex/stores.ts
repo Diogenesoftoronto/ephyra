@@ -6,7 +6,7 @@ import {
 } from "@ephyra/core";
 import { api } from "../../convex/_generated/api";
 import type { AuditEvent, AuditInput } from "../audit.ts";
-import type { JobRow, RuntimeStore, StoredInboxItem } from "../wiring/store.ts";
+import type { ActiveJob, JobRow, RuntimeStore, StoredInboxItem } from "../wiring/store.ts";
 
 export type ConvexConfig = { url: string; secret: string };
 
@@ -113,6 +113,13 @@ export class ConvexRuntimeStore implements RuntimeStore {
     await this.client.mutation(api.runtime.fail, { secret: this.secret, key, error, runAtMs: runAt.getTime(), dead });
   }
   async deadJobs() { return this.client.query(api.runtime.deadJobs, { secret: this.secret }); }
+  async activeJobs(): Promise<ActiveJob[]> {
+    const rows = await this.client.query(api.runtime.activeJobs, { secret: this.secret });
+    return rows.map((r) => ({
+      kind: r.kind, key: r.key, payload: JSON.parse(r.payload), status: r.status, runAt: new Date(r.runAtMs),
+      ...(r.startedMs != null && r.status === "running" ? { startedAt: new Date(r.startedMs) } : {}),
+    }));
+  }
   async recoverRunning() { return this.client.mutation(api.runtime.recoverRunning, { secret: this.secret }); }
 }
 

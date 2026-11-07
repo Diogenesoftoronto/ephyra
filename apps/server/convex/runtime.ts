@@ -115,8 +115,21 @@ export const claim = mutation({
     const due = await ctx.db.query("jobs")
       .withIndex("by_status_run_at", (q) => q.eq("status", "queued").lte("runAtMs", nowMs))
       .take(Math.max(0, Math.min(limit, 50)));
-    for (const job of due) await ctx.db.patch(job._id, { status: "running", attempts: job.attempts + 1 });
+    for (const job of due) await ctx.db.patch(job._id, { status: "running", attempts: job.attempts + 1, startedMs: nowMs });
     return due.map((j) => ({ key: j.key, kind: j.kind, payload: j.payload, runAtMs: j.runAtMs, attempts: j.attempts + 1 }));
+  },
+});
+
+/** Queued and running jobs, for the console's activity feed (bounded). */
+export const activeJobs = query({
+  args: { secret: v.string() },
+  handler: async (ctx, { secret }) => {
+    requireSecret(secret);
+    const rows = [];
+    for (const status of ["running", "queued"] as const) {
+      rows.push(...await ctx.db.query("jobs").withIndex("by_status_run_at", (q) => q.eq("status", status)).take(100));
+    }
+    return rows.map((j) => ({ key: j.key, kind: j.kind, payload: j.payload, status: j.status as "running" | "queued", runAtMs: j.runAtMs, startedMs: j.startedMs ?? null }));
   },
 });
 
