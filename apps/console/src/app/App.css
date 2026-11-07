@@ -14,7 +14,8 @@
   border: 1px solid var(--rule);
   border-radius: 50%;
   color: var(--ink);
-  background: var(--surface);
+  background: var(--surface-recessed);
+  box-shadow: var(--shadow-inset);
   font-weight: 600;
   flex: none;
 }

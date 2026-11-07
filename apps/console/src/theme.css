@@ -171,6 +171,26 @@
   --s7: 3rem;
 
   --rail-w: 13.5rem;
+  /* Menus and sheets sit above sticky navigation; dialogs use the native top layer. */
+  --z-sticky: 20;
+  --z-sheet: 30;
+  --z-dropdown: 40;
+  --z-dialog: 60;
+  --z-toast: 80;
+}
+
+:root,
+[data-theme] {
+  /* Layers derive from the paper/sea palette, including nested story themes. */
+  --surface-recessed: color-mix(in oklab, var(--bg) 62%, var(--surface));
+  --surface-hover: color-mix(in oklab, var(--ink) 4%, var(--surface));
+  --surface-pressed: color-mix(in oklab, var(--ink) 8%, var(--surface));
+  --jelly-tint: color-mix(in oklab, var(--jelly) 12%, var(--surface));
+  --control-border: color-mix(in oklab, var(--ink) 24%, transparent);
+  --control-border-hover: color-mix(in oklab, var(--ink) 42%, transparent);
+  --shadow-inset: inset 0 1px 2px oklch(0.12 0.02 250 / 0.07);
+  --shadow-surface: 0 1px 2px oklch(0.12 0.02 250 / 0.06);
+  --shadow-popover: 0 16px 40px -18px oklch(0.12 0.02 250 / 0.36), 0 2px 5px oklch(0.12 0.02 250 / 0.08);
 }
 
 *,
@@ -241,6 +261,15 @@ kbd {
   font-family: var(--font-mono);
   font-size: 0.92em;
 }
+dialog { z-index: var(--z-dialog); }
+[popover] { z-index: var(--z-dropdown); }
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled { cursor: not-allowed; }
+input[type="checkbox"],
+input[type="radio"] { accent-color: var(--jelly-deep); }
+::selection { background: var(--jelly-tint); color: var(--ink); }
 h1,
 h2,
 h3 {

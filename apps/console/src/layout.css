@@ -28,6 +28,7 @@
 .sb-frame:has(> .ui-shell) {
   padding: 0;
 }
+.stack > *, .stack-sm > *, .two-col > *, .page > * { min-width: 0; }
 .page {
   display: grid;
   gap: var(--s5);

@@ -220,12 +220,14 @@ export class ConsoleClient implements ConsoleApi {
     readonly token: string = "",
     readonly fetcher: typeof fetch = fetch,
     readonly principal?: string,
+    readonly workspaceId?: string,
   ) {}
 
   private authHeaders(): Record<string, string> {
     return {
       ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
       ...(this.principal ? { "X-Ephyra-Principal": this.principal } : {}),
+      ...(this.workspaceId ? { "X-Ephyra-Workspace": this.workspaceId } : {}),
     };
   }
 

@@ -7,6 +7,8 @@ const paths: Record<string, string> = {
   inbox: "M3 13l2.5-7h13L21 13M3 13v5h18v-5M3 13h5l1.5 2.5h5L16 13h5",
   runs: "M5 4v16M5 6c4-2 6 2 10 0s4-1 4-1v8s-1 1-4 1-6-2-10 0",
   workspace: "M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z",
+  settings: "M4 7h16M4 17h16M8 4v6M16 14v6",
+  onboarding: "M5 12l5 5L20 6",
   personas:
     "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19c.7-3 2.8-5 5.5-5s4.8 2 5.5 5M16 11a2.5 2.5 0 1 0 0-5M17.5 14c2 .4 3.4 2.2 4 5",
   copy: "M8 8h11v11H8zM5 15H4V4h11v1",

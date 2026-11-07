@@ -17,6 +17,17 @@ import { parseRoute, type PageId, type Route } from "./route.ts";
 import "./App.css";
 import { VoiceProvider, VoiceLauncher } from "../voice/Voice.tsx";
 import type { VoiceContext } from "@ephyra/core";
+import type { AccountSettings } from "@ephyra/core";
+import type { AccountApi } from "../account-api.ts";
+import { SettingsPage } from "../pages/SettingsPage.tsx";
+import { OnboardingPage } from "../pages/OnboardingPage.tsx";
+import { CommandMenu } from "../components/CommandMenu.tsx";
+
+export type AccountContext = {
+  api: AccountApi;
+  settings: AccountSettings;
+  onChange: (settings: AccountSettings) => void;
+};
 
 const LABEL: Record<PageId, string> = {
   overview: "Overview",
@@ -25,6 +36,8 @@ const LABEL: Record<PageId, string> = {
   runs: "Runs",
   workspace: "Workspace",
   personas: "Personas",
+  settings: "Settings",
+  onboarding: "Setup",
 };
 
 function useRoute(): Route {
@@ -37,7 +50,17 @@ function useRoute(): Route {
   return route;
 }
 
-function Page({ route, approver, principal }: { route: Route; approver: boolean; principal?: string }) {
+function Page({
+  route,
+  approver,
+  principal,
+  account,
+}: {
+  route: Route;
+  approver: boolean;
+  principal?: string;
+  account?: AccountContext;
+}) {
   switch (route.page) {
     case "overview":
       return <OverviewPage />;
@@ -48,13 +71,33 @@ function Page({ route, approver, principal }: { route: Route; approver: boolean;
     case "runs":
       return route.id ? <RunPage runId={route.id} /> : <RunsPage />;
     case "workspace":
-      return route.id ? (
-        <DraftPage draftId={route.id} canPublish={approver} />
-      ) : (
-        <WorkspacePage canDraft={approver} />
-      );
+      return route.id ? <DraftPage draftId={route.id} canPublish={approver} /> : <WorkspacePage canDraft={approver} />;
     case "personas":
       return <PersonasPage />;
+    case "settings":
+    case "onboarding":
+      if (!account)
+        return (
+          <Empty
+            title="Personal account settings"
+            body="Sign in with Not Organic to connect your repository and choose model access. Service-token connections use the deployment configuration."
+          />
+        );
+      return route.page === "settings" ? (
+        <SettingsPage
+          {...account}
+          onResumeSetup={() => {
+            location.hash = "#/onboarding";
+          }}
+        />
+      ) : (
+        <OnboardingPage
+          {...account}
+          onDone={() => {
+            location.hash = "#/overview";
+          }}
+        />
+      );
     default:
       return (
         <Empty
@@ -74,6 +117,7 @@ export function App({
   identity,
   onDisconnect,
   disconnectLabel = "Disconnect this tab",
+  account,
 }: {
   api: ConsoleApi;
   approver?: boolean;
@@ -81,6 +125,7 @@ export function App({
   identity?: SessionInfo;
   onDisconnect?: () => void;
   disconnectLabel?: string;
+  account?: AccountContext;
 }) {
   const route = useRoute();
   const sessionKey = useMemo(() => crypto.randomUUID(), [api, identity?.principal]);
@@ -95,6 +140,7 @@ export function App({
         identity={identity}
         onDisconnect={onDisconnect}
         disconnectLabel={disconnectLabel}
+        account={account}
       />
     </ApiProvider>
   );
@@ -108,6 +154,7 @@ function Frame({
   identity,
   onDisconnect,
   disconnectLabel,
+  account,
 }: {
   identity?: SessionInfo;
   onDisconnect?: () => void;
@@ -116,63 +163,109 @@ function Frame({
   approver: boolean;
   demo?: boolean;
   api: ConsoleApi;
+  account?: AccountContext;
 }) {
   const inbox = useAsync(() => api.inbox(), `nav:${route.page}`);
   const waiting =
     inbox.state.status === "ready"
       ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
       : 0;
-  const nav: NavItem[] = (Object.keys(LABEL) as PageId[]).map((id) => ({
-    id,
-    label: LABEL[id],
-    icon: id,
-    count: id === "inbox" ? waiting : undefined,
-    overflow: id === "workspace" || id === "personas",
-  }));
+  const nav: NavItem[] = (Object.keys(LABEL) as PageId[])
+    .filter((id) => id !== "onboarding")
+    .map((id) => ({
+      id,
+      label: LABEL[id],
+      icon: id,
+      count: id === "inbox" ? waiting : undefined,
+      overflow: id === "workspace" || id === "personas" || id === "settings",
+    }));
   const current = route.page === "not-found" ? "" : route.page;
-  const voiceContext: VoiceContext = route.page === "inbox" && route.id ? { kind: "trail", id: route.id }
-    : route.page === "runs" && route.id ? { kind: "run", id: route.id }
-    : route.page === "workspace" && route.id ? { kind: "draft", id: route.id }
-    : route.page === "usage" ? { kind: "usage" } : { kind: "overview" };
-  const voiceLabel = voiceContext.kind === "usage" ? "Usage, last 7 days" : voiceContext.kind === "overview" ? "Application overview"
-    : `${voiceContext.kind === "trail" ? "Trail" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
+  const voiceContext: VoiceContext =
+    route.page === "inbox" && route.id
+      ? { kind: "trail", id: route.id }
+      : route.page === "runs" && route.id
+        ? { kind: "run", id: route.id }
+        : route.page === "workspace" && route.id
+          ? { kind: "draft", id: route.id }
+          : route.page === "usage"
+            ? { kind: "usage" }
+            : { kind: "overview" };
+  const voiceLabel =
+    voiceContext.kind === "usage"
+      ? "Usage, last 7 days"
+      : voiceContext.kind === "overview"
+        ? "Application overview"
+        : `${voiceContext.kind === "trail" ? "Trail" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
   return (
-    <VoiceProvider api={api} context={voiceContext} label={voiceLabel} scopeKey={JSON.stringify(route)} canSpend={approver}>
-    <Shell
-      nav={nav}
-      current={current}
-      onNavigate={(id) => {
-        location.hash = `#/${id}`;
-      }}
-      user={{
-        name: demo ? "Demo" : (identity?.principal ?? "Connected"),
-        detail: demo ? "made-up data" : approver ? "approver" : "read only",
-        avatar: (
-          <span className="account-mark" aria-hidden="true">
-            {demo ? "D" : "U"}
-          </span>
-        ),
-      }}
+    <VoiceProvider
+      api={api}
+      context={voiceContext}
+      label={voiceLabel}
+      scopeKey={JSON.stringify(route)}
+      canSpend={approver}
     >
-      {voiceContext.kind !== "draft" && <div className="voice-entry"><VoiceLauncher /></div>}
-      <Suspense fallback={<Skeleton block />}>
-        <Page
-          key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}
-          route={route}
-          approver={approver}
-          principal={identity?.principal}
-        />
-      </Suspense>
-      <footer className="app-foot">
-        <ThemeToggle />
-        {onDisconnect && (
-          <button className="ui-button ui-button--ghost" onClick={onDisconnect}>
-            {disconnectLabel}
-          </button>
+      <Shell
+        nav={nav}
+        current={current}
+        onNavigate={(id) => {
+          location.hash = `#/${id}`;
+        }}
+        user={{
+          name: demo ? "Demo" : (identity?.principal ?? "Connected"),
+          detail: demo ? "made-up data" : account ? "personal workspace" : approver ? "approver" : "read only",
+          avatar: (
+            <span className="account-mark" aria-hidden="true">
+              {demo ? "D" : "U"}
+            </span>
+          ),
+        }}
+      >
+        <div className="workspace-bar">
+          <a href="#/settings" className="workspace-bar__repo" title="Repository and account settings">
+            <strong>
+              {account?.settings.repository?.url
+                .split("/")
+                .filter(Boolean)
+                .at(-1)
+                ?.replace(/\.git$/, "") ?? "Your workspace"}
+            </strong>
+            <small>{account?.settings.repository?.branch ?? (account ? "Connect a repository" : "Deployment")}</small>
+          </a>
+          <CommandMenu />
+        </div>
+        {account &&
+          account.settings.onboarding.status !== "complete" &&
+          route.page !== "onboarding" &&
+          route.page !== "settings" && (
+            <aside className="workspace-setup-note">
+              <span>Finish connecting your repository and model access.</span>
+              <a href="#/onboarding">Resume setup →</a>
+            </aside>
+          )}
+        {voiceContext.kind !== "draft" && (
+          <div className="voice-entry">
+            <VoiceLauncher />
+          </div>
         )}
-        {demo ? <p className="muted">Demo data · no server connected.</p> : null}
-      </footer>
-    </Shell>
+        <Suspense fallback={<Skeleton block />}>
+          <Page
+            key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}
+            route={route}
+            approver={approver}
+            principal={identity?.principal}
+            account={account}
+          />
+        </Suspense>
+        <footer className="app-foot">
+          <ThemeToggle />
+          {onDisconnect && (
+            <button className="ui-button ui-button--ghost" onClick={onDisconnect}>
+              {disconnectLabel}
+            </button>
+          )}
+          {demo ? <p className="muted">Demo data · no server connected.</p> : null}
+        </footer>
+      </Shell>
     </VoiceProvider>
   );
 }

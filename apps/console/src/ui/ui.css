@@ -14,6 +14,7 @@
 }
 .ui-rail {
   position: sticky;
+  z-index: var(--z-sticky);
   top: 0;
   height: 100dvh;
   display: flex;
@@ -73,8 +74,9 @@
   color: var(--ink);
   font-weight: 600;
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--rule);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-surface);
 }
+.ui-nav button:active:not(:disabled) { background: var(--surface-pressed); }
 /* The lappet: a short amber tab inside the current item. */
 .ui-nav button[aria-current="page"]::before {
   content: "";
@@ -153,7 +155,7 @@
   .ui-rail {
     position: fixed;
     inset: auto 0 0 0;
-    z-index: 20;
+    z-index: var(--z-sticky);
     height: auto;
     flex-direction: row;
     padding: 0 var(--s1) env(safe-area-inset-bottom);
@@ -217,7 +219,7 @@
   .ui-sheet {
     position: fixed;
     inset: auto 0 calc(64px + env(safe-area-inset-bottom)) 0;
-    z-index: 19;
+    z-index: var(--z-sheet);
     display: grid;
     gap: 2px;
     padding: var(--s3);
@@ -296,6 +298,7 @@
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--rule);
+  box-shadow: var(--shadow-surface);
 }
 .ui-card > header {
   display: flex;
@@ -323,14 +326,16 @@
   padding: 0;
   background: transparent;
   border: 0;
+  box-shadow: none;
 }
 .ui-card--quiet > header {
   padding-bottom: var(--s2);
   border-bottom: 1px solid var(--rule);
 }
 .ui-card--inset {
-  background: var(--surface-2);
-  border-color: transparent;
+  background: var(--surface-recessed);
+  border-color: var(--rule);
+  box-shadow: var(--shadow-inset);
 }
 .ui-card--live {
   border-color: color-mix(in oklab, var(--glow) 40%, var(--rule));
@@ -621,14 +626,14 @@ button.ui-row {
   justify-content: center;
   gap: var(--s2);
   min-height: 40px;
-  padding: 0 1rem;
+  padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   font-weight: 600;
   font-size: var(--fs-body);
-  line-height: 1;
+  line-height: 1.25;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
   text-decoration: none;
   transition:
     transform 0.32s var(--ease-gel),
@@ -637,7 +642,7 @@ button.ui-row {
     border-color 0.15s;
 }
 .ui-button:active:not(:disabled) {
-  transform: scaleX(1.04) scaleY(0.94);
+  transform: translateY(1px);
   transition-duration: 0.08s;
 }
 .ui-button:disabled {
@@ -660,11 +665,13 @@ button.ui-row {
 }
 .ui-button--secondary {
   background: var(--surface);
-  border-color: color-mix(in oklab, var(--ink) 18%, transparent);
+  border-color: var(--control-border);
   color: var(--ink);
+  box-shadow: var(--shadow-surface);
 }
 .ui-button--secondary:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--ink) 40%, transparent);
+  border-color: var(--control-border-hover);
+  background: var(--surface-hover);
 }
 .ui-button--ghost {
   background: transparent;
@@ -683,7 +690,7 @@ button.ui-row {
 }
 .ui-button--sm {
   min-height: 34px;
-  padding: 0 0.75rem;
+  padding: 0.45rem 0.75rem;
   font-size: var(--fs-small);
 }
 .ui-button .spin {
@@ -937,7 +944,9 @@ button.ui-row {
   gap: 2px;
   padding: 3px;
   border-radius: calc(var(--radius-sm) + 3px);
-  background: var(--surface-2);
+  background: var(--surface-recessed);
+  box-shadow: var(--shadow-inset);
+  border: 1px solid var(--rule);
 }
 .ui-seg label {
   position: relative;
@@ -979,6 +988,8 @@ button.ui-row {
   font-size: var(--fs-small);
   min-height: 1.5em;
 }
+.ui-seg label:hover input:not(:checked):not(:disabled) + span.opt { background: var(--surface-hover); color: var(--ink); }
+.ui-seg input:disabled + span.opt { opacity: .5; cursor: not-allowed; }
 
 /* ───────── Field ───────── */
 .ui-field {
@@ -1007,12 +1018,36 @@ button.ui-row {
   min-height: 44px;
   padding: 0.6rem 0.75rem;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in oklab, var(--ink) 20%, transparent);
-  background: var(--surface);
+  border: 1px solid var(--control-border);
+  background: var(--surface-recessed);
   color: var(--ink);
+  box-shadow: var(--shadow-inset);
   transition:
     border-color 0.15s,
-    box-shadow 0.15s;
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.ui-field select:not([multiple]) {
+  appearance: none;
+  padding-right: 2.6rem;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: right 1.05rem center, right .7rem center;
+  background-size: .35rem .35rem;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+.ui-input::placeholder,
+.ui-field input::placeholder,
+.ui-field textarea::placeholder { color: var(--muted); opacity: .8; }
+.ui-input:disabled,
+.ui-field input:disabled,
+.ui-field textarea:disabled,
+.ui-field select:disabled { opacity: .6; }
+@media (hover: hover) {
+  .ui-input:hover:not(:disabled),
+  .ui-field input:not([type="checkbox"]):not([type="radio"]):hover:not(:disabled),
+  .ui-field textarea:hover:not(:disabled),
+  .ui-field select:hover:not(:disabled) { border-color: var(--control-border-hover); }
 }
 .ui-field textarea {
   min-height: 6rem;
@@ -1026,10 +1061,54 @@ button.ui-row {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
   border-color: var(--focus);
+  background-color: var(--surface);
 }
 .ui-field[data-invalid] input,
 .ui-field[data-invalid] textarea {
   border-color: var(--cherry);
+}
+
+/* Native form semantics with the same tactile treatment as buttons. */
+.ui-shell input[type="checkbox"],
+.ui-field input[type="checkbox"],
+.account-checkbox input[type="checkbox"] {
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+  margin: 0;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--surface-recessed);
+  box-shadow: var(--shadow-inset);
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.ui-shell input[type="checkbox"]::before,
+.ui-field input[type="checkbox"]::before,
+.account-checkbox input[type="checkbox"]::before { content: ""; width: .55rem; height: .3rem; border: solid var(--on-jelly); border-width: 0 0 2px 2px; transform: rotate(-45deg); opacity: 0; margin-top: -.15rem; }
+.ui-shell input[type="checkbox"]:checked,
+.ui-field input[type="checkbox"]:checked,
+.account-checkbox input[type="checkbox"]:checked { background: var(--jelly); border-color: var(--jelly-deep); }
+.ui-shell input[type="checkbox"]:checked::before,
+.ui-field input[type="checkbox"]:checked::before,
+.account-checkbox input[type="checkbox"]:checked::before { opacity: 1; }
+.ui-shell input[type="checkbox"]:disabled,
+.ui-field input[type="checkbox"]:disabled,
+.account-checkbox input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .5; }
+.ui-shell input[type="checkbox"]:indeterminate::before,
+.ui-field input[type="checkbox"]:indeterminate::before,
+.account-checkbox input[type="checkbox"]:indeterminate::before { opacity: 1; transform: none; height: 0; border-color: var(--ink); border-width: 0 0 2px; margin: 0; }
+.ui-shell summary { cursor: pointer; }
+.ui-shell summary:hover { color: var(--jelly-deep); }
+.ui-shell summary::marker { color: var(--muted); }
+.ui-shell details[open] > summary::marker { color: var(--jelly-deep); }
+@media (forced-colors: active) {
+  .ui-shell input[type="checkbox"], .ui-field input[type="checkbox"], .account-checkbox input[type="checkbox"] { appearance: auto; }
+  .ui-shell input[type="checkbox"]::before, .ui-field input[type="checkbox"]::before, .account-checkbox input[type="checkbox"]::before { content: none; }
+  .ui-field select:not([multiple]) { appearance: auto; background-image: none; }
 }
 
 /* ───────── Table ───────── */

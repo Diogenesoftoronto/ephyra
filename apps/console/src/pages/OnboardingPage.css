@@ -1,0 +1,112 @@
+.onboarding-page {
+  display: grid;
+  gap: var(--s5);
+  max-width: 1160px;
+  min-width: 0;
+}
+.onboarding-page > .ui-page-header {
+  margin-bottom: 0;
+}
+.onboarding-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--line);
+}
+.onboarding-steps li {
+  min-width: 0;
+}
+.onboarding-steps button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 64px;
+  padding: var(--s3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+.onboarding-steps button[aria-current="step"] {
+  border-bottom-color: var(--jelly-deep);
+  color: var(--ink);
+  font-weight: 600;
+}
+.onboarding-step-number {
+  font: 500 var(--fs-label) / 1 var(--font-mono);
+  color: var(--muted);
+}
+.onboarding-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.48fr);
+  gap: var(--s6);
+  align-items: start;
+}
+.onboarding-content {
+  display: grid;
+  gap: var(--s5);
+}
+.onboarding-content > .ui-button {
+  justify-self: start;
+}
+.onboarding-section-heading {
+  display: grid;
+  gap: var(--s2);
+}
+.onboarding-section-heading h2 {
+  margin: 0;
+}
+.onboarding-aside {
+  display: grid;
+  gap: var(--s5);
+  padding-top: var(--s4);
+}
+.onboarding-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+.onboarding-guide > .ui-avatar {
+  flex-shrink: 0;
+}
+.onboarding-guide strong {
+  display: block;
+  margin-bottom: var(--s2);
+}
+.onboarding-note {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s4);
+}
+.onboarding-note p {
+  margin: var(--s3) 0 0;
+}
+.onboarding-identity {
+  display: grid;
+  gap: var(--s2);
+  min-width: 0;
+}
+.onboarding-identity code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+@media (max-width: 850px) {
+  .onboarding-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .onboarding-aside {
+    padding-top: 0;
+  }
+}
+@media (max-width: 450px) {
+  .onboarding-steps button {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s2);
+    padding-inline: var(--s2);
+  }
+}
