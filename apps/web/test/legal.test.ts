@@ -7,7 +7,9 @@ import { createSite } from "../src/site.ts";
 
 const ROOT = join(import.meta.dir, "../../../site");
 const ORIGIN = "https://ephyra.example";
-const h = createSite({ origin: ORIGIN, root: ROOT, cacheS: 0, fetcher: async () => new Response("", { status: 502 }) });
+const h = createSite({
+  origin: ORIGIN, root: ROOT, apiOrigin: "https://control.example", cacheS: 0, fetcher: async () => new Response("", { status: 502 }),
+});
 const get = (path: string) => h(new Request(ORIGIN + path, { redirect: "manual" }));
 
 const PAGES = [...LEGAL_DOCS.map((d) => d.path), "/legal/", "/pricing"];
@@ -88,6 +90,11 @@ describe("legal pages", () => {
         const [path, anchor] = href.split("#");
         if (articles.has(path!)) continue;
         const res = await get(path!);
+        if (path === "/app/") {
+          expect(res.status).toBe(302);
+          expect(res.headers.get("location")).toBe("https://control.example/app/");
+          continue;
+        }
         expect({ href, status: res.status }).toEqual({ href, status: 200 });
         if (anchor) expect(await res.text()).toContain(`id="${anchor}"`);
       }

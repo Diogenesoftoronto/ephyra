@@ -1,9 +1,11 @@
 // Sign in with Not Organic, end to end against a fake Not Organic that enforces what the real gateway does:
 // PKCE S256, an approved client origin, DPoP proofs bound to the key given at token exchange, refresh rotation.
 import { describe, expect, test } from "bun:test";
-import { b64url, sha256b64url, type Jwk } from "./crypto.ts";
+import { b64url, sha256b64url } from "./crypto.ts";
 import { compose } from "../compose.ts";
 import { readConfig } from "../config.ts";
+import { fakeNotOrganic } from "./notorganic.fixture.ts";
+import { sessionCookieName } from "./browser-session.ts";
 
 const ISSUER = "https://api.notorganic.test";
 const AUTHORIZE = "https://id.notorganic.test/authorize";
@@ -12,79 +14,6 @@ const DID = "did:plc:approver123";
 const OTHER = "did:plc:someoneelse";
 const SERVICE = "s".repeat(32);
 
-async function thumbprint(jwk: Jwk): Promise<string> {
-  const canonical = JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y });
-  return b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))));
-}
-
-async function verifyProof(proof: string, method: string, url: string, accessToken?: string): Promise<string> {
-  const [h, p, sig] = proof.split(".");
-  const header = JSON.parse(Buffer.from(h!, "base64url").toString());
-  const payload = JSON.parse(Buffer.from(p!, "base64url").toString());
-  if (header.typ !== "dpop+jwt" || header.alg !== "ES256") throw new Error("bad dpop header");
-  const key = await crypto.subtle.importKey("jwk", header.jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
-  const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, Buffer.from(sig!, "base64url"), new TextEncoder().encode(`${h}.${p}`));
-  if (!ok || payload.htm !== method || payload.htu !== url) throw new Error("bad dpop proof");
-  if (accessToken && payload.ath !== (await sha256b64url(accessToken))) throw new Error("bad ath");
-  return thumbprint(header.jwk);
-}
-
-/** A fake Not Organic gateway + portal. `approved` mimics PUBLIC_CLIENT_PRODUCT_CATALOG. */
-function fakeNotOrganic(opts: { approved: boolean; product: string; did?: string }) {
-  const codes = new Map<string, { challenge: string; clientId: string; redirect: string }>();
-  const refresh = new Map<string, { jkt: string; did: string }>();
-  const access = new Map<string, { jkt: string; did: string }>();
-  let refreshCount = 0;
-  const token = (did: string, jkt: string) => {
-    const claims = { iss: ISSUER, sub: did, product: opts.product, cnf: { jkt } };
-    const t = `h.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${crypto.randomUUID()}`;
-    access.set(t, { jkt, did });
-    const r = crypto.randomUUID();
-    refresh.set(r, { jkt, did });
-    return { access_token: t, token_type: "DPoP", expires_in: 300, scope: "judgement:evaluate", refresh_token: r, refresh_expires_in: 86400 };
-  };
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-  const fetcher = async (input: string, init?: RequestInit): Promise<Response> => {
-    const url = new URL(input);
-    const body = init?.body ? JSON.parse(String(init.body)) : {};
-    const headers = new Headers(init?.headers);
-    if (url.pathname === "/v1/public/token") {
-      if (!opts.approved) return json({ error: { code: "integration_not_approved" } }, 403);
-      const code = codes.get(body.code);
-      codes.delete(body.code);
-      if (!code || code.clientId !== body.client_id || code.redirect !== body.redirect_uri) return json({ error: { code: "invalid_grant" } }, 400);
-      if ((await sha256b64url(body.code_verifier)) !== code.challenge) return json({ error: { code: "invalid_pkce" } }, 400);
-      return json(token(opts.did ?? DID, await thumbprint(body.dpop_jwk)));
-    }
-    if (url.pathname === "/v1/public/device/token") {
-      const r = refresh.get(body.refresh_token);
-      if (!r) return json({ error: { code: "invalid_refresh" } }, 401);
-      if ((await verifyProof(headers.get("dpop")!, "POST", input)) !== r.jkt) return json({ error: { code: "dpop_mismatch" } }, 401);
-      refresh.delete(body.refresh_token); // rotation: old refresh token is now dead
-      refreshCount++;
-      return json(token(r.did, r.jkt));
-    }
-    const auth = (headers.get("authorization") ?? "").replace(/^DPoP /, "");
-    const a = access.get(auth);
-    if (!a || (await verifyProof(headers.get("dpop")!, init?.method ?? "GET", input, auth)) !== a.jkt) return json({ error: { code: "unauthorized" } }, 401);
-    if (url.pathname === "/v1/account") return json({ account: { did: a.did, handle: "approver.test" } });
-    if (url.pathname === "/v1/judgement") {
-      const answers = Object.fromEntries(Object.keys(body.questions).map((k) => [k, { type: "noul", noul: 0.9 }]));
-      return json({ model: "judgement-jev/jev-1.14", answers });
-    }
-    if (url.pathname === "/v1/public/device/revoke") return json({ ok: true });
-    return json({ error: { code: "not_found" } }, 404);
-  };
-  /** What the portal does after the user approves: issue a code and redirect back. */
-  const approve = (authorizeUrl: string) => {
-    const u = new URL(authorizeUrl);
-    const code = crypto.randomUUID();
-    const q = u.searchParams;
-    codes.set(code, { challenge: q.get("code_challenge")!, clientId: q.get("client_id")!, redirect: q.get("redirect_uri")! });
-    return `${u.searchParams.get("redirect_uri")}?code=${code}&state=${u.searchParams.get("state")}`;
-  };
-  return { fetcher, approve, get refreshCount() { return refreshCount; } };
-}
 
 async function server(fake: ReturnType<typeof fakeNotOrganic>, extra: Record<string, string> = {}) {
   const config = readConfig({
@@ -106,6 +35,74 @@ async function browserLogin(app: Awaited<ReturnType<typeof server>>["app"], fake
 }
 
 describe("sign in with Not Organic", () => {
+  const browserCookie = (response: Response) => response.headers.getSetCookie()
+    .find((cookie) => cookie.startsWith(`${sessionCookieName(ORIGIN)}=`))!;
+
+  test("browser sign-in returns to the app with a protected cookie and resolves the account without a pasted token", async () => {
+    const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
+    const { app } = await server(fake);
+    const anonymous = await app.request("/auth/session");
+    expect(await anonymous.json()).toEqual({ signIn: true, identity: null });
+    expect(anonymous.headers.get("cache-control")).toBe("no-store");
+    const callback = await browserLogin(app, fake);
+    expect(callback.status).toBe(303);
+    expect(callback.headers.get("location")).toBe("/app/");
+    const credential = browserCookie(callback);
+    expect(credential).toContain("HttpOnly");
+    expect(credential).toContain("Secure");
+    expect(credential).toContain("SameSite=Lax");
+    expect(credential).toContain("Path=/");
+    expect(credential).not.toContain("Domain=");
+    const cookie = credential.split(";")[0]!;
+    expect(await callback.text()).not.toContain(cookie.split("=")[1]!);
+    const headers = { cookie, "X-Ephyra-Principal": OTHER };
+    const identity = { principal: DID, kind: "human", approver: true };
+    expect(await (await app.request("/auth/session", { headers })).json()).toEqual({ signIn: true, identity });
+    expect(await (await app.request("/v1/me", { headers })).json()).toEqual(identity);
+    expect((await app.request("/v1/inbox", { headers })).status).toBe(200);
+    const draft = await app.request("/v1/drafts", {
+      method: "POST", headers: { ...headers, Origin: ORIGIN, "Content-Type": "application/json", "Idempotency-Key": "browser-draft" },
+      body: JSON.stringify({ path: "autonomy.md" }),
+    });
+    expect(draft.status).toBe(200);
+    expect(await draft.json()).toMatchObject({ path: "autonomy.md", createdBy: DID });
+  });
+
+  test("cookie mutations require the exact configured Origin, while explicit bearer authentication remains usable", async () => {
+    const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
+    const { app } = await server(fake);
+    const cookie = browserCookie(await browserLogin(app, fake)).split(";")[0]!;
+    for (const origin of [undefined, "null", "https://other.example", `${ORIGIN}.attacker.test`]) {
+      const headers = { cookie, ...(origin ? { Origin: origin } : {}), "Content-Type": "application/json" };
+      const write = await app.request("/v1/drafts", { method: "POST", headers, body: JSON.stringify({ path: "autonomy.md" }) });
+      expect(write.status).toBe(403);
+      expect((await app.request("/auth/logout", { method: "POST", headers })).status).toBe(403);
+    }
+    const token = cookie.split("=")[1]!;
+    const bearer = { Authorization: `Bearer ${token}`, cookie: `${sessionCookieName(ORIGIN)}=invalid` };
+    expect((await app.request("/v1/inbox", { headers: bearer })).status).toBe(200);
+    expect((await app.request("/v1/inbox", { headers: { cookie, Authorization: "Bearer invalid" } })).status).toBe(401);
+    expect((await app.request("/v1/me", { headers: { cookie: `${sessionCookieName(ORIGIN)}=${SERVICE}` } })).status).toBe(401);
+    expect((await app.request("/auth/logout", { method: "POST", headers: { cookie, Origin: ORIGIN } })).status).toBe(200);
+    expect((await app.request("/v1/inbox", { headers: { cookie } })).status).toBe(401);
+    expect((await app.request("/v1/inbox", { headers: bearer })).status).toBe(401);
+    expect(await (await app.request("/auth/session", { headers: { cookie } })).json()).toEqual({ signIn: true, identity: null });
+  });
+
+  test("browser readers cannot acquire approver powers, and logout clears and revokes their session", async () => {
+    const fake = fakeNotOrganic({ approved: true, product: "ephyra", did: OTHER });
+    const { app } = await server(fake);
+    const cookie = browserCookie(await browserLogin(app, fake)).split(";")[0]!;
+    const headers = { cookie, Origin: ORIGIN };
+    expect(await (await app.request("/v1/me", { headers })).json()).toMatchObject({ principal: OTHER, approver: false });
+    expect((await app.request("/v1/drafts", { method: "POST", headers, body: "{}" })).status).toBe(403);
+    const logout = await app.request("/auth/logout", { method: "POST", headers });
+    expect(logout.status).toBe(200);
+    expect(browserCookie(logout)).toContain("Max-Age=0");
+    expect((await app.request("/auth/me", { headers })).status).toBe(401);
+    expect((await app.request("/auth/logout", { method: "POST", headers })).status).toBe(200);
+  });
+
   test("login redirects to the portal with PKCE, the exact origin and Ephyra's scopes", async () => {
     const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
     const { app } = await server(fake);
@@ -129,6 +126,7 @@ describe("sign in with Not Organic", () => {
 
     const callback = await browserLogin(app, fake, `?cli=${challenge}`);
     expect(callback.status).toBe(200);
+    expect(browserCookie(callback)).toBeUndefined();
     const html = await callback.text();
     expect(html).toContain("Sign in to the Ephyra CLI?");
     expect((await poll()).status).toBe(428); // waiting for the human to press Approve

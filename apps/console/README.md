@@ -30,10 +30,13 @@ model and repository. `EPHYRA_CONSOLE_DIR` can override the default built consol
 For UI development use `bun run --filter @ephyra/console dev`. Point a reverse proxy at that dev
 server and the Ephyra API on the same origin, or use the isolated demo at `/app/?demo=1`.
 
-The connection screen accepts an existing deployment session token (obtained through `ephyra login`).
+The connection screen offers **Sign in with Not Organic** when this server has sign-in configured.
+The PKCE callback returns directly to `/app/`; the browser uses a host-only HttpOnly session cookie.
+Reloading restores the session, and **Sign out** revokes it on the server. No token copying is required.
+The optional **Connect with a token** section accepts an existing deployment session token (obtained through `ephyra login`).
 It keeps the token in this tab's session storage and reads identity/permissions from `/v1/me`.
 A service token also needs its principal; sign-in deployments restrict it to reading the console.
-The console does not yet complete browser SSO automatically. Demo mode uses fictional local data
+Demo mode uses fictional local data
 and never calls a provider or a server. It is opt-in and visibly labelled.
 
 ## Shared reviews
@@ -73,7 +76,13 @@ bun run --filter @ephyra/console interactions
 bun run --filter @ephyra/console voice-interactions
 bun run --filter @ephyra/console tutor-interactions
 bun run --filter @ephyra/console multiplayer
+env -u LD_LIBRARY_PATH bun apps/console/scripts/signin.ts
 ```
+
+The sign-in browser harness checks the public app link, PKCE redirect/callback, protected cookie, reload,
+real policy-draft creation, server-side sign-out and reader restrictions at desktop and phone widths.
+It runs the real HTTP server with a fictional Not Organic gateway; hosted account authentication is a separate live check.
+Sign-in, manual connection and expired-session states are included in Storybook.
 
 Build both the app and Storybook before `interactions`. The browser scripts start temporary loopback
 static servers, close them on completion, and use the installed Playwright Chromium headless shell.

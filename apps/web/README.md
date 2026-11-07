@@ -89,3 +89,7 @@ The visual direction is G3-06, “Connected Notes”: open reading surfaces, cur
 `apps/web/scripts/check-tour.js` checks every terminal step, keyboard boundaries, sample labels, the complete reader output against the exported fixture, and checkpoint C's highlighted approval key. `check-console.js` checks all nine GUI moments and five tools, view switching, actions, full reader, focus restoration, and overflow. Evaluate these scripts in the served home page after the walkthrough loads. GUI checks passed at 1440×900 and 390×844 in both themes, and 320×568 dark; the TUI checks passed at desktop, phone, and short-phone sizes. A separate two-tab browser exercise verified note/control synchronization and draft/caret preservation. These are local UI checks with sample data, not evidence of real production repairs, forge landing, or networked collaboration.
 
 Cut D remains an untracked draft; the landing walkthrough and its checks do not depend on it. A local server without `EPHYRA_BLOG_PUBLICATION_URI` cannot serve the design article; the walkthrough link works without a connected publication.
+
+## Opening the application
+
+Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_ORIGIN` to the control-plane server origin; the public site redirects there without forwarding user-supplied destinations. The server image includes the console and offers browser sign-in when Not Organic is configured. The sample trail remains explicitly a demonstration. Without an API origin, `/app/` reports that the deployment is not connected.

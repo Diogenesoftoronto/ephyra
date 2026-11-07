@@ -96,6 +96,8 @@ a:hover { text-decoration-color: var(--ink); }
 .bar-nav { display: flex; gap: clamp(1rem, 3vw, 1.75rem); }
 .bar-nav .bar-link { text-decoration-color: transparent; }
 .bar-nav .bar-link:hover { text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent); }
+.bar-nav .bar-app { text-decoration-color: currentColor; text-underline-offset: .25em; }
+@media (max-width: 38rem) { .bar-nav .bar-how, .bar-nav .bar-journal { display: none; } }
 
 /* ---------- reel: a tall scroll track with the stage pinned inside it ---------- */
 .reel { position: relative; --step: 80svh; overflow-x: clip; }   /* clip, not hidden: it keeps the stage sticky */

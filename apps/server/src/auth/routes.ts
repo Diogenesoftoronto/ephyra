@@ -3,7 +3,8 @@ import { Hono, type Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { randomToken } from "./crypto.ts";
 import { SignInError, userCode, type NotOrganicSignIn } from "./notorganic.ts";
-import { cliApprovalView, cliApprovedView, cliExpiredView, signedInView, signInFailedView } from "./views.ts";
+import { cliApprovalView, cliApprovedView, cliExpiredView, signInFailedView } from "./views.ts";
+import { browserRequestAllowed, browserSessionToken, sessionCookieName, sessionCookieOptions } from "./browser-session.ts";
 
 const LOGIN_COOKIE = "ephyra_login";
 
@@ -19,6 +20,18 @@ function fail(c: Context, error: unknown) {
 export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<string>): Hono {
   const app = new Hono();
   const origin = signIn.config.publicOrigin;
+  app.use("*", async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    c.header("Referrer-Policy", "no-referrer");
+    await next();
+  });
+
+  app.get("/session", async (c) => {
+    const principal = await signIn.authenticate(browserSessionToken(c, origin) ?? "");
+    return c.json({ signIn: true, identity: principal ? {
+      principal: principal.did, kind: "human", approver: approvers.has(principal.did),
+    } : null });
+  });
 
   // Browser entry point. `?cli=<challenge>` binds this login to an `ephyra login` waiting in a terminal.
   app.get("/login", async (c) => {
@@ -41,7 +54,8 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
       const who = result.principal.handle ?? result.principal.did;
       const approver = approvers.has(result.principal.did);
       if (!result.cli) {
-        return c.html(signedInView(who, approver));
+        setCookie(c, sessionCookieName(origin), result.token, sessionCookieOptions(origin));
+        return c.redirect("/app/", 303);
       }
       const code = userCode(result.cli.challenge);
       return c.html(cliApprovalView({ who, approver, code, challenge: result.cli.challenge, csrf: result.cli.csrf }));
@@ -68,15 +82,21 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
   });
 
   app.get("/me", async (c) => {
-    const token = (c.req.header("Authorization") ?? "").replace(/^Bearer /, "");
+    const authorization = c.req.header("Authorization");
+    const token = authorization === undefined ? browserSessionToken(c, origin) ?? "" : authorization.replace(/^Bearer /, "");
     const principal = await signIn.authenticate(token);
     if (!principal) return c.json({ error: "unauthorized" }, 401);
     return c.json({ ...principal, approver: approvers.has(principal.did) });
   });
 
   app.post("/logout", async (c) => {
-    const token = (c.req.header("Authorization") ?? "").replace(/^Bearer /, "");
+    const authorization = c.req.header("Authorization");
+    if (authorization === undefined && !browserRequestAllowed(c, origin)) {
+      return c.json({ error: "browser requests must come from this application" }, 403);
+    }
+    const token = authorization === undefined ? browserSessionToken(c, origin) ?? "" : authorization.replace(/^Bearer /, "");
     if (await signIn.authenticate(token)) await signIn.logout(token);
+    if (authorization === undefined) deleteCookie(c, sessionCookieName(origin), sessionCookieOptions(origin));
     return c.json({ ok: true });
   });
 

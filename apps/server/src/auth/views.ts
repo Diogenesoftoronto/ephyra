@@ -33,4 +33,5 @@ export function cliApprovalView(input: { who: string; approver: boolean; code: s
 
 export const cliApprovedView = () => page("Approved", "<h1>Approved</h1><p>Return to your terminal. You can close this tab.</p>");
 export const cliExpiredView = () => page("Not approved", "<h1>This sign-in request expired</h1><p>Run <code>ephyra login</code> again.</p>");
-export const signInFailedView = (message: string) => page("Sign-in failed", `<h1>Sign-in failed</h1><p>${escape(message)}</p>`);
+export const signInFailedView = (message: string) => page("Sign-in failed",
+  `<h1>Sign-in failed</h1><p>${escape(message)}</p><p><a href="/auth/login">Try signing in again</a></p>`);

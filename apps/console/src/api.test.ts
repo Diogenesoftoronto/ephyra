@@ -3,6 +3,34 @@ import { ApiError, ConsoleClient, UnknownWriteOutcome, VoiceRequestError } from 
 import { FakeApi } from "./fake/api.ts";
 
 describe("console HTTP client", () => {
+  test("browser sessions use same-origin cookies across reads, writes, streams and voice without an empty bearer header", async () => {
+    const requests: RequestInit[] = [];
+    const client = new ConsoleClient("https://example.test", "", async (url, init) => {
+      requests.push(init!);
+      const path = new URL(String(url)).pathname;
+      if (path === "/auth/session") return Response.json({ signIn: true, identity: null });
+      if (path.endsWith("/events")) return new Response('event: end\ndata: {"status":"done"}\n\n');
+      if (path === "/v1/voice/speak") return Response.json({ code: "unavailable", error: "No fixture speech provider" }, { status: 503 });
+      return Response.json({ ok: true });
+    });
+    expect(await client.browserSession()).toEqual({ signIn: true, identity: null });
+    await client.trailAction("trail", "comment", { text: "Browser review" }, "cookie-write");
+    await client.watchRun("run", undefined, () => undefined, new AbortController().signal);
+    await expect(client.speak("Read the evidence", "cookie-speech", new AbortController().signal)).rejects.toBeInstanceOf(VoiceRequestError);
+    await client.signOut();
+    expect(requests).toHaveLength(5);
+    for (const request of requests) {
+      expect(request.credentials).toBe("same-origin");
+      expect(new Headers(request.headers).has("Authorization")).toBe(false);
+    }
+    expect(requests.at(-1)?.method).toBe("POST");
+  });
+
+  test("sign-out failure is reported instead of pretending the session was revoked", async () => {
+    const client = new ConsoleClient("https://example.test", "", async () => new Response(null, { status: 503 }));
+    await expect(client.signOut()).rejects.toBeInstanceOf(ApiError);
+  });
+
   test("validates server data and sends the session token", async () => {
     let authorization = "";
     const fetcher: typeof fetch = async (_url, init) => {

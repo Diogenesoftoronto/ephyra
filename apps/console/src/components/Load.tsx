@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import { Button, Card, Skeleton } from "../kit.ts";
 import type { AsyncState } from "../app/useAsync.ts";
 import { describeError } from "../lib/errors.ts";
+import { ApiError } from "../api.ts";
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const d = describeError(error);
   return (
     <Card tone="alert" title={d.title}>
       <p role="alert">{d.body}</p>
+      {error instanceof ApiError && error.status === 401 && <p><a href="/app/">Return to sign-in</a></p>}
       {onRetry && (
         <Button size="sm" onClick={onRetry}>
           Try again

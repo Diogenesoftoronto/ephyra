@@ -73,12 +73,14 @@ export function App({
   demo,
   identity,
   onDisconnect,
+  disconnectLabel = "Disconnect this tab",
 }: {
   api: ConsoleApi;
   approver?: boolean;
   demo?: boolean;
   identity?: SessionInfo;
   onDisconnect?: () => void;
+  disconnectLabel?: string;
 }) {
   const route = useRoute();
   const sessionKey = useMemo(() => crypto.randomUUID(), [api, identity?.principal]);
@@ -92,6 +94,7 @@ export function App({
         api={api}
         identity={identity}
         onDisconnect={onDisconnect}
+        disconnectLabel={disconnectLabel}
       />
     </ApiProvider>
   );
@@ -104,9 +107,11 @@ function Frame({
   api,
   identity,
   onDisconnect,
+  disconnectLabel,
 }: {
   identity?: SessionInfo;
   onDisconnect?: () => void;
+  disconnectLabel: string;
   route: Route;
   approver: boolean;
   demo?: boolean;
@@ -162,7 +167,7 @@ function Frame({
         <ThemeToggle />
         {onDisconnect && (
           <button className="ui-button ui-button--ghost" onClick={onDisconnect}>
-            Disconnect this tab
+            {disconnectLabel}
           </button>
         )}
         {demo ? <p className="muted">Demo data · no server connected.</p> : null}

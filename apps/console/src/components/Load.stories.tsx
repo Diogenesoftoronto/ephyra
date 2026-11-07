@@ -24,6 +24,7 @@ export const Forbidden: Story = {
     <ErrorState error={new ApiError(403, "this Not Organic account is not an approver on this deployment")} />
   ),
 };
+export const SessionExpired: Story = { render: () => <ErrorState error={new ApiError(401)} /> };
 export const Stale: Story = {
   render: () => <ErrorState error={new ApiError(409, "approval is stale")} onRetry={() => undefined} />,
 };

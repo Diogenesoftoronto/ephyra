@@ -16,6 +16,9 @@ export function describeError(error: unknown): Described {
     };
   }
   if (error instanceof ApiError) {
+    if (error.status === 401) return {
+      kind: "forbidden", title: "Your session has ended", body: "Sign in again to continue in this workspace.",
+    };
     const detail = error.detail ? ` (${error.detail})` : "";
     if (error.status === 409)
       return {
