@@ -9,7 +9,7 @@ const root = join(import.meta.dir, "..");
 const args = process.argv.slice(2);
 const filter = args.find((a) => a.startsWith("--filter="))?.slice(9);
 const WIDTHS = [1280, 375] as const;
-const CONCURRENCY = 6;
+const CONCURRENCY = 2;
 
 if (!args.includes("--no-build")) {
   const build = await $`bun run build-storybook`.cwd(root).quiet().nothrow();
@@ -20,11 +20,11 @@ const dir = join(root, "storybook-static");
 const server = serve(dir);
 const index = await (await fetch(`${server.url}/index.json`)).json() as { entries: Record<string, { type: string; id: string; title: string; name: string }> };
 const stories = Object.values(index.entries).filter((e) => e.type === "story" && (!filter || e.id.includes(filter)));
+if (stories.length === 0) {
+  server.stop();
+  throw new Error(`No stories matched ${filter ?? "the Storybook index"}`);
+}
 console.log(`Rendering ${stories.length} stories at ${WIDTHS.join("px and ")}px`);
-
-// Persona art is made by another lane. A missing file is expected until it lands and is counted, not hidden.
-const missingMedia = new Set<string>();
-const isPersonaMedia = (url: string) => /\/personas\/[^/]+\.(webp|webm|mp4|gif)(\?|$)/.test(url);
 
 type Failure = { story: string; width: number; problems: string[] };
 const failures: Failure[] = [];
@@ -35,12 +35,10 @@ async function check(story: { id: string; title: string; name: string }, width: 
   const problems: string[] = [];
   page.on("console", (m) => {
     if (m.type() !== "error") return;
-    const url = m.location().url;
-    if (url && isPersonaMedia(url)) { missingMedia.add(url.replace(/^.*\/personas\//, "")); return; }
     problems.push(`console.error: ${m.text().slice(0, 300)}`);
   });
   page.on("pageerror", (e) => problems.push(`pageerror: ${e.message.slice(0, 300)}`));
-  page.on("requestfailed", (r) => { if (!isPersonaMedia(r.url())) problems.push(`request failed: ${r.url().slice(0, 120)}`); });
+  page.on("requestfailed", (r) => problems.push(`request failed: ${r.url().slice(0, 120)}`));
   try {
     await page.goto(`${server.url}/iframe.html?id=${story.id}&viewMode=story`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForFunction(() => document.body.classList.contains("sb-show-main") || document.body.classList.contains("sb-show-errordisplay"), null, { timeout: 15_000 });
@@ -67,14 +65,16 @@ for (const width of WIDTHS) {
   const ctx = await browser.newContext({ viewport: { width, height: 800 }, reducedMotion: "reduce" });
   let next = 0;
   await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
-    while (next < stories.length) await check(stories[next++]!, width, ctx);
+    while (next < stories.length) {
+      await check(stories[next++]!, width, ctx);
+      if (next % 30 === 0) console.log(`${width}px: ${next}/${stories.length}`);
+    }
   }));
   await ctx.close();
 }
 await browser.close();
 server.stop();
 
-if (missingMedia.size) console.log(`Note: ${missingMedia.size} persona media file(s) not served (expected until the persona lane lands): ${[...missingMedia].slice(0, 4).join(", ")}…`);
 if (failures.length) {
   console.error(`\n${failures.length} failing render(s):`);
   for (const f of failures) console.error(`- ${f.story} @ ${f.width}px\n    ${f.problems.join("\n    ")}`);

@@ -1,15 +1,16 @@
 import { JSONUIProvider, Renderer, useStateStore } from "@json-render/react";
 import { useMemo, useRef, useState } from "react";
 import { Badge, Button, Card } from "../kit.ts";
-import { createRegistry, type FormHost } from "./registry.tsx";
-import { readSpec, type FormState, type ReadSpec } from "./spec.ts";
+import { createRegistry, type FormContext, type FormHost } from "./registry.tsx";
+import { collectValues, initialState, isEdited, readSpec, type FormField, type ReadSpec } from "./spec.ts";
 import "./genui.css";
 
 type Phase = "idle" | "working" | "applied" | "discarded";
+type Name = "apply_to_draft" | "ask_velum" | "discard";
 
 /**
- * Renders a json-render spec from Velum. The spec is untrusted: it is validated against the catalog first, and a spec
- * that fails is replaced by a short note. The spec itself is never shown.
+ * Renders a json-render spec from Velum. The spec is untrusted: it is validated against the catalog first, and a spec that
+ * fails is replaced by a short note. The spec itself is never shown.
  */
 export function SpecView({ spec, host, disabled }: { spec: unknown; host: FormHost; disabled?: boolean }) {
   const read = useMemo(() => readSpec(spec), [spec]);
@@ -24,19 +25,31 @@ export function SpecView({ spec, host, disabled }: { spec: unknown; host: FormHo
   return <ValidForm read={read} host={host} disabled={disabled} />;
 }
 
-function ValidForm({ read, host, disabled }: { read: Extract<ReadSpec, { ok: true }>; host: FormHost; disabled?: boolean }) {
+function ValidForm({
+  read,
+  host,
+  disabled,
+}: {
+  read: Extract<ReadSpec, { ok: true }>;
+  host: FormHost;
+  disabled?: boolean;
+}) {
   const hostRef = useRef(host);
   hostRef.current = host;
-  const built = useMemo(() => createRegistry(hostRef), []);
+  const formRef = useRef<FormContext>({ values: () => ({}), edited: () => false });
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const built = useMemo(
+    () => createRegistry(hostRef, formRef, Boolean(disabled) || phase !== "idle"),
+    [disabled, phase],
+  );
 
-  const run = async (name: "apply_to_draft" | "ask_velum" | "discard", state: FormState) => {
+  const run = async (name: Name) => {
     setError(null);
-    if (name === "ask_velum") return built.executeAction(name, {}, () => undefined, state);
+    if (name === "ask_velum") return built.executeAction(name, {}, () => undefined);
     setPhase("working");
     try {
-      await built.executeAction(name, {}, () => undefined, state);
+      await built.executeAction(name, {}, () => undefined);
       setPhase(name === "apply_to_draft" ? "applied" : "discarded");
     } catch (e) {
       setPhase("idle");
@@ -45,28 +58,68 @@ function ValidForm({ read, host, disabled }: { read: Extract<ReadSpec, { ok: tru
   };
 
   return (
-    <JSONUIProvider registry={built.registry} initialState={read.state}>
+    <JSONUIProvider registry={built.registry} initialState={initialState(read.fields)}>
       <div className="gu-form" data-phase={phase}>
         <Renderer spec={read.spec} registry={built.registry} />
-        <FormActions phase={phase} error={error} disabled={disabled} run={run} />
+        <FormActions
+          phase={phase}
+          error={error}
+          disabled={disabled}
+          fields={read.fields}
+          formRef={formRef}
+          run={run}
+        />
       </div>
     </JSONUIProvider>
   );
 }
 
-function FormActions({ phase, error, disabled, run }: {
-  phase: Phase; error: string | null; disabled?: boolean; run: (name: "apply_to_draft" | "ask_velum" | "discard", s: FormState) => Promise<void>;
+function FormActions({
+  phase,
+  error,
+  disabled,
+  fields,
+  formRef,
+  run,
+}: {
+  phase: Phase;
+  error: string | null;
+  disabled?: boolean;
+  fields: readonly FormField[];
+  formRef: { current: FormContext };
+  run: (n: Name) => Promise<void>;
 }) {
   const { state } = useStateStore();
-  if (phase === "applied") return <div className="gu-actions"><Badge tone="ok">Applied to the draft</Badge></div>;
-  if (phase === "discarded") return <div className="gu-actions"><Badge>Form closed</Badge></div>;
+  formRef.current = { values: () => collectValues(fields, state), edited: () => isEdited(fields, state) };
+  if (phase === "applied")
+    return (
+      <div className="gu-actions">
+        <Badge tone="ok">Applied to the draft</Badge>
+      </div>
+    );
+  if (phase === "discarded")
+    return (
+      <div className="gu-actions">
+        <Badge>Form closed</Badge>
+      </div>
+    );
   const busy = phase === "working";
   return (
     <div className="gu-actions">
-      <Button variant="primary" loading={busy} disabled={disabled} onClick={() => void run("apply_to_draft", state)}>Apply to draft</Button>
-      <Button variant="secondary" disabled={busy || disabled} onClick={() => void run("ask_velum", state)}>Ask Velum</Button>
-      <Button variant="ghost" disabled={busy} onClick={() => void run("discard", state)}>Discard</Button>
-      {error && <p role="alert" className="gu-error">{error}</p>}
+      <Button variant="primary" loading={busy} disabled={disabled} onClick={() => void run("apply_to_draft")}>
+        Apply to draft
+      </Button>
+      <Button disabled={busy || disabled} onClick={() => void run("ask_velum")}>
+        Ask Velum
+      </Button>
+      <Button variant="ghost" disabled={busy} onClick={() => void run("discard")}>
+        Discard
+      </Button>
+      {error && (
+        <p role="alert" className="gu-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

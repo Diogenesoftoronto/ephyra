@@ -1,5 +1,0 @@
-.trail-budgets { display: grid; gap: 1rem; }
-.trail-budget { display: grid; gap: .4rem; }
-.trail-budget-head { display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: baseline; }
-.trail-budget-title { min-width: 0; overflow-wrap: anywhere; }
-.trail-budget-bars { display: grid; gap: .5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }

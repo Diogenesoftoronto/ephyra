@@ -1,3 +1,12 @@
-.ladder { display: grid; gap: .4rem; justify-items: start; min-width: 0; }
-.ladder .ui-segmented { max-width: 100%; flex-wrap: wrap; }
-.ladder-means { margin: 0; }
+.ladder {
+  display: grid;
+  gap: var(--s2);
+  justify-items: start;
+  min-width: 0;
+}
+.ladder .ui-seg {
+  max-width: 100%;
+}
+.ladder-read {
+  margin: 0;
+}

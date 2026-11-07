@@ -1,3 +1,10 @@
-.warnings { display: grid; gap: .35rem; }
-.warnings li { overflow-wrap: anywhere; }
-.warnings-ok { margin: 0; }
+.warnings {
+  display: grid;
+  gap: 0.35rem;
+}
+.warnings li {
+  overflow-wrap: anywhere;
+}
+.warnings-ok {
+  margin: 0;
+}

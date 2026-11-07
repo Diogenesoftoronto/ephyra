@@ -1,5 +1,0 @@
-.spend-chart { margin: 0; display: grid; gap: .5rem; }
-.spend-chart svg { width: 100%; height: auto; }
-.spend-chart-tick { font-size: 11px; fill: var(--muted); font-family: var(--font-body); }
-.spend-chart-unknown { font-size: 9px; font-weight: 700; fill: var(--ink); font-family: var(--font-body); }
-.spend-chart-legend { font-size: .85rem; }

@@ -1,28 +1,43 @@
 import type { UsageSummary } from "@ephyra/core";
-import { Badge, Empty, Meter } from "../kit.ts";
+import { Empty, Meter } from "../kit.ts";
 import { formatMicrousd, formatTokens } from "../lib/format.ts";
-import "./TrailBudgets.css";
 
-/** Each trail's spend and tokens as used / max. Over 90% turns the bar hot. */
+const usd = (n: number) => formatMicrousd(Math.round(n));
+
+/** Each trail's spend and tokens as used of max. */
 export function TrailBudgets({ trails }: { trails: UsageSummary["byTrail"] }) {
   if (trails.length === 0) return <Empty title="No trail spent anything in this window" />;
   return (
-    <ul className="trail-budgets">
-      {trails.map((t) => (
-        <li key={t.trailId} className="trail-budget">
-          <div className="trail-budget-head">
-            <a href={`#/inbox/${t.trailId}`} className="mono">{t.short}</a>
-            <span className="trail-budget-title">{t.title}</span>
-            {t.totals.unknownCost > 0 && <Badge tone="warn">{t.totals.unknownCost} unknown</Badge>}
+    <div className="stack">
+      {[...trails]
+        .sort((a, b) => {
+          const ratio = (t: typeof a) =>
+            t.budget.spendMicrousdMax > 0
+              ? t.budget.spendMicrousdUsed / t.budget.spendMicrousdMax
+              : t.budget.spendMicrousdUsed > 0
+                ? Infinity
+                : 0;
+          return ratio(b) - ratio(a);
+        })
+        .map((t) => (
+          <div key={t.trailId} className="stack-sm">
+            <Meter
+              label={
+                <>
+                  <a href={`#/inbox/${t.trailId}`} className="mono">
+                    {t.short}
+                  </a>{" "}
+                  {t.title}
+                </>
+              }
+              used={t.budget.spendMicrousdUsed}
+              max={t.budget.spendMicrousdMax}
+              unknown={t.totals.unknownCost}
+              format={usd}
+            />
+            <Meter label="Tokens" used={t.budget.tokensUsed} max={t.budget.tokensMax} format={formatTokens} />
           </div>
-          <div className="trail-budget-bars">
-            <div><span className="muted">Spend {formatMicrousd(t.budget.spendMicrousdUsed)} of {formatMicrousd(t.budget.spendMicrousdMax)}</span>
-              <Meter label={`${t.short} spend`} used={t.budget.spendMicrousdUsed} max={t.budget.spendMicrousdMax} /></div>
-            <div><span className="muted">Tokens {formatTokens(t.budget.tokensUsed)} of {formatTokens(t.budget.tokensMax)}</span>
-              <Meter label={`${t.short} tokens`} used={t.budget.tokensUsed} max={t.budget.tokensMax} /></div>
-          </div>
-        </li>
-      ))}
-    </ul>
+        ))}
+    </div>
   );
 }

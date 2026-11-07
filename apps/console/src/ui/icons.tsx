@@ -7,18 +7,28 @@ const paths: Record<string, string> = {
   inbox: "M3 13l2.5-7h13L21 13M3 13v5h18v-5M3 13h5l1.5 2.5h5L16 13h5",
   runs: "M5 4v16M5 6c4-2 6 2 10 0s4-1 4-1v8s-1 1-4 1-6-2-10 0",
   workspace: "M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z",
-  personas: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19c.7-3 2.8-5 5.5-5s4.8 2 5.5 5M16 11a2.5 2.5 0 1 0 0-5M17.5 14c2 .4 3.4 2.2 4 5",
+  personas:
+    "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19c.7-3 2.8-5 5.5-5s4.8 2 5.5 5M16 11a2.5 2.5 0 1 0 0-5M17.5 14c2 .4 3.4 2.2 4 5",
   copy: "M8 8h11v11H8zM5 15H4V4h11v1",
   check: "M5 12.5l4.5 4.5L19 7",
   more: "M5 12h.01M12 12h.01M19 12h.01",
   undo: "M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11",
-  specimen: "M12 3c-1.6 3.6-3.8 5.4-7.4 6 2.4 2.8 2.9 5.4 1.6 9 3.5-1.1 5.9-.6 7.8 2.2 1.9-2.8 4.3-3.3 7.8-2.2-1.3-3.6-.8-6.2 1.6-9-3.6-.6-5.8-2.4-7.4-6z",
+  specimen:
+    "M12 3c-1.6 3.6-3.8 5.4-7.4 6 2.4 2.8 2.9 5.4 1.6 9 3.5-1.1 5.9-.6 7.8 2.2 1.9-2.8 4.3-3.3 7.8-2.2-1.3-3.6-.8-6.2 1.6-9-3.6-.6-5.8-2.4-7.4-6z",
 };
 export type IconName = keyof typeof paths;
 export function Icon({ name, ...rest }: { name: IconName } & SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"
-      aria-hidden="true" {...rest}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...rest}
+    >
       <path d={paths[name]} />
     </svg>
   );

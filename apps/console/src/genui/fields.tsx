@@ -1,162 +1,235 @@
-// The eleven catalog components, built from the kit primitives. Each reads and writes its value through json-render's
-// bindings (`$bindState`). A value that is not bound is shown read-only. Text from a spec is always rendered as text.
-import { useBoundProp } from "@json-render/react";
-import { useId, type ReactNode } from "react";
-import { Badge, Card, Field, Segmented } from "../kit.ts";
+// The eleven catalog components (packages/genui), built from the kit primitives. Every field has a label, a `path` (where it
+// writes in the policy) and a first `value`. The current value lives in json-render's form state, keyed by the path, so the
+// host can read every field back. Text from a spec is always rendered as text.
+import { useStateStore } from "@json-render/react";
+import { useState, type ReactNode } from "react";
+import { Card, Field, Segmented, Tag } from "../kit.ts";
 import { DiffView } from "../components/DiffView.tsx";
-import { CheckpointModes, LandingModeNames, RiskLevels } from "./catalog.local.ts";
+import { pointerFor } from "./spec.ts";
 import "./genui.css";
 
-type Bound<T> = { value?: T | null; label: string; hint?: string };
-type Props<T> = { props: Bound<T>; bindings?: Record<string, string> };
+const RISKS = ["low", "medium", "high", "critical"] as const;
+const MODES = ["advisory", "blocking"] as const;
+const LANDING = ["trail_ref", "devenv_live", "radicle_patch", "tangled_pull", "auto_land"] as const;
 
-function useValue<T>(p: Props<T>): [T | null | undefined, (v: T) => void, boolean] {
-  const [value, set] = useBoundProp<T | null>(p.props.value, p.bindings?.value);
-  return [value, set as (v: T) => void, Boolean(p.bindings?.value)];
+type FieldProps<T> = { props: { label: string; path: string; value: T }; disabled?: boolean };
+
+/** One field's current value, held in form state under its path. Falls back to the spec's own value before any edit. */
+function useField<T>(props: { path: string; value: T }): [T, (v: T) => void] {
+  const { state, set } = useStateStore();
+  const pointer = pointerFor(props.path);
+  const current = state[pointer.slice(1)] as T | undefined;
+  return [current === undefined ? props.value : current, (v) => set(pointer, v)];
 }
 
-export function SectionField({ props, children }: { props: { title: string; description?: string }; children?: ReactNode }) {
+export function SectionField({ props, children }: { props: { title: string }; children?: ReactNode }) {
   return (
-    <Card title={props.title} meta={props.description} tone="inset">
+    <Card title={props.title} tone="quiet">
       <div className="gu-stack">{children}</div>
     </Card>
   );
 }
 
-export function TextFieldInput(p: Props<string> & { props: { placeholder?: string } }) {
-  const [value, set, bound] = useValue<string>(p);
+export function TextFieldInput({ props, disabled }: FieldProps<string>) {
+  const [value, set] = useField(props);
   return (
-    <Field label={p.props.label} hint={p.props.hint}>
-      <input type="text" value={value ?? ""} placeholder={p.props.placeholder} readOnly={!bound} maxLength={400} onChange={(e) => set(e.target.value)} />
+    <Field label={props.label}>
+      <input
+        type="text"
+        value={value}
+        maxLength={400}
+        disabled={disabled}
+        onChange={(e) => set(e.target.value)}
+      />
     </Field>
   );
 }
 
-export function PathListInput(p: Props<string[]>) {
-  const [value, set, bound] = useValue<string[]>(p);
-  const paths = value ?? [];
-  const edit = (i: number, v: string) => set(paths.map((x, k) => (k === i ? v : x)));
+export function PathListInput({ props, disabled }: FieldProps<string[]>) {
+  const [value, set] = useField(props);
+  const edit = (i: number, v: string) => set(value.map((x, k) => (k === i ? v : x)));
   return (
-    <fieldset className="gu-group">
-      <legend>{p.props.label}</legend>
-      {paths.map((path, i) => (
+    <fieldset className="gu-group" disabled={disabled}>
+      <legend>
+        <Tag>{props.label}</Tag>
+      </legend>
+      {value.map((path, i) => (
         <div className="gu-row" key={i}>
-          <input type="text" aria-label={`${p.props.label} ${i + 1}`} value={path} readOnly={!bound} maxLength={200} onChange={(e) => edit(i, e.target.value)} />
-          {bound && <button type="button" className="gu-icon" aria-label={`Remove ${path || "path"}`} onClick={() => set(paths.filter((_, k) => k !== i))}>×</button>}
+          <input
+            type="text"
+            aria-label={`${props.label} ${i + 1}`}
+            value={path}
+            maxLength={200}
+            onChange={(e) => edit(i, e.target.value)}
+          />
+          <button
+            type="button"
+            className="gu-link"
+            aria-label={`Remove ${path || "path"}`}
+            onClick={() => set(value.filter((_, k) => k !== i))}
+          >
+            Remove
+          </button>
         </div>
       ))}
-      {bound && paths.length < 40 && <button type="button" className="gu-add" onClick={() => set([...paths, ""])}>Add a path</button>}
-      {p.props.hint && <small className="muted">{p.props.hint}</small>}
+      {value.length < 40 && (
+        <button type="button" className="gu-link" onClick={() => set([...value, ""])}>
+          Add a path
+        </button>
+      )}
     </fieldset>
   );
 }
 
-export function RiskSelectInput(p: Props<(typeof RiskLevels)[number]>) {
-  const [value, set, bound] = useValue<(typeof RiskLevels)[number]>(p);
+export function RiskSelectInput({ props, disabled }: FieldProps<(typeof RISKS)[number]>) {
+  const [value, set] = useField(props);
   return (
-    <Field label={p.props.label} hint={p.props.hint}>
-      <Segmented label={p.props.label} value={value ?? ""} options={RiskLevels.map((r) => ({ id: r, label: r }))}
-        onChange={(id) => bound && set(id as (typeof RiskLevels)[number])} />
-    </Field>
+    <fieldset className="gu-group" disabled={disabled}>
+      <Segmented
+        label={props.label}
+        value={value}
+        options={RISKS.map((r) => ({ id: r, label: r }))}
+        onChange={set}
+      />
+    </fieldset>
   );
 }
 
-type Matrix = Record<"A" | "B" | "C", (typeof CheckpointModes)[number]>;
-export function CheckpointMatrixInput(p: Props<Matrix>) {
-  const [value, set, bound] = useValue<Matrix>(p);
-  const current = value ?? { A: "blocking", B: "blocking", C: "blocking" };
+type Matrix = Record<string, (typeof MODES)[number]>;
+export function CheckpointMatrixInput({ props, disabled }: FieldProps<Matrix>) {
+  const [value, set] = useField(props);
   return (
-    <fieldset className="gu-group">
-      <legend>{p.props.label}</legend>
+    <fieldset className="gu-group" disabled={disabled}>
+      <legend>
+        <Tag>{props.label}</Tag>
+      </legend>
       {(["A", "B", "C"] as const).map((cp) => (
-        <div className="gu-matrix-row" key={cp}>
-          <Badge tone="info">Checkpoint {cp}</Badge>
-          <Segmented label={`Checkpoint ${cp}`} value={current[cp]} options={CheckpointModes.map((m) => ({ id: m, label: m }))}
-            onChange={(id) => bound && set({ ...current, [cp]: id } as Matrix)} />
-        </div>
+        <Segmented
+          key={cp}
+          label={`Checkpoint ${cp}`}
+          name={`${props.path}-${cp}`}
+          value={value[cp] ?? "blocking"}
+          options={MODES.map((m) => ({ id: m, label: m }))}
+          onChange={(m) => set({ ...value, [cp]: m })}
+        />
       ))}
-      {p.props.hint && <small className="muted">{p.props.hint}</small>}
     </fieldset>
   );
 }
 
-export function LandingModesInput(p: Props<string[]>) {
-  const [value, set, bound] = useValue<string[]>(p);
-  const chosen = value ?? [];
+export function LandingModesInput({ props, disabled }: FieldProps<string[]>) {
+  const [value, set] = useField(props);
   return (
-    <fieldset className="gu-group">
-      <legend>{p.props.label}</legend>
+    <fieldset className="gu-group" disabled={disabled}>
+      <legend>
+        <Tag>{props.label}</Tag>
+      </legend>
       <div className="gu-checks">
-        {LandingModeNames.map((m) => (
+        {LANDING.map((m) => (
           <label key={m} className="gu-check">
-            <input type="checkbox" checked={chosen.includes(m)} disabled={!bound}
-              onChange={(e) => set(e.target.checked ? [...chosen, m] : chosen.filter((x) => x !== m))} />
+            <input
+              type="checkbox"
+              checked={value.includes(m)}
+              onChange={(e) => set(e.target.checked ? [...value, m] : value.filter((x) => x !== m))}
+            />
             <span className="mono">{m}</span>
           </label>
         ))}
       </div>
-      {p.props.hint && <small className="muted">{p.props.hint}</small>}
     </fieldset>
   );
 }
 
-const UNITS = [["d", 86_400], ["h", 3600], ["m", 60]] as const;
-export function pickUnit(seconds: number): { unit: "d" | "h" | "m"; amount: number } {
-  const [unit, size] = UNITS.find(([, s]) => seconds % s === 0) ?? UNITS[2];
-  return { unit, amount: Math.max(1, Math.round(seconds / size)) };
+const DURATION = /^([1-9]\d*)(s|m|h|d)$/;
+export function parseDuration(text: string): { amount: number; unit: "s" | "m" | "h" | "d" } | null {
+  const m = DURATION.exec(text);
+  return m ? { amount: Number(m[1]), unit: m[2] as "s" | "m" | "h" | "d" } : null;
 }
 
-export function DurationInput(p: Props<number>) {
-  const [value, set, bound] = useValue<number>(p);
-  const id = useId();
-  const { unit, amount } = pickUnit(value ?? 7200);
-  const size = UNITS.find(([u]) => u === unit)![1];
+/** A duration is the policy's own text, such as `2h`. A value that is not of that form is shown as text and flagged. */
+export function DurationInput({ props, disabled }: FieldProps<string>) {
+  const [value, set] = useField(props);
+  const parsed = parseDuration(value);
   return (
-    <Field label={p.props.label} hint={p.props.hint}>
-      <span className="gu-row">
-        <input id={id} type="number" min={1} value={amount} readOnly={!bound} aria-label={`${p.props.label} amount`}
-          onChange={(e) => set(Math.min(2_592_000, Math.max(60, Number(e.target.value || 1) * size)))} />
-        <select aria-label={`${p.props.label} unit`} value={unit} disabled={!bound}
-          onChange={(e) => set(amount * UNITS.find(([u]) => u === e.target.value)![1])}>
-          <option value="m">minutes</option><option value="h">hours</option><option value="d">days</option>
+    <Field label={props.label} error={parsed ? undefined : "Use a number and s, m, h or d, like 2h."}>
+      <span className="gu-row gu-duration">
+        <input
+          type="number"
+          min={1}
+          aria-label={`${props.label} amount`}
+          value={parsed?.amount ?? ""}
+          disabled={disabled}
+          onChange={(e) =>
+            set(`${Math.max(1, Math.floor(Number(e.target.value) || 1))}${parsed?.unit ?? "h"}`)
+          }
+        />
+        <select
+          aria-label={`${props.label} unit`}
+          value={parsed?.unit ?? "h"}
+          disabled={disabled}
+          onChange={(e) => set(`${parsed?.amount ?? 1}${e.target.value}`)}
+        >
+          <option value="s">seconds</option>
+          <option value="m">minutes</option>
+          <option value="h">hours</option>
+          <option value="d">days</option>
         </select>
       </span>
     </Field>
   );
 }
 
-export function BudgetFieldInput(p: Props<number>) {
-  const [value, set, bound] = useValue<number>(p);
+const BUDGET = /^(\d+(?:\.\d+)?)\/month$/;
+/** A budget is the policy's own text, such as `60/month` (US dollars). */
+export function BudgetFieldInput({ props, disabled }: FieldProps<string>) {
+  const [value, set] = useField(props);
+  const m = BUDGET.exec(value);
   return (
-    <Field label={p.props.label} hint={p.props.hint ?? "US dollars"}>
-      <input type="number" min={0} step={1} value={(value ?? 0) / 1_000_000} readOnly={!bound}
-        onChange={(e) => set(Math.round(Math.max(0, Number(e.target.value || 0)) * 1_000_000))} />
+    <Field
+      label={props.label}
+      hint="US dollars per month"
+      error={m ? undefined : "Use a number and /month, like 60/month."}
+    >
+      <input
+        type="number"
+        min={0}
+        step={1}
+        value={m ? m[1] : ""}
+        disabled={disabled}
+        onChange={(e) => set(`${Math.max(0, Number(e.target.value) || 0)}/month`)}
+      />
     </Field>
   );
 }
 
-export function ToggleInput(p: Props<boolean>) {
-  const [value, set, bound] = useValue<boolean>(p);
+export function ToggleInput({ props, disabled }: FieldProps<boolean>) {
+  const [value, set] = useField(props);
   return (
-    <Field label={p.props.label} hint={p.props.hint}>
-      <input type="checkbox" role="switch" className="gu-switch" checked={Boolean(value)} disabled={!bound} onChange={(e) => set(e.target.checked)} />
-    </Field>
+    <label className="gu-check gu-toggle">
+      <input
+        type="checkbox"
+        role="switch"
+        checked={value}
+        disabled={disabled}
+        onChange={(e) => set(e.target.checked)}
+      />
+      <span>{props.label}</span>
+    </label>
   );
 }
 
-export function NoteText({ props }: { props: { tone: "info" | "warn"; text: string } }) {
+export function NoteText({ props }: { props: { text: string } }) {
   return (
-    <Card tone={props.tone === "warn" ? "alert" : "plain"} className="gu-note">
-      <p role="note"><Badge tone={props.tone === "warn" ? "warn" : "info"}>{props.tone === "warn" ? "Careful" : "Note"}</Badge> {props.text}</p>
-    </Card>
+    <p className="gu-note" role="note">
+      <Tag>note</Tag> {props.text}
+    </p>
   );
 }
 
-export function DiffPreviewBlock({ props }: { props: { title?: string; before: string; after: string } }) {
+export function DiffPreviewBlock({ props }: { props: { before: string; after: string } }) {
   return (
     <div className="gu-diff">
-      {props.title && <strong>{props.title}</strong>}
-      <DiffView before={props.before} after={props.after} label={props.title ?? "Preview"} context={1} />
+      <DiffView before={props.before} after={props.after} label="Preview" context={1} />
     </div>
   );
 }

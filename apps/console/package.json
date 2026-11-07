@@ -11,20 +11,22 @@
     "build-storybook": "storybook build -o storybook-static",
     "test": "bun test src",
     "smoke": "env -u LD_LIBRARY_PATH bun scripts/smoke.ts",
+    "interactions": "env -u LD_LIBRARY_PATH bun scripts/interactions.ts",
     "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.32",
     "@assistant-ui/react-markdown": "0.14.24",
     "@ephyra/core": "workspace:*",
+    "@ephyra/genui": "workspace:*",
     "@fontsource-variable/anybody": "^5.3.0",
+    "@fontsource-variable/martian-mono": "^5.3.0",
     "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
     "@json-render/core": "0.22.0",
     "@json-render/react": "0.22.0",
     "react": "19",
     "react-dom": "19",
-    "zod": "^4.0.0",
-    "@fontsource-variable/martian-mono": "^5.3.0"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.6.6",

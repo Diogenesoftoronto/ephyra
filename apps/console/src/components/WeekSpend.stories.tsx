@@ -7,8 +7,18 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const WithUnknown: Story = { args: { usage: usage7 } };
-export const NoUnknown: Story = { args: { usage: { ...usage7, totals: { ...usage7.totals, unknownCost: 0 } } } };
+export const NoUnknown: Story = {
+  args: { usage: { ...usage7, totals: { ...usage7.totals, unknownCost: 0 } } },
+};
 export const NearBudget: Story = {
-  args: { usage: { ...usage7, totals: { ...usage7.totals, costMicrousd: usage7.byTrail.reduce((n, t) => n + t.budget.spendMicrousdMax, 0) * 0.95 } } },
+  args: {
+    usage: {
+      ...usage7,
+      totals: {
+        ...usage7.totals,
+        costMicrousd: usage7.byTrail.reduce((n, t) => n + t.budget.spendMicrousdMax, 0) * 0.95,
+      },
+    },
+  },
 };
 export const NoBudgets: Story = { args: { usage: { ...usage7, byTrail: [] } } };

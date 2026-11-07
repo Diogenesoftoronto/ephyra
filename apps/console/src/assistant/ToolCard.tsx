@@ -17,7 +17,11 @@ export function PolicyBadge({ policy }: { policy: PolicyNote }) {
 
 const pretty = (text: string | undefined): string => {
   if (!text) return "";
-  try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
 };
 
 /**
@@ -35,12 +39,34 @@ export function ToolCard(part: ToolCallMessagePartProps) {
       <details className="tool-card" open={rejected || failed || undefined}>
         <summary>
           <strong className="mono">{part.toolName}</strong>
-          {pending ? <Badge tone="live">running</Badge> : failed ? <Badge tone="bad">error</Badge> : <Badge tone="ok">done</Badge>}
-          {policy.map((p, i) => <Badge key={i} tone={DECISION[p.decision]}>{p.decision}</Badge>)}
+          {pending ? (
+            <Badge tone="info">running</Badge>
+          ) : failed ? (
+            <Badge tone="bad">error</Badge>
+          ) : (
+            <Badge tone="ok">done</Badge>
+          )}
+          {policy.map((p, i) => (
+            <Badge key={i} tone={DECISION[p.decision]}>
+              {p.decision}
+            </Badge>
+          ))}
         </summary>
-        {policy.map((p, i) => <PolicyBadge key={i} policy={p} />)}
-        {part.argsText && part.argsText !== "{}" && <><p className="muted">Arguments</p><pre className="mono">{pretty(part.argsText)}</pre></>}
-        {!pending && <><p className="muted">{failed ? "Error" : "Result"}</p><pre className="mono">{String(part.result)}</pre></>}
+        {policy.map((p, i) => (
+          <PolicyBadge key={i} policy={p} />
+        ))}
+        {part.argsText && part.argsText !== "{}" && (
+          <>
+            <p className="muted">Arguments</p>
+            <pre className="mono">{pretty(part.argsText)}</pre>
+          </>
+        )}
+        {!pending && (
+          <>
+            <p className="muted">{failed ? "Error" : "Result"}</p>
+            <pre className="mono">{String(part.result)}</pre>
+          </>
+        )}
       </details>
     </Card>
   );

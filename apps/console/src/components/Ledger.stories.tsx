@@ -9,10 +9,27 @@ type Story = StoryObj<typeof meta>;
 
 export const Recent: Story = { args: { entries: usageEntries.slice(0, 12) } };
 /** Rows with no price read "unknown", and the count above them is separate from the dollar total. */
-export const UnknownCost: Story = { args: { entries: usageEntries.filter((e) => e.costMicrousd === null).slice(0, 8) } };
+export const UnknownCost: Story = {
+  args: { entries: usageEntries.filter((e) => e.costMicrousd === null).slice(0, 8) },
+};
 /** Failed and unavailable rows stay visible, with the reason. */
-export const FailedAndUnavailable: Story = { args: { entries: usageEntries.filter((e) => e.outcome !== "ok").slice(0, 8) } };
+export const FailedAndUnavailable: Story = {
+  args: { entries: usageEntries.filter((e) => e.outcome !== "ok").slice(0, 8) },
+};
 export const Empty: Story = { args: { entries: [] } };
+export const NoMatchesYet: Story = {
+  args: { entries: [] },
+  render: () => {
+    const [loaded, setLoaded] = useState(false);
+    return (
+      <Ledger
+        entries={loaded ? usageEntries.slice(0, 2) : []}
+        hasMore={!loaded}
+        onMore={() => setLoaded(true)}
+      />
+    );
+  },
+};
 export const LoadMore: Story = {
   args: { entries: [] },
   render: () => {
@@ -21,4 +38,7 @@ export const LoadMore: Story = {
   },
 };
 export const Dark: Story = { args: { entries: usageEntries.slice(0, 8) }, parameters: { theme: "dark" } };
-export const Mobile: Story = { args: { entries: usageEntries.slice(0, 6) }, globals: { viewport: { value: "phone" } } };
+export const Mobile: Story = {
+  args: { entries: usageEntries.slice(0, 6) },
+  globals: { viewport: { value: "phone" } },
+};

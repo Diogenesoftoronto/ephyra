@@ -7,7 +7,11 @@ import { readSpec } from "../genui/spec.ts";
 import { FakeApi } from "./api.ts";
 import { STORY_NOW, makeTrails } from "./fixtures.ts";
 
-const rejects = async (p: Promise<unknown>) => p.then(() => null, (e: unknown) => e);
+const rejects = async (p: Promise<unknown>) =>
+  p.then(
+    () => null,
+    (e: unknown) => e,
+  );
 
 describe("FakeApi fixtures", () => {
   test("every payload passes the core schemas", async () => {
@@ -28,7 +32,12 @@ describe("FakeApi fixtures", () => {
   test("trails exist at every checkpoint and are deterministic", async () => {
     const api = new FakeApi();
     const inbox = await api.inbox();
-    expect(inbox.filter((i) => i.kind === "checkpoint").map((i) => i.checkpoint).sort()).toEqual(["A", "B", "C"]);
+    expect(
+      inbox
+        .filter((i) => i.kind === "checkpoint")
+        .map((i) => i.checkpoint)
+        .sort(),
+    ).toEqual(["A", "B", "C"]);
     expect(inbox.some((i) => i.kind === "spend")).toBe(true);
     expect(inbox.some((i) => i.kind === "parked")).toBe(true);
     expect(JSON.stringify(makeTrails(STORY_NOW))).toBe(JSON.stringify(makeTrails(STORY_NOW)));
@@ -92,7 +101,13 @@ describe("FakeApi writes", () => {
     const api = new FakeApi({ approver: false });
     const d = (await api.drafts("open"))[0]!;
     expect(((await rejects(api.publish(d.id, "p"))) as ApiError).status).toBe(403);
-    expect(((await rejects(api.decide((await api.inbox())[0]!.trailId, { checkpoint: "A", verdict: "approve" }, "q"))) as ApiError).status).toBe(403);
+    expect(
+      (
+        (await rejects(
+          api.decide((await api.inbox())[0]!.trailId, { checkpoint: "A", verdict: "approve" }, "q"),
+        )) as ApiError
+      ).status,
+    ).toBe(403);
   });
 
   test("comment, claim and park change the trail and the timeline", async () => {
@@ -124,8 +139,18 @@ describe("FakeApi drafts and Velum", () => {
   test("applying a form goes through Velum and rewrites only that area", async () => {
     const api = new FakeApi({ seedConversation: false });
     const draft = await api.createDraft("autonomy.md", "d1");
-    const values = { area: { name: "billing", paths: ["src/billing/**", " "], risk: "critical", userFacing: true,
-      checkpoints: { A: "blocking", B: "blocking", C: "blocking" }, landing: ["trail_ref"], watchSeconds: 3600, voxqMicrousd: 0 } };
+    const values = {
+      area: {
+        name: "billing",
+        paths: ["src/billing/**", " "],
+        risk: "critical",
+        userFacing: true,
+        checkpoints: { A: "blocking", B: "blocking", C: "blocking" },
+        landing: ["trail_ref"],
+        watchSeconds: 3600,
+        voxqMicrousd: 0,
+      },
+    };
     const reply = (await api.sendMessage(draft.id, formMessage(values), "m1")).messages.at(-1)!;
     expect(reply.proposal?.content).toContain("risk: critical");
     expect(reply.proposal?.content).toContain("watch: 1h");
@@ -133,22 +158,41 @@ describe("FakeApi drafts and Velum", () => {
     expect(reply.proposal?.content).not.toContain("paths: src/billing/**, ");
   });
 
+  test("edited catalog values go through the same message shape as the draft screen", async () => {
+    const api = new FakeApi();
+    const draft = await api.draft("d-1");
+    const spec = readSpec(draft.messages.at(-1)!.spec);
+    expect(spec.ok).toBe(true);
+    if (!spec.ok) return;
+    const values = Object.fromEntries(spec.fields.map((f) => [f.path, f.value]));
+    values["area.billing.name"] = "billing-review";
+    values["area.billing.watch"] = "3h";
+    const reply = (await api.sendMessage(draft.id, formMessage({ values }), "edited-form")).messages.at(-1)!;
+    expect(reply.proposal?.content).toContain("## area: billing-review");
+    expect(reply.proposal?.content).toContain("watch: 3h");
+    const saved = await api.applyProposal(draft.id, reply.id, "edited-form-apply");
+    expect(saved.sketches?.some((s) => s.name === "billing-review")).toBe(true);
+  });
+
   test("a proposal with parser errors cannot be applied, and a draft with errors cannot be published", async () => {
     const api = new FakeApi({ seedConversation: false });
     const draft = await api.createDraft("autonomy.md", "d1");
     const reply = (await api.sendMessage(draft.id, "this is broken", "m1")).messages.at(-1)!;
-    expect(reply.proposal?.warnings.join()).toContain("invalid risk");
+    expect(reply.proposal?.warnings.join()).toContain("error: line");
     expect(((await rejects(api.applyProposal(draft.id, reply.id, "a1"))) as ApiError).status).toBe(409);
     await api.updateContent(draft.id, `${draft.content}\n## area: x\nrisk: severe\n`, draft.baseDigest, "u1");
     expect(((await rejects(api.publish(draft.id, "p1"))) as ApiError).status).toBe(409);
   });
 
-  test("an unavailable model is an Unverified error, never a made-up reply", async () => {
-    const api = new FakeApi({ velumUnavailable: true });
-    const error = (await rejects(api.sendMessage("d-1", "hello", "m1"))) as ApiError;
-    expect(error.status).toBe(503);
-    expect(error.detail).toContain("Unverified");
-    expect((await api.draft("d-1")).messages.at(-1)!.text).not.toBe("hello");
+  test("an unavailable model is a system message in the draft, never a made-up reply", async () => {
+    const api = new FakeApi({ velumUnavailable: true, seedConversation: false });
+    const draft = await api.createDraft("autonomy.md", "d");
+    const after = await api.sendMessage(draft.id, "hello", "m1");
+    const last = after.messages.at(-1)!;
+    expect(last.role).toBe("system");
+    expect(last.text).toContain("Unverified");
+    expect(after.messages.some((m) => m.role === "persona")).toBe(false);
+    expect(last.proposal).toBeUndefined();
   });
 
   test("publish records the ref; a moved document or a conflict answers 409", async () => {
@@ -159,8 +203,52 @@ describe("FakeApi drafts and Velum", () => {
     expect(published.published?.ref).toBe(`refs/ephyra/policy/${draft.id}`);
     const conflict = new FakeApi({ publishConflict: true });
     expect(((await rejects(conflict.publish("d-1", "p2"))) as ApiError).status).toBe(409);
-    const stale = await new FakeApi().updateContent("d-1", "x", "wrong-digest", "u").then(() => null, (e: unknown) => e);
+    const stale = await new FakeApi().updateContent("d-1", "x", "wrong-digest", "u").then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect((stale as ApiError).status).toBe(409);
+  });
+
+  test("the autonomy document and its drafts carry the application map; other documents do not", async () => {
+    const api = new FakeApi();
+    const docs = await api.docs();
+    expect(docs.find((d) => d.path === "autonomy.md")?.sketches?.map((s) => s.name)).toEqual([
+      "payments",
+      "cart",
+      "marketing-site",
+    ]);
+    expect(docs.find((d) => d.path === "thresholds.yaml")?.sketches).toBeUndefined();
+    const seeded = await api.draft("d-1");
+    expect(seeded.sketches?.map((s) => s.name)).toEqual(["payments", "cart", "marketing-site"]);
+    expect(seeded.messages.at(-1)?.proposal?.sketches?.some((s) => s.name === "billing")).toBe(true);
+  });
+
+  test("saving the map renders it into the document, and refuses a stale base or a draft with errors", async () => {
+    const api = new FakeApi({ seedConversation: false });
+    const d = await api.createDraft("autonomy.md", "d");
+    const edited = d.sketches!.map((s) => (s.name === "cart" ? { ...s, level: "research" as const } : s));
+    const saved = await api.updateSketches(d.id, edited, d.baseDigest, "s1");
+    expect(saved.sketches?.find((s) => s.name === "cart")?.level).toBe("research");
+    expect(saved.content).toContain("<!-- level: research -->");
+    expect(((await rejects(api.updateSketches(d.id, edited, "stale", "s2"))) as ApiError).status).toBe(409);
+    await api.updateContent(d.id, `${saved.content}\n## area: x\nrisk: severe\n`, d.baseDigest, "u");
+    const blocked = (await rejects(api.updateSketches(d.id, edited, d.baseDigest, "s3"))) as ApiError;
+    expect([blocked.status, blocked.detail]).toEqual([
+      409,
+      "the draft text has errors; fix it before editing the map",
+    ]);
+    const intent = await api.createDraft("intents/search.md", "i");
+    expect(
+      ((await rejects(api.updateSketches(intent.id, [], intent.baseDigest, "s4"))) as ApiError).status,
+    ).toBe(400);
+  });
+
+  test("a persona filter of `unattributed` finds work with no persona", async () => {
+    const api = new FakeApi();
+    const { entries } = await api.entries({ persona: "unattributed", limit: 200 });
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.every((e) => e.persona === null && e.step === "study")).toBe(true);
   });
 
   test("empty mode returns nothing", async () => {

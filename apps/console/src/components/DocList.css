@@ -1,3 +1,18 @@
-.draft-list { display: grid; gap: .5rem; }
-.draft-row { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; padding: .6rem .75rem; text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.draft-row-meta { margin-left: auto; font-size: .88rem; }
+.draft-list {
+  display: grid;
+  gap: 0.5rem;
+}
+.draft-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.draft-row-meta {
+  margin-left: auto;
+  font-size: 0.88rem;
+}

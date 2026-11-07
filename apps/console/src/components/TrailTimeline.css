@@ -1,8 +1,26 @@
-.timeline { display: grid; gap: .5rem; }
-.timeline-item { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: .5rem 1rem; align-items: baseline; }
-.timeline-text { overflow-wrap: anywhere; }
-.timeline-actor { font-size: .85rem; text-align: right; }
+.timeline {
+  display: grid;
+  gap: 0.5rem;
+}
+.timeline-item {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+}
+.timeline-text {
+  overflow-wrap: anywhere;
+}
+.timeline-actor {
+  font-size: 0.85rem;
+  text-align: right;
+}
 @media (max-width: 560px) {
-  .timeline-item { grid-template-columns: minmax(0, 1fr); gap: .1rem; }
-  .timeline-actor { text-align: left; }
+  .timeline-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+  .timeline-actor {
+    text-align: left;
+  }
 }
