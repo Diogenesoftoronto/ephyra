@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ephyra · Software that sets itself</title>
+<meta name="description" content="Ephyra is self-hostable self-driving software: production errors become trails that prove themselves, land on your forge, and set. Pre-alpha design.">
+<meta name="theme-color" content="#101722" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7f1e4" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
+<meta property="og:title" content="Ephyra · Software that sets itself">
+<meta property="og:description" content="A short film about jellyware: soft enough to change, firm enough to trust.">
+<meta property="og:image" content="../assets/og/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap">
+<link rel="preload" as="image" href="../assets/img/hero-ephyra-cutout.webp">
+<script>
+  try { const t = localStorage.getItem("ephyra-c-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="bar">
+  <a class="logo" href="./" aria-label="Ephyra, home">
+    <img class="mark" src="../assets/brand/logo.svg" alt="" width="28" height="28">
+    <span class="word">ephyra</span>
+  </a>
+  <div class="bar-end">
+    <button class="theme" type="button" aria-label="Color theme: system" data-mode="system"></button>
+    <a class="btn btn-bar" href="../../README.md">Read the design</a>
+  </div>
+</header>
+
+<main id="film" class="film" aria-label="Ephyra, a short film in ten scenes">
+  <div class="stage">
+    <div class="plate" aria-hidden="true"></div>
+    <div class="lightbox" aria-hidden="true"></div>
+
+    <div class="object">
+      <img class="jelly-img" src="../assets/img/hero-ephyra-cutout.webp" width="1200" height="1200" decoding="async" fetchpriority="high"
+           alt="A honey-amber jelly mould, backlit, with a tiny eight-armed ephyra suspended inside it">
+      <div class="jelly-css" aria-hidden="true"></div>
+      <canvas class="jelly-canvas" aria-hidden="true"></canvas>
+      <svg class="overlay" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false"></svg>
+    </div>
+
+    <svg class="leaders" aria-hidden="true" focusable="false"></svg>
+
+    <div class="captions">
+      <p class="cap pos-l" data-s="0" data-side="l" aria-label="Scene 1"><span class="txt"><span class="line">Software that sets itself.</span><span class="aside"><a class="btn" href="../../README.md">Read the design</a><small class="status">Pre-alpha</small></span></span></p>
+      <p class="cap pos-r" data-s="1" data-side="r"><span class="txt"><span class="line">An error lands in production.</span></span></p>
+      <p class="cap pos-l" data-s="2" data-side="l"><span class="txt"><span class="line">It becomes a trail: evidence, repro, patch.</span></span></p>
+      <p class="cap pos-r" data-s="3" data-side="r"><span class="txt"><span class="line">Proof, before anyone looks.</span></span></p>
+      <p class="cap pos-l" data-s="4" data-side="l"><span class="txt"><span class="line">You approve where it matters.</span></span></p>
+      <p class="cap pos-r firmable" data-s="5" data-side="r"><span class="txt"><span class="line">It sets.</span></span></p>
+      <p class="cap pos-b" data-s="6" data-side="b"><span class="txt"><span class="line">Or it slumps, and undoes itself.</span></span></p>
+      <p class="cap pos-r" data-s="7" data-side="r"><span class="txt"><span class="line">Lands on Radicle, Tangled or plain git.</span></span></p>
+      <p class="cap pos-l" data-s="8" data-side="l"><span class="txt"><span class="line">No pull requests. Runs on your box.</span></span></p>
+      <p class="cap pos-b firmable" data-s="9" data-side="b"><span class="txt"><span class="line">Jellyware: soft enough to change, firm enough to trust.</span><span class="aside"><a class="btn" href="../../README.md">Read the design</a><small class="status">Nothing runs yet.</small></span></span></p>
+    </div>
+  </div>
+  <div class="snaps" aria-hidden="true">
+    <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+  </div>
+</main>
+
+<nav class="trail" aria-label="Scenes">
+  <span class="trail-line" aria-hidden="true"></span>
+  <button type="button" class="bead" data-s="0" aria-label="Software that sets itself."></button>
+  <button type="button" class="bead big" data-s="1" aria-label="An error lands in production."></button>
+  <button type="button" class="bead" data-s="2" aria-label="It becomes a trail: evidence, repro, patch."></button>
+  <button type="button" class="bead" data-s="3" aria-label="Proof, before anyone looks."></button>
+  <button type="button" class="bead big" data-s="4" aria-label="You approve where it matters."></button>
+  <button type="button" class="bead big" data-s="5" aria-label="It sets."></button>
+  <button type="button" class="bead" data-s="6" aria-label="Or it slumps, and undoes itself."></button>
+  <button type="button" class="bead" data-s="7" aria-label="Lands on Radicle, Tangled or plain git."></button>
+  <button type="button" class="bead" data-s="8" aria-label="No pull requests. Runs on your box."></button>
+  <button type="button" class="bead" data-s="9" aria-label="Jellyware: soft enough to change, firm enough to trust."></button>
+</nav>
+
+<footer class="foot">
+  <p>“Jellyware” is <a href="https://ampcode.com" rel="noopener">Amp</a>’s word.</p>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
