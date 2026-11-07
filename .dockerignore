@@ -1,0 +1,14 @@
+.git
+.lanes
+.devenv
+.direnv
+.ephyra-local
+.env
+.env.*
+!.env.example
+**/node_modules
+**/dist
+site
+research
+design
+**/*.test.ts

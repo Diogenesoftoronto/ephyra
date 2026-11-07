@@ -8,12 +8,16 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "start": "bun run src/main.ts"
   },
   "dependencies": {
     "@dbos-inc/dbos-sdk": "^5",
     "@ephyra/core": "workspace:*",
     "hono": "^4.13.17",
-    "zod": "4"
+    "zod": "4",
+    "@ephyra/ingest": "workspace:*",
+    "@ephyra/journal": "workspace:*",
+    "@ephyra/policy": "workspace:*"
   }
 }

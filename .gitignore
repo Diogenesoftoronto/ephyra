@@ -10,8 +10,7 @@ dist/
 .ephyra-local/
 # generated media sources stay on disk, out of git
 site/_sources/
-# lockfile is regenerated at integration time while parallel lanes run
-bun.lock
 
 # per-lane git worktrees used during parallel builds
 .lanes/
+.railway/node_modules/
