@@ -1,0 +1,19 @@
+# Ephyra control plane (apps/server) on Bun. Build context: repository root.
+FROM oven/bun:1.4.4-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lock tsconfig.base.json ./
+COPY packages/ packages/
+COPY apps/ apps/
+RUN bun install --frozen-lockfile --production
+
+FROM oven/bun:1.4.4-alpine
+# git is required by the journal (refs/ephyra/trails/*) and forge adapters.
+RUN apk add --no-cache git
+WORKDIR /app
+COPY --from=deps /app /app
+ENV NODE_ENV=production PORT=3000 EPHYRA_JOURNAL_DIR=/data/journal.git
+RUN mkdir -p /data && chown -R bun:bun /data /app
+USER bun
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:${PORT}/healthz >/dev/null || exit 1
+CMD ["bun", "run", "apps/server/src/main.ts"]
