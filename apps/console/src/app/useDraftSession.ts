@@ -36,15 +36,16 @@ export function useDraftSession(api: ConsoleApi, id: string) {
   }, [api, path, isAutonomy]);
 
   const send = useCallback(
-    async (text: string): Promise<DraftView | null> => {
+    async (text: string, throwOnError = false, operationKey = newOp()): Promise<DraftView | null> => {
       setPending(text);
       setFailure(null);
       try {
-        const next = await api.sendMessage(id, text, newOp());
+        const next = await api.sendMessage(id, text, operationKey);
         set(next);
         return next;
       } catch (error) {
         setFailure({ error, text });
+        if (throwOnError) throw error;
         return null;
       } finally {
         setPending(undefined);

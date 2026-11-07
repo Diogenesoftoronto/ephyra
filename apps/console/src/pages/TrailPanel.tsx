@@ -6,6 +6,7 @@ import { Badge, Card, Hash, Skeleton } from "../kit.ts";
 import { CheckpointCard, staleness } from "../components/CheckpointCard.tsx";
 import { Load } from "../components/Load.tsx";
 import { ReviewEvidence } from "../components/ReviewEvidence.tsx";
+import { TutorPanel } from "../components/TutorPanel.tsx";
 import { RunList } from "../components/RunList.tsx";
 import { SpendRequestCard } from "../components/SpendRequestCard.tsx";
 import { TrailActions } from "../components/TrailActions.tsx";
@@ -71,6 +72,7 @@ export function TrailPanel({
           return (
             <>
               <TrailHeader trail={trail} />
+              <TutorPanel trail={trail} events={events} canSpend={canAct} />
               <ReviewEvidence
                 artefacts={artefacts}
                 proof={proof?.type === "proof_completed" ? proof.data.bundle : undefined}

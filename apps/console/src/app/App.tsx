@@ -15,6 +15,8 @@ const DraftPage = lazy(() => import("../pages/DraftPage.tsx").then((m) => ({ def
 import { WorkspacePage } from "../pages/WorkspacePage.tsx";
 import { parseRoute, type PageId, type Route } from "./route.ts";
 import "./App.css";
+import { VoiceProvider, VoiceLauncher } from "../voice/Voice.tsx";
+import type { VoiceContext } from "@ephyra/core";
 
 const LABEL: Record<PageId, string> = {
   overview: "Overview",
@@ -121,7 +123,14 @@ function Frame({
     overflow: id === "workspace" || id === "personas",
   }));
   const current = route.page === "not-found" ? "" : route.page;
+  const voiceContext: VoiceContext = route.page === "inbox" && route.id ? { kind: "trail", id: route.id }
+    : route.page === "runs" && route.id ? { kind: "run", id: route.id }
+    : route.page === "workspace" && route.id ? { kind: "draft", id: route.id }
+    : route.page === "usage" ? { kind: "usage" } : { kind: "overview" };
+  const voiceLabel = voiceContext.kind === "usage" ? "Usage, last 7 days" : voiceContext.kind === "overview" ? "Application overview"
+    : `${voiceContext.kind === "trail" ? "Trail" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
   return (
+    <VoiceProvider api={api} context={voiceContext} label={voiceLabel} scopeKey={JSON.stringify(route)} canSpend={approver}>
     <Shell
       nav={nav}
       current={current}
@@ -138,6 +147,7 @@ function Frame({
         ),
       }}
     >
+      {voiceContext.kind !== "draft" && <div className="voice-entry"><VoiceLauncher /></div>}
       <Suspense fallback={<Skeleton block />}>
         <Page
           key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}
@@ -155,5 +165,6 @@ function Frame({
         {demo ? <p className="muted">Demo data · no server connected.</p> : null}
       </footer>
     </Shell>
+    </VoiceProvider>
   );
 }

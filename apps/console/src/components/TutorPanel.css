@@ -1,0 +1,12 @@
+.tutor-panel { min-width: 0; }
+.tutor-panel p { margin: 0; }
+.tutor-panel textarea { width: 100%; resize: vertical; min-height: 5rem; }
+.tutor-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .6rem; }
+.tutor-turn { display: grid; gap: .8rem; padding: 1.2rem 0; border-top: 1px solid var(--line); }
+.tutor-question { font-weight: 600; }
+.tutor-answer { white-space: pre-wrap; line-height: 1.65; max-width: 70ch; }
+.tutor-turn pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; line-height: 1.5; }
+.tutor-turn details { padding: .6rem 0; }
+.tutor-turn details summary { cursor: pointer; }
+.tutor-receipt, .tutor-boundary { font-size: .8rem; overflow-wrap: anywhere; }
+.tutor-panel .ui-button { justify-self: start; }

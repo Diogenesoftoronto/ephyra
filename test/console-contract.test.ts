@@ -8,6 +8,9 @@ import { ConsoleClient } from "../apps/console/src/api.ts";
 import { compose } from "../apps/server/src/compose.ts";
 import { readConfig } from "../apps/server/src/config.ts";
 import { FakeDraftModel } from "../apps/server/src/velum.ts";
+import type { SpeechProvider } from "../apps/server/src/voice-provider.ts";
+import { Trail, TrailEvent, trailTutorBinding } from "../packages/core/src/index.ts";
+import { TUTOR_MODEL } from "../apps/server/src/humans.ts";
 
 test("console client reads usage, edits the map, applies a proposal and publishes a git policy ref", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ephyra-console-contract-"));
@@ -40,5 +43,64 @@ test("console client reads usage, edits the map, applies a proposal and publishe
     expect(published.published?.commit).toMatch(/^[0-9a-f]{40}$/);
     expect((await client.doc("autonomy.md")).content).toBe(AUTONOMY_TEMPLATE);
     expect((await client.entries({ persona: "velum" })).entries[0]?.engine).toBe("fake/velum-1");
+  } finally { await server.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("console voice client reaches composed speech, context and usage routes without external providers", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ephyra-voice-contract-"));
+  const token = "fixture-" + "v".repeat(32);
+  const calls: string[] = [];
+  const speech: SpeechProvider = {
+    kind: "compatible", billedTo: "local", transcriptionModel: "fixture-stt", speechModel: "fixture-tts", voice: "fixture", maxCostMicrousd: null,
+    transcribe: async () => { calls.push("transcribe"); return { text: "What needs attention?", engine: "actual-fixture-stt", tokens: null, costMicrousd: null }; },
+    speak: async () => { calls.push("speak"); return { audio: "AQIDBA==", mime: "audio/mpeg", engine: null, tokens: null, costMicrousd: null }; },
+  };
+  const model = new FakeDraftModel(() => "There are no recorded trails in this fixture.");
+  const server = await compose(readConfig({ EPHYRA_API_TOKEN: token, EPHYRA_DATA_DIR: join(dir, "data"), EPHYRA_DRAFT: "fake" }),
+    { startJobs: false, draftModel: model, speechProvider: speech });
+  try {
+    const client = new ConsoleClient("http://fixture.test", token,
+      (async (url: RequestInfo | URL, init?: RequestInit) => server.app.request(String(url), init)) as typeof fetch, "voice-operator");
+    expect(await client.voiceCapabilities()).toMatchObject({ provider: "compatible", transcriptionModel: "fixture-stt", conversation: true });
+    const signal = new AbortController().signal;
+    const transcript = await client.transcribe({ audio: "AQIDBA==", mime: "audio/webm" }, "voice-input-001", signal);
+    const reply = await client.voiceReply({ context: { kind: "overview" }, messages: [{ role: "user", text: transcript.text }] }, "voice-reply-001", signal);
+    expect(reply.text).toBe("There are no recorded trails in this fixture.");
+    expect(model.calls[0]!.messages[0]!.content).toContain('"inbox":[]');
+    const clip = await client.speak(reply.text, "voice-speak-001", signal);
+    expect(clip.receipt.engine).toBeNull(); expect(clip.receipt.costMicrousd).toBeNull();
+    expect(await client.speak(reply.text, "voice-speak-001", signal)).toEqual(clip);
+    expect(calls).toEqual(["transcribe", "speak"]);
+    const entries = await client.entries({ persona: "velum" });
+    expect(entries.entries.map(e => e.step).sort()).toEqual(["voice.reply", "voice.speak", "voice.transcribe"]);
+    expect((await client.usage()).totals.unknownCost).toBe(2);
+  } finally { await server.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("console Tutor client reads grounded explanations and metered usage from the composed server", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ephyra-tutor-contract-"));
+  const token = "fixture-" + "t".repeat(32), id = "11111111-1111-4111-8111-111111111111", now = new Date().toISOString();
+  let calls = 0;
+  const server = await compose(readConfig({ EPHYRA_API_TOKEN: token, EPHYRA_DATA_DIR: dir }), { startJobs: false,
+    tutorBackend: { kind: "notorganic", billedTo: "notorganic", maxCostMicrousd: 100000, consult: async (_question, context) => {
+      calls++; expect(context).toContain("No proof for this revision");
+      return { text: "No reproduction or proof is recorded yet. What behavior do you want to establish?", engine: TUTOR_MODEL, tokens: 51, costMicrousd: null };
+    } } });
+  try {
+    const trail = Trail.parse({ schema: 1, id, short: "T-contract", repo: "default", title: "Checkout", rev: 1, state: "researching", signals: [id], area: "checkout", risk: "high", route: "auto_fix", severity: 2,
+      base: { ref: "main", sha: "a".repeat(40) }, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
+      budget: { tokensUsed: 0, tokensMax: 1000, wallclockMaxS: 100, spendMicrousdUsed: 0, spendMicrousdMax: 100000 }, createdAt: now, updatedAt: now });
+    const initial = TrailEvent.parse({ schema: 1, id, trail: id, rev: 1, at: now, actor: { kind: "system", id: "fixture" }, type: "trail_created",
+      data: { signalId: id, title: trail.title, baseRef: trail.base.ref, baseSha: trail.base.sha } });
+    await server.ctx.start(trail, initial);
+    const client = new ConsoleClient("http://fixture.test", token,
+      (async (url: RequestInfo | URL, init?: RequestInit) => server.app.request(String(url), init)) as typeof fetch, "tutor-operator");
+    expect((await client.tutorCapabilities()).model).toBe(TUTOR_MODEL);
+    const current = await client.trail(id), signal = new AbortController().signal;
+    const input = { trailId: id, bound: trailTutorBinding(current.trail, current.events), question: "Explain the evidence", history: [] };
+    const reply = await client.explainTrail(input, "tutor-contract-01", signal);
+    expect(reply.receipt.engine).toBe(TUTOR_MODEL);
+    expect(await client.explainTrail(input, "tutor-contract-01", signal)).toEqual(reply); expect(calls).toBe(1);
+    expect((await client.entries({ trail: id })).entries[0]).toMatchObject({ kind: "study", step: "tutor.explain", costMicrousd: null, tokens: 51 });
   } finally { await server.close(); await rm(dir, { recursive: true, force: true }); }
 });

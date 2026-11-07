@@ -20,6 +20,7 @@ import type { FormPartData, ProposalPartData } from "./messages.ts";
 import { useVelumRuntime } from "./useVelumRuntime.ts";
 import { WorkingIndicator } from "./WorkingIndicator.tsx";
 import "./assistant.css";
+import { DictateButton, ReadAloudButton, VoiceLauncher } from "../voice/Voice.tsx";
 
 type Ctx = {
   currentContent: string;
@@ -117,6 +118,17 @@ export const DEFAULT_IDEAS = [
   "Add an area for billing.",
 ];
 
+function VoiceComposer({ disabled }: { disabled?: boolean }) {
+  const aui = useAui();
+  return <div className="thread-voice-actions">
+    <DictateButton disabled={disabled} onText={text => {
+      const previous = aui.composer().getState().text;
+      aui.composer().setText(previous ? `${previous.trimEnd()} ${text}` : text);
+    }} />
+    <VoiceLauncher compact disabled={disabled} />
+  </div>;
+}
+
 type Props = {
   messages: readonly DraftMessage[];
   /** The human message being sent right now. */
@@ -148,6 +160,7 @@ export function VelumThread(props: Props) {
     onSend: props.onSend,
   });
   const failure = props.failure ? describeError(props.failure.error) : null;
+  const lastReply = [...props.messages].reverse().find(m => m.role === "persona");
   return (
     <VelumContext.Provider
       value={{
@@ -209,6 +222,7 @@ export function VelumThread(props: Props) {
               </Card>
             )}
           </ThreadPrimitive.Viewport>
+          {lastReply && <ReadAloudButton text={lastReply.text} label="Velum's latest reply" />}
           <ComposerPrimitive.Root className="thread-composer">
             <Field label="Message Velum" hint="Enter sends. Shift+Enter adds a line.">
               <ComposerPrimitive.Input
@@ -218,6 +232,7 @@ export function VelumThread(props: Props) {
               />
             </Field>
             <div className="thread-composer-row">
+              <VoiceComposer disabled={props.disabled || props.busy} />
               {props.disabled && (
                 <span className="muted">
                   {props.disabledReason ?? "Only approvers can change the draft."}

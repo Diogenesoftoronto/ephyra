@@ -10,6 +10,9 @@ import {
   TrailEvent,
   UsageEntry,
   UsageSummary,
+  VoiceCapabilities, VoiceTranscript, VoiceSpeech, VoiceReply,
+  TutorCapabilities, TutorReply, type TutorInput,
+  type VoiceAudioInput, type VoiceReplyInput,
   type Persona,
 } from "@ephyra/core";
 import { z } from "zod";
@@ -31,6 +34,10 @@ export class UnknownWriteOutcome extends Error {
   constructor(readonly operationKey: string) {
     super("The write outcome is unknown. Reconcile before retrying.");
   }
+}
+
+export class VoiceRequestError extends Error {
+  constructor(readonly code: string, message: string, readonly operationKey?: string) { super(message); }
 }
 
 // `InboxItem` is a type in core (ports.ts) with no schema, so the console validates the wire shape itself.
@@ -93,6 +100,12 @@ export const SessionInfo = z.object({
 export type SessionInfo = z.infer<typeof SessionInfo>;
 
 export interface ConsoleApi {
+  tutorCapabilities(): Promise<TutorCapabilities>;
+  explainTrail(input: TutorInput, op: string, signal: AbortSignal): Promise<TutorReply>;
+  voiceCapabilities(): Promise<VoiceCapabilities>;
+  transcribe(input: VoiceAudioInput, op: string, signal: AbortSignal): Promise<VoiceTranscript>;
+  speak(text: string, op: string, signal: AbortSignal): Promise<VoiceSpeech>;
+  voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal): Promise<VoiceReply>;
   identity(): Promise<SessionInfo>;
   personas(): Promise<Persona[]>;
   activity(limit?: number): Promise<ActivityItem[]>;
@@ -202,6 +215,32 @@ export class ConsoleClient implements ConsoleApi {
     readonly fetcher: typeof fetch = fetch,
     readonly principal?: string,
   ) {}
+
+  voiceCapabilities() { return this.request("/v1/voice", VoiceCapabilities); }
+  tutorCapabilities() { return this.request("/v1/tutor", TutorCapabilities); }
+  explainTrail(input: TutorInput, op: string, signal: AbortSignal) { return this.voiceRequest("/v1/tutor/explain", TutorReply, input, op, signal); }
+  private async voiceRequest<T>(path: string, schema: z.ZodType<T>, body: unknown, operationKey: string, signal: AbortSignal): Promise<T> {
+    let res: Response;
+    try {
+      res = await this.fetcher(new URL(path.startsWith("/") ? path : `/v1/voice/${path}`, this.baseUrl), {
+        method: "POST", signal, body: JSON.stringify(body), headers: {
+          Authorization: `Bearer ${this.token}`, "Content-Type": "application/json", "Idempotency-Key": operationKey,
+          ...(this.principal ? { "X-Ephyra-Principal": this.principal } : {}),
+        },
+      });
+    } catch { throw new VoiceRequestError("reconciliation_required",
+      "The connection ended before the model request finished. Check Usage before trying again.", operationKey); }
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new VoiceRequestError(typeof json?.code === "string" ? json.code : res.status >= 500 ? "reconciliation_required" : "unavailable",
+      typeof json?.error === "string" ? json.error.slice(0, 500) : `Model request failed (HTTP ${res.status}).`, operationKey);
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) throw new VoiceRequestError("reconciliation_required",
+      "The model response could not be read. Check Usage before trying again.", operationKey);
+    return parsed.data;
+  }
+  transcribe(input: VoiceAudioInput, op: string, signal: AbortSignal) { return this.voiceRequest("transcribe", VoiceTranscript, input, op, signal); }
+  speak(text: string, op: string, signal: AbortSignal) { return this.voiceRequest("speak", VoiceSpeech, { text }, op, signal); }
+  voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal) { return this.voiceRequest("reply", VoiceReply, input, op, signal); }
 
   async request<T>(path: string, schema: z.ZodType<T>, options?: WriteOptions): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };

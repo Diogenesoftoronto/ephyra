@@ -11,9 +11,12 @@ import {
   type Trail,
   type TrailEvent,
   type UsageEntry,
+  type VoiceCapabilities, type VoiceAudioInput, type VoiceReplyInput, type VoiceSpeech, type VoiceTranscript, type VoiceReply,
+  type TutorCapabilities, type TutorInput, type TutorReply,
 } from "@ephyra/core";
 import {
   ApiError,
+  VoiceRequestError,
   type ConsoleApi,
   type EntriesPage,
   type EntriesQuery,
@@ -83,6 +86,27 @@ const BILLING: AreaForm = {
 };
 
 export class FakeApi implements ConsoleApi {
+  async tutorCapabilities(): Promise<TutorCapabilities> {
+    await this.gate("tutorCapabilities");
+    return { provider: null, model: null, maxCostMicrousd: null };
+  }
+  async explainTrail(_input: TutorInput, _op: string, _signal: AbortSignal): Promise<TutorReply> {
+    throw new VoiceRequestError("demo", "This demo has no Tutor provider. Explore the Tutor stories for interaction fixtures.");
+  }
+  async voiceCapabilities(): Promise<VoiceCapabilities> {
+    await this.gate("voiceCapabilities");
+    return { provider: null, transcriptionModel: null, speechModel: null, voice: null, conversation: false,
+      maxRecordingMs: 60000, maxAudioBytes: 4000000, maxSpeechChars: 3000, maxCostMicrousd: null };
+  }
+  async transcribe(_input: VoiceAudioInput, _op: string, _signal: AbortSignal): Promise<VoiceTranscript> {
+    throw new VoiceRequestError("demo", "Demo mode does not record audio or call speech providers.");
+  }
+  async speak(_text: string, _op: string, _signal: AbortSignal): Promise<VoiceSpeech> {
+    throw new VoiceRequestError("demo", "Demo mode does not generate speech.");
+  }
+  async voiceReply(_input: VoiceReplyInput, _op: string, _signal: AbortSignal): Promise<VoiceReply> {
+    throw new VoiceRequestError("demo", "This demo has no voice model. Explore the Voice stories for interaction fixtures.");
+  }
   readonly now: number;
   private trails: Trail[];
   private inboxItems: InboxEntry[];
@@ -486,7 +510,7 @@ export class FakeApi implements ConsoleApi {
       this.once(op, () => {
         const draft = this.get(id);
         this.writes.push(["sendMessage", { id, text }]);
-        draft.messages.push({ id: this.mid(), at: this.stamp(), role: "human", author: ME, text });
+        draft.messages.push({ id: op, at: this.stamp(), role: "human", author: ME, text });
         // Like the server: an unavailable model is a system message in the draft, never a made-up reply.
         draft.messages.push(
           this.options.velumUnavailable

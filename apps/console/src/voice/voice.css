@@ -1,0 +1,53 @@
+.voice-entry { display: flex; justify-content: flex-end; align-items: center; gap: var(--s3); margin-bottom: var(--s5); }
+.voice-dialog { margin: auto; padding: 0; width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid var(--rule-strong, var(--rule)); border-radius: 12px; background: var(--bg); color: var(--ink); }
+.voice-dialog::backdrop { background: oklch(.15 .015 245 / .68); }
+.voice-surface { display: flex; flex-direction: column; min-width: 0; max-height: calc(100dvh - 36px); background: var(--bg); color: var(--ink); text-align: left; }
+.voice-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); padding: var(--s5) var(--s5) var(--s3); }
+.voice-heading h2 { font-family: var(--font-body); font-size: var(--fs-h2); margin: 0; }
+.voice-heading p { margin: var(--s1) 0 0; color: var(--muted); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.voice-heading > div { min-width: 0; }
+.voice-presence { display: grid; justify-items: center; gap: var(--s2); padding: var(--s3) var(--s4) var(--s4); }
+.voice-persona { position: relative; width: 108px; height: 108px; display: grid; place-items: center; }
+.voice-persona::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--persona-velum); opacity: calc(.12 + var(--voice-level) * .65); transform: scale(calc(1 + var(--voice-level) * .18)); transition: transform 100ms ease-out, opacity 100ms ease-out; }
+.voice-persona > * { position: relative; }
+.voice-state { font-size: var(--fs-small); margin: 0; text-align: center; }
+.voice-level { width: 112px; height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; }
+.voice-level span { display: block; height: 100%; width: 100%; background: var(--persona-velum); transform-origin: left; transform: scaleX(var(--voice-level)); transition: transform 80ms linear; }
+.voice-body { min-height: 0; overflow-y: auto; padding: 0 var(--s5) var(--s4); display: flex; flex-direction: column; gap: var(--s4); }
+.voice-body p { max-width: 65ch; }
+.voice-start p { margin: 0 0 var(--s3); }
+.voice-captions { max-height: 280px; min-height: 80px; flex-shrink: 0; overflow: auto; border-top: 1px solid var(--rule); }
+.voice-captions article { padding: var(--s3) 0; border-bottom: 1px solid var(--rule); }
+.voice-captions article[data-speaker="user"] { padding-inline: var(--s3); background: var(--surface-2); }
+.voice-captions strong { font-size: var(--fs-small); }
+.voice-captions p { margin: var(--s1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.voice-proposal { font-size: var(--fs-small); color: var(--muted); }
+.voice-text { display: grid; gap: var(--s2); }
+.voice-text > button { justify-self: end; }
+.voice-footer { flex-shrink: 0; padding: var(--s4) var(--s5); border-top: 1px solid var(--rule); background: var(--surface-2); }
+.voice-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); }
+.voice-controls .ui-button { min-height: 44px; }
+.voice-disclosure { font-size: var(--fs-small); color: var(--muted); text-align: center; margin: var(--s3) 0; }
+.voice-account { font-size: var(--fs-small); overflow-wrap: anywhere; }
+.voice-account summary { cursor: pointer; color: var(--muted); }
+.voice-account[open] { max-height: 180px; overflow: auto; }
+.voice-account p { margin: var(--s2) 0; }
+.voice-account code { font-size: var(--fs-label); }
+.voice-entry .ui-button, .voice-controls .ui-button, .thread-voice-actions .ui-button { gap: var(--s2); }
+.thread-voice-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-right: auto; }
+@media (max-width: 600px) {
+  .voice-entry { justify-content: stretch; margin-bottom: var(--s4); }
+  .voice-entry > button { width: 100%; }
+  .voice-dialog { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+  .voice-surface { height: 100%; max-height: 100dvh; padding-top: env(safe-area-inset-top); }
+  .voice-body { flex: 1; }
+  .voice-heading, .voice-body, .voice-footer { padding-inline: var(--s4); }
+  .voice-footer { padding-bottom: max(var(--s4), env(safe-area-inset-bottom)); }
+  .voice-presence { padding-block: var(--s2) var(--s3); }
+  .voice-persona { width: 88px; height: 88px; }
+  .voice-persona > * { width: 80px !important; height: 80px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-persona::before { transform: none; transition: none; }
+  .voice-level span { transition: none; }
+}

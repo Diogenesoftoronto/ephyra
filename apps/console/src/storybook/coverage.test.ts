@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 test("every console component and screen has stories with an actual render", () => {
   const missing: string[] = [];
-  for (const dir of ["components", "pages", "assistant", "genui"]) {
+  for (const dir of ["components", "pages", "assistant", "genui", "voice"]) {
     const path = join(import.meta.dir, "..", dir);
     for (const file of readdirSync(path).filter(
       (f) => f.endsWith(".tsx") && !f.includes(".stories.") && f !== "registry.tsx",
