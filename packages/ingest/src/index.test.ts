@@ -73,3 +73,35 @@ test("store tracks occurrences and coverage", async () => {
   ).toBe(1);
   expect(await store.errorRate("/", new Date(0), new Date())).toBeNull();
 });
+
+test("fingerprints ignore UUID and number tokens", () => {
+  fc.assert(
+    fc.property(fc.uuid(), fc.uuid(), fc.nat(), fc.nat(), (a, b, x, y) => {
+      expect(fingerprint({ message: `failure ${a} count ${x}` })).toBe(
+        fingerprint({ message: `failure ${b} count ${y}` }),
+      );
+    }),
+  );
+});
+test("fingerprints ignore line and column across three application frames", () => {
+  fc.assert(
+    fc.property(
+      fc.array(fc.nat(), { minLength: 6, maxLength: 6 }),
+      (numbers) => {
+        const frames = ["a", "b", "c"].map((file, i) => ({
+          file,
+          fn: "run",
+          inApp: true,
+          line: numbers[i],
+          column: numbers[i + 3],
+        }));
+        expect(fingerprint({ exceptionType: "Error", frames })).toBe(
+          fingerprint({
+            exceptionType: "Error",
+            frames: frames.map((frame) => ({ ...frame, line: 1, column: 2 })),
+          }),
+        );
+      },
+    ),
+  );
+});
