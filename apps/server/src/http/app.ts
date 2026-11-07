@@ -29,6 +29,8 @@ export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<st
 export function createApp(
   token: string, port: HttpPort, otlp = new Hono(), sessions?: SessionResolver,
   approval: ApprovalPolicy = { requireSignIn: false, approvers: new Set() },
+  /** Extra /v1 routes (the console's) that inherit the same authentication and approver rules. */
+  extra?: (approval: ApprovalPolicy) => Hono<AuthEnv>,
 ): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
   app.get("/healthz", (c) => c.json({ ok: true }));
@@ -85,6 +87,7 @@ export function createApp(
     });
   }
   app.get("/v1/ops", async (c) => c.json(port.ops ? await port.ops() : {}));
+  if (extra) app.route("/", extra(approval));
   app.route("/otlp", otlp);
   return app;
 }

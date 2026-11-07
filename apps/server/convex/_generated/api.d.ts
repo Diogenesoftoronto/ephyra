@@ -10,6 +10,7 @@
 
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
+import type * as drafts from "../drafts.js";
 import type * as ledger from "../ledger.js";
 import type * as lib from "../lib.js";
 import type * as runtime from "../runtime.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   audit: typeof audit;
   auth: typeof auth;
+  drafts: typeof drafts;
   ledger: typeof ledger;
   lib: typeof lib;
   runtime: typeof runtime;
