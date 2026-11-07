@@ -51,6 +51,7 @@ needs a signed-in approver whenever approvers are configured**. Every response i
 
 | Route | Returns |
 |---|---|
+| `GET /v1/me` | Authenticated principal, identity kind and server-derived decision permission for the console |
 | `GET /v1/personas` | `Persona[]` |
 | `GET /v1/usage?from&to&persona&engine&trail` | `UsageSummary`; default window the last 7 days (at most 366), every UTC day present, `persona=unattributed` for work with no persona |
 | `GET /v1/usage/entries?…&cursor&limit` | `{ entries, cursor? }`, newest first, `limit` 1 to 200 |
@@ -98,6 +99,11 @@ Convex `runs` / `runEvents` tables (secret-gated, convex-tested).
 
 **Console.** When `EPHYRA_CONSOLE_DIR/index.html` exists, `/app/` serves the built console with SPA fallback (missing assets 404, never
 outside the directory); `/v1` keeps its authentication.
+
+Console decisions include the reviewed `bound` (revision, head and proof digest). If that binding differs from the
+current inbox item, the server refuses it before recording a decision. Trail detail exposes bounded plain-text
+`hypothesis.md` and `plan.md` from the matching journal revision, plus the recorded proof events. Missing or moving
+journal content is returned as unavailable. No arbitrary file paths are accepted from the console.
 
 ## Verified and Unverified (console)
 

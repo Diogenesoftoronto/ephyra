@@ -1,0 +1,12 @@
+.ladder {
+  display: grid;
+  gap: var(--s2);
+  justify-items: start;
+  min-width: 0;
+}
+.ladder .ui-seg {
+  max-width: 100%;
+}
+.ladder-read {
+  margin: 0;
+}

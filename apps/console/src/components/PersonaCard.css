@@ -1,0 +1,40 @@
+.persona-card {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+.persona-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.persona-name {
+  margin: 0;
+}
+.persona-namesake {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.persona-does {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+}
+.persona-recent {
+  display: grid;
+  gap: 0.5rem;
+}
+.persona-recent li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.1rem 0.6rem;
+  align-items: baseline;
+}
+.persona-recent li > .muted {
+  grid-column: 2;
+  font-size: 0.85rem;
+}
+.persona-spend {
+  margin: 0;
+}

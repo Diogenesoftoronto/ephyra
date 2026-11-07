@@ -1,0 +1,46 @@
+/* Layout helpers shared by pages: spacing between blocks and responsive grids. No colours, radii or type. */
+.stack {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+.stack-sm {
+  display: grid;
+  gap: var(--s3);
+  min-width: 0;
+}
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+}
+.two-col {
+  display: grid;
+  gap: var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+}
+.sb-frame {
+  padding: var(--s4);
+  max-width: 100%;
+}
+.sb-frame:has(> .ui-shell) {
+  padding: 0;
+}
+.page {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+.page > .ui-page-header {
+  margin-bottom: 0;
+}
+.app-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s5);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--s7);
+}

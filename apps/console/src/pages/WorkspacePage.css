@@ -1,0 +1,8 @@
+.ws-ask {
+  display: grid;
+  gap: var(--s3);
+  justify-items: start;
+}
+.ws-ask .ui-field {
+  width: 100%;
+}
