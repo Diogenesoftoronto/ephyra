@@ -8,61 +8,67 @@ const record = (r: { key: string; planDigest: string; status: string; result?: s
 });
 
 export const begin = mutation({
-  args: { secret: v.string(), key: v.string(), planDigest: v.string(), at: v.string() },
-  handler: async (ctx, { secret, key, planDigest, at }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), key: v.string(), planDigest: v.string(), at: v.string() },
+  handler: async (ctx, { workspace, secret, key, planDigest, at }) => {
     requireSecret(secret);
-    const row = await ctx.db.query("operations").withIndex("by_key", (q) => q.eq("key", key)).unique();
+    const row = await ctx.db.query("operations")
+      .withIndex("by_workspace_key", (q) => q.eq("workspace", workspace).eq("key", key)).unique();
     if (row) {
       if (row.planDigest !== planDigest) throw new Error(`operation key reused: ${key}`);
       return { fresh: false, record: record(row) };
     }
-    await ctx.db.insert("operations", { key, planDigest, status: "pending", at });
+    await ctx.db.insert("operations", { workspace, key, planDigest, status: "pending", at });
     return { fresh: true, record: null };
   },
 });
 
 export const complete = mutation({
-  args: { secret: v.string(), key: v.string(), result: v.string() },
-  handler: async (ctx, { secret, key, result }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), key: v.string(), result: v.string() },
+  handler: async (ctx, { workspace, secret, key, result }) => {
     requireSecret(secret);
-    const row = await ctx.db.query("operations").withIndex("by_key", (q) => q.eq("key", key)).unique();
+    const row = await ctx.db.query("operations")
+      .withIndex("by_workspace_key", (q) => q.eq("workspace", workspace).eq("key", key)).unique();
     if (!row || row.status !== "pending") throw new Error("operation is not pending");
     await ctx.db.patch(row._id, { status: "done", result });
   },
 });
 
 export const markAmbiguous = mutation({
-  args: { secret: v.string(), key: v.string(), note: v.string() },
-  handler: async (ctx, { secret, key, note }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), key: v.string(), note: v.string() },
+  handler: async (ctx, { workspace, secret, key, note }) => {
     requireSecret(secret);
-    const row = await ctx.db.query("operations").withIndex("by_key", (q) => q.eq("key", key)).unique();
+    const row = await ctx.db.query("operations")
+      .withIndex("by_workspace_key", (q) => q.eq("workspace", workspace).eq("key", key)).unique();
     if (!row || row.status !== "pending") throw new Error("operation is not pending");
     await ctx.db.patch(row._id, { status: "reconciliation_required", result: JSON.stringify(note) });
   },
 });
 
 export const get = query({
-  args: { secret: v.string(), key: v.string() },
-  handler: async (ctx, { secret, key }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), key: v.string() },
+  handler: async (ctx, { workspace, secret, key }) => {
     requireSecret(secret);
-    const row = await ctx.db.query("operations").withIndex("by_key", (q) => q.eq("key", key)).unique();
+    const row = await ctx.db.query("operations")
+      .withIndex("by_workspace_key", (q) => q.eq("workspace", workspace).eq("key", key)).unique();
     return row ? record(row) : null;
   },
 });
 
 export const recordReconciliation = mutation({
-  args: { secret: v.string(), key: v.string(), note: v.string(), at: v.string() },
-  handler: async (ctx, { secret, key, note, at }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), key: v.string(), note: v.string(), at: v.string() },
+  handler: async (ctx, { workspace, secret, key, note, at }) => {
     requireSecret(secret);
-    const row = await ctx.db.query("reconciliations").withIndex("by_key", (q) => q.eq("key", key)).unique();
-    if (!row) await ctx.db.insert("reconciliations", { key, note, at });
+    const row = await ctx.db.query("reconciliations")
+      .withIndex("by_workspace_key", (q) => q.eq("workspace", workspace).eq("key", key)).unique();
+    if (!row) await ctx.db.insert("reconciliations", { workspace, key, note, at });
   },
 });
 
 export const reconciliations = query({
-  args: { secret: v.string() },
-  handler: async (ctx, { secret }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string() },
+  handler: async (ctx, { workspace, secret }) => {
     requireSecret(secret);
-    return (await ctx.db.query("reconciliations").order("desc").take(100)).map((r) => ({ key: r.key, note: r.note, at: r.at }));
+    return (await ctx.db.query("reconciliations")
+      .withIndex("by_workspace", (q) => q.eq("workspace", workspace)).order("desc").take(100)).map((r) => ({ key: r.key, note: r.note, at: r.at }));
   },
 });
