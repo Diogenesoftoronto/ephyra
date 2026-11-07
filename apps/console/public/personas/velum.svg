@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Velum, the Scribe">
+<style>.p{fill:#8ad0eb}.s{stroke:#8ad0eb}@media (prefers-color-scheme:light){.p{fill:#2e7b9c}.s{stroke:#2e7b9c}}</style>
+<path class="p" fill-rule="evenodd" d="M16 5C8.3 5 2.5 10 2.5 16.5S8.3 28 16 28s13.5-5 13.5-11.5S23.7 5 16 5Zm0 8.6c-2.1 0-3.6 1.3-3.6 2.9s1.5 2.9 3.6 2.9 3.6-1.3 3.6-2.9-1.5-2.9-3.6-2.9Z"/>
+<ellipse cx="16" cy="16.5" rx="7.6" ry="6.4" fill="none" stroke="#fff" stroke-width="1.4" opacity=".4"/>
+<circle cx="10" cy="9.5" r="1.8" fill="#fff" opacity=".45"/>
+</svg>
