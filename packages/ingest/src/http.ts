@@ -10,6 +10,39 @@ export type OtlpOptions = {
   maxBodyBytes: number;
   gapMs?: number;
 };
+async function readBounded(
+  request: Request,
+  limit: number,
+): Promise<Uint8Array | null> {
+  const length = request.headers.get("content-length");
+  if (length && /^\d+$/.test(length) && BigInt(length) > BigInt(limit))
+    return null;
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        void reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const result = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
 export function otlpRoutes(options: OtlpOptions): Hono {
   const app = new Hono();
   const completed = new Set<string>();
@@ -30,9 +63,8 @@ export function otlpRoutes(options: OtlpOptions): Hono {
       const key = c.req.header("authorization") ?? "anonymous";
       if (!(await options.quota(key)))
         return c.json({ error: "quota exceeded" }, 429);
-      const bytes = await c.req.arrayBuffer();
-      if (bytes.byteLength > options.maxBodyBytes)
-        return c.json({ error: "body too large" }, 413);
+      const bytes = await readBounded(c.req.raw, options.maxBodyBytes);
+      if (bytes === null) return c.json({ error: "body too large" }, 413);
       let parsed: ReturnType<typeof parseOtlp>;
       try {
         parsed = parseOtlp(JSON.parse(new TextDecoder().decode(bytes)), kind);
@@ -42,7 +74,7 @@ export function otlpRoutes(options: OtlpOptions): Hono {
       const digest = createHash("sha256")
         .update(kind)
         .update(key)
-        .update(new Uint8Array(bytes))
+        .update(bytes)
         .digest("hex");
       const run = async () => {
         if (completed.has(digest)) return;
