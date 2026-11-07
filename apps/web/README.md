@@ -69,3 +69,17 @@ EPHYRA_BLOG_APP_PASSWORD="$(skate get ephyra-blog-app-password@secrets)" … --w
 ## Look
 
 The journal, pricing, legal and security pages share cut E's tokens and type (Anybody, Atkinson Hyperlegible Next): water at the top of the page where production is, the seabed under the footer. The share card `site/assets/og/og.png` is rendered from `site/_sources/og/og.html` (gitignored with the other sources).
+
+## Landing walkthrough
+
+Cut E reads `site/e/walkthrough.json`, exported by the CLI from its sample trail. Regenerate it after changing the inbox:
+
+```sh
+bun run apps/cli/scripts/walkthrough.ts site/e/walkthrough.json
+```
+
+The sample label stays visible at every width. Previous/Next buttons and Left/Right, Home/End keys navigate when focus is in the walkthrough. The phone view uses the real 40-column detail layout at a minimum of 13px; short or narrow windows can scroll. Key hints stay outside that window. “Read the full screen” opens the complete, selectable output in a native dialog with Escape and focus restoration.
+
+`apps/web/scripts/check-tour.js` is a browser regression check: evaluate it in the served home page after the walkthrough loads. It checks every step, keyboard boundaries, sample labels, the complete reader output against the exported fixture, and checkpoint C's highlighted approval key. It was run at 1440×900 dark, 390×844 light, and 320×568 dark. These are local UI checks with sample data, not evidence of real production repairs or forge landing.
+
+The repository test for `/d/` currently expects an untracked draft that is absent in clean worktrees. The landing walkthrough does not depend on it. A local server without `EPHYRA_BLOG_PUBLICATION_URI` cannot serve the design article; the walkthrough link works without a connected publication.

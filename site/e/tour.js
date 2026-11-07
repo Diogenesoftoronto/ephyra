@@ -15,6 +15,13 @@
   const focusBox = tour.querySelector(".term-focus");
   const cmd = tour.querySelector(".term-cmd");
   const count = tour.querySelector(".term-count");
+  const prev = tour.querySelector(".term-prev");
+  const next = tour.querySelector(".term-next");
+  const strip = tour.querySelector(".term-strip");
+  const reader = document.querySelector(".screen-dialog");
+  const readerContent = reader.querySelector(".screen-content");
+  const readerPre = reader.querySelector("pre");
+  let readerStep = 0;
   const bar = document.querySelector(".bar");
   const reel = document.querySelector(".reel");
   const splitMQ = matchMedia("(min-width: 70rem)");
@@ -51,8 +58,8 @@
     return s ? { step: s, rows: s[size] } : null;
   }
 
-  function html(id, rows) {
-    const key = `${id}:${size}`;
+  function html(id, rows, variant = size) {
+    const key = `${id}:${variant}`;
     if (!cache.has(key)) {
       cache.set(key, rows.map((row) => `<span class="r">${row.map(([text, tone, bold]) =>
         `<span class="t-${tone}${bold ? " b" : ""}">${cells(text)}</span>`).join("")}</span>`).join(""));
@@ -102,14 +109,15 @@
   function fit() {
     const inner = screen.clientWidth - parseFloat(getComputedStyle(screen).paddingLeft) - parseFloat(getComputedStyle(screen).paddingRight);
     const wideFs = inner / (data.cols * chRatio);
-    size = wideFs >= 9.5 ? "wide" : "narrow";
+    size = wideFs >= 12.5 ? "wide" : "narrow";
     const cols = size === "wide" ? data.cols : data.narrowCols;
-    fs = Math.max(8, Math.min(size === "wide" ? 15.5 : 14, Math.floor((inner / (cols * chRatio)) * 10) / 10));
+    // At the smallest widths keep readable type and allow horizontal scrolling.
+    fs = Math.max(13, Math.min(size === "wide" ? 15.5 : 14, Math.floor((inner / (cols * chRatio)) * 10) / 10));
     pre.style.fontSize = `${fs}px`;
   }
 
   function show(k, force = false) {
-    if (!data || (k === current && !force)) return;
+    if (!data || k < 0 || k >= steps.length || (k === current && !force)) return;
     const changed = k !== current;
     current = k;
     steps.forEach((s, i) => {
@@ -128,15 +136,22 @@
     }
     cmd.textContent = step.command;
     count.innerHTML = `<b>${String(k + 1).padStart(2, "0")}</b> / ${String(steps.length).padStart(2, "0")}`;
-    term.setAttribute("aria-label", `Terminal, step ${k + 1} of ${steps.length}: ${el.querySelector("h3")?.textContent ?? ""}`);
+    screen.setAttribute("aria-label", `Terminal, step ${k + 1} of ${steps.length}: ${el.querySelector("h3")?.textContent ?? ""}. Use Read the full screen for the text.`);
+    const focused = document.activeElement;
+    prev.disabled = k === 0;
+    next.disabled = k === steps.length - 1;
+    if (focused === prev && prev.disabled) next.focus({ preventScroll: true });
+    if (focused === next && next.disabled) prev.focus({ preventScroll: true });
+    steps.forEach((s, i) => {
+      if (i === k) s.setAttribute("aria-current", "step");
+      else s.removeAttribute("aria-current");
+    });
 
-    // Light up the key this step talks about, in the inbox's hint bar (its last row).
-    const press = PRESS[step.id];
+    // Use the real wide hint row, grouped by key so it can wrap without losing a label.
+    // It stays outside the panning window, and never inherits the context rows' dimming.
+    hints(step);
     const lines = pre.children;
-    if (press && lines.length) {
-      const hint = lines[lines.length - 1];
-      for (const span of hint.querySelectorAll(".t-key")) if (span.textContent === press) span.classList.add("press");
-    }
+    if (step.command === "ephyra inbox") lines[lines.length - 1].style.visibility = "hidden";
 
     // Outline what the step is about, dim the rest, and on narrow screens pan the window to it.
     const lineH = fs * 1.32;
@@ -146,23 +161,64 @@
     const padL = parseFloat(getComputedStyle(screen).paddingLeft);
     const padT = parseFloat(getComputedStyle(screen).paddingTop);
     let offset = 0;
-    if (!splitMQ.matches) {
-      const visible = Math.max(8, Math.min(rows.length, Math.floor((innerHeight - bar.offsetHeight) * 0.42 / lineH)));
-      screen.style.height = `${(visible * lineH + padT + 12).toFixed(1)}px`;
-      if (f) offset = Math.max(0, Math.min(rows.length - visible, Math.round((f.i0 + f.i1) / 2 - visible / 2)));
-    } else screen.style.height = "";
-    pre.style.transform = offset ? `translateY(${(-offset * lineH).toFixed(1)}px)` : "none";
+    const available = Math.max(120, innerHeight - bar.offsetHeight - 160);
+    const budget = splitMQ.matches ? available : Math.min(available, (innerHeight - bar.offsetHeight) * 0.43);
+    const visible = Math.max(5, Math.min(rows.length, Math.floor(budget / lineH)));
+    screen.style.height = `${(visible * lineH + padT + 12).toFixed(1)}px`;
+    if (f) offset = Math.max(0, Math.min(rows.length - visible, Math.floor((f.i0 + f.i1 + 1 - visible) / 2)));
+    // Native scrolling makes every row reachable, including on short or zoomed viewports.
+    screen.scrollTop = offset * lineH;
+    screen.scrollLeft = 0;
     if (f) {
       for (let i = 0; i < lines.length; i++) lines[i].classList.toggle("dim", i < f.i0 || i > f.i1);
       focusBox.style.left = `${(padL + f.x0 * chW - 3).toFixed(1)}px`;
-      focusBox.style.top = `${(padT + (f.i0 - offset) * lineH - 3).toFixed(1)}px`;
+      focusBox.style.top = `${(padT + f.i0 * lineH - 3).toFixed(1)}px`;
       focusBox.style.width = `${((f.x1 - f.x0) * chW + 5).toFixed(1)}px`;
       focusBox.style.height = `${((f.i1 - f.i0 + 1) * lineH + 6).toFixed(1)}px`;
       focusBox.classList.add("on");
     } else focusBox.classList.remove("on");
   }
 
-  /** The step whose top has crossed the reading line: mid-screen on wide layouts, below the terminal otherwise. */
+  function hints(step) {
+    strip.replaceChildren();
+    strip.hidden = step.command !== "ephyra inbox";
+    if (strip.hidden) return;
+    const groups = [];
+    for (const [text, tone, bold] of step.wide.at(-1)) {
+      if (bold && (tone === "key" || tone === "mint")) groups.push({ key: text, tone, label: "" });
+      else if (groups.length) groups.at(-1).label += text;
+    }
+    const visible = size === "narrow" && step.id !== "revise"
+      ? groups.filter((g) => ["a", "r", "?", PRESS[step.id]].includes(g.key)) : groups;
+    for (const g of visible) {
+      const hint = document.createElement("span");
+      hint.className = "term-hint";
+      const pressed = g.key === PRESS[step.id];
+      hint.innerHTML = `<b class="t-${g.tone}${pressed ? " press" : ""}">${esc(g.key)}</b> ${esc(g.label.trim())}`;
+      strip.appendChild(hint);
+    }
+  }
+
+  function readScreen(k) {
+    const step = data.steps.find((s) => s.id === steps[k].dataset.step);
+    if (!step) return;
+    readerStep = k;
+    reader.querySelector("h2").textContent = `${k + 1}. ${steps[k].querySelector("h3").textContent}`;
+    // Full selectable output, not an image. A narrow frame preserves all proof and activity on phones.
+    const variant = innerWidth < 800 ? "narrow" : "wide";
+    readerPre.innerHTML = html(step.id, step[variant], variant);
+    if (!reader.open) reader.showModal();
+    const cols = variant === "wide" ? data.cols : data.narrowCols;
+    const available = readerContent.clientWidth - 32;
+    readerPre.style.fontSize = `${Math.max(13, Math.min(14, available / (cols * chRatio)))}px`;
+    readerContent.scrollTop = 0;
+    readerContent.scrollLeft = 0;
+  }
+  tour.querySelector(".term-read").addEventListener("click", () => { if (data) readScreen(current); });
+  reader.addEventListener("click", (e) => { if (e.target === reader) reader.close(); });
+  // Native dialog handles Escape, focus containment, and restoring focus to the opener.
+
+  /** The step whose heading has crossed the reading line. */
   function active() {
     let line = innerHeight * 0.5;
     if (!splitMQ.matches) {
@@ -171,7 +227,7 @@
     }
     let k = 0;
     steps.forEach((s, i) => {
-      if (s.getBoundingClientRect().top <= line) k = i;
+      if (s.querySelector("h3").getBoundingClientRect().top <= line) k = i;
     });
     return k;
   }
@@ -195,7 +251,8 @@
       const before = size;
       fit();
       if (before !== size) cache.clear();
-      show(active(), true);
+      show(current < 0 ? active() : current, true);
+      if (reader.open) readScreen(readerStep);
     });
   };
   addEventListener("resize", onResize);
@@ -213,11 +270,28 @@
     history.replaceState(null, "", `${location.pathname}${location.search}#${target.id}`);
   });
 
-  // Clicking a step jumps to it.
+  function go(k) {
+    if (!data) return;
+    k = Math.max(0, Math.min(steps.length - 1, k));
+    show(k);
+    const line = splitMQ.matches ? innerHeight * 0.5 : bar.offsetHeight + term.offsetHeight + 32;
+    const top = scrollY + steps[k].querySelector("h3").getBoundingClientRect().top - line + 8;
+    // An explicit step selection should settle on that step, without intermediate scroll selections.
+    scrollTo({ top, behavior: "instant" });
+  }
+  prev.addEventListener("click", () => go(current - 1));
+  next.addEventListener("click", () => go(current + 1));
+  tour.addEventListener("keydown", (e) => {
+    if (!data || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey ||
+      e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const k = { ArrowLeft: current - 1, ArrowRight: current + 1, Home: 0, End: steps.length - 1 }[e.key];
+    if (k === undefined) return;
+    e.preventDefault();
+    go(k);
+  });
   steps.forEach((s, i) => s.addEventListener("click", (e) => {
-    if (!data || i === current || e.target.closest("a")) return;
-    const line = splitMQ.matches ? innerHeight * 0.5 : term.getBoundingClientRect().bottom + 40;
-    scrollTo({ top: scrollY + s.getBoundingClientRect().top - line + 8, behavior: motion() ? "smooth" : "auto" });
+    if (!data || i === current || e.target.closest("a, button") || String(getSelection()).trim()) return;
+    go(i);
   }));
 
   function policy() {
@@ -230,8 +304,9 @@
         return line ? `<span class="md-p">${esc(line)}</span>` : "";
       }).join("\n");
     }
-    const dl = document.querySelector(".keys dl");
+    const dl = document.querySelector(".all-keys dl");
     if (dl && Array.isArray(data.keys)) {
+      dl.closest("details").hidden = false;
       dl.innerHTML = data.keys.map(([k, v]) =>
         `<dt>${k.split(" ").map((x) => `<kbd>${esc(x)}</kbd>`).join("")}</dt><dd>${esc(v)}</dd>`).join("");
     }
@@ -241,7 +316,10 @@
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((d) => {
       data = d;
-      for (const [k, v] of Object.entries(d.palette ?? {})) term.style.setProperty(`--t-${k}`, v);
+      for (const [k, v] of Object.entries(d.palette ?? {})) {
+        term.style.setProperty(`--t-${k}`, v);
+        reader.style.setProperty(`--t-${k}`, v);
+      }
       tour.classList.add("live");
       measure();
       fit();

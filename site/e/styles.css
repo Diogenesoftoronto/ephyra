@@ -74,9 +74,9 @@ body {
 }
 img, svg, canvas { display: block; max-width: 100%; }
 h1, p { margin: 0; }
-a { color: inherit; text-decoration-color: var(--jelly); text-decoration-thickness: 2px; text-underline-offset: .2em; }
-a:hover { text-decoration-color: var(--jelly-deep); }
-:focus-visible { outline: 2px solid var(--jelly); outline-offset: 3px; border-radius: 6px; }
+a { color: inherit; text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent); text-decoration-thickness: 2px; text-underline-offset: .2em; }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
 
 /* ---------- header: logo and one link ---------- */
 .bar {
@@ -95,7 +95,7 @@ a:hover { text-decoration-color: var(--jelly-deep); }
 .bar-link { font-size: .95rem; font-weight: 600; padding: .5rem 0; }
 .bar-nav { display: flex; gap: clamp(1rem, 3vw, 1.75rem); }
 .bar-nav .bar-link { text-decoration-color: transparent; }
-.bar-nav .bar-link:hover { text-decoration-color: var(--jelly); }
+.bar-nav .bar-link:hover { text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent); }
 
 /* ---------- reel: a tall scroll track with the stage pinned inside it ---------- */
 .reel { position: relative; --step: 80svh; overflow-x: clip; }   /* clip, not hidden: it keeps the stage sticky */
@@ -165,6 +165,35 @@ html:not(.js) .scene, html:not(.js) .tag, html:not(.js) .plate { display: none; 
 .motion .ln { cursor: pointer; will-change: filter, opacity; }
 .motion .ln.is-focus { cursor: auto; }
 
+/* The first frame says what this is, that it's pre-alpha, and where to look next. It never animates. */
+.intro {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .7rem;
+  margin: .2rem 0 .9rem; font-size: clamp(1rem, 1.2vw, 1.12rem); line-height: 1.4; color: var(--ink);
+}
+.badge {
+  display: inline-flex; align-items: center; height: 1.6rem; padding: 0 .6rem; border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--ink) 22%, transparent); color: var(--muted);
+  font-size: .82em; font-weight: 600; letter-spacing: .02em;
+}
+.intro-link { font-weight: 600; text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent); white-space: nowrap; }
+.intro-link:hover { text-decoration-color: var(--ink); }
+
+/* The event the drawing is showing, in words, beside it. Positioned by main.js. */
+.event {
+  position: absolute; left: 0; top: 0; z-index: 2; max-width: 15rem; margin: 0; pointer-events: none;
+  padding: .3rem .6rem .35rem; border-radius: 8px; white-space: nowrap;
+  background: color-mix(in oklab, var(--bg) 82%, transparent); box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 12%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font-size: .875rem; line-height: 1.35; color: var(--ink); opacity: 0; transition: opacity .25s;
+}
+.event.on { opacity: 1; }
+.event[data-tone="mint"] { box-shadow: 0 0 0 1.5px var(--glow); }
+.event[data-tone="amber"] { box-shadow: 0 0 0 1.5px var(--jelly-deep); }
+.event[data-tone="cherry"] { box-shadow: 0 0 0 1.5px var(--cherry); }
+.event b { font-weight: 600; }
+.event small { display: block; color: var(--muted); font-size: .78rem; }
+html:not(.motion) .event { display: none; }
+
 /* Color is state, and only state: mint is a signal, amber is work that holds, cherry is an undo. */
 .mint { color: var(--glow); }
 .amber { color: var(--jelly-deep); }
@@ -174,8 +203,8 @@ html:not(.js) .scene, html:not(.js) .tag, html:not(.js) .plate { display: none; 
 .cta { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.5rem; }
 .btn {
   display: inline-flex; align-items: center; min-height: 48px; padding: .7rem 1.35rem;
-  border-radius: 999px; background: var(--jelly); color: var(--on-jelly);
-  font-weight: 600; text-decoration: none; box-shadow: var(--shadow-gel);
+  border-radius: 999px; background: var(--ink); color: var(--bg);
+  font-weight: 600; text-decoration: none;
   transition: transform 150ms var(--ease-out);
 }
 .btn:hover { transform: translateY(-1px); }
@@ -202,8 +231,9 @@ html:not(.js) .scene, html:not(.js) .tag, html:not(.js) .plate { display: none; 
 
 /* ---------- narrow or portrait: the drawing on top, the stanza below ---------- */
 @media (max-width: 47.5rem), (max-aspect-ratio: 5/6) {
+  .reel { --step: 45svh; }
   .stage {
-    --scene-h: clamp(15rem, 47svh, 34rem);
+    --scene-h: clamp(12rem, 38svh, 29rem);
     --fs-head: clamp(2.3rem, 7vw, 3.6rem);
     --fs-line: clamp(1.15rem, 3vw, 1.6rem);
     --fs-close: clamp(1.25rem, 3.4vw, 1.85rem);
@@ -217,6 +247,7 @@ html:not(.js) .scene, html:not(.js) .tag, html:not(.js) .plate { display: none; 
   .copy { grid-column: 1; grid-row: 2; }
   html:not(.motion) .copy { justify-content: flex-start; }
   .stanza { max-width: 34rem; }
+  .event { max-width: min(11rem, 40vw); white-space: normal; text-wrap: balance; }
   .plate { display: flex; align-items: baseline; gap: .45em; font-size: .72rem; }
   .plate i { font-size: .8rem; }
 }
