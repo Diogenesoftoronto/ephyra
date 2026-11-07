@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   GitJournal,
+  CompanionJournal,
   JournalConflict,
   JournalCorrupt,
   PinConflict,
@@ -235,49 +236,116 @@ test("remote hook rejection is detected", async () => {
   }
 });
 
-test("corrupt trail JSON reports its path", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "journal-corrupt-"));
-  try {
-    await git(dir, "init", "--bare", "repo.git");
-    const repo = join(dir, "repo.git");
-    const j = new GitJournal({
-      gitDir: repo,
-      clock: { now: () => new Date(at) },
-    });
-    const head = await j.create(trail, event(1));
-    const index = join(dir, "index");
-    const run = async (...args: string[]) => {
-      const p = Bun.spawn(["git", `--git-dir=${repo}`, ...args], {
-        env: {
-          ...process.env,
-          GIT_INDEX_FILE: index,
-          GIT_AUTHOR_NAME: "Test",
-          GIT_AUTHOR_EMAIL: "test@example.com",
-          GIT_COMMITTER_NAME: "Test",
-          GIT_COMMITTER_EMAIL: "test@example.com",
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const out = await new Response(p.stdout).text();
-      const err = await new Response(p.stderr).text();
-      if (await p.exited) throw new Error(err);
-      return out.trim();
-    };
-    await Bun.write(join(dir, "bad"), "{");
-    const blob = await run("hash-object", "-w", join(dir, "bad"));
-    await run("read-tree", `${head}^{tree}`);
-    await run("update-index", "--cacheinfo", `100644,${blob},trail.json`);
-    const tree = await run("write-tree");
-    const commit = await run("commit-tree", tree, "-m", "corrupt");
-    await run("update-ref", `refs/ephyra/trails/${id}/journal`, commit, head);
+test.each(["{", JSON.stringify({ schema: 1, id })])(
+  "corrupt or schema-invalid trail reports its path: %s",
+  async (bad) => {
+    const dir = await mkdtemp(join(tmpdir(), "journal-corrupt-"));
     try {
-      await j.read(id);
-      throw new Error("expected corruption");
-    } catch (error) {
-      expect(error).toBeInstanceOf(JournalCorrupt);
-      expect((error as JournalCorrupt).path).toBe("trail.json");
+      await git(dir, "init", "--bare", "repo.git");
+      const repo = join(dir, "repo.git");
+      const j = new GitJournal({
+        gitDir: repo,
+        clock: { now: () => new Date(at) },
+      });
+      const head = await j.create(trail, event(1));
+      const index = join(dir, "index");
+      const run = async (...args: string[]) => {
+        const p = Bun.spawn(["git", `--git-dir=${repo}`, ...args], {
+          env: {
+            ...process.env,
+            GIT_INDEX_FILE: index,
+            GIT_AUTHOR_NAME: "Test",
+            GIT_AUTHOR_EMAIL: "test@example.com",
+            GIT_COMMITTER_NAME: "Test",
+            GIT_COMMITTER_EMAIL: "test@example.com",
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const out = await new Response(p.stdout).text();
+        const err = await new Response(p.stderr).text();
+        if (await p.exited) throw new Error(err);
+        return out.trim();
+      };
+      await Bun.write(join(dir, "bad"), bad);
+      const blob = await run("hash-object", "-w", join(dir, "bad"));
+      await run("read-tree", `${head}^{tree}`);
+      await run("update-index", "--cacheinfo", `100644,${blob},trail.json`);
+      const tree = await run("write-tree");
+      const commit = await run("commit-tree", tree, "-m", "corrupt");
+      await run("update-ref", `refs/ephyra/trails/${id}/journal`, commit, head);
+      try {
+        await j.read(id);
+        throw new Error("expected corruption");
+      } catch (error) {
+        expect(error).toBeInstanceOf(JournalCorrupt);
+        expect((error as JournalCorrupt).path).toBe("trail.json");
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
     }
+  },
+);
+
+test("selected-trail bundle includes only the chosen trail and its pins", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "journal-selected-"));
+  try {
+    await git(dir, "init", "--bare", "source.git");
+    await git(dir, "init", "--bare", "target.git");
+    const clock = { now: () => new Date(at) };
+    const source = new GitJournal({ gitDir: join(dir, "source.git"), clock });
+    const target = new GitJournal({ gitDir: join(dir, "target.git"), clock });
+    const otherId = "018f0000-0000-7000-8000-000000000002";
+    const head = await source.create(trail, event(1));
+    await source.pinRevision(id, 1, head);
+    await source.create(
+      { ...trail, id: otherId },
+      { ...event(2), trail: otherId },
+    );
+    const bundle = join(dir, "selected.bundle");
+    await source.exportBundle([id], bundle);
+    await target.importBundle(bundle);
+    expect(await target.read(id)).toEqual(await source.read(id));
+    expect(await target.read(otherId)).toBeNull();
+    expect(await target.list()).toEqual([id]);
+    expect(
+      await git(
+        dir,
+        `--git-dir=${join(dir, "target.git")}`,
+        "rev-parse",
+        `refs/ephyra/trails/${id}/revisions/0001`,
+      ),
+    ).toBe(head);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("companion journal keeps canonical trail ids in its separate bare repository", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "journal-companion-"));
+  try {
+    await git(dir, "init", "--bare", "app.git");
+    await git(dir, "init", "--bare", "companion.git");
+    const clock = { now: () => new Date(at) };
+    const app = new GitJournal({ gitDir: join(dir, "app.git"), clock });
+    const companion = new CompanionJournal({
+      gitDir: join(dir, "companion.git"),
+      clock,
+    });
+    const head = await companion.create(trail, event(1), {
+      "evidence.txt": "data",
+    });
+    await companion.append(id, head, trail, [event(2)]);
+    expect(await companion.list()).toEqual([id]);
+    expect((await companion.read(id))?.events.map((e) => e.id)).toEqual([
+      event(1).id,
+      event(2).id,
+    ]);
+    expect(
+      new TextDecoder().decode((await companion.readFile(id, "evidence.txt"))!),
+    ).toBe("data");
+    expect(await app.read(id)).toBeNull();
+    expect(await app.list()).toEqual([]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
