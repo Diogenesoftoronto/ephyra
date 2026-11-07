@@ -1,9 +1,9 @@
 // Policy drafts: storage (memory + Convex) and the service behind /v1/drafts.
 // Publishing writes a commit to refs/ephyra/policy/<draft-id> and an audit entry. It never edits the live policy.
-import { Draft, type DraftMessage } from "@ephyra/core";
+import { Draft, type AreaSketch, type DraftMessage } from "@ephyra/core";
 import type { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
-import { docKind, hasErrors, inspectDoc, sha256, MAX_DOC_BYTES, type PolicyDocs } from "./docs.ts";
+import { docKind, hasErrors, inspectDoc, renderSketches, sha256, sketchesFor, MAX_DOC_BYTES, type PolicyDocs } from "./docs.ts";
 import { PolicyRefConflict, writePolicyRef } from "./policy-ref.ts";
 import type { Velum, Quote } from "./velum.ts";
 import type { AuditSink } from "./wiring/human.ts";
@@ -80,6 +80,12 @@ export class DraftService {
     return this.d.store.put(next).then(() => next);
   }
 
+  /** The draft as the API returns it: the core shape plus the application map of its current text (autonomy drafts that parse). */
+  view(draft: Draft): Draft & { sketches?: AreaSketch[] } {
+    const sketches = sketchesFor(draft.kind, draft.content);
+    return sketches ? { ...draft, sketches } : draft;
+  }
+
   get(id: string) { return this.load(id); }
   list(status?: Draft["status"]) { return this.d.store.list(status); }
 
@@ -125,6 +131,21 @@ export class DraftService {
       this.open(draft);
       if (input.baseDigest !== draft.baseDigest) throw new DraftError(409, "this draft is based on a different version of the document");
       return this.save({ ...draft, content: input.content, warnings: inspectDoc(draft.kind, input.content) });
+    });
+  }
+
+  /** Edit the application map: the sketches are the complete set of mapped areas, rendered through sketchToArea → renderAutonomy. */
+  setSketches(id: string, input: { sketches: AreaSketch[]; baseDigest: string }): Promise<Draft> {
+    return this.serial(id, async () => {
+      const draft = await this.load(id);
+      this.open(draft);
+      if (draft.kind !== "autonomy") throw new DraftError(400, "the application map only applies to the autonomy document");
+      if (input.baseDigest !== draft.baseDigest) throw new DraftError(409, "this draft is based on a different version of the document");
+      if (hasErrors(inspectDoc("autonomy", draft.content))) throw new DraftError(409, "the draft text has errors; fix it before editing the map");
+      const rendered = renderSketches("autonomy", draft.content, input.sketches);
+      if ("error" in rendered) throw new DraftError(400, rendered.error);
+      // Notes are warnings (they never block publishing); parse errors in the result would, so they come from the parser, not from us.
+      return this.save({ ...draft, content: rendered.content, warnings: [...inspectDoc("autonomy", rendered.content), ...rendered.notes] });
     });
   }
 
