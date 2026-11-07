@@ -9,6 +9,9 @@ export type Area = {
   overrides: Partial<Record<Checkpoint, "advisory" | "blocking">>;
   prose: string;
   mode?: "shadow" | "enforce";
+  landing?: LandingMode[];
+  watch?: string;
+  decide?: string;
 };
 export type AutonomyPolicy = {
   defaults: {
@@ -65,9 +68,20 @@ export function parseAutonomy(md: string): AutonomyPolicy {
       }
       return;
     }
+    if (/^##\s/.test(line)) {
+      if (/^##\s+area\s*:/.test(line))
+        throw new Error(`line ${index + 1}: invalid area heading`);
+      section = "";
+      area = undefined;
+      return;
+    }
     const match = /^([a-z_]+):\s*(.*?)\s*(?:\s+#.*)?$/.exec(line);
     if (!match) {
-      if (/^[a-z_]+\s*:/.test(line))
+      if (
+        /^\s*(?:mode|checkpoints|landing|watch|decide|paths|ui|risk|user_facing|voxq_budget_usd)\s*(?:=|:|\s)/.test(
+          line,
+        )
+      )
         throw new Error(`line ${index + 1}: malformed key`);
       if (section === "area" && area) area.prose += raw;
       return;
@@ -103,23 +117,29 @@ export function parseAutonomy(md: string): AutonomyPolicy {
         )
           return error();
         policy.defaults.landing = values as LandingMode[];
-      } else if (key === "watch") policy.defaults.watch = val;
-      else if (key === "decide") {
+      } else if (key === "watch") {
+        if (!/^[1-9]\d*(s|m|h|d)$/.test(val)) return error();
+        policy.defaults.watch = val;
+      } else if (key === "decide") {
         if (!val) return error();
         policy.defaults.decide = val;
       } else policy.warnings.push(`line ${index + 1}: unknown key ${key}`);
     } else if (section === "area" && area) {
-      if (key === "paths" || key === "ui")
-        area[key] = val.split(/\s*,\s*/).filter(Boolean);
-      else if (key === "risk") {
+      if (key === "paths" || key === "ui") {
+        const values = val.split(/\s*,\s*/);
+        if (values.some((value) => !value)) return error();
+        area[key] = values;
+      } else if (key === "risk") {
         if (!["low", "medium", "high", "critical"].includes(val))
           return error();
         area.risk = val as Risk;
       } else if (key === "user_facing") {
         if (val !== "true" && val !== "false") return error();
         area.user_facing = val === "true";
-      } else if (key === "voxq_budget_usd") area.voxq_budget_usd = val;
-      else if (key === "mode") {
+      } else if (key === "voxq_budget_usd") {
+        if (!/^\d+(?:\.\d+)?\/month$/.test(val)) return error();
+        area.voxq_budget_usd = val;
+      } else if (key === "mode") {
         if (val !== "shadow" && val !== "enforce") return error();
         area.mode = val;
       } else if (key === "checkpoints") {
@@ -128,6 +148,28 @@ export function parseAutonomy(md: string): AutonomyPolicy {
           if (!m) return error();
           area.overrides[m[1] as Checkpoint] = m[2] as "advisory" | "blocking";
         }
+      } else if (key === "landing") {
+        const values = val.split(/\s*,\s*|\s*\+\s*/);
+        if (
+          values.some(
+            (v) =>
+              ![
+                "trail_ref",
+                "devenv_live",
+                "radicle_patch",
+                "tangled_pull",
+                "auto_land",
+              ].includes(v),
+          )
+        )
+          return error();
+        area.landing = values as LandingMode[];
+      } else if (key === "watch") {
+        if (!/^[1-9]\d*(s|m|h|d)$/.test(val)) return error();
+        area.watch = val;
+      } else if (key === "decide") {
+        if (!val) return error();
+        area.decide = val;
       } else {
         policy.warnings.push(`line ${index + 1}: unknown key ${key}`);
         area.prose += raw;
