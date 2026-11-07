@@ -1,15 +1,20 @@
 // FakeApi: the deterministic ConsoleApi used by Storybook, tests and `?demo`. No network, no clocks, no randomness.
 // It models the server's behaviour for the cases the console must handle: stale approvals (409), approvers only (403),
 // an unavailable Velum model (503), and a policy document that moved before publish (409).
-import { PERSONAS, type Draft, type DraftMessage, type PolicyDoc, type Trail, type TrailEvent, type UsageEntry } from "@ephyra/core";
 import {
-  ApiError, type ConsoleApi, type EntriesPage, type EntriesQuery, type InboxEntry, type TrailAction, type TrailDetail, type UsageQuery,
-  type Verdict,
+  AreaSketch, PERSONAS, type AgentRun, type AgentRunEvent, type Draft, type DraftMessage, type PolicyDoc, type Trail, type TrailEvent,
+  type UsageEntry,
+} from "@ephyra/core";
+import {
+  ApiError, type ConsoleApi, type EntriesPage, type EntriesQuery, type InboxEntry, type MapRef, type RunsQuery, type TrailAction,
+  type TrailDetail, type UsageQuery, type Verdict,
 } from "../api.ts";
 import { filterEntries, summarize } from "../lib/usage.ts";
 import { hasBlocking } from "../lib/warnings.ts";
 import { FORM_PREFIX } from "../genui/form-message.ts";
 import { areaFormSpec, checkpointFormSpec } from "./specs.ts";
+import { makeRuns, type RunBundle } from "./runs.ts";
+import { MAP_PREFIX, replaceAreas, sketchesOf } from "./sketch.ts";
 import { lintAutonomy, readAreaForm, upsertArea, type AreaForm } from "./autonomy.ts";
 import {
   emptyDraft, fakeDigest, makeActivity, makeDocs, makeEvents, makeInbox, makeTrails, makeUsage, ME, STORY_NOW,
@@ -34,6 +39,8 @@ export type FakeOptions = {
   empty?: boolean;
   /** Seed an open autonomy.md draft that already holds a conversation with Velum. */
   seedConversation?: boolean;
+  /** Pause between live run events. Infinity holds the stream where it is (for stable screenshots). Default 1200. */
+  streamIntervalMs?: number;
 };
 
 
@@ -51,6 +58,8 @@ export class FakeApi implements ConsoleApi {
   private docList: PolicyDoc[];
   private draftMap = new Map<string, Draft>();
   private ops = new Map<string, unknown>();
+  private runBundles: RunBundle[];
+  private released = new Map<string, number>();
   private tick = 0;
   private counter = 0;
   /** Every write that reached the fake, for tests: [method, args]. */
@@ -63,6 +72,7 @@ export class FakeApi implements ConsoleApi {
     this.inboxItems = empty ? [] : makeInbox(this.trails, this.now);
     this.usageRows = empty ? [] : makeUsage(this.trails, this.now);
     this.docList = empty ? [] : makeDocs();
+    this.runBundles = empty ? [] : makeRuns(this.trails, this.now);
     for (const t of this.trails) this.events.set(t.id, makeEvents(t, this.now));
     if (!empty) this.seedDrafts(options.seedConversation !== false);
   }
@@ -119,6 +129,64 @@ export class FakeApi implements ConsoleApi {
   }
 
   async inbox() { await this.gate("inbox"); return structuredClone(this.inboxItems); }
+
+  private bundle(id: string): RunBundle {
+    const b = this.runBundles.find((x) => x.run.id === id);
+    if (!b) throw new ApiError(404, "not found");
+    return b;
+  }
+
+  private visibleEvents(b: RunBundle): AgentRunEvent[] {
+    return [...b.events, ...b.tail.slice(0, this.released.get(b.run.id) ?? 0)];
+  }
+
+  async runs(q: RunsQuery = {}): Promise<AgentRun[]> {
+    await this.gate("runs");
+    const rank = (r: AgentRun) => (r.status === "running" ? 0 : 1);
+    return structuredClone(this.runBundles.map((b) => b.run)
+      .filter((r) => (!q.trail || r.trailId === q.trail) && (!q.status || r.status === q.status))
+      .sort((a, b) => rank(a) - rank(b) || (a.startedAt < b.startedAt ? 1 : -1)).slice(0, q.limit ?? 100));
+  }
+
+  async run(id: string) { await this.gate("run"); return structuredClone(this.bundle(id).run); }
+
+  async runEvents(id: string, after?: number) {
+    await this.gate("runEvents");
+    return structuredClone(this.visibleEvents(this.bundle(id)).filter((e) => after === undefined || e.seq > after));
+  }
+
+  async watchRun(id: string, after: number | undefined, onEvents: (events: AgentRunEvent[]) => void, signal: AbortSignal) {
+    await this.gate("watchRun");
+    const b = this.bundle(id);
+    const interval = this.options.streamIntervalMs ?? 1200;
+    let cursor = after ?? -1;
+    const sendNew = () => {
+      const fresh = this.visibleEvents(b).filter((e) => e.seq > cursor);
+      if (fresh.length) { cursor = fresh.at(-1)!.seq; onEvents(structuredClone(fresh)); }
+    };
+    const wait = (ms: number) => new Promise<void>((resolve) => {
+      if (signal.aborted) return resolve();
+      const t = ms === Infinity ? undefined : setTimeout(resolve, ms);
+      signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+    });
+    sendNew();
+    if (b.run.status !== "running") return;
+    while (!signal.aborted) {
+      if ((this.released.get(id) ?? 0) < b.tail.length) {
+        await wait(interval);
+        if (signal.aborted) return;
+        this.released.set(id, (this.released.get(id) ?? 0) + 1);
+        sendNew();
+      } else await wait(Infinity);
+    }
+  }
+
+  async areaMap(ref: MapRef): Promise<AreaSketch[]> {
+    await this.gate("areaMap");
+    const content = "draftId" in ref ? this.get(ref.draftId).content : this.docList.find((d) => d.path === ref.path)?.content;
+    if (content === undefined) throw new ApiError(404, "not found");
+    return structuredClone(sketchesOf(content));
+  }
 
   async trail(id: string): Promise<TrailDetail> {
     await this.gate("trail");
@@ -320,12 +388,28 @@ export class FakeApi implements ConsoleApi {
       return { ...base, text: `Done. I set the ${form.name} area from the form. Check the changes before you publish.`,
         proposal: { content, summary: `Set the ${form.name} area from the form.`, warnings: lintAutonomy(content) } };
     }
+    if (text.startsWith(MAP_PREFIX)) {
+      const parsed = AreaSketch.array().safeParse(safeJson(text.slice(MAP_PREFIX.length)));
+      if (!parsed.success) return { ...base, text: "I could not read that map, so I changed nothing." };
+      return this.sketchReply(base, draft, parsed.data, "Done. I set the application map from your cards. Check the changes before you publish.",
+        "Set the application map from the cards.");
+    }
+    if (/never land|fix itself|can fix|trust|autonomy level/i.test(text)) {
+      const next = sketchesOf(draft.content).map((a) => (a.name === "payments" ? { ...a, level: "propose" as const }
+        : a.name === "marketing-site" ? { ...a, level: "auto" as const } : a));
+      return this.sketchReply(base, draft, next, "Payments stays at Propose, so a person approves every step. The marketing site moves up to Auto-land.",
+        "Payments at Propose; the marketing site at Auto-land.");
+    }
     if (/billing/i.test(text)) {
-      const content = upsertArea(draft.content, BILLING);
+      const sketch: AreaSketch = { name: "billing", intent: "Invoices, tax summaries and refunds. Money is counted here but not moved.",
+        paths: BILLING.paths, risk: "high", level: "propose", userFacing: true };
+      const current = sketchesOf(draft.content).filter((a) => a.name !== "billing");
+      const content = replaceAreas(draft.content, [...current, sketch]);
       return { ...base, text: "Billing handles money but not card data, so I made it high risk with C blocking. "
         + "Adjust anything in the form, or ask me to change it.",
         spec: areaFormSpec(BILLING, "Billing sits next to payments. Raise the risk to critical if invoices can move money."),
-        proposal: { content, summary: "Add a billing area: high risk, C blocking, lands as a trail ref.", warnings: lintAutonomy(content) } };
+        proposal: { content, summary: "Add a billing area: high risk, Propose level, lands as a trail ref.", warnings: lintAutonomy(content),
+          sketches: [...current, sketch] } };
     }
     if (/payments|blocking|checkpoint/i.test(text)) {
       const current = readAreaForm(draft.content, "payments");
@@ -344,6 +428,11 @@ export class FakeApi implements ConsoleApi {
     return { ...base, text: "I can change an area's paths, risk, checkpoints, landing or watch window. Which area, and what should change?" };
   }
 
+  private sketchReply(base: Omit<DraftMessage, "text">, draft: Draft, sketches: AreaSketch[], text: string, summary: string): DraftMessage {
+    const content = replaceAreas(draft.content, sketches);
+    return { ...base, text, proposal: { content, summary, warnings: lintAutonomy(content), sketches } };
+  }
+
   private otherDocReply(draft: Draft, text: string, base: Omit<DraftMessage, "text">): DraftMessage {
     if (draft.kind === "intent") {
       const content = `${draft.content.trimEnd()}\n${text.endsWith(".") ? text : `${text}.`}\n`;
@@ -357,6 +446,10 @@ export class FakeApi implements ConsoleApi {
 function makeActivityFor(api: FakeApi) {
   const s = api.snapshot();
   return s.empty ? [] : makeActivity(s.trails, s.now);
+}
+
+function safeJson(text: string): unknown {
+  try { return JSON.parse(text.trim()); } catch { return null; }
 }
 
 function parseFormMessage(text: string): AreaForm | null {

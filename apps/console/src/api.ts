@@ -1,5 +1,5 @@
 import {
-  ActivityItem, Draft, PersonaId, PolicyDoc, Trail, TrailEvent, UsageEntry, UsageSummary,
+  ActivityItem, AgentRun, AgentRunEvent, AreaSketch, Draft, PersonaId, PolicyDoc, Trail, TrailEvent, UsageEntry, UsageSummary,
   type Persona,
 } from "@ephyra/core";
 import { z } from "zod";
@@ -40,6 +40,9 @@ export type UsageQuery = { from?: string; to?: string; persona?: PersonaId | "no
 export type EntriesQuery = UsageQuery & { cursor?: string; limit?: number };
 export type EntriesPage = { entries: UsageEntry[]; cursor?: string };
 export type Verdict = "approve" | "revise" | "reject";
+export type RunsQuery = { trail?: string; status?: AgentRun["status"]; limit?: number };
+/** Where an application map comes from: an open draft, or the policy document in effect. */
+export type MapRef = { draftId: string } | { path: string };
 export type TrailAction = "comment" | "claim" | "release" | "park" | "resume";
 
 /**
@@ -55,6 +58,16 @@ export interface ConsoleApi {
   trail(id: string): Promise<TrailDetail>;
   decide(trailId: string, input: { checkpoint: "A" | "B" | "C" | "spend"; verdict: Verdict; note?: string }, op: string): Promise<void>;
   trailAction(trailId: string, action: TrailAction, input: { text?: string; reason?: string }, op: string): Promise<void>;
+  runs(query?: RunsQuery): Promise<AgentRun[]>;
+  run(id: string): Promise<AgentRun>;
+  runEvents(id: string, after?: number): Promise<AgentRunEvent[]>;
+  /**
+   * Follow a run live (SSE). Resolves when the stream ends or `signal` aborts; calls `onEvents` with each batch,
+   * oldest first. Callers resume with the last `seq` they saw.
+   */
+  watchRun(id: string, after: number | undefined, onEvents: (events: AgentRunEvent[]) => void, signal: AbortSignal): Promise<void>;
+  /** The application map as sketches. Server addition proposed by this lane (Unverified): GET .../map. */
+  areaMap(ref: MapRef): Promise<AreaSketch[]>;
   docs(): Promise<PolicyDoc[]>;
   doc(path: string): Promise<PolicyDoc>;
   drafts(status?: Draft["status"]): Promise<Draft[]>;
@@ -76,6 +89,18 @@ function query(params: Record<string, string | number | undefined>): string {
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") q.set(k, String(v));
   const s = q.toString();
   return s ? `?${s}` : "";
+}
+
+/** One SSE frame to zero or one validated event. Comments, heartbeats and unparseable frames are skipped. */
+export function parseSseFrame(frame: string): AgentRunEvent[] {
+  const data = frame.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trimStart()).join("\n");
+  if (!data) return [];
+  try {
+    const parsed = AgentRunEvent.safeParse(JSON.parse(data));
+    return parsed.success ? [parsed.data] : [];
+  } catch {
+    return [];
+  }
 }
 
 type WriteOptions = { method: "POST" | "PUT"; body: unknown; operationKey: string };
@@ -129,6 +154,44 @@ export class ConsoleClient implements ConsoleApi {
     await this.request(`/v1/trails/${encodeURIComponent(trailId)}/${action}`, z.object({ ok: z.literal(true) }), {
       method: "POST", body: input, operationKey: op,
     });
+  }
+  runs(q: RunsQuery = {}) { return this.request(`/v1/runs${query(q)}`, z.array(AgentRun)); }
+  run(id: string) { return this.request(`/v1/runs/${encodeURIComponent(id)}`, AgentRun); }
+  runEvents(id: string, after?: number) {
+    return this.request(`/v1/runs/${encodeURIComponent(id)}/events${query({ after })}`, z.array(AgentRunEvent));
+  }
+  async watchRun(id: string, after: number | undefined, onEvents: (events: AgentRunEvent[]) => void, signal: AbortSignal) {
+    const url = new URL(`/v1/runs/${encodeURIComponent(id)}/events${query({ after })}`, this.baseUrl);
+    let response: Response;
+    try {
+      response = await this.fetcher(url, { headers: { Authorization: `Bearer ${this.token}`, Accept: "text/event-stream" }, signal });
+    } catch (error) {
+      if (signal.aborted) return;
+      throw error;
+    }
+    if (!response.ok || !response.body) throw new ApiError(response.status);
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = "";
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) return;
+        buffer += value;
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        const events = frames.flatMap(parseSseFrame);
+        if (events.length) onEvents(events);
+      }
+    } catch (error) {
+      if (!signal.aborted) throw error;
+    } finally {
+      reader.releaseLock();
+    }
+  }
+  areaMap(ref: MapRef) {
+    const path = "draftId" in ref ? `/v1/drafts/${encodeURIComponent(ref.draftId)}/map`
+      : `/v1/docs/${ref.path.split("/").map(encodeURIComponent).join("/")}/map`;
+    return this.request(path, z.array(AreaSketch));
   }
   docs() { return this.request("/v1/docs", z.array(PolicyDoc)); }
   doc(path: string) { return this.request(`/v1/docs/${path.split("/").map(encodeURIComponent).join("/")}`, PolicyDoc); }
