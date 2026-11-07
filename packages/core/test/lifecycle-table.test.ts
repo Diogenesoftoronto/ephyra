@@ -242,3 +242,11 @@ test('landing records its modes and receipts survive landing and rollback', () =
     event('rollback_completed', { receipt: { ...receipt, oldOid: sha, newOid: 'b'.repeat(40) } }, '00000000-0000-4000-8000-000000000013'), ctx);
   expect(rolled.ok && rolled.trail.landing?.receipts.length).toBe(2);
 });
+
+test('mirror_linked records the mirror without changing state, and is idempotent', () => {
+  const linked = transition(original, event('mirror_linked', { kind: 'ampThread', id: 'T-01a1b539-866f-77a3-833f-b417d7707bbd' }), ctx);
+  expect(linked.ok && linked.trail.mirrors.ampThread).toBe('T-01a1b539-866f-77a3-833f-b417d7707bbd');
+  expect(linked.ok && linked.trail.state).toBe(original.state);
+  if (!linked.ok) return;
+  expect(transition(linked.trail, event('mirror_linked', { kind: 'ampThread', id: 'T-01a1b539-866f-77a3-833f-b417d7707bbd' }, '00000000-0000-4000-8000-000000000020'), ctx).ok).toBe(false);
+});

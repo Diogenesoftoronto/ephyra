@@ -258,7 +258,11 @@ export const Trail = z.object({
   waitingForParent: z.boolean().optional(),
   pendingSpend: z.object({ purpose: z.string(), microusd: z.number().int().positive() }).optional(),
   watchEvidence: z.string().optional(),
-  mirrors: z.object({ radicleCob: z.string().optional(), tangledUri: z.string().optional(), saplingStack: z.string().optional() }).default({}),
+  mirrors: z.object({
+    radicleCob: z.string().optional(), tangledUri: z.string().optional(), saplingStack: z.string().optional(),
+    /** The Amp thread this trail's agent steps run in (design/03). */
+    ampThread: z.string().optional(),
+  }).default({}),
   createdAt: IsoTime,
   updatedAt: IsoTime,
 });

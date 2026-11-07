@@ -13,7 +13,7 @@ import {
 } from "@ephyra/policy";
 import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract } from "@ephyra/models";
 import { LocalRunner } from "@ephyra/runner";
-import { ClaudeCodeAgent, CodexAgent, buildProof } from "@ephyra/agent";
+import { AmpAgent, ClaudeCodeAgent, CodexAgent, buildProof, type AmpThreadStore } from "@ephyra/agent";
 import { PlainGitAdapter } from "@ephyra/forge";
 import { MemoryAudit } from "./audit.ts";
 import { approverDids, type Config } from "./config.ts";
@@ -125,10 +125,27 @@ function backends(config: Config): { extract: ExtractBackend | null; decide: Dec
   return { extract, decide };
 }
 
-function agentFor(config: Config): CodingAgent | null {
+function agentFor(config: Config, ampThreads: AmpThreadStore): CodingAgent | null {
   if (config.EPHYRA_AGENT === "claude-code") return new ClaudeCodeAgent(config.EPHYRA_AGENT_MODEL ?? "claude-opus-5-5");
   if (config.EPHYRA_AGENT === "codex") return new CodexAgent(config.EPHYRA_AGENT_MODEL ?? "gpt-6.1-sol");
+  if (config.EPHYRA_AGENT === "amp") {
+    const executor = config.EPHYRA_AMP_EXECUTOR === "orb"
+      ? { kind: "orb" as const, ...(config.EPHYRA_AMP_PROJECT ? { project: config.EPHYRA_AMP_PROJECT } : {}) }
+      : config.EPHYRA_AMP_EXECUTOR === "runner"
+        ? { kind: "runner" as const, runnerId: config.EPHYRA_AMP_RUNNER_ID! }
+        : { kind: "local" as const };
+    return new AmpAgent({ executor, mode: config.EPHYRA_AMP_MODE, threads: ampThreads });
+  }
   return null;
+}
+
+/** Each trail's Amp thread id lives on the trail itself (trail.mirrors.ampThread), read from the projection. */
+function ampThreadsFrom(store: RuntimeStore): AmpThreadStore {
+  const pending = new Map<string, string>();
+  return {
+    get: async (trailId) => pending.get(trailId) ?? (await store.getTrail(trailId))?.mirrors.ampThread ?? null,
+    set: async (trailId, threadId) => { pending.set(trailId, threadId); },
+  };
 }
 
 /** Token bucket per ingest key. */
@@ -215,7 +232,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
   };
-  const agent = opts.agent ?? agentFor(config);
+  const agent = opts.agent ?? agentFor(config, ampThreadsFrom(store));
   const runner: Runner | null = opts.runner
     ?? (agent ? new LocalRunner(join(config.EPHYRA_DATA_DIR, "runner"), { trusted: true, allowDevenv: false }) : null);
   const intakeHooks = intake(ctx, {
