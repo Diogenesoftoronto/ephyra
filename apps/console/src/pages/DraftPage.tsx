@@ -13,7 +13,9 @@ import { PublishBar } from "../components/PublishBar.tsx";
 import { changedCount, diffSketches } from "../lib/sketch-diff.ts";
 import { describeError } from "../lib/errors.ts";
 import { newOp, useMediaQuery } from "../lib/hooks.ts";
+import { UnknownWriteOutcome } from "../api.ts";
 import "./DraftPage.css";
+import { useDraftVoice, VoiceLauncher } from "../voice/Voice.tsx";
 
 type Tab = "map" | "document" | "changes" | "chat";
 
@@ -63,6 +65,22 @@ function DraftBody({
   const [tab, setTab] = useState<Tab>(hasMap ? "map" : "document");
   const open = draft.status === "open";
   const [dirty, setDirty] = useState(false);
+  useDraftVoice({ id: draft.id, label: draft.path, disabled: !open || !canPublish || dirty || s.pending !== undefined,
+    answer: async text => {
+      const operationKey = newOp();
+      const next = await s.send(text, true, operationKey);
+      const humanIndex = next?.messages.findIndex(m => m.id === operationKey) ?? -1;
+      if (humanIndex < 0) throw new UnknownWriteOutcome(operationKey);
+      const following = next!.messages.slice(humanIndex + 1);
+      const boundary = following.findIndex(m => m.role === "human");
+      const fresh = boundary < 0 ? following : following.slice(0, boundary);
+      const reply = fresh.find(m => m.role === "persona");
+      if (!reply) throw new Error([...fresh].reverse().find(m => m.role === "system")?.text ?? "Velum did not return a reply. Check the saved conversation.");
+      return { text: reply.text, proposal: Boolean(reply.proposal), ...(reply.usage ? { receipt: {
+        ...reply.usage, operationKey: `draft:${draft.id}:${operationKey}`, requestedModel: "not reported", billedTo: "unknown" as const,
+      } } : {}) };
+    },
+  });
   const tabs: Array<{ id: Tab; label: string }> = [
     ...(hasMap ? [{ id: "map" as const, label: "Map" }] : []),
     { id: "document", label: "Document" },
@@ -105,9 +123,11 @@ function DraftBody({
         title={<span className="mono">{draft.path}</span>}
         lede="A draft. Nothing changes in production until you publish and it lands."
         actions={
+          <><VoiceLauncher compact disabled={!open || !canPublish || dirty || s.pending !== undefined} />
           <Badge tone={draft.status === "open" ? "info" : draft.status === "published" ? "ok" : "neutral"}>
             {draft.status}
           </Badge>
+          </>
         }
       />
       <div className="draft-layout" data-wide={wide}>

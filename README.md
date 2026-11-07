@@ -16,6 +16,11 @@ The [web console](apps/console/README.md) now implements Overview, Inbox, Usage,
 It reads recorded work and spend, follows agent transcripts, reviews checkpoint evidence, and edits policy drafts
 with Velum and validated generated forms. Publishing writes a policy git ref for later landing. It does not apply
 the policy to production. Cut E remains the public homepage; the console is served separately at `/app/`.
+The console also has voice conversations about recorded work, voice-assisted policy drafting, editable dictation
+and evidence narration. Speech uses configured Not Organic or compatible services; setup and verification limits
+are in the [voice documentation](apps/console/README.md#voice).
+Velum can optionally use Ampersand for intent and policy drafting. Trail review includes &Tutor explanations,
+follow-up questions and voice, bound to the recorded revision and evidence. See [configuration and limits](apps/server/README.md#humans-collaboration-and-tutoring).
 
 The component catalogue is in `apps/console` Storybook. Local tests cover the console/server contract and policy
 publication into a temporary git repository; browser checks use clearly labelled fixtures. Live provider,
