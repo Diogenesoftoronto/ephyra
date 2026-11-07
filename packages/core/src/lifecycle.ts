@@ -1,5 +1,6 @@
 import type { Trail, Signal, TriageResult, Budget, TrailState, Decision } from './schemas.ts';
 import { shortId } from './ids.ts';
+import { z } from 'zod';
 import type { TrailEvent, Effect, TransitionContext, TransitionResult } from './events.ts';
 
 type Command = Effect extends infer E ? E extends Effect ? Omit<E, 'key'> : never : never;
@@ -33,6 +34,9 @@ function keyed(id: string, rev: number, eventId: string, commands: Command[]): E
 
 export function createTrail(input: CreateTrailInput): CreateTrailResult {
   const { triage, signal } = input;
+  for (const target of [triage.duplicateOf, triage.regressionOf, triage.conflictsWith]) {
+    if (target && !z.uuid().safeParse(target).success) throw new Error('Invalid triage target');
+  }
   if (triage.duplicateOf) {
     return { trail: null, effects: keyed(input.id, 1, signal.id, [
       { type: 'merge_signal', signalId: signal.id, into: triage.duplicateOf },
@@ -319,6 +323,9 @@ class Machine {
   triage_completed(e: EventOf<'triage_completed'>) {
     if (this.trail.state !== 'sensed' && this.trail.state !== 'triaged') return false;
     const result = e.data.result;
+    for (const target of [result.duplicateOf, result.regressionOf, result.conflictsWith]) {
+      if (target && !z.uuid().safeParse(target).success) return false;
+    }
     this.trail.area = result.area;
     this.trail.risk = result.risk;
     this.trail.severity = Math.max(this.trail.severity, result.severity);
@@ -361,7 +368,7 @@ export function transition(trail: Trail, event: TrailEvent, ctx: TransitionConte
   const machine = new Machine(startingTrail, effectiveContext);
   // Every event handler has the matching discriminated event type; the lookup retains that pairing.
   const handler = machine[event.type] as (event: TrailEvent) => boolean;
-  if (!handler.call(machine, event)) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
+  if (typeof handler !== 'function' || !handler.call(machine, event)) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
   if (humanProof && machine.trail.state !== 'abandoned') {
     machine.trail.resumeTo = machine.trail.state;
     machine.trail.state = 'handed_off';
