@@ -42,7 +42,7 @@ const cases: Case[] = [
   { name: 'triage auto', state: 'sensed', type: 'triage_completed', data: { result: triage }, next: 'researching', effects: ['start_agent'] },
   { name: 'triage human', state: 'triaged', type: 'triage_completed', data: { result: { ...triage, route: 'human' } }, next: 'parked', effects: ['notify_inbox'] },
   { name: 'triage duplicate', state: 'triaged', type: 'triage_completed', data: { result: { ...triage, duplicateOf: other } }, next: 'abandoned', effects: ['merge_signal'] },
-  { name: 'triage ignore', state: 'sensed', type: 'triage_completed', data: { result: { ...triage, route: 'ignore' } }, next: 'abandoned' },
+  { name: 'triage ignore', state: 'sensed', patch: { signalFingerprint: 'fingerprint' }, type: 'triage_completed', data: { result: { ...triage, route: 'ignore' } }, next: 'abandoned', effects: ['mute_fingerprint'] },
   { name: 'triage conflict', state: 'sensed', type: 'triage_completed', data: { result: { ...triage, conflictsWith: other } }, next: 'parked' },
   { name: 'research A', state: 'researching', type: 'research_completed', data: { hypothesis: 'h' }, next: 'hypothesised', effects: ['request_checkpoint'] },
   { name: 'approve A', state: 'hypothesised', type: 'checkpoint_decided', data: { checkpoint: 'A', decision: decision('approve') }, next: 'reproducing', effects: ['start_agent'] },
@@ -195,4 +195,28 @@ test('terminal states absorb every event', () => {
   for (const state of ['closed', 'abandoned'] as const) {
     for (const c of cases) expect(transition({ ...original, state }, event(c.type, c.data), ctx).ok).toBe(false);
   }
+});
+
+test('checkpoint shadow decisions preserve state for all verdicts and checkpoints', () => {
+  const checkpoints = ['A', 'B', 'C'] as const;
+  const states = { A: 'hypothesised', B: 'planned', C: 'ready' } as const;
+  fc.assert(fc.property(fc.constantFrom(...checkpoints), fc.constantFrom('approve', 'revise', 'reject'), (cp, verdict) => {
+    const result = transition({ ...original, state: states[cp] },
+      event('checkpoint_decided', { checkpoint: cp, decision: decision(verdict, true) }), ctx);
+    expect(result.ok && result.trail.state).toBe(states[cp]);
+    expect(result.ok && result.effects).toEqual([]);
+  }));
+});
+
+test('a new signal invalidates C approval and repeated effects have distinct stable keys', () => {
+  const approved = { ...original, state: 'ready' as const, checkpoints: { C: decision('approve') as Trail['checkpoints']['C'], spend: [] } };
+  const signalResult = transition(approved, event('new_signal', { signalId: other, severity: 3 }), ctx);
+  expect(signalResult.ok && signalResult.trail.checkpoints.C).toBeUndefined();
+  const duplicateTrail = { ...original, state: 'sensed' as const, signals: [id, other] };
+  const e = event('triage_completed', { result: { ...triage, duplicateOf: other } });
+  const result = transition(duplicateTrail, e, ctx);
+  expect(result.ok && result.effects.length).toBe(2);
+  if (!result.ok) return;
+  expect(new Set(result.effects.map(effect => effect.key)).size).toBe(2);
+  expect(transition(duplicateTrail, e, ctx)).toEqual(result);
 });
