@@ -149,6 +149,8 @@ export const DraftProposal = z.object({
   summary: z.string().max(1000),
   /** Parser warnings for the proposed content; a proposal with errors cannot be applied. */
   warnings: z.array(z.string()),
+  /** Higher-level form of the proposal for the application map; the server renders it to `content`. */
+  sketches: z.array(z.lazy(() => AreaSketch)).optional(),
 });
 export type DraftProposal = z.infer<typeof DraftProposal>;
 
@@ -184,3 +186,83 @@ export const Draft = z.object({
   published: z.object({ ref: z.string(), commit: z.string(), by: z.string(), at: IsoTime }).optional(),
 });
 export type Draft = z.infer<typeof Draft>;
+
+// ───────────────────────── Agent runs (live harness view) ─────────────────────────
+// One run per agent step. Events are what the engine streamed (Amp / Claude Code stream-json, Codex JSON), normalized.
+// Tool arguments and results are redacted and truncated by the server before storage; never secrets.
+
+export const ExecutorKind = z.enum(["orb", "runner", "local", "railway", "notorganic"]);
+export const AgentRun = z.object({
+  id: z.string(),
+  trailId: z.string().uuid().nullable(),
+  short: z.string().nullable(),
+  step: z.string(),
+  persona: PersonaId.nullable(),
+  /** Backend identity exactly as returned once known, e.g. "amp/smart", "claude-code/claude-opus-5-5". */
+  engine: z.string(),
+  executor: z.object({
+    kind: ExecutorKind,
+    /** Orb, runner or sandbox id when the engine reports one. */
+    id: z.string().optional(),
+    project: z.string().optional(),
+    /** Live preview of the patched app (Amp orb portal, devenv_live). */
+    portalUrl: z.string().url().optional(),
+    /** The engine's own view of the run, e.g. https://ampcode.com/threads/T-… */
+    threadUrl: z.string().url().optional(),
+  }),
+  status: z.enum(["running", "done", "failed", "unavailable"]),
+  startedAt: IsoTime,
+  endedAt: IsoTime.optional(),
+  usage: z.object({ tokens: z.number().int().nullable(), costMicrousd: z.number().int().nullable() }).optional(),
+  error: z.string().max(500).optional(),
+});
+export type AgentRun = z.infer<typeof AgentRun>;
+
+export const AgentRunEvent = z.object({
+  runId: z.string(),
+  /** Monotonic per run; clients resume with ?after=<seq>. */
+  seq: z.number().int().nonnegative(),
+  at: IsoTime,
+  type: z.enum(["message", "reasoning", "tool_call", "tool_result", "policy", "status", "portal"]),
+  /** Assistant text, reasoning summary, or status line. */
+  text: z.string().max(20000).optional(),
+  tool: z.object({
+    callId: z.string(), name: z.string(),
+    /** Redacted JSON text, truncated. */
+    args: z.string().max(4000).optional(),
+    result: z.string().max(8000).optional(),
+    isError: z.boolean().optional(),
+  }).optional(),
+  /** A harness plugin decision on a tool call (Ephyra's policy inside the agent loop). */
+  policy: z.object({ decision: z.enum(["allow", "reject", "modify"]), rule: z.string(), reason: z.string().max(500) }).optional(),
+  portalUrl: z.string().url().optional(),
+});
+export type AgentRunEvent = z.infer<typeof AgentRunEvent>;
+
+// ───────────────────────── Higher-level drafting: the application map ─────────────────────────
+// People describe areas of their application in plain language and pick a level on a five-step ladder. The policy package
+// maps each level to concrete checkpoints, landing and watch settings; Velum proposes sketches, never raw settings alone.
+
+export const AutonomyLevel = z.enum(["watch", "research", "propose", "patch", "auto"]);
+export type AutonomyLevel = z.infer<typeof AutonomyLevel>;
+
+export const AUTONOMY_LEVELS: readonly { id: AutonomyLevel; label: string; means: string }[] = [
+  { id: "watch", label: "Watch", means: "Notice and report. No trails are worked." },
+  { id: "research", label: "Research", means: "Gather evidence and write a hypothesis. Nothing is changed." },
+  { id: "propose", label: "Propose", means: "Reproduce and plan a fix; a person approves every step." },
+  { id: "patch", label: "Patch", means: "Write and prove the fix; a person approves landing." },
+  { id: "auto", label: "Auto-land", means: "Land proven small fixes alone, watch them, roll back on regression." },
+];
+
+export const AreaSketch = z.object({
+  name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(60),
+  /** Plain-language description of what this part of the app is and what matters about it. */
+  intent: z.string().max(4000),
+  paths: z.array(z.string()).max(50),
+  risk: z.enum(["low", "medium", "high", "critical"]),
+  level: AutonomyLevel,
+  userFacing: z.boolean(),
+  /** Monthly human-study budget, if any. */
+  studyBudgetUsd: z.number().nonnegative().optional(),
+});
+export type AreaSketch = z.infer<typeof AreaSketch>;
