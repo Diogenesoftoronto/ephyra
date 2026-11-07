@@ -1,80 +1,77 @@
-// A composed screen built only from primitives, used to critique the visual system as a whole (not a real page).
+// A composed Overview built only from primitives, used to critique the visual system as a whole (not the real page).
+// Order follows the work: an exception first, then decisions (the one framed tray), then what's running, then money.
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import { PERSONAS } from "@ephyra/core";
-import { Avatar, Badge, Button, Card, Hash, Meter, PageHeader, PersonaTag, Shell, Stat, Tag, type NavItem } from "./primitives.tsx";
+import { PERSONAS, type PersonaId } from "@ephyra/core";
+import {
+  Avatar, BarChart, Button, Card, Checkpoint, Hash, Meter, Notice, PageHeader, PersonaTag, Row, Rows, Shell, Stat, Stats, Status,
+  type NavItem,
+} from "./primitives.tsx";
 
 const nav: NavItem[] = [
-  { id: "overview", label: "Overview", icon: "overview" }, { id: "inbox", label: "Inbox", icon: "inbox", count: 4 },
+  { id: "overview", label: "Overview", icon: "overview" }, { id: "inbox", label: "Inbox", icon: "inbox", count: 3 },
   { id: "runs", label: "Runs", icon: "runs" }, { id: "usage", label: "Usage", icon: "usage" },
-  { id: "workspace", label: "Workspace", icon: "workspace" }, { id: "personas", label: "Personas", icon: "personas" },
+  { id: "workspace", label: "Workspace", icon: "workspace", overflow: true }, { id: "personas", label: "Personas", icon: "personas", overflow: true },
 ];
-const days = [0.8, 1.4, 0.6, 2.9, 3.6, 2.1, 3.4];
-const avatar = (id: string, size: 24 | 32 | 48 = 32, live = false) => {
+const BASE = "/";
+const avatar = (id: PersonaId, size: 24 | 32 | 48 = 32) => {
   const p = PERSONAS.find((x) => x.id === id)!;
-  return <Avatar initial={p.name[0]!} color={`var(--persona-${p.id})`} size={size} src={`/personas/${p.id}.webp`} live={live} label={p.name} />;
+  return <Avatar initial={p.name[0]!} color={`var(--persona-${p.id})`} tint={`var(--persona-${p.id}-tint)`} size={size}
+    src={`${BASE}personas/${p.id}-64.webp`} label={p.name} />;
 };
+const usd = (n: number) => `$${n.toFixed(2)}`;
+const usd0 = (n: number) => `$${n % 1 ? n.toFixed(1) : n}`;
+const week = [["Fri", 0.8], ["Sat", 1.4], ["Sun", 0.6], ["Mon", 2.9], ["Tue", 3.6], ["Wed", 2.1], ["Today", 3.4]] as const;
 
 function Overview() {
-  const max = Math.max(...days);
   return (
     <>
-      <PageHeader title="Good afternoon" lede="Three agents are working. Four trails are waiting for a decision."
-        actions={<Button variant="primary">Open inbox</Button>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "var(--s6)", marginBottom: "var(--s6)" }}>
-        <Stat label="Running now" value="3" tone="live" sub="2 in orbs · 1 local" />
-        <Stat label="Waiting for you" value="4" sub="1 blocks a landing" />
-        <Stat label="Spend · 7 days" value="$14.82" unknownCount={3} sub="of $40 budget" />
-        <Stat label="Landed · 7 days" value="6" sub="1 rolled back" />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: "var(--s4)" }}>
-        <Card title="Working now" meta="live" actions={<Button size="sm" variant="ghost">All runs</Button>}>
-          {[["lappet", "Writing the patch", "T-7f3a2c · cart", "orb · 2m"], ["nema", "Running the proof", "T-19be04 · checkout", "local · 41s"],
-            ["bell", "Searching past trails", "T-0c11aa · search", "orb · 5m"]].map(([id, what, trail, where]) => (
-            <div key={id} style={{ display: "flex", gap: "var(--s3)", alignItems: "center" }}>
-              {avatar(id!, 32, true)}
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{what}</div>
-                <div className="muted" style={{ fontSize: "var(--fs-small)" }}>{trail}</div>
-              </div>
-              <Badge tone="live">{where}</Badge>
-            </div>
-          ))}
+      <PageHeader title="Overview" lede="3 decisions waiting · 3 agents running · $14.82 recorded this week" />
+      <Notice title="Rolled back T-19be04 · checkout" body={<>The error returned 6 minutes after landing, so Turri reverted <Hash value="9f2c1e7a44b0d3e1" /> and reopened the trail.</>}
+        actions={<Button size="sm">Open trail</Button>} />
+      <div style={{ height: "var(--s5)" }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: "var(--s5)", alignItems: "start" }}>
+        <Card tone="tray" title="Needs your decision" meta="3 trails" actions={<Button size="sm" variant="ghost">Open inbox</Button>}>
+          <Rows>
+            <Row lead={<Checkpoint id="C" blocking compact />} title="Cart total shows NaN" meta="Landing · T-7f3a2c · cart · proof passed · rev 3"
+              aside={<Button size="sm" variant="primary">Review</Button>} />
+            <Row lead={<Checkpoint id="B" compact />} title="Search returns stale results" meta="Plan · T-0c11aa · search" aside={<Button size="sm">Review</Button>} />
+            <Row lead={<Checkpoint id="A" compact />} title="Webhook retries double-charge" meta="Hypothesis · T-4be210 · payments"
+              aside={<Button size="sm">Review</Button>} />
+          </Rows>
         </Card>
-        <Card title="Waiting for you" meta="4 trails" actions={<Button size="sm" variant="ghost">Inbox</Button>}>
-          {[["C", "Cart total shows NaN", "cart · proof passed", true], ["B", "Search returns stale results", "search · plan ready", false],
-            ["A", "Webhook retries double-charge", "payments · hypothesis", false]].map(([cp, title, sub, blocking]) => (
-            <div key={String(title)} style={{ display: "flex", gap: "var(--s3)", alignItems: "center" }}>
-              <Badge tone={blocking ? "warn" : "info"}>{String(cp)}</Badge>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{String(title)}</div>
-                <div className="muted" style={{ fontSize: "var(--fs-small)" }}>{String(sub)}</div>
-              </div>
-              <Button size="sm" variant={blocking ? "primary" : "secondary"}>Review</Button>
-            </div>
-          ))}
-        </Card>
-        <Card title="Spend" meta="last 7 days">
-          <svg viewBox="0 0 280 90" role="img" aria-label="Spend per day" style={{ width: "100%", height: "auto" }}>
-            {days.map((d, i) => (
-              <rect key={i} x={i * 40 + 6} y={84 - (d / max) * 76} width={28} height={(d / max) * 76} rx={5}
-                fill={i === days.length - 1 ? "var(--jelly)" : "color-mix(in oklch, var(--jelly) 45%, var(--surface-2))"} />
+        <Card tone="quiet" title="Working now" meta="3 agents" actions={<Button size="sm" variant="ghost">All runs</Button>}>
+          <Rows>
+            {([["lappet", "Writing the patch", "T-7f3a2c · cart", "Amp orb a1.small · 2 min"],
+              ["nema", "Running the proof", "T-19be04 · checkout", "Local runner · 41 s"],
+              ["bell", "Searching past trails", "T-0c11aa · search", "Amp orb a1.small · 5 min"]] as const).map(([id, what, trail, where]) => (
+              <Row key={id} lead={avatar(id, 32)} title={what} meta={<><PersonaTag persona={id} /> · {trail} · {where}</>} aside={<Status state="running" />} />
             ))}
-          </svg>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s3)" }}>
-            {(["lappet", "nema", "bell", "rho"] as const).map((p, i) => <PersonaTag key={p} persona={p}>{["$6.10", "$4.02", "$3.55", "$1.15"][i]}</PersonaTag>)}
+          </Rows>
+        </Card>
+      </div>
+      <div style={{ height: "var(--s6)" }} />
+      <Stats>
+        <Stat label="Recorded spend, 7 days" value="$14.82" unknownCount={3} sub="Budget $40.00" />
+        <Stat label="Landed, 7 days" value="6" sub="1 rolled back" />
+        <Stat label="Trails open" value="11" sub="4 parked" />
+        <Stat label="Proofs passed" value="9 of 10" sub="1 flaky, rerun" />
+      </Stats>
+      <div style={{ height: "var(--s6)" }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: "var(--s5)", alignItems: "start" }}>
+        <Card tone="quiet" title="Recorded spend" meta="Last 7 days">
+          <BarChart label="Recorded spend per day, last 7 days" format={usd0} partial data={week.map(([d, v]) => ({ key: d, label: d, value: v }))} />
+          <p className="ui-label">Today is so far. 3 entries this week have unknown cost and are not drawn.</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2) var(--s4)" }}>
+            {(["lappet", "nema", "bell", "rho"] as const).map((p, i) => <PersonaTag key={p} persona={p}>{PERSONAS.find((x) => x.id === p)!.name} {["$6.10", "$4.02", "$3.55", "$1.15"][i]}</PersonaTag>)}
           </div>
         </Card>
-        <Card title="Budgets" meta="trails over half">
-          <Meter label="T-7f3a2c · cart" used={3.9} max={5} unknown={2} format={(n) => `$${n.toFixed(2)}`} />
-          <Meter label="T-0c11aa · search" used={2.6} max={5} format={(n) => `$${n.toFixed(2)}`} />
-        </Card>
-        <Card tone="alert" title="Rolled back" meta="14 min ago" persona="turri">
-          <p>The checkout error came back six minutes after landing. Turri reverted <Hash value="9f2c1e7a44b0d3e1" /> and reopened the trail.</p>
-          <div><Button size="sm">Open T-19be04</Button></div>
+        <Card tone="quiet" title="Trail budgets" meta="Over half used">
+          <Meter label="T-7f3a2c · cart" used={3.9} max={5} unknown={2} format={usd} />
+          <Meter label="T-0c11aa · search" used={2.6} max={5} format={usd} />
+          <Meter label="T-2210ab · auth" used={5.3} max={5} format={usd} />
         </Card>
       </div>
-      <div style={{ marginTop: "var(--s6)" }}><Tag>This is a composition for critique, not a page</Tag></div>
     </>
   );
 }
