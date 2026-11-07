@@ -14,7 +14,7 @@ export type SiteConfig = {
   home?: HomeCut;
   /** at://did/site.standard.publication/rkey; the blog shows a setup notice without it. */
   publicationUri?: string;
-  /** The control-plane API (linked from llms.txt). */
+  /** The control-plane origin; /app/ sends people to its console. Also linked from llms.txt. */
   apiOrigin?: string;
   fetcher?: Fetcher;
   /** Seconds to cache the publication read. */
@@ -57,6 +57,11 @@ const PAGES = [
 
 export function createSite(config: SiteConfig) {
   const origin = new URL(config.origin).origin;
+  const apiOrigin = config.apiOrigin ? new URL(config.apiOrigin) : null;
+  if (apiOrigin && (!["https:", "http:"].includes(apiOrigin.protocol) || apiOrigin.username || apiOrigin.password)) {
+    throw new Error("apiOrigin must be an HTTP(S) origin without credentials");
+  }
+  if (apiOrigin?.origin === origin) throw new Error("apiOrigin must point to the control-plane server, not this public site");
   const fetcher = config.fetcher ?? fetch;
   const cacheMs = (config.cacheS ?? 60) * 1000;
   const contentDir = config.contentDir ?? join(import.meta.dir, "../content/legal");
@@ -218,7 +223,7 @@ export function createSite(config: SiteConfig) {
     const nav = ([["/blog/", "Journal"], ["/pricing", "Pricing"], ["/security", "Security"]] as const).map(([href, label]) => {
       const current = path === href ? ' aria-current="page"' : href === "/blog/" && path.startsWith("/blog/") ? ' aria-current="true"' : "";
       return `<a href="${href}"${current}>${label}</a>`;
-    }).join("");
+    }).join("") + '<a href="/app/">Open app ↗</a>';
     return text(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(url)}">
@@ -351,6 +356,13 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     const url = new URL(req.url);
     const path = url.pathname;
+    if (path === "/app" || path === "/app/") {
+      if (apiOrigin) return new Response(null, {
+        status: 302, headers: { location: `${apiOrigin.origin}/app/`, "cache-control": "no-store", "x-robots-tag": "noindex" },
+      });
+      return text("This site is not connected to an Ephyra server yet. The operator needs to set EPHYRA_API_ORIGIN.",
+        "text/plain", { "cache-control": "no-store", "x-robots-tag": "noindex" }, 503);
+    }
     if (path === "/healthz") return Response.json({ ok: true, blog: Boolean(config.publicationUri) }, { headers: { "x-robots-tag": "noindex" } });
     if (path === "/robots.txt") return text(robots(), "text/plain");
     if (path === "/sitemap.xml") return text(await sitemap(), "application/xml");

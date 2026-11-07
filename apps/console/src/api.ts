@@ -101,6 +101,7 @@ export const SessionInfo = z.object({
   approver: z.boolean(),
 });
 export type SessionInfo = z.infer<typeof SessionInfo>;
+export const BrowserSession = z.object({ signIn: z.boolean(), identity: SessionInfo.nullable() });
 
 export interface ConsoleApi {
   tutorCapabilities(): Promise<TutorCapabilities>;
@@ -216,10 +217,26 @@ type WriteOptions = { method: "POST" | "PUT"; body: unknown; operationKey: strin
 export class ConsoleClient implements ConsoleApi {
   constructor(
     readonly baseUrl: string,
-    readonly token: string,
+    readonly token: string = "",
     readonly fetcher: typeof fetch = fetch,
     readonly principal?: string,
   ) {}
+
+  private authHeaders(): Record<string, string> {
+    return {
+      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      ...(this.principal ? { "X-Ephyra-Principal": this.principal } : {}),
+    };
+  }
+
+  browserSession() { return this.request("/auth/session", BrowserSession); }
+  async signOut() {
+    const fetcher = this.fetcher;
+    const response = await fetcher(new URL("/auth/logout", this.baseUrl), {
+      method: "POST", credentials: "same-origin", headers: this.authHeaders(), cache: "no-store",
+    });
+    if (!response.ok) throw new ApiError(response.status, "Sign-out was not confirmed. Try again.");
+  }
 
   voiceCapabilities() { return this.request("/v1/voice", VoiceCapabilities); }
   tutorCapabilities() { return this.request("/v1/tutor", TutorCapabilities); }
@@ -229,9 +246,8 @@ export class ConsoleClient implements ConsoleApi {
     try {
       const fetcher = this.fetcher;
       res = await fetcher(new URL(path.startsWith("/") ? path : `/v1/voice/${path}`, this.baseUrl), {
-        method: "POST", signal, body: JSON.stringify(body), headers: {
-          Authorization: `Bearer ${this.token}`, "Content-Type": "application/json", "Idempotency-Key": operationKey,
-          ...(this.principal ? { "X-Ephyra-Principal": this.principal } : {}),
+        method: "POST", credentials: "same-origin", signal, body: JSON.stringify(body), headers: {
+          ...this.authHeaders(), "Content-Type": "application/json", "Idempotency-Key": operationKey,
         },
       });
     } catch { throw new VoiceRequestError("reconciliation_required",
@@ -249,8 +265,7 @@ export class ConsoleClient implements ConsoleApi {
   voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal) { return this.voiceRequest("reply", VoiceReply, input, op, signal); }
 
   async request<T>(path: string, schema: z.ZodType<T>, options?: WriteOptions, signal?: AbortSignal): Promise<T> {
-    const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
-    if (this.principal) headers["X-Ephyra-Principal"] = this.principal;
+    const headers = this.authHeaders();
     if (options) {
       headers["Content-Type"] = "application/json";
       headers["Idempotency-Key"] = options.operationKey;
@@ -260,6 +275,7 @@ export class ConsoleClient implements ConsoleApi {
       const fetcher = this.fetcher;
       response = await fetcher(new URL(path, this.baseUrl), {
         method: options?.method ?? "GET",
+        credentials: "same-origin",
         headers,
         cache: "no-store",
         ...(signal ? { signal } : {}),
@@ -377,10 +393,10 @@ export class ConsoleClient implements ConsoleApi {
       const fetcher = this.fetcher;
       response = await fetcher(url, {
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          ...this.authHeaders(),
           Accept: "text/event-stream",
-          ...(this.principal ? { "X-Ephyra-Principal": this.principal } : {}),
         },
+        credentials: "same-origin",
         signal,
       });
     } catch (error) {

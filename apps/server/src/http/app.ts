@@ -47,7 +47,7 @@ const emptyInput = z.object({}).strict();
  * Who may change trails. When `requireSignIn` is set (Not Organic sign-in configured), decisions and actions
  * need a signed-in account on the approver list; the service token alone can no longer approve anything.
  */
-export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<string> };
+export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<string>; browserOrigin?: string };
 
 const PLUGIN_REPORT = /^\/v1\/runs\/[^/]+\/policy$/;
 
@@ -59,14 +59,14 @@ export function createApp(
 ): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
   app.get("/healthz", (c) => c.json({ ok: true }));
-  app.use("/v1/*", auth(token, sessions));
+  app.use("/v1/*", auth(token, sessions, approval.browserOrigin));
   // Every mutating /v1 route is a human decision or action.
   app.use("/v1/*", async (c, next) => {
     if (c.req.method === "GET" || !approval.requireSignIn) return next();
     // The harness plugin inside an agent run reports policy decisions with the service token; that is the one write a machine may make.
     if (PLUGIN_REPORT.test(new URL(c.req.url).pathname) && c.get("principalKind") === "service") return next();
     if (c.get("principalKind") !== "human") {
-      return c.json({ error: "sign in with Not Organic (`ephyra login`) to change trails" }, 403);
+      return c.json({ error: "sign in with Not Organic to change trails" }, 403);
     }
     if (!approval.approvers.has(c.get("principal"))) {
       return c.json({ error: "this Not Organic account is not an approver on this deployment" }, 403);

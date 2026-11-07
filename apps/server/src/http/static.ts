@@ -8,6 +8,7 @@ export const hasConsole = (dir: string): boolean => existsSync(join(dir, "index.
 export function consoleStatic(dir: string): Hono {
   const root = normalize(dir.endsWith(sep) ? dir : dir + sep);
   const app = new Hono();
+  app.get("/", (c) => c.redirect("/app/", 302));
   const serve = async (path: string, cache: string) => {
     const file = Bun.file(path);
     return new Response(file, { headers: { "content-type": file.type, "cache-control": cache, "x-content-type-options": "nosniff" } });

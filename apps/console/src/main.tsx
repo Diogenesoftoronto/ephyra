@@ -4,7 +4,7 @@ import { ConsoleClient } from "./api.ts";
 import { App } from "./app/App.tsx";
 import { useAsync } from "./app/useAsync.ts";
 import { ConnectGate } from "./components/ConnectGate.tsx";
-import { Load } from "./components/Load.tsx";
+import { ErrorState, Load } from "./components/Load.tsx";
 import { FakeApi } from "./fake/api.ts";
 import { ME } from "./fake/fixtures.ts";
 import "./theme.css";
@@ -69,8 +69,34 @@ function Root() {
     setCredentials(value);
   };
   if (fake) return <App api={fake} demo identity={{ principal: ME, kind: "human", approver: true }} />;
-  if (!credentials) return <ConnectGate onConnect={(token, principal) => save({ token, principal })} />;
+  if (!credentials) return <BrowserConnection onConnect={(token, principal) => save({ token, principal })} />;
   return <Connected credentials={credentials} disconnect={() => save(null)} />;
+}
+
+function BrowserConnection({ onConnect }: { onConnect: (token: string, principal?: string) => void }) {
+  const api = useMemo(() => new ConsoleClient(location.origin), []);
+  const session = useAsync(() => api.browserSession(), "browser-session");
+  const [logoutError, setLogoutError] = useState<unknown>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const signOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setLogoutError(null);
+    try {
+      await api.signOut();
+      session.set({ signIn: true, identity: null });
+    } catch (error) { setLogoutError(error); }
+    finally { setSigningOut(false); }
+  };
+  return <>
+    {logoutError !== null && <div className="connection-reset"><ErrorState error={logoutError} onRetry={signOut} /></div>}
+    <Load state={session.state} retry={session.reload}>
+      {({ signIn, identity }) => identity
+        ? <App api={api} identity={identity} approver={identity.approver} onDisconnect={signOut}
+            disconnectLabel={signingOut ? "Signing out…" : "Sign out"} />
+        : <ConnectGate signIn={signIn} onConnect={onConnect} />}
+    </Load>
+  </>;
 }
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

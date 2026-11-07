@@ -40,6 +40,22 @@ const site = (docs: unknown[] = [], opts: { publicationUri?: string; pubUrl?: st
   });
 const get = (h: ReturnType<typeof site>, path: string) => h(new Request(ORIGIN + path));
 
+test("Open app reaches the configured console from the homepage and secondary pages", async () => {
+  const h = createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "https://control.example" });
+  for (const path of ["/", "/pricing", "/blog/", "/legal/"]) {
+    expect(await (await get(h, path)).text()).toContain('href="/app/">Open app');
+  }
+  for (const path of ["/app", "/app/", "/app/?next=https://attacker.test"]) {
+    const res = await get(h, path);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://control.example/app/");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  }
+  expect((await get(site(), "/app/")).status).toBe(503);
+  expect(() => createSite({ origin: ORIGIN, root: ROOT, apiOrigin: ORIGIN })).toThrow();
+  expect(() => createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "javascript:alert(1)" })).toThrow();
+});
+
 describe("SEO files", () => {
   test("robots.txt allows crawling and points at the sitemap and llms.txt", async () => {
     const body = await (await get(site(), "/robots.txt")).text();

@@ -99,6 +99,10 @@ Convex `runs` / `runEvents` tables (secret-gated, convex-tested).
 
 **Console.** When `EPHYRA_CONSOLE_DIR/index.html` exists, `/app/` serves the built console with SPA fallback (missing assets 404, never
 outside the directory); `/v1` keeps its authentication.
+The server Dockerfile builds this directory in a separate frontend build stage and copies it into the runtime image.
+Its frozen dependency install uses `infra/docker/server.bun.lock`, a release lock generated from the workspace manifests.
+When dependencies change, regenerate that lock in an isolated checkout (`bun install --lockfile-only`, then copy
+`bun.lock` to `infra/docker/server.bun.lock`). This leaves other lanes' local locks alone. The runtime contains only production dependencies.
 
 Console decisions include the reviewed `bound` (revision, head and proof digest). If that binding differs from the
 current inbox item, the server refuses it before recording a decision. Trail detail exposes bounded plain-text
@@ -168,12 +172,18 @@ server stops accepting trail changes from the service token.
 - Browser: `/auth/login` → `id.notorganic.info` (PKCE S256) → `/auth/callback`. The server exchanges the code at
   `api.notorganic.info/v1/public/token` with its own DPoP key, then checks `/v1/account` against the token's DID,
   issuer and product before creating a session.
+  A browser login sets a host-only HttpOnly `SameSite=Lax` session cookie and redirects to `/app/`.
+  HTTPS uses the `__Host-` cookie prefix and `Secure`; local HTTP uses an unprefixed cookie.
+  `GET /auth/session` returns the sign-in availability and current identity, never the credential.
+  Cookie-authenticated mutations require the exact configured public Origin. Bearer authentication remains available to the CLI.
+  `POST /auth/logout` revokes the session and clears the cookie; session and authenticated API responses bypass caches.
 - Terminal: `ephyra login <server-url>` prints a link and a code; the browser page shows the same code and an Approve
   button; the CLI then collects its session once and stores it in `~/.config/ephyra/credentials.json` (mode 600).
   `ephyra whoami`, `ephyra logout`.
 - Sessions live in Convex: the session token only as a SHA-256 hash, the Not Organic refresh token and DPoP key
   sealed with AES-256-GCM under `EPHYRA_SESSION_KEY`. Refresh-token rotation is saved with compare-and-swap.
 - Changing trails needs a signed-in account listed in `EPHYRA_APPROVER_DIDS`; other signed-in accounts can read.
+  Signing in does not grant approver permissions or connect a new repository.
 - `EPHYRA_DECIDE=notorganic` / `EPHYRA_EXTRACT=notorganic` run triage on Not Organic judgement and extraction,
   paid from `EPHYRA_BILLING_DID` (default: the first approver), using that account's sign-in session.
 

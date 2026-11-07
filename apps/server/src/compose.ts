@@ -386,7 +386,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const api = createApp(
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
-    { requireSignIn: Boolean(signIn), approvers },
+    { requireSignIn: Boolean(signIn), approvers, ...(signIn ? { browserOrigin: signIn.config.publicOrigin } : {}) },
     (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice)).route("/", tutorRoutes(tutor)),
   );
   const mode = client ? "convex" as const : "memory" as const;
@@ -400,6 +400,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
   });
   if (signIn) app.route("/auth", authRoutes(signIn, approvers));
+  else app.get("/auth/session", (c) => c.json({ signIn: false, identity: null }, 200, { "Cache-Control": "no-store" }));
   if (hasConsole(config.EPHYRA_CONSOLE_DIR)) app.route("/", consoleStatic(config.EPHYRA_CONSOLE_DIR));
   app.route("/", api);
 

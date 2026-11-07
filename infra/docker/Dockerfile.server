@@ -1,16 +1,23 @@
 # Ephyra control plane (apps/server) on Bun. Build context: repository root.
 FROM oven/bun:1.4.4-alpine AS deps
 WORKDIR /app
-COPY package.json bun.lock tsconfig.base.json ./
+COPY package.json tsconfig.base.json ./
+# A release lock keeps image builds reproducible while local lanes have independent workspace locks.
+COPY infra/docker/server.bun.lock ./bun.lock
 COPY packages/ packages/
 COPY apps/ apps/
 RUN bun install --frozen-lockfile --production
+
+FROM deps AS console-build
+RUN bun install --frozen-lockfile
+RUN bun run --filter @ephyra/console build
 
 FROM oven/bun:1.4.4-alpine
 # git is required by the journal (refs/ephyra/trails/*) and forge adapters.
 RUN apk add --no-cache git su-exec
 WORKDIR /app
 COPY --from=deps /app /app
+COPY --from=console-build /app/apps/console/dist /app/apps/console/dist
 ENV NODE_ENV=production PORT=3000 EPHYRA_DATA_DIR=/data
 COPY --chmod=755 infra/docker/server-entrypoint.sh /usr/local/bin/ephyra-entrypoint
 RUN mkdir -p /data && chown -R bun:bun /data /app

@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { createMiddleware } from "hono/factory";
+import { browserRequestAllowed, browserSessionToken } from "../auth/browser-session.ts";
 
 export type PrincipalKind = "service" | "human";
 export type AuthEnv = { Variables: { principal: string; principalKind: PrincipalKind } };
@@ -19,12 +20,18 @@ function tokenMatches(expected: string, provided: string): boolean {
  * - the service token (machines, OTLP, local dev), which must name its principal in X-Ephyra-Principal;
  * - a Not Organic session token, whose principal is the account's DID (never a caller-supplied header).
  */
-export function auth(token: string, sessions?: SessionResolver) {
+export function auth(token: string, sessions?: SessionResolver, browserOrigin?: string) {
   if (!token) throw new Error("API token is required");
   return createMiddleware<AuthEnv>(async (context, next) => {
-    const authorization = context.req.header("Authorization") ?? "";
-    const provided = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-    if (tokenMatches(token, provided)) {
+    context.header("Cache-Control", "no-store");
+    const authorization = context.req.header("Authorization");
+    const browserToken = authorization === undefined && browserOrigin ? browserSessionToken(context, browserOrigin) : undefined;
+    const provided = browserToken ?? (authorization?.startsWith("Bearer ") ? authorization.slice(7) : "");
+    if (browserToken && !browserRequestAllowed(context, browserOrigin!)) {
+      return context.json({ error: "browser requests must come from this application" }, 403);
+    }
+    // A cookie can only resolve a human session, never the service token.
+    if (!browserToken && tokenMatches(token, provided)) {
       const principal = context.req.header("X-Ephyra-Principal")?.trim();
       if (!principal || principal.length > 200) return context.json({ error: "unauthorized" }, 401);
       context.set("principal", principal);

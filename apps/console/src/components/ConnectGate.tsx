@@ -1,21 +1,32 @@
 import { useState } from "react";
 import { Button, Card, Field, PageHeader } from "../kit.ts";
 
-/**
- * Shown when the console has no session token. The token is kept for this browser tab only (sessionStorage) and sent to
- * this server only. How a person normally gets one (Not Organic sign-in) is Unverified: see the README.
- */
-export function ConnectGate({ onConnect }: { onConnect: (token: string, principal?: string) => void }) {
+/** Browser sign-in is the normal entry; manual tokens remain available for self-hosted deployments. */
+export function ConnectGate({ onConnect, signIn = false }: {
+  onConnect: (token: string, principal?: string) => void;
+  signIn?: boolean;
+}) {
   const [token, setToken] = useState("");
   const [principal, setPrincipal] = useState("");
   const connect = () => onConnect(token.trim(), principal.trim() || undefined);
   return (
     <div className="gate">
       <PageHeader
-        title="Connect to Ephyra"
-        lede="Paste a session token for this deployment. It stays in this tab and is sent only to this server."
+        title={signIn ? "Your Ephyra workspace" : "Connect to Ephyra"}
+        lede={signIn
+          ? "Review trails, follow your agents and their spending, and shape your autonomy policy."
+          : "Connect to this deployment with a session or service token."}
       />
+      {signIn && <Card>
+        <div className="stack">
+          <p>Use your Not Organic account to open this workspace.</p>
+          <div><a className="ui-button ui-button--primary" href="/auth/login">Sign in with Not Organic</a></div>
+          <p className="muted">Your account’s permissions determine which changes you can approve.</p>
+        </div>
+      </Card>}
       <Card>
+        <details open={signIn ? undefined : true}>
+          <summary>Connect with a token</summary>
         <form
           className="stack"
           onSubmit={(e) => {
@@ -23,6 +34,7 @@ export function ConnectGate({ onConnect }: { onConnect: (token: string, principa
             if (token.trim()) connect();
           }}
         >
+          <p className="muted">The token stays in this tab and is sent only to this server.</p>
           <Field label="Session token" hint="Use the session token from ephyra login for this deployment.">
             <input
               type="password"
@@ -46,9 +58,10 @@ export function ConnectGate({ onConnect }: { onConnect: (token: string, principa
             </Button>
           </div>
         </form>
+        </details>
       </Card>
       <p className="muted">
-        Want to look around first? <a href="?demo=1">Open the demo</a>, which uses made-up data and never
+        Want to look around first? <a href="?demo=1">Open the sample workspace</a>, which uses made-up data and never
         contacts a server.
       </p>
     </div>
