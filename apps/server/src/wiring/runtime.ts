@@ -7,7 +7,8 @@ import {
   type TransitionContext,
 } from "@ephyra/core";
 import { EffectExecutor } from "../orchestrator/effects.ts";
-import { InvalidTransition } from "../http/app.ts";
+import { InvalidTransition, StaleApproval } from "../http/app.ts";
+import { canonicalJson } from "../audit.ts";
 import type { EffectHandlers } from "../orchestrator.ts";
 import type { EmitInput, JobRunner, ServerContext } from "./context.ts";
 import type { RuntimeStore } from "./store.ts";
@@ -60,12 +61,33 @@ export class Engine {
 
   /** Apply one event. Returns the resulting trail, or throws when the state machine rejects it. */
   async emit(input: EmitInput): Promise<Trail> {
-    const { trail: trailId, actor, files, ...body } = input;
+    const { trail: trailId, actor, files, eventId, expectedBound, ...body } = input;
+    if (eventId && (files || !['human_comment', 'claimed_by_human', 'released_by_human'].includes(body.type))) {
+      throw new InvalidTransition('Stable event IDs are limited to collaboration requests');
+    }
     const { trail, effects } = await this.serial(trailId, async () => {
       const current = await this.journal.read(trailId);
       if (!current) throw new Error(`unknown trail ${trailId}`);
+      const recorded = eventId && current.events.find((e) => e.id === eventId);
+      if (recorded) {
+        const intent = { actor, ...body };
+        const previous = { actor: recorded.actor, type: recorded.type, data: recorded.data };
+        if (canonicalJson(intent) !== canonicalJson(previous)) throw new InvalidTransition('Operation key was used for different content');
+        // A journal append can succeed before projection fails. Repair from the latest durable state,
+        // rather than rolling back to the state that happened to follow this older operation.
+        await this.store.putTrail(current.trail);
+        for (const event of current.events) await this.store.recordEvent(event);
+        return { trail: current.trail, effects: [] as Effect[] };
+      }
+      if (expectedBound) {
+        const proof = [...current.events].reverse().find((e) => e.type === 'proof_completed' && e.data.bundle.rev === current.trail.rev);
+        const digest = proof?.type === 'proof_completed' ? proof.data.digest : undefined;
+        if (expectedBound.rev !== current.trail.rev || expectedBound.head !== current.trail.head || expectedBound.proofDigest !== digest) {
+          throw new StaleApproval('The reviewed revision changed before the decision was applied');
+        }
+      }
       const event = TrailEvent.parse({
-        schema: 1, id: this.ids.uuidv7(), trail: trailId, rev: current.trail.rev, at: new Date().toISOString(),
+        schema: 1, id: eventId ?? this.ids.uuidv7(), trail: trailId, rev: current.trail.rev, at: new Date().toISOString(),
         actor, parent: current.events.at(-1)?.id, ...body,
       });
       const result = transition(current.trail, event, await this.contextFor(current.trail, event));
