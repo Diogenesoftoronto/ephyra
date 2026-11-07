@@ -7,6 +7,7 @@ import { trail,event,context,now,type SuiteRunner,type Outcome } from './common'
 import { fixture,git,localRunner,handle } from './local';
 import { check,unscored } from './results';
 import { clean } from './telemetry';
+export function measuredContractFailure(reason:string,completedSteps:number):boolean {return completedSteps>0&&/patch produced no commits|patch trail trailer|repro artefact|probe outcome/.test(reason);}
 export const runAgent:SuiteRunner=async(row,opts):Promise<Outcome>=>{
   if(row.input.recorded){
     const parsed=parseAmpStream(await readFile(APP+'../../packages/agent/test/fixtures/amp-error-reauth.jsonl','utf8'));
@@ -62,7 +63,7 @@ export const runAgent:SuiteRunner=async(row,opts):Promise<Outcome>=>{
   }catch(e){
     // Completed provider turns followed by a semantic contract failure are measured failures.
     // Authentication, absent usage, deadlines and ambiguous CLI failures remain unavailable.
-    const contractFailure=usages.length>0&&/patch produced no commits|patch trail trailer|repro artefact|probe outcome/.test(String(e));
+    const contractFailure=measuredContractFailure(String(e),usages.length);
     return {identity,status:contractFailure?'scored':'unavailable',reason:clean(String(e)),scores:{completion:contractFailure?check(false,clean(String(e))):unscored(clean(String(e)))},output:{steps,stepCount:steps.length,artefacts,reason:clean(String(e)),diagnostics:opts.telemetry.memory.getFinishedSpans().filter(s=>['claude','codex','amp'].includes(String(s.attributes['tool.name']))).map(s=>s.attributes['output.value'])},tokens:usages.length?usages.reduce((n,u)=>n+u.tokens,0):null,costMicrousd:usages.length&&usages.every(u=>u.costMicrousd!==null)?usages.reduce((n,u)=>n+u.costMicrousd!,0):null};
   }finally{await rm(root,{recursive:true,force:true});}
 };

@@ -1,7 +1,7 @@
 import { test,expect } from 'bun:test';
 import { loadCorpus } from '../src/data';
 import { runTriage } from '../src/triage';
-import { runAgent } from '../src/agent';
+import { runAgent,measuredContractFailure } from '../src/agent';
 import { runInjection } from '../src/injection';
 import { runProof } from '../src/proof';
 import { runFeedback } from '../src/feedback';
@@ -39,3 +39,10 @@ test('Local deadline kills the whole command group, including pipe-holding desce
  const result=await command(APP,['sh','-c','rtk proxy sleep 30 & wait'],80);
  expect(result.timedOut).toBe(true);expect(Date.now()-start).toBeLessThan(3000);
 },4000);
+
+test('Observed semantic failures are distinct from unavailable/authentication and deadlines',()=>{
+ expect(measuredContractFailure('patch produced no commits',3)).toBe(true);
+ expect(measuredContractFailure('patch produced no commits',0)).toBe(false);
+ expect(measuredContractFailure('agent authentication failed',3)).toBe(false);
+ expect(measuredContractFailure('command deadline exceeded',3)).toBe(false);
+});
