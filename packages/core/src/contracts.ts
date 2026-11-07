@@ -23,7 +23,10 @@ export type JudgementRequest = z.infer<typeof JudgementRequest>;
 export const JudgementAnswer = z.discriminatedUnion("type", [
   z.object({ type: z.literal("noul"), noul: z.number() }),
   z.object({ type: z.literal("choice"), choice: z.string(), probabilities: z.record(z.string(), z.number()), confidence: z.number() }),
-  z.object({ type: z.literal("score"), score: z.number(), probabilities: z.record(z.string(), z.number()), legend: z.record(z.string(), z.string()), confidence: z.number() }),
+  z.object({
+    type: z.literal("score"), score: z.number(), probabilities: z.record(z.string(), z.number()),
+    legend: z.record(z.string(), z.string()), confidence: z.number(),
+  }),
 ]);
 export type JudgementAnswer = z.infer<typeof JudgementAnswer>;
 
