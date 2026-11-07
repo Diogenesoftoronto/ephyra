@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Coding-agent harness (research, repro, plan, patch, review) and proof bundle builder.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit -p ." },
-  "dependencies": { "@ephyra/core": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@ephyra/core": "workspace:*"
+  }
 }
