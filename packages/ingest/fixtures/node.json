@@ -1,0 +1,43 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "node"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "logRecords": [
+            {
+              "severityNumber": 17,
+              "timeUnixNano": "1700000000000000000",
+              "attributes": [
+                {
+                  "key": "exception.type",
+                  "value": {
+                    "stringValue": "Error"
+                  }
+                },
+                {
+                  "key": "exception.stacktrace",
+                  "value": {
+                    "stringValue": "Error: failed\n    at handler (/app/src/server.ts:10:2)"
+                  }
+                }
+              ],
+              "body": {
+                "stringValue": "failed"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
