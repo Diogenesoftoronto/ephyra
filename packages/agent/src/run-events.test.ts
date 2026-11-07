@@ -66,7 +66,8 @@ describe("stream-json (Amp and Claude Code)", () => {
     const huge = "x".repeat(50_000);
     const n = claudeStreamNormalizer();
     const out = [
-      ...n.push(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: huge }, { type: "tool_use", id: "t", name: "shell_command", input: { c: huge } }] } })),
+      ...n.push(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: huge }, { type: "tool_use", id: "t", name: "shell_command",
+        input: { c: huge } }] } })),
       ...n.push(JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t", content: huge }] } })),
     ];
     expect(out[0]!.text!.length).toBeLessThanOrEqual(LIMITS.text);
@@ -77,7 +78,8 @@ describe("stream-json (Amp and Claude Code)", () => {
 
   test("explicit secrets are scrubbed from every field", () => {
     const n = claudeStreamNormalizer({ secrets: ["hunter2hunter2"] });
-    const out = n.push(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "pw is hunter2hunter2" }, { type: "tool_use", id: "t", name: "sh", input: { p: "hunter2hunter2" } }] } }));
+    const out = n.push(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "pw is hunter2hunter2" }, { type: "tool_use", id: "t",
+      name: "sh", input: { p: "hunter2hunter2" } }] } }));
     expect(JSON.stringify(out)).not.toContain("hunter2hunter2");
   });
 
@@ -96,7 +98,8 @@ describe("Codex --json", () => {
     const events = normalizeStream("codex", await fixture("codex-events.jsonl"));
     valid(events);
     expect(events.map((e) => e.type)).toEqual([
-      "status", "reasoning", "tool_call", "tool_result", "tool_call", "tool_result", "tool_call", "tool_result", "tool_call", "tool_result", "message", "status",
+      "status", "reasoning", "tool_call", "tool_result", "tool_call", "tool_result", "tool_call", "tool_result",
+      "tool_call", "tool_result", "message", "status",
     ]);
     expect(events[2]!.tool).toMatchObject({ callId: "item_1", name: "shell" });
     expect(events[3]!.tool).toMatchObject({ callId: "item_1", name: "shell" });
@@ -134,18 +137,21 @@ describe("agents report events while they run", () => {
     const events: RunEventDraft[] = [];
     const patches: Partial<ExecutorInfo>[] = [];
     const withEvents = await runAgent(agent, task, runnerFor(chunks), handle, { onEvent: (e) => { events.push(e); }, onExecutor: (p) => patches.push(p) });
-    const without = await new AmpAgent({ executor: { kind: "orb", project: "dio/shop" }, threads: new MemoryAmpThreads() }).run(task, runnerFor(chunks), handle);
+    const without = await new AmpAgent({ executor: { kind: "orb", project: "dio/shop" }, threads: new MemoryAmpThreads() }).run(task, runnerFor(chunks),
+      handle);
     expect(withEvents).toEqual(without);
     expect(events).toEqual(normalizeStream("claude", text));
     expect(patches[0]).toEqual({ threadUrl: `https://ampcode.com/threads/${THREAD}` });
-    expect(executorOf(new AmpAgent({ executor: { kind: "runner", runnerId: "nix-box" }, threads: new MemoryAmpThreads() }))).toEqual({ kind: "runner", id: "nix-box" });
+    expect(executorOf(new AmpAgent({ executor: { kind: "runner", runnerId: "nix-box" }, threads: new MemoryAmpThreads() }))).toEqual({ kind: "runner",
+      id: "nix-box" });
   });
 
   test("Claude Code asks for stream-json only when someone is listening, and still reads usage from the result line", async () => {
     expect(cliCommand("claude", "m", task)).toContain("json");
     expect(cliCommand("claude", "m", task)).not.toContain("--verbose");
     expect(cliCommand("claude", "m", task, true).slice(1, 5)).toEqual(["--print", "--output-format", "stream-json", "--verbose"]);
-    const stream = (await fixture("amp-success-stream.jsonl")).replace('"usage":{"input_tokens":900,"output_tokens":100}', '"usage":{"input_tokens":900,"output_tokens":100},"total_cost_usd":0.5');
+    const stream = (await fixture("amp-success-stream.jsonl")).replace('"usage":{"input_tokens":900,"output_tokens":100}',
+      '"usage":{"input_tokens":900,"output_tokens":100},"total_cost_usd":0.5');
     const events: RunEventDraft[] = [];
     const result = await runAgent(new ClaudeCodeAgent("claude-opus-5-5"), task, runnerFor([stream]), handle, { onEvent: (e) => { events.push(e); } });
     expect(result.usage).toEqual({ tokens: 1000, costMicrousd: 500_000, model: "claude-opus-5-5" });

@@ -21,7 +21,10 @@ export function consoleStatic(dir: string): Hono {
     if (rel && target.startsWith(root) && existsSync(target) && statSync(target).isFile()) {
       return serve(target, rel.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache");
     }
-    if (/\.[A-Za-z0-9]{1,8}$/.test(rel)) return c.text("not found", 404);
+    // A missing asset is a 404; anything else (including a route like workspace/autonomy.md) is the app's to route.
+    if (rel.startsWith("assets/") || /\.(?:js|mjs|css|map|json|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|mp4|webm|txt|wasm)$/i.test(rel)) {
+      return c.text("not found", 404);
+    }
     return serve(join(root, "index.html"), "no-cache");
   });
   return app;

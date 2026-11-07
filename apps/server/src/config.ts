@@ -87,7 +87,9 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   if (config.EPHYRA_PUBLIC_ORIGIN && new URL(config.EPHYRA_PUBLIC_ORIGIN).origin !== config.EPHYRA_PUBLIC_ORIGIN) {
     throw new Error("EPHYRA_PUBLIC_ORIGIN must be a bare origin (scheme://host[:port]) with no path");
   }
-  if (config.EPHYRA_DRAFT === "anthropic" && !config.EPHYRA_DRAFT_ANTHROPIC_API_KEY) throw new Error("EPHYRA_DRAFT=anthropic needs EPHYRA_DRAFT_ANTHROPIC_API_KEY");
+  if (config.EPHYRA_DRAFT === "anthropic" && !config.EPHYRA_DRAFT_ANTHROPIC_API_KEY) {
+    throw new Error("EPHYRA_DRAFT=anthropic needs EPHYRA_DRAFT_ANTHROPIC_API_KEY");
+  }
   if (config.EPHYRA_DRAFT === "openai" && !config.EPHYRA_DRAFT_OPENAI_API_KEY) throw new Error("EPHYRA_DRAFT=openai needs EPHYRA_DRAFT_OPENAI_API_KEY");
   const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic";
   if (hosted && !signIn) throw new Error("hosted Not Organic models need sign-in configured (EPHYRA_PUBLIC_ORIGIN, EPHYRA_SESSION_KEY)");

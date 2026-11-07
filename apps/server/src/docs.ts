@@ -53,7 +53,8 @@ export function renderSketches(kind: PolicyDocKind, current: string, sketches: A
   try {
     const { policy, notes } = applySketches(parseAutonomy(current), sketches);
     const content = renderAutonomy(policy);
-    const rewritten = current.trim() === content.trim() ? [] : ["the document was re-rendered from the application map; comments and text outside areas are not kept"];
+    const rewritten = current.trim() === content.trim() ? []
+      : ["the document was re-rendered from the application map; comments and text outside areas are not kept"];
     return { content, notes: [...notes, ...rewritten] };
   } catch (error) {
     return { error: String(error instanceof Error ? error.message : error).slice(0, 300) };

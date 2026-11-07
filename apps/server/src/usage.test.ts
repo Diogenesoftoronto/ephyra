@@ -71,7 +71,8 @@ test("summary: every day in the window is present, oldest first, including empty
 test("summary: filters by persona, engine and trail; an all-unknown group stays unknown rather than zero", () => {
   const a = { ...entryAt("a", 10), persona: "bell" as const, engine: "x", costMicrousd: null, trailId: "11111111-1111-4111-8111-111111111111", short: "ab" };
   const b = { ...entryAt("b", 20), persona: null, engine: "y", costMicrousd: 7 };
-  const infos = new Map<string, TrailInfo>([[a.trailId, { id: a.trailId, short: "ab", title: "T", budget: { spendMicrousdUsed: 1, spendMicrousdMax: 2, tokensUsed: 3, tokensMax: 4 } }]]);
+  const infos = new Map<string, TrailInfo>([[a.trailId, { id: a.trailId, short: "ab", title: "T", budget: { spendMicrousdUsed: 1, spendMicrousdMax: 2,
+    tokensUsed: 3, tokensMax: 4 } }]]);
   expect(summarizeUsage([a, b], { ...window, persona: "bell" }, infos).totals).toMatchObject({ entries: 1, costMicrousd: 0, unknownCost: 1 });
   expect(summarizeUsage([a, b], { ...window, persona: "unattributed" }, infos).totals).toMatchObject({ entries: 1, costMicrousd: 7, unknownCost: 0 });
   expect(summarizeUsage([a, b], { ...window, engine: "y" }, infos).byEngine.map((g) => g.key)).toEqual(["y"]);
@@ -101,7 +102,8 @@ test("recorder: model hook is idempotent, maps the purpose to a persona, and a f
   const store = new MemoryUsageStore();
   const recorder = new UsageRecorder(store, () => undefined, () => new Date("2026-11-07T10:00:00Z"));
   const hook = recorder.modelHook("notorganic");
-  const call = { alias: "j", identity: "judgement-jev/jev-1.14", purpose: "decide.triage" as const, idempotencyKey: "triage:1", tokens: 12, costMicrousd: null };
+  const call = { alias: "j", identity: "judgement-jev/jev-1.14", purpose: "decide.triage" as const, idempotencyKey: "triage:1", tokens: 12,
+    costMicrousd: null };
   await hook(call);
   await hook(call);
   await hook({ ...call, purpose: "extract", idempotencyKey: "x", identity: "clairic/1" });

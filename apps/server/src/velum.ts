@@ -33,7 +33,11 @@ async function postJson(fetcher: Fetch, label: string, url: string, headers: Rec
       method: "POST", redirect: "manual", signal: controller.signal, body: JSON.stringify(body),
       headers: { "content-type": "application/json", ...headers },
     });
-    if (!res.ok) throw new Unverified(`${label} returned HTTP ${res.status}`);
+    if (!res.ok) {
+      // The provider's own reason ("credit balance too low") is what the person needs; it is cut and scrubbed like any note.
+      const detail = await res.json().then((j: any) => (typeof j?.error?.message === "string" ? j.error.message : j?.error), () => undefined);
+      throw new Unverified(`${label} returned HTTP ${res.status}${typeof detail === "string" && detail ? `: ${safeNote(detail, 160)}` : ""}`);
+    }
     return await res.json() as unknown;
   } catch (error) {
     if (error instanceof Unverified) throw error;
@@ -137,7 +141,8 @@ export class FakeDraftModel implements DraftModel {
 
 const Reply = z.object({
   text: z.string().optional(),
-  proposal: z.union([z.string(), z.object({ content: z.string().optional(), summary: z.string().optional(), sketches: z.array(z.unknown()).optional() })]).optional(),
+  proposal: z.union([z.string(), z.object({ content: z.string().optional(), summary: z.string().optional(),
+    sketches: z.array(z.unknown()).optional() })]).optional(),
   spec: z.unknown().optional(),
 });
 
