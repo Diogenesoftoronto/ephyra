@@ -23,7 +23,10 @@ export function latestProofDigest(trail: Trail, events: TrailEvent[]): string | 
 
 function itemFor(trail: Trail, kind: InboxItem["kind"], extra: Partial<InboxItem> & { proofDigest?: string }): InboxItem {
   const { proofDigest, ...rest } = extra;
+  const ampThread = trail.mirrors.ampThread;
   return {
+    // `o` in the inbox opens the trail's Amp thread when it has one.
+    ...(ampThread ? { landingUrl: `https://ampcode.com/threads/${ampThread}` } : {}),
     trailId: trail.id, short: trail.short, title: trail.title, area: trail.area, risk: trail.risk,
     severity: trail.severity, state: trail.state, kind, blocking: true,
     bound: { rev: trail.rev, ...(trail.head ? { head: trail.head } : {}), ...(proofDigest ? { proofDigest } : {}) },

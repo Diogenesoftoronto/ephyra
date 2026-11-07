@@ -39,6 +39,8 @@ export const TrailEventBody = z.discriminatedUnion("type", [
   e("child_trail_finished", { child: z.string().uuid(), proofDigest: z.string() }),
   e("parent_trail_landed", { parent: z.string().uuid() }),
   e("intent_updated", { intent: z.string() }),
+  /** An external mirror of this trail was created (e.g. its Amp thread). Never changes state. */
+  e("mirror_linked", { kind: z.enum(["ampThread", "radicleCob", "tangledUri", "saplingStack"]), id: z.string().min(1).max(500) }),
   e("agent_failed", { step: z.string(), reason: z.string(), retryable: z.boolean() }),
 ]);
 export type TrailEventBody = z.infer<typeof TrailEventBody>;

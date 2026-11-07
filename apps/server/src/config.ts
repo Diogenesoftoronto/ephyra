@@ -45,7 +45,12 @@ const Config = z.object({
   CLOUDFLARE_AI_API_TOKEN: optional,
 
   // Agents. `none` keeps trails at the human checkpoints; `claude-code` / `codex` need the CLI in the image.
-  EPHYRA_AGENT: z.enum(["none", "claude-code", "codex"]).default("none"),
+  EPHYRA_AGENT: z.enum(["none", "claude-code", "codex", "amp"]).default("none"),
+  /** amp agent: where turns run (local CLI, Amp orb, or an `amp --no-tui` runner). Needs AMP_API_KEY for orb/runner. */
+  EPHYRA_AMP_EXECUTOR: z.enum(["local", "orb", "runner"]).default("local"),
+  EPHYRA_AMP_PROJECT: optional,
+  EPHYRA_AMP_RUNNER_ID: optional,
+  EPHYRA_AMP_MODE: z.enum(["low", "medium", "high", "ultra"]).default("medium"),
   EPHYRA_AGENT_MODEL: optional,
   EPHYRA_STEP_TIMEOUT_S: z.coerce.number().int().positive().default(1800),
   EPHYRA_WATCH_EVERY_S: z.coerce.number().int().positive().default(300),
@@ -61,6 +66,9 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   }
   if (config.EPHYRA_EXTRACT === "workers-ai" && !(config.CLOUDFLARE_ACCOUNT_ID && config.CLOUDFLARE_AI_API_TOKEN)) {
     throw new Error("EPHYRA_EXTRACT=workers-ai needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_API_TOKEN");
+  }
+  if (config.EPHYRA_AGENT === "amp" && config.EPHYRA_AMP_EXECUTOR === "runner" && !config.EPHYRA_AMP_RUNNER_ID) {
+    throw new Error("EPHYRA_AMP_EXECUTOR=runner needs EPHYRA_AMP_RUNNER_ID");
   }
   const signIn = Boolean(config.EPHYRA_PUBLIC_ORIGIN || config.EPHYRA_SESSION_KEY);
   if (signIn && !(config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY)) {

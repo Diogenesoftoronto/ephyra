@@ -108,6 +108,11 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
       data: { step: payload.step, reason: String(error).slice(0, 500), retryable: priorFailures < 2 } });
     return;
   }
+  // Link the agent's own thread (Amp) to the trail the first time we see it, so the inbox can open it.
+  const thread = result.outputs.ampThread;
+  if (thread && trail.mirrors.ampThread !== thread) {
+    await ctx.emit({ trail: trail.id, actor, type: "mirror_linked", data: { kind: "ampThread", id: thread } });
+  }
   const files: Record<string, string> = {};
   for (const [path, content] of Object.entries(result.artefacts)) files[`artefacts/${payload.step}/${path}`] = content;
   if (result.sessions.length) files[`sessions/${payload.step}.json`] = JSON.stringify(result.sessions);

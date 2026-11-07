@@ -328,6 +328,11 @@ class Machine {
     this.agent('research');
     return true;
   }
+  mirror_linked(e: EventOf<'mirror_linked'>) {
+    if (this.trail.mirrors[e.data.kind] === e.data.id) return false;
+    this.trail.mirrors = { ...this.trail.mirrors, [e.data.kind]: e.data.id };
+    return true;
+  }
   intent_updated(e: EventOf<'intent_updated'>) {
     this.commands.push({ type: 'run_probes', probes: [e.data.intent], reason: 'Intent updated' });
     return true;
