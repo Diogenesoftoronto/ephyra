@@ -29,7 +29,7 @@ export function parseThresholds(yaml: string): Thresholds {
       const t = { ...DEFAULT_THRESHOLDS, ...v };
       for (const [k, n] of Object.entries(t))
         if (
-          !(k in DEFAULT_THRESHOLDS) ||
+          !Object.hasOwn(DEFAULT_THRESHOLDS, k) ||
           typeof n !== "number" ||
           !Number.isFinite(n) ||
           n < 0 ||
