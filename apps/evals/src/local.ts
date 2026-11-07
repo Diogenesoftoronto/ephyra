@@ -1,13 +1,16 @@
 import { mkdir, mkdtemp, readFile, writeFile, cp } from 'node:fs/promises';
 import { resolve,join,dirname } from 'node:path';
+import { spawn } from 'node:child_process';
 import { Unverified, type Runner, type RunnerHandle } from '@ephyra/core';
 import type { Span } from '@opentelemetry/api';
 import { APP } from './data';
 import { clean, type Telemetry } from './telemetry';
 export async function command(root:string,args:string[],deadlineMs=30000) {
-  const child=Bun.spawn(['rtk','proxy',...args],{cwd:root,stdout:'pipe',stderr:'pipe',env:{PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8',GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null'}});
-  let timedOut=false;const started=Date.now();const timer=setTimeout(()=>{timedOut=true;child.kill('SIGKILL');},deadlineMs);
-  try {const [stdout,stderr,exit]=await Promise.all([new Response(child.stdout).text(),new Response(child.stderr).text(),child.exited]);return {stdout,stderr,exit,timedOut,durationMs:Date.now()-started};}finally{clearTimeout(timer);}
+  const child=spawn('rtk',['proxy',...args],{cwd:root,stdio:['ignore','pipe','pipe'],detached:true,env:{PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8',GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null'}});
+  let timedOut=false,stdout='',stderr='';const started=Date.now();
+  const timer=setTimeout(()=>{timedOut=true;try{if(child.pid)process.kill(-child.pid,'SIGKILL');}catch{}},deadlineMs);
+  child.stdout.on('data',chunk=>{stdout+=chunk;});child.stderr.on('data',chunk=>{stderr+=chunk;});
+  try{const exit=await new Promise<number>((done,fail)=>{child.on('error',fail);child.on('close',code=>done(code??-1));});return {stdout,stderr,exit,timedOut,durationMs:Date.now()-started};}finally{clearTimeout(timer);}
 }
 export async function git(root:string,...args:string[]) {const r=await command(root,['git',...args]);if(r.exit)throw new Error(clean(r.stderr));return r.stdout.trim();}
 export function localRunner(root:string,telemetry?:Telemetry,parent?:Span):Runner {

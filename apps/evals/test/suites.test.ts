@@ -34,3 +34,8 @@ test('Repro must fail at base; missing probe is unverified, not proof',async()=>
 test('Feedback tests reach stale binding and failure paths in actual server wiring',async()=>{
  for(const id of ['feedback-stale-head','feedback-agent-timeout','feedback-agent-false','feedback-reconciliation'])expect((await invoke('feedback',runFeedback,id)).scores.safe?.score).toBe(1);
 },15000);
+test('Local deadline kills the whole command group, including pipe-holding descendants',async()=>{
+ const {command}=await import('../src/local');const {APP}=await import('../src/data');const start=Date.now();
+ const result=await command(APP,['sh','-c','rtk proxy sleep 30 & wait'],80);
+ expect(result.timedOut).toBe(true);expect(Date.now()-start).toBeLessThan(3000);
+},4000);
