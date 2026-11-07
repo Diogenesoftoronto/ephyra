@@ -2,25 +2,28 @@ import { Unverified, type AgentTask, type AgentResult, type CodingAgent, type Ru
 import { renderPrompt } from "./prompts";
 import { execute } from "./execute";
 import { collectSessions } from "./sessions";
+import { LineFeed, claudeStreamNormalizer, codexNormalizer, type AgentRunOptions, type ExecutorInfo } from "./run-events";
 
-export function cliCommand(provider: "claude" | "codex", model: string, task: AgentTask): string[] {
+/** `stream` asks Claude Code for stream-json (needed to watch a run live); the result line carries the same usage as the single JSON object. */
+export function cliCommand(provider: "claude" | "codex", model: string, task: AgentTask, stream = false): string[] {
   const prompt = renderPrompt(task);
   return provider === "claude"
-    ? ["claude", "--print", "--output-format", "json", "--model", model, "--permission-mode",
+    ? ["claude", "--print", "--output-format", ...(stream ? ["stream-json", "--verbose"] : ["json"]), "--model", model, "--permission-mode",
       task.step === "review" ? "plan" : "acceptEdits", prompt]
     : ["codex", "exec", "--json", "--model", model, "--sandbox",
       task.step === "review" ? "read-only" : "workspace-write", prompt];
 }
 
 type Event = Record<string, any>;
-function parseOutput(provider: "claude" | "codex", stdout: string, model: string) {
+function parseOutput(provider: "claude" | "codex", stdout: string, model: string, stream = false) {
   let events: Event[];
   try {
-    events = provider === "claude" ? [JSON.parse(stdout)] : stdout.trim().split("\n").map(line => JSON.parse(line));
+    events = provider === "claude" && !stream ? [JSON.parse(stdout)] : stdout.trim().split("\n").map(line => JSON.parse(line));
   } catch {
     throw new Unverified("agent JSON output");
   }
-  const completion = provider === "claude" ? events[0] : events.find(event => event.type === "turn.completed");
+  const completion = provider === "codex" ? events.find(event => event.type === "turn.completed")
+    : stream ? events.find(event => event.type === "result") : events[0];
   const usage = completion?.usage;
   if (!usage || typeof usage.input_tokens !== "number" || typeof usage.output_tokens !== "number") {
     throw new Unverified("agent usage");
@@ -38,7 +41,9 @@ abstract class CliAgent implements CodingAgent {
   abstract readonly name: string;
   abstract readonly provider: "claude" | "codex";
   constructor(readonly model: string) {}
-  async run(task: AgentTask, runner: Runner, handle: RunnerHandle): Promise<AgentResult> {
+  /** The CLI agents run in whatever runner they are given; the server names the executor from the runner. */
+  executor(): ExecutorInfo { return { kind: "local" }; }
+  async run(task: AgentTask, runner: Runner, handle: RunnerHandle, opts: AgentRunOptions = {}): Promise<AgentResult> {
     const end = Date.now() + task.budget.wallclockS * 1000;
     const remaining = () => {
       const ms = end - Date.now();
@@ -47,9 +52,16 @@ abstract class CliAgent implements CodingAgent {
     };
     const before = await execute(runner, handle, ["git", "rev-parse", "HEAD"], remaining());
     if (before.exit !== 0) throw new Unverified("agent base commit");
-    const run = await execute(runner, handle, cliCommand(this.provider, this.model, task), remaining());
+    const stream = Boolean(opts.onEvent);
+    const feed = opts.onEvent
+      ? new LineFeed(this.provider === "codex" ? codexNormalizer(opts.secrets ? { secrets: opts.secrets } : {})
+        : claudeStreamNormalizer(opts.secrets ? { secrets: opts.secrets } : {}), opts.onEvent)
+      : null;
+    const run = await execute(runner, handle, cliCommand(this.provider, this.model, task, stream), remaining(), undefined,
+      feed ? (c) => feed.write(c) : undefined);
+    await feed?.finish();
     if (run.exit !== 0) throw new Unverified("agent CLI failure");
-    const usage = parseOutput(this.provider, run.stdout, this.model);
+    const usage = parseOutput(this.provider, run.stdout, this.model, stream);
     const after = await execute(runner, handle, ["git", "rev-parse", "HEAD"], remaining());
     if (after.exit !== 0) throw new Unverified("agent head commit");
     const base = before.stdout.trim();

@@ -8,10 +8,11 @@ const ADAPTERS = ["policy", "journal", "ingest", "models", "forge", "runner", "a
 const allowed: Record<string, string[]> = {
   "packages/core": [],
   ...Object.fromEntries(ADAPTERS.map((p) => [`packages/${p}`, ["core"]])),
+  "packages/genui": ["core"],
   "apps/cli": ["core", "policy"],
   "apps/console": ["core", "genui"],
   "apps/web": [],
-  "apps/server": ["core", ...ADAPTERS],
+  "apps/server": ["core", ...ADAPTERS, "genui"],
   "apps/evals": ["core", ...ADAPTERS],
 };
 

@@ -10,9 +10,12 @@
 
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
+import type * as drafts from "../drafts.js";
 import type * as ledger from "../ledger.js";
 import type * as lib from "../lib.js";
+import type * as runs from "../runs.js";
 import type * as runtime from "../runtime.js";
+import type * as usage from "../usage.js";
 import type * as signals from "../signals.js";
 
 import type {
@@ -24,10 +27,13 @@ import type {
 declare const fullApi: ApiFromModules<{
   audit: typeof audit;
   auth: typeof auth;
+  drafts: typeof drafts;
   ledger: typeof ledger;
   lib: typeof lib;
+  runs: typeof runs;
   runtime: typeof runtime;
   signals: typeof signals;
+  usage: typeof usage;
 }>;
 
 /**
