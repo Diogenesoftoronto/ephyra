@@ -2,7 +2,7 @@
 
 Ephyra's public site. One Bun handler serves:
 
-- the landing cuts from `site/`;
+- the landing page: cut E ("Immortal", `site/e/`) is the main site, served at `/`; earlier cuts stay at `/a/`, `/b/` and `/c/`, marked noindex and left out of the sitemap;
 - the journal: a Standard.site blog on AT Protocol;
 - pricing, legal and security pages;
 - everything crawlers and LLMs read.
@@ -12,7 +12,7 @@ PORT=3000 EPHYRA_SITE_ORIGIN=https://<origin> bun apps/web/src/main.ts
 ```
 
 Settings:
-- **`EPHYRA_HOME_CUT`:** empty, `b` or `c` picks which landing cut is the home page. Every cut stays reachable at `/a/`, `/b/` and `/c/`.
+- **`EPHYRA_HOME_CUT`:** `e` (the default), `a`, `b` or `c` picks which cut is served at `/`. The server adds `<base href="/<cut>/">` so the cut's relative links still resolve, and `/<cut>/` redirects to `/`. A cut used as home must not rely on bare `#anchor` links, because they resolve against the base. Cut D is a draft: it isn't committed or copied into the image.
 - **`EPHYRA_BLOG_PUBLICATION_URI`:** connects the journal.
 - **`EPHYRA_API_ORIGIN`:** links the control plane from `llms.txt`.
 
@@ -56,7 +56,8 @@ EPHYRA_BLOG_APP_PASSWORD="$(skate get ephyra-blog-app-password@secrets)" … --w
   - every legal page: its canonical link, its review notice, and that no placeholders are left;
   - the redirects and `security.txt`;
   - that the pricing page matches `pricing`;
-  - that every internal link and `#anchor` on the legal pages, pricing and landing cuts resolves.
+  - that every internal link and `#anchor` on the legal pages, pricing and landing cuts resolves;
+  - that every relative URL on the home page, including the sprites `site/e/main.js` loads, resolves through `<base>`.
 
 ## Unverified
 
@@ -64,3 +65,7 @@ EPHYRA_BLOG_APP_PASSWORD="$(skate get ephyra-blog-app-password@secrets)" … --w
 - **The hosted plan is a proposal.** No billing is implemented.
 
 `design/04-pricing.md` explains the pricing and the Macroscope comparison.
+
+## Look
+
+The journal, pricing, legal and security pages share cut E's tokens and type (Anybody, Atkinson Hyperlegible Next): water at the top of the page where production is, the seabed under the footer. The share card `site/assets/og/og.png` is rendered from `site/_sources/og/og.html` (gitignored with the other sources).

@@ -8,10 +8,10 @@ import { pricingBody, pricingSummary } from "./pricing.ts";
 export type SiteConfig = {
   /** Canonical origin of the public site, e.g. https://ephyra.dev */
   origin: string;
-  /** Directory holding index.html, b/, c/, assets/ */
+  /** Directory holding the landing cuts (a/, b/, c/, e/) and the shared assets/. */
   root: string;
-  /** Which landing cut is the home page: "" (cut A), "b" or "c". Others stay reachable at /b/ and /c/. */
-  home: "" | "b" | "c";
+  /** Which landing cut is the home page at "/". Defaults to "e", the main site. The others stay reachable at /a/, /b/, /c/. */
+  home?: HomeCut;
   /** at://did/site.standard.publication/rkey; the blog shows a setup notice without it. */
   publicationUri?: string;
   /** The control-plane API (linked from llms.txt). */
@@ -25,8 +25,12 @@ export type SiteConfig = {
   operator?: Operator;
 };
 
+/** Landing cuts that can be the home page. Cut E ("Immortal") is the main site; the others are earlier explorations. */
+export const HOME_CUTS = ["a", "b", "c", "e"] as const;
+export type HomeCut = (typeof HOME_CUTS)[number];
+
 const NAME = "Ephyra";
-const TAGLINE = "Software that sets itself.";
+const TAGLINE = "Software that fixes itself.";
 const SUMMARY = "Ephyra is open-source, self-hostable self-driving software: production errors become trails that go from "
   + "evidence to a failing repro, a patch, proof and a landing on a forge you own, with humans approving at checkpoints. "
   + "No pull requests, no GitHub required. Pre-alpha.";
@@ -45,8 +49,6 @@ const TYPES: Record<string, string> = {
 /** Static pages listed in the sitemap and llms.txt. */
 const PAGES = [
   { path: "/", title: `${NAME} · ${TAGLINE}`, summary: SUMMARY },
-  { path: "/b/", title: `${NAME} · Lightbox`, summary: "The design as a lightbox: poke the jelly, land a bad patch, watch it roll back." },
-  { path: "/c/", title: `${NAME} · Seventy-five words`, summary: "A short, scroll-scrubbed film of one trail, from a production error to a landed fix." },
   { path: "/blog/", title: `${NAME} journal`, summary: "Notes on building self-driving software: trails, proof, jellyware." },
   { path: "/pricing", title: `Pricing · ${NAME}`, summary: "Self-hosting is free; hosted models bill per call; a usage-based hosted plan is proposed." },
   { path: "/legal/", title: `Legal · ${NAME}`, summary: "Terms, privacy, acceptable use, service providers and security." },
@@ -59,6 +61,8 @@ export function createSite(config: SiteConfig) {
   const cacheMs = (config.cacheS ?? 60) * 1000;
   const contentDir = config.contentDir ?? join(import.meta.dir, "../content/legal");
   const operator = config.operator ?? OPERATOR;
+  const home: HomeCut = config.home ?? "e";
+  if (!HOME_CUTS.includes(home)) throw new Error(`home must be one of ${HOME_CUTS.join(", ")}`);
   if (config.publicationUri) publicationIdentity(config.publicationUri);
   let cache: { at: number; value: Publication } | null = null;
 
@@ -81,9 +85,10 @@ export function createSite(config: SiteConfig) {
   /**
    * Landing pages are static files with relative links. At serve time, add what needs the canonical origin:
    * canonical link, og:url, absolute og:image, Twitter card, RSS link and Organization/WebSite JSON-LD.
-   * Tags a page already has are left alone.
+   * Tags a page already has are left alone. `base` re-roots a cut's relative links when it is served as the home page;
+   * `noindex` keeps the alternate cuts out of search results, so only the home page is indexed.
    */
-  function seoHead(html: string, canonicalPath: string): string {
+  function seoHead(html: string, canonicalPath: string, opts: { base?: string; noindex?: boolean } = {}): string {
     const url = origin + canonicalPath;
     const has = (pattern: RegExp) => pattern.test(html);
     const tags: string[] = [];
@@ -91,6 +96,7 @@ export function createSite(config: SiteConfig) {
     if (!has(/property="og:url"/)) tags.push(`<meta property="og:url" content="${esc(url)}">`);
     if (!has(/property="og:site_name"/)) tags.push(`<meta property="og:site_name" content="${NAME}">`);
     if (!has(/name="twitter:card"/)) tags.push('<meta name="twitter:card" content="summary_large_image">');
+    if (opts.noindex && !has(/name="robots"/)) tags.push('<meta name="robots" content="noindex">');
     if (!has(/application\/rss\+xml/)) {
       tags.push(`<link rel="alternate" type="application/rss+xml" title="${NAME} journal" href="${origin}/blog/feed.xml">`);
     }
@@ -106,21 +112,32 @@ export function createSite(config: SiteConfig) {
     // Relative OG images are invalid for crawlers; make them absolute.
     const fixed = html.replace(/(<meta property="og:image" content=")(?!https?:)(?:\.\.\/|\.\/)?([^"]+)"/,
       (_m, pre: string, rel: string) => `${pre}${origin}/${rel.replace(/^\/+/, "")}"`);
-    return tags.length ? fixed.replace(/<\/head>/i, `${tags.join("")}\n</head>`) : fixed;
+    const tagged = tags.length ? fixed.replace(/<\/head>/i, `${tags.join("")}\n</head>`) : fixed;
+    if (!opts.base) return tagged;
+    // <base> must come before every relative URL in the head, so it goes right after <meta charset>.
+    const baseTag = `<base href="${esc(opts.base)}">`;
+    return /<meta charset="[^"]*">/i.test(tagged) ? tagged.replace(/(<meta charset="[^"]*">)/i, `$1${baseTag}`)
+      : tagged.replace(/<head>/i, `<head>${baseTag}`);
   }
 
-  async function staticFile(path: string, canonicalPath?: string): Promise<Response | null> {
+  /**
+   * A file under the site root. A directory without its trailing slash redirects to it, so a cut's relative links resolve.
+   * `asHome` serves a cut's folder at "/", with that folder as the base for its relative links.
+   */
+  async function staticFile(path: string, asHome = false): Promise<Response | null> {
     const rel = normalize(decodeURIComponent(path)).replace(/^(\.\.(\/|\\|$))+/, "");
     if (rel.includes("..") || rel.split("/").some((part) => part.startsWith(".") && part !== ".")) return null;
     let file = Bun.file(join(config.root, rel));
     if (rel.endsWith("/") || !(await file.exists())) {
       const index = Bun.file(join(config.root, rel, "index.html"));
       if (!(await index.exists())) return null;
+      if (!rel.endsWith("/")) return Response.redirect(`${origin}/${rel}/`, 308);
       file = index;
     }
     const ext = /\.[a-z0-9]+$/i.exec(file.name ?? "")?.[0]?.toLowerCase() ?? "";
     if (ext === ".html") {
-      const html = seoHead(await file.text(), canonicalPath ?? ("/" + rel).replace(/index\.html$/, ""));
+      const html = asHome ? seoHead(await file.text(), "/", { base: `/${rel.replace(/index\.html$/, "")}` })
+        : seoHead(await file.text(), ("/" + rel).replace(/index\.html$/, ""), { noindex: true });
       return new Response(html, { headers: { "content-type": TYPES[".html"]!, "cache-control": "public, max-age=300" } });
     }
     const immutable = rel.startsWith("assets/");
@@ -192,43 +209,91 @@ export function createSite(config: SiteConfig) {
       + `<language>en</language><atom:link href="${xml(origin + "/blog/feed.xml")}" rel="self" type="application/rss+xml"/>${items}</channel></rss>\n`;
   }
 
+  /**
+   * Every page that is not a landing cut: journal, pricing, legal, security. It wears cut E's look (the main site):
+   * the same tokens and type, water at the top of the page where production is, and the seabed under the footer.
+   */
   function page(title: string, description: string, path: string, body: string, head = "", type = "website", wide = false): Response {
     const url = origin + path;
-    return text(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    const nav = ([["/blog/", "Journal"], ["/pricing", "Pricing"], ["/security", "Security"]] as const).map(([href, label]) => {
+      const current = path === href ? ' aria-current="page"' : href === "/blog/" && path.startsWith("/blog/") ? ' aria-current="true"' : "";
+      return `<a href="${href}"${current}>${label}</a>`;
+    }).join("");
+    return text(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(url)}">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta property="og:site_name" content="${NAME}"><meta property="og:type" content="${type}"><meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(url)}">
 <meta property="og:image" content="${origin}/assets/og/og.png"><meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#16212f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef3f5" media="(prefers-color-scheme: light)">
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="alternate" type="application/rss+xml" title="${NAME} journal" href="${origin}/blog/feed.xml">${head}
 <style>
-:root{color-scheme:light dark;--bg:#f6efe1;--fg:#2b2117;--muted:#6b5a48;--accent:#b8661c;--line:#2b211726}
-@media (prefers-color-scheme:dark){:root{--bg:#121822;--fg:#f2ead9;--muted:#bba98f;--accent:#f0b35a;--line:#f2ead920}}
-body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.6 ui-serif,Georgia,serif}
-header,main,footer{max-width:42rem;margin:0 auto;padding:1.25rem max(16px,env(safe-area-inset-left))}
-header{display:flex;gap:1rem;align-items:center;font:600 1rem system-ui,sans-serif}
-header a{color:inherit;text-decoration:none}header img{width:28px;height:28px}
-h1{font:800 clamp(2rem,6vw,3rem)/1.05 system-ui,sans-serif;letter-spacing:-.02em;margin:.5rem 0 1rem}
-h2{font:700 1.3rem/1.2 system-ui,sans-serif;margin:0 0 .25rem}h2 a{color:inherit}
-.post{padding:1.25rem 0;border-top:1px solid var(--line)}time,.muted{color:var(--muted);font:500 .9rem system-ui,sans-serif}
-a{color:var(--accent)}footer{color:var(--muted);font:500 .9rem system-ui,sans-serif;border-top:1px solid var(--line)}
-header nav{margin-left:auto;display:flex;gap:1rem;flex-wrap:wrap}footer nav{display:flex;flex-wrap:wrap;gap:.25rem 1rem}
-.wide header,.wide main,.wide footer{max-width:64rem}.lede{font-size:1.15rem}
-.notice{border:1px solid var(--accent);border-radius:.6rem;padding:.75rem 1rem;font:500 .95rem/1.5 system-ui,sans-serif}
-h1+.lede{margin-top:0}main h2{margin-top:2rem}main h2[id]{scroll-margin-top:1rem}.toc ol{columns:2 14rem;font:500 .95rem/1.7 system-ui,sans-serif}
-table{border-collapse:collapse;width:100%;font:400 .95rem/1.45 system-ui,sans-serif;display:block;overflow-x:auto}
-th,td{text-align:left;vertical-align:top;padding:.5rem .75rem .5rem 0;border-top:1px solid var(--line)}th{font-weight:700}
-.glance{border-top:1px solid var(--line);margin-top:1rem}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1.25rem}
-.plan{border:1px solid var(--line);border-radius:.9rem;padding:1.25rem}.plan h2{margin-top:.25rem}.plan table{display:table}
-.tag{font:700 .8rem system-ui,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:0}
-.price{font:800 2rem/1.1 system-ui,sans-serif;margin:.25rem 0}.faq dt{font:700 1rem system-ui,sans-serif;margin-top:1rem}.faq dd{margin:.25rem 0 0}
-</style></head><body${wide ? ' class="wide"' : ""}><header>
-<a href="/"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"></a><a href="/">${NAME}</a>
-<nav aria-label="Site"><a href="/pricing">Pricing</a><a href="/blog/">Journal</a><a href="/security">Security</a></nav></header><main>${body}</main>
-<footer><nav aria-label="Legal"><a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/acceptable-use">Acceptable use</a>
-<a href="/legal/providers">Service providers</a><a href="/security">Security</a><a href="/pricing">Pricing</a></nav>
+:root{--bg:oklch(.975 .012 85);--surface:oklch(.992 .006 85);--ink:oklch(.24 .03 60);--muted:oklch(.45 .03 65);--jelly:oklch(.74 .162 68);
+--jelly-deep:oklch(.52 .135 52);--glow:oklch(.55 .11 180);--cherry:oklch(.56 .19 24);--line:oklch(.24 .03 60/.16);--on-jelly:oklch(.2 .03 60);
+--water-top:oklch(.955 .02 222);--water-mid:oklch(.968 .014 150);
+--font-display:"Anybody","Avenir Next Condensed","Arial Narrow",sans-serif;
+--font-body:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,sans-serif;
+--gutter:clamp(1.25rem,4vw,3rem);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:oklch(.165 .022 250);--surface:oklch(.2 .026 246);--ink:oklch(.95 .015 85);
+--muted:oklch(.74 .025 80);--jelly-deep:oklch(.8 .15 72);--glow:oklch(.86 .13 178);--cherry:oklch(.72 .17 24);--line:oklch(.95 .015 85/.14);
+--water-top:oklch(.245 .038 230);--water-mid:oklch(.195 .03 240);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:oklch(.165 .022 250);--surface:oklch(.2 .026 246);--ink:oklch(.95 .015 85);--muted:oklch(.74 .025 80);
+--jelly-deep:oklch(.8 .15 72);--glow:oklch(.86 .13 178);--cherry:oklch(.72 .17 24);--line:oklch(.95 .015 85/.14);
+--water-top:oklch(.245 .038 230);--water-mid:oklch(.195 .03 240);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;min-width:320px;color:var(--ink);font:400 1.0625rem/1.6 var(--font-body);overflow-x:clip;display:flex;flex-direction:column;min-height:100svh;
+background:linear-gradient(180deg,var(--water-top),var(--water-mid) 14rem,var(--bg) 26rem) no-repeat,var(--bg)}
+a{color:inherit;text-decoration-color:var(--jelly);text-decoration-thickness:2px;text-underline-offset:.2em}a:hover{text-decoration-color:var(--jelly-deep)}
+:focus-visible{outline:2px solid var(--jelly);outline-offset:3px;border-radius:6px}
+.bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;min-height:4rem;
+padding:env(safe-area-inset-top) max(var(--gutter),env(safe-area-inset-right)) 0 max(var(--gutter),env(safe-area-inset-left))}
+.logo{display:inline-flex;align-items:center;gap:.55rem;font:680 1.35rem/1 var(--font-display);font-stretch:90%;letter-spacing:-.01em;text-decoration:none}
+.logo img{width:28px;height:28px}
+.bar nav{display:flex;gap:clamp(1rem,3vw,1.75rem)}.bar nav a{font-weight:600;font-size:.95rem;padding:.5rem 0;text-decoration-color:transparent}
+.bar nav a:hover,.bar nav a[aria-current]{text-decoration-color:var(--jelly)}
+main{flex:1;width:100%;max-width:calc(42rem + 2*var(--gutter));margin:0 auto;padding:clamp(1.5rem,5svh,3.5rem) var(--gutter) 4rem}
+.wide main{max-width:calc(66rem + 2*var(--gutter))}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance}
+h1{font-size:clamp(2.3rem,6vw,3.6rem);font-weight:790;font-stretch:84%;line-height:.94;letter-spacing:-.016em;margin:.25rem 0 .9rem}
+h2{font-size:1.5rem;font-weight:680;font-stretch:90%;line-height:1.15;letter-spacing:-.006em;margin:2.25rem 0 .5rem}
+h2 a{text-decoration-color:transparent}h2 a:hover{text-decoration-color:var(--jelly)}main h2[id]{scroll-margin-top:1rem}
+p,ul,ol,dl,table{margin:0 0 1rem}li+li{margin-top:.3rem}
+.lede{font:560 clamp(1.15rem,2.2vw,1.45rem)/1.25 var(--font-display);font-stretch:92%;letter-spacing:-.006em;margin-bottom:1.25rem}
+.muted,time{color:var(--muted);font-size:.92rem}.back{margin:0 0 .5rem;font-size:.92rem}.back a{color:var(--muted)}
+.notice{border-left:3px solid var(--jelly);background:color-mix(in oklch,var(--jelly) 12%,var(--bg));border-radius:0 .6rem .6rem 0;
+padding:.8rem 1rem;font-size:.95rem}
+.post{padding:1.25rem 0 .5rem;border-top:1px solid var(--line)}.post h2{margin-top:0}.post p{margin-bottom:.4rem}
+.glance{margin:1.5rem 0;padding:1rem 1.25rem .25rem;border-radius:1rem;background:color-mix(in oklch,var(--water-mid) 70%,var(--bg))}
+.glance h2{margin-top:0;font-size:1.2rem}
+.toc{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}.toc ol{columns:2 14rem;column-gap:2rem;padding-left:1.25rem;font-size:.95rem}
+table{border-collapse:collapse;width:100%;font-size:.95rem;line-height:1.45;display:block;overflow-x:auto}
+th,td{text-align:left;vertical-align:top;padding:.55rem .9rem .55rem 0;border-top:1px solid var(--line)}th{font-weight:600}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1.25rem;margin:1.5rem 0 2rem}
+.plan{border:1px solid var(--line);border-radius:1.25rem;padding:1.4rem 1.4rem .6rem;background:var(--surface)}
+.plan[data-status="proposed"]{border-style:dashed;background:transparent}.plan h2{margin-top:.35rem}.plan table{display:table}
+.tag{font:600 .7rem/1 var(--font-body);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0}
+.price{font:790 2.4rem/1 var(--font-display);font-stretch:84%;letter-spacing:-.016em;margin:.35rem 0 .75rem}
+.faq dt{font:650 1.15rem/1.25 var(--font-display);font-stretch:92%;margin-top:1.25rem}.faq dd{margin:.3rem 0 0}
+article.entry p{max-width:38rem}
+.foot{padding:2.5rem var(--gutter) calc(2.5rem + env(safe-area-inset-bottom));color:var(--muted);font-size:.9rem;text-align:center;
+background:linear-gradient(180deg,var(--bg),var(--water-mid))}
+.foot nav{display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem 1.25rem;margin-bottom:1rem}.foot nav a{display:inline-block;padding:.35rem 0}
+.foot p{margin:.25rem 0}
+@media (max-width:24rem){.logo span{display:none}}
+</style></head><body${wide ? ' class="wide"' : ""}><header class="bar">
+<a class="logo" href="/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span aria-hidden="true">ephyra</span></a>
+<nav aria-label="Site">${nav}</nav></header><main>${body}</main>
+<footer class="foot"><nav aria-label="Site and legal"><a href="/blog/">Journal</a><a href="/pricing">Pricing</a><a href="/security">Security</a>
+<a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/acceptable-use">Acceptable use</a>
+<a href="/legal/providers">Service providers</a></nav>
 <p>The journal is published with <a href="https://standard.site">Standard.site</a> on AT Protocol. <a href="/blog/feed.xml">RSS</a></p>
+<p>“Jellyware” is <a href="https://ampcode.com/podcast/season-02/episode-02" rel="noopener">Amp’s word</a>.</p>
 </footer></body></html>`, "text/html");
   }
 
@@ -239,14 +304,14 @@ th,td{text-align:left;vertical-align:top;padding:.5rem .75rem .5rem 0;border-top
         { "x-robots-tag": "noindex", "cache-control": "no-store", "retry-after": "60" }, 503);
     }
     const name = pub?.publication.value.name ?? `${NAME} journal`;
-    const description = pub?.publication.value.description ?? PAGES[3]!.summary;
+    const description = pub?.publication.value.description ?? PAGES.find((p) => p.path === "/blog/")!.summary;
     if (path === "/blog/" || path === "/blog") {
       const list = (pub?.posts ?? []).map((p) => `<article class="post"><h2><a href="/blog${esc(p.value.path)}">${esc(p.value.title)}</a></h2>`
         + `<p>${esc(excerpt(p))}</p><time datetime="${esc(p.value.publishedAt)}">${esc(p.value.publishedAt.slice(0, 10))}</time></article>`).join("");
       const empty = pub ? "<p class=\"muted\">No articles yet.</p>"
         : "<p class=\"muted\">The journal is not connected to its publication yet.</p>";
       const schema = { "@context": "https://schema.org", "@type": "Blog", name, description, url: `${origin}/blog/` };
-      return page(name, description, "/blog/", `<h1>${esc(name)}</h1><p>${esc(description)}</p>${list || empty}`,
+      return page(name, description, "/blog/", `<h1>${esc(name)}</h1><p class="lede">${esc(description)}</p>${list || empty}`,
         `<script type="application/ld+json">${ldJson(schema)}</script>`);
     }
     const slug = path.slice("/blog".length);
@@ -260,8 +325,8 @@ th,td{text-align:left;vertical-align:top;padding:.5rem .75rem .5rem 0;border-top
       ...(post.value.tags?.length ? { keywords: post.value.tags.join(", ") } : {}),
     };
     return page(post.value.title, excerpt(post), path,
-      `<p><a href="/blog/">← Journal</a></p><h1>${esc(post.value.title)}</h1>`
-        + `<time datetime="${esc(post.value.publishedAt)}">${esc(post.value.publishedAt.slice(0, 10))}</time>${body}`,
+      `<p class="back"><a href="/blog/">← Journal</a></p><article class="entry"><h1>${esc(post.value.title)}</h1>`
+        + `<p><time datetime="${esc(post.value.publishedAt)}">${esc(post.value.publishedAt.slice(0, 10))}</time></p>${body}</article>`,
       `<link rel="site.standard.document" href="${esc(post.uri)}"><meta property="article:published_time" content="${esc(post.value.publishedAt)}">`
       + `<script type="application/ld+json">${ldJson(schema)}</script>`, "article");
   }
@@ -305,10 +370,12 @@ th,td{text-align:left;vertical-align:top;padding:.5rem .75rem .5rem 0;border-top
       if (path === "/blog/" || articlePath(path.slice(5))) return blog(path);
       return notFound();
     }
-    // The home cut is served at "/" with "/" as its canonical URL, so its /b/ or /c/ copy is the duplicate.
-    if (path === "/" && config.home) return (await staticFile(`${config.home}/`, "/")) ?? notFound();
-    if (path === "/a/" || path === "/a") return (await staticFile("index.html")) ?? notFound();
-    return (await staticFile(path.slice(1) || "index.html")) ?? notFound();
+    // The home cut is served at "/" and nowhere else: its own folder URL redirects home. Its files (styles, script,
+    // images) still load from that folder through <base>. Every other cut is reachable at /<cut>/ but not indexed.
+    if (path === "/") return (await staticFile(`${home}/`, true)) ?? notFound();
+    if (path === `/${home}/` || path === `/${home}/index.html` || path === `/${home}`) return Response.redirect(`${origin}/`, 308);
+    if (path === "/index.html") return Response.redirect(`${origin}/`, 308);
+    return (await staticFile(path.slice(1))) ?? notFound();
   }
 
   return async (req: Request): Promise<Response> => {
