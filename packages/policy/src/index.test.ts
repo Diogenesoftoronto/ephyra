@@ -297,3 +297,25 @@ test("rendered generated policies preserve fields and prose", () => {
     },
   ));
 });
+
+test("render preserves parsed optional fields and normalized prose", () => {
+  fc.assert(fc.property(
+    fc.constantFrom("shadow", "enforce"),
+    fc.constantFrom("low", "medium", "high", "critical"),
+    fc.constantFrom("", "Keep this.\n", "An ending without a newline"),
+    (mode, risk, prose) => {
+      const input = `## defaults\nmode: ${mode}\ncheckpoints: A=advisory B=blocking C=advisory\n` +
+        `landing: trail_ref, auto_land\nwatch: 4h\ndecide: custom\n## area: billing\n` +
+        `paths: src/**, app/**\nui: web/**\nrisk: ${risk}\nuser_facing: true\n` +
+        `voxq_budget_usd: 12.5/month\nmode: ${mode}\ncheckpoints: A=blocking C=advisory\n` +
+        `landing: radicle_patch\nwatch: 2d\ndecide: other\n${prose}`;
+      const normalize = (policy: ReturnType<typeof parseAutonomy>) => ({
+        ...policy, warnings: [], areas: policy.areas.map((area) => ({
+          ...area, prose: area.prose ? area.prose.replace(/\n*$/, "\n") : "",
+        })),
+      });
+      const policy = parseAutonomy(input);
+      expect(normalize(parseAutonomy(renderAutonomy(policy)))).toEqual(normalize(policy));
+    },
+  ));
+});
