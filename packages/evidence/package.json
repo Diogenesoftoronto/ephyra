@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "description": "Evidence sources (git, entire search, OTel/OpenObserve, voxq) and post-landing watch.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit -p ." },
-  "dependencies": { "@ephyra/core": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@ephyra/core": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2"
+  }
 }
