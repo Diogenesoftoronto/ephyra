@@ -10,8 +10,9 @@ import {
   type Trail,
   type OperationLedger,
 } from "@ephyra/core";
-import { readFile, writeFile, chmod } from "node:fs/promises";
+import { readFile, writeFile, chmod, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { MemoryOperationLedger } from "./ledger";
 import { commandRunner, type CommandRunner } from "./command";
 import { BaseMoved, caps, digest } from "./common";
@@ -207,10 +208,41 @@ export class PlainGitAdapter implements ForgeAdapter {
       return receipt;
     });
   }
-  async revert(
-    _receipt: LandingReceipt,
-    _idempotencyKey: string,
-  ): Promise<LandingReceipt> {
-    throw new Unverified("git revert commit and durable idempotency");
+  async revert(receipt: LandingReceipt, idempotencyKey: string): Promise<LandingReceipt> {
+    if (!idempotencyKey) throw new Error("idempotency key required");
+    return this.serial(receipt.target, async () => {
+      const operation = await this.ledger.begin(idempotencyKey, digest(JSON.stringify(["revert", receipt])));
+      if (!operation.fresh) {
+        if (operation.record.status === "done") return operation.record.result as LandingReceipt;
+        throw new ReconciliationRequired(idempotencyKey, "revert requires reconciliation");
+      }
+      const dir = await mkdtemp(join(tmpdir(), "ephyra-revert-"));
+      let added = false;
+      try {
+        await this.git("worktree", "add", "--detach", dir, receipt.newOid);
+        added = true;
+        const result = await this.run(["git", "revert", "--no-edit", receipt.newOid], dir);
+        if (result.code) throw new Error(result.stderr || "git revert failed");
+        const head = await this.run(["git", "rev-parse", "HEAD"], dir);
+        if (head.code) throw new Error(head.stderr);
+        const oid = head.stdout.trim();
+        let update;
+        try {
+          update = await this.run(["git", "update-ref", receipt.target, oid, receipt.newOid], this.repoDir);
+        } catch {
+          await this.ledger.markAmbiguous(idempotencyKey, "revert update outcome unknown");
+          throw new ReconciliationRequired(idempotencyKey, "revert update outcome unknown");
+        }
+        if (update.code) throw new BaseMoved(receipt.target);
+        const reverted: LandingReceipt = {
+          ...receipt, oldOid: receipt.newOid, newOid: oid, at: new Date().toISOString(),
+        };
+        await this.ledger.complete(idempotencyKey, reverted);
+        return reverted;
+      } finally {
+        if (added) await this.run(["git", "worktree", "remove", "--force", dir], this.repoDir);
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   }
 }
