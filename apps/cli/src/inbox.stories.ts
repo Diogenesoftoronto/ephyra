@@ -1,0 +1,11 @@
+import { defineStories, story } from "textbook-sh";
+import { TextRenderable } from "@opentui/core";
+import { renderInbox, type InboxState } from "./index";
+const base = {trailId:"story",short:"T-123",title:"Example",area:"cart",risk:"low" as const,severity:2,kind:"checkpoint" as const,checkpoint:"A" as const,blocking:true,artefact:{path:"hypothesis.md",summary:"Awaiting review"},createdAt:"2026-01-01T00:00:00Z"};
+const make = (name: string, state: InboxState) => story({name, render: renderer => new TextRenderable(renderer,{content:renderInbox(state),width:"100%",height:"100%"})});
+export default defineStories({title:"Inbox"});
+export const Empty = make("Empty",{items:[],selected:0});
+export const Waiting = make("Three waiting",{items:[base,{...base,short:"T-124"},{...base,short:"T-125"}],selected:0});
+export const Shadow = make("Shadow",{items:[{...base,shadowVerdict:"approve"}],selected:0});
+export const Spend = make("Spend",{items:[{...base,kind:"spend",checkpoint:undefined}],selected:0});
+export const ErrorState = make("API error",{items:[base],selected:0,error:"API unavailable"});
