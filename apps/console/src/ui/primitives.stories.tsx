@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { AUTONOMY_LEVELS, PERSONAS, type AutonomyLevel } from "@ephyra/core";
 import {
-  Avatar, Badge, Button, Card, Empty, Field, Hash, Meter, PageHeader, PersonaTag, Segmented, Skeleton, Stat, Tag,
+  Avatar, Badge, Button, Card, Checkpoint, Empty, Field, Hash, Meter, PageHeader, PersonaTag, Segmented, Skeleton, Stat, Status, Tag,
 } from "./primitives.tsx";
 
 const meta: Meta = { title: "UI/Primitives" };
@@ -23,7 +23,7 @@ export const Badges: S = {
   render: () => (
     <div style={row}>
       <Badge>shadow</Badge><Badge tone="ok">proof passed</Badge><Badge tone="warn">2 warnings</Badge>
-      <Badge tone="bad">failed</Badge><Badge tone="info">checkpoint B</Badge><Badge tone="live">running</Badge>
+      <Badge tone="bad">failed</Badge><Badge tone="info">checkpoint B</Badge><Status state="running" /><Status state="waiting" /><Status state="failed" /><Status state="stale" /><Checkpoint id="C" blocking /><Checkpoint id="B" />
       {PERSONAS.map((p) => <PersonaTag key={p.id} persona={p.id}>{p.name}</PersonaTag>)}
     </div>
   ),
@@ -44,7 +44,7 @@ export const Cards: S = {
       <Card title="Cart total shows NaN" meta="T-7f3a2c · cart" actions={<Badge tone="info">B</Badge>}>
         <p>Nema reproduced it: a coupon with no amount makes <code>subtotal</code> undefined.</p>
       </Card>
-      <Card tone="live" title="Writing the patch" meta="Lappet · orb a1.small" persona="lappet">
+      <Card tone="live" title="Writing the patch" meta="Lappet · orb a1.small">
         <p className="muted">Started 2 min ago. 14 tool calls, 1 blocked by policy.</p>
       </Card>
       <Card tone="alert" title="Watch failed" meta="T-19be04 · checkout">
@@ -58,8 +58,8 @@ export const Avatars: S = {
   render: () => (
     <div style={row}>
       {PERSONAS.map((p) => (
-        <Avatar key={p.id} initial={p.name[0]!} color={`var(--persona-${p.id})`} size={48} src={`/personas/${p.id}.webp`}
-          live={p.id === "lappet"} label={p.name} />
+        <Avatar key={p.id} initial={p.name[0]!} color={`var(--persona-${p.id})`} tint={`var(--persona-${p.id}-tint)`} size={48}
+          src={`/personas/${p.id}.webp`} breathe label={p.name} />
       ))}
       {[24, 32, 96].map((s) => <Avatar key={s} initial="V" color="var(--persona-velum)" size={s as 24} />)}
     </div>
