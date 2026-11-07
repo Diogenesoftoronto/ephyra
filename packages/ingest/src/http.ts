@@ -80,9 +80,9 @@ export function otlpRoutes(options: OtlpOptions): Hono {
         if (completed.has(digest)) return;
         for (const request of parsed.requests) {
           const store = options.store as SignalStore & {
-            recordRequest?: (route: string, at: Date, error: boolean) => void;
+            recordRequest?: (route: string, at: Date, error: boolean) => void | Promise<void>;
           };
-          store.recordRequest?.(request.route, request.at, request.error);
+          await store.recordRequest?.(request.route, request.at, request.error);
         }
         for (const signal of parsed.signals) {
           const previous = await options.store.byFingerprint(

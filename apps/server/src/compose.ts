@@ -1,89 +1,130 @@
-// Composition root. Real implementations are wired here; nothing else in apps/server imports adapters.
-// Postgres mode when DATABASE_URL is set, in-memory mode otherwise.
-import { SQL } from "bun";
-import { mkdir } from "node:fs/promises";
+// Composition root: config → stores (Convex or memory) → engine → effect handlers → HTTP app.
+import { mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Hono } from "hono";
 import {
-  Unverified, transition, type Effect, type InboxItem, type SignalStore, type Trail, type TrailEvent,
-  type TransitionContext,
+  systemIds, type Budget, type CodingAgent, type DecideBackend, type Effect, type ExtractBackend, type Runner,
+  type ServiceProfile, type SignalStore, type Trail, type TransitionContext,
 } from "@ephyra/core";
 import { MemorySignalStore, otlpRoutes } from "@ephyra/ingest";
 import { GitJournal } from "@ephyra/journal";
-import { AUTONOMY_TEMPLATE, checkpointMode, parseAutonomy } from "@ephyra/policy";
+import {
+  AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, checkpointMode, parseAutonomy, parseThresholds, type AutonomyPolicy,
+} from "@ephyra/policy";
+import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract } from "@ephyra/models";
+import { LocalRunner } from "@ephyra/runner";
+import { ClaudeCodeAgent, CodexAgent, buildProof } from "@ephyra/agent";
+import { PlainGitAdapter } from "@ephyra/forge";
+import { MemoryAudit } from "./audit.ts";
 import type { Config } from "./config.ts";
-import { migrate } from "./db/migrate.ts";
-import { PgSignalStore } from "./db/pg-signal-store.ts";
-import { createApp, type HttpPort } from "./http/app.ts";
-import type { EffectHandlers, PolicyPort } from "./orchestrator.ts";
+import { createApp } from "./http/app.ts";
+import { ConvexAudit, ConvexOperationLedger, ConvexRuntimeStore, ConvexSignalStore, convexClient } from "./convex/stores.ts";
+import { MemoryOperationLedger } from "./orchestrator/effects.ts";
+import type { EffectHandlers } from "./orchestrator.ts";
+import type { RepoConfig, ServerContext } from "./wiring/context.ts";
+import { MemoryStore, type RuntimeStore } from "./wiring/store.ts";
+import { Engine, JobLoop } from "./wiring/runtime.ts";
+import { intake, intakeHandlers } from "./wiring/intake.ts";
+import { httpPort, humanHandlers, type AuditSink } from "./wiring/human.ts";
+import { agentHandlers, type BuildProofFn } from "./wiring/agents.ts";
+import { landingHandlers, type Git } from "./wiring/landing.ts";
 
-export const VERSION = "0.0.0-prealpha";
+export const VERSION = "0.1.0-prealpha";
 
 export type Composed = {
   app: Hono;
-  mode: "memory" | "postgres";
-  health(): Promise<{ db: "ok" | "unavailable" | "n/a" }>;
+  mode: "memory" | "convex";
+  ctx: ServerContext;
+  engine: Engine;
+  jobs: JobLoop;
+  health(): Promise<{ store: "ok" | "unavailable" | "memory" }>;
   close(): Promise<void>;
 };
 
-/** Effects whose adapters are not configured on this deployment fail into reconciliation (never crash). */
-export function unconfiguredHandlers(): EffectHandlers {
-  const fail = (name: string) => async () => { throw new Unverified(`${name} not configured on this deployment`); };
-  const handlers = {} as Record<Effect["type"], () => Promise<void>>;
-  const types: Effect["type"][] = [
-    "run_triage", "start_agent", "run_proof", "request_checkpoint", "request_spend", "land", "rebase", "start_watch",
-    "rollback", "register_regression_probe", "notify_inbox", "stop_agent", "merge_signal", "resume_dependents",
-    "mute_fingerprint", "run_probes", "reply_comment", "start_respondent_run", "deliver_child_evidence",
-  ];
-  for (const type of types) handlers[type] = fail(type);
-  return handlers as unknown as EffectHandlers;
+const ALL_EFFECTS: Effect["type"][] = [
+  "run_triage", "start_agent", "run_proof", "request_checkpoint", "request_spend", "land", "rebase", "start_watch",
+  "rollback", "register_regression_probe", "notify_inbox", "stop_agent", "merge_signal", "resume_dependents",
+  "mute_fingerprint", "run_probes", "reply_comment", "start_respondent_run", "deliver_child_evidence",
+];
+
+/** Effects with no wiring yet fail into reconciliation with a clear note, never crash. */
+function notWired(type: string) {
+  return async () => { throw new Error(`${type} is not wired on this deployment`); };
 }
 
-/** Transition context from autonomy.md (shadow mode by default: every checkpoint blocks). */
-export function policyPort(autonomyMd: string = AUTONOMY_TEMPLATE): PolicyPort {
-  const policy = parseAutonomy(autonomyMd);
-  return {
-    async context(trail: Trail): Promise<TransitionContext> {
-      const area = policy.areas.find((a) => a.name === trail.area);
-      // Unknown area ⇒ conservative: every checkpoint blocks for a human.
-      const blocking = (c: "A" | "B" | "C") => !area || checkpointMode(policy, area, c) === "blocking";
-      return {
-        now: new Date().toISOString(),
-        blocking: { A: blocking("A"), B: blocking("B"), C: blocking("C") },
-        landingModes: ["trail_ref"],
-      };
-    },
+function git(dir: string): Git {
+  return async (args, opts) => {
+    const proc = Bun.spawn(["git", "--git-dir", dir, ...args], {
+      stdin: opts?.input ? new Blob([opts.input]) : "ignore", stdout: "pipe", stderr: "pipe",
+      env: { ...process.env, ...opts?.env },
+    });
+    const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+    if (code !== 0) throw new Error(`git ${args[0]} failed: ${err.trim().slice(0, 300)}`);
+    return out;
   };
 }
 
-/** Read-only HTTP port over the trail projection; mutating actions are not enabled until agents are wired. */
-function readOnlyPort(sql: SQL | null): HttpPort {
-  const notEnabled = async () => { throw new Unverified("trail actions are not enabled on this deployment yet"); };
-  if (!sql) {
-    return { inbox: async () => [], trails: async () => [], trail: async () => null, decide: notEnabled, action: notEnabled };
+async function prepareWorkspace(repo: RepoConfig, log: ServerContext["log"]): Promise<void> {
+  await mkdir(repo.mirrorDir, { recursive: true });
+  const g = git(repo.mirrorDir);
+  try { await g(["rev-parse", "--git-dir"]); } catch { await Bun.spawn(["git", "init", "--bare", "-q", repo.mirrorDir]).exited; }
+  if (!repo.url) return;
+  const remotes = (await g(["remote"])).split("\n");
+  if (!remotes.includes(repo.remote)) await g(["remote", "add", repo.remote, repo.url]);
+  try {
+    await g(["fetch", "--prune", repo.remote, `+${repo.baseRef}:${repo.baseRef}`]);
+  } catch (error) {
+    log("workspace fetch failed", { error: String(error) });
   }
-  return {
-    async inbox(): Promise<InboxItem[]> {
-      const rows = await sql`SELECT item FROM inbox_items ORDER BY id`;
-      return rows.map((r: { item: InboxItem }) => r.item);
-    },
-    async trails(state?: string): Promise<Trail[]> {
-      const rows = state
-        ? await sql`SELECT trail FROM trail_projection WHERE state = ${state} ORDER BY id`
-        : await sql`SELECT trail FROM trail_projection ORDER BY id`;
-      return rows.map((r: { trail: Trail }) => r.trail);
-    },
-    async trail(id: string) {
-      const rows = await sql`SELECT trail FROM trail_projection WHERE id = ${id}`;
-      if (!rows.length) return null;
-      const events = await sql`SELECT event FROM event_inbox WHERE trail_id = ${id} ORDER BY id`;
-      return { trail: rows[0].trail as Trail, events: events.map((e: { event: TrailEvent }) => e.event) };
-    },
-    decide: notEnabled,
-    action: notEnabled,
+}
+
+async function readOptional(path: string | undefined, fallback: string): Promise<string> {
+  return path ? readFile(path, "utf8") : fallback;
+}
+
+function contextFn(autonomy: AutonomyPolicy) {
+  return async (trail: Trail): Promise<TransitionContext> => {
+    const area = autonomy.areas.find((a) => a.name === trail.area);
+    const blocking = (c: "A" | "B" | "C") => !area || checkpointMode(autonomy, area, c) === "blocking";
+    return {
+      now: new Date().toISOString(),
+      blocking: { A: blocking("A"), B: blocking("B"), C: blocking("C") },
+      landingModes: area?.landing ?? autonomy.defaults.landing,
+    };
   };
 }
 
-/** Token bucket per ingest key: at most `perMinute` OTLP requests per minute. */
+function backends(config: Config): { extract: ExtractBackend | null; decide: DecideBackend | null } {
+  let extract: ExtractBackend | null = null;
+  if (config.EPHYRA_EXTRACT === "parser") extract = new ParserExtract();
+  if (config.EPHYRA_EXTRACT === "workers-ai") {
+    extract = new WorkersAiClairicExtract({
+      alias: "clairic", accountId: config.CLOUDFLARE_ACCOUNT_ID!, credential: config.CLOUDFLARE_AI_API_TOKEN!,
+    });
+  }
+  let decide: DecideBackend | null = null;
+  if (config.EPHYRA_DECIDE === "typesafe") {
+    decide = new TypeSafeDecide({
+      alias: "jev", endpoint: "https://api.typesafe.ai", credential: config.TYPESAFE_API_KEY!, model: config.TYPESAFE_MODEL,
+      supports: ["noul", "choice", "score"], purpose: "decide.triage",
+    });
+  }
+  if (config.EPHYRA_DECIDE === "systemone") {
+    decide = new SystemOneHttpDecide({
+      alias: "systemone", endpoint: config.EPHYRA_SYSTEMONE_URL!, credential: config.EPHYRA_SYSTEMONE_KEY ?? "",
+      model: config.EPHYRA_SYSTEMONE_MODEL!, supports: ["noul", "choice", "score"], purpose: "decide.triage",
+    }, "systemone");
+  }
+  return { extract, decide };
+}
+
+function agentFor(config: Config): CodingAgent | null {
+  if (config.EPHYRA_AGENT === "claude-code") return new ClaudeCodeAgent(config.EPHYRA_AGENT_MODEL ?? "claude-opus-5-5");
+  if (config.EPHYRA_AGENT === "codex") return new CodexAgent(config.EPHYRA_AGENT_MODEL ?? "gpt-6.1-sol");
+  return null;
+}
+
+/** Token bucket per ingest key. */
 function quota(perMinute: number) {
   const buckets = new Map<string, { tokens: number; at: number }>();
   return (key: string) => {
@@ -98,47 +139,119 @@ function quota(perMinute: number) {
   };
 }
 
-export async function compose(config: Config, env: Record<string, string | undefined> = process.env): Promise<Composed> {
-  const sql = config.DATABASE_URL ? new SQL(config.DATABASE_URL) : null;
-  if (sql) await migrate(sql);
+export type ComposeOverrides = {
+  startJobs?: boolean;
+  /** Test/dev injection points. */
+  agent?: CodingAgent;
+  runner?: Runner;
+  decide?: DecideBackend;
+};
 
-  const signals: SignalStore = sql ? new PgSignalStore(sql) : new MemorySignalStore();
-  const journalDir = env.EPHYRA_JOURNAL_DIR;
-  if (journalDir) {
-    await mkdir(journalDir, { recursive: true });
-    const init = Bun.spawnSync(["git", "init", "--bare", "-q", journalDir]);
-    if (init.exitCode !== 0) throw new Error("could not initialise the journal repository");
-    // Constructed to validate the volume; the outbox publisher uses it once agents are wired.
-    new GitJournal({ gitDir: journalDir, clock: { now: () => new Date() } });
-  }
-  void transition; void policyPort; void unconfiguredHandlers;
+export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
+  const log: ServerContext["log"] = (msg, fields) => console.log(JSON.stringify({ msg, ...fields }));
+  const client = config.CONVEX_URL ? convexClient({ url: config.CONVEX_URL, secret: config.EPHYRA_CONVEX_SECRET! }) : null;
+  const secret = config.EPHYRA_CONVEX_SECRET ?? "";
+  const store: RuntimeStore & { recoverRunning?(): Promise<unknown> } = client ? new ConvexRuntimeStore(client, secret) : new MemoryStore();
+  const signals: SignalStore = client ? new ConvexSignalStore(client, secret) : new MemorySignalStore();
+  const ledger = client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger();
+  const memoryAudit = new MemoryAudit();
+  const audit: AuditSink = client ? new ConvexAudit(client, secret) : { append: async (i) => memoryAudit.append(i) };
 
+  const repo: RepoConfig = {
+    id: config.EPHYRA_REPO_ID, url: config.EPHYRA_REPO_URL ?? "", mirrorDir: join(config.EPHYRA_DATA_DIR, "workspace.git"),
+    baseRef: config.EPHYRA_BASE_REF, forge: config.EPHYRA_FORGE, remote: "origin",
+  };
+  await prepareWorkspace(repo, log);
+  const autonomy = parseAutonomy(await readOptional(config.EPHYRA_AUTONOMY_FILE, AUTONOMY_TEMPLATE));
+  const thresholds = parseThresholds(await readOptional(config.EPHYRA_THRESHOLDS_FILE, THRESHOLDS_TEMPLATE));
+  const journal = new GitJournal({ gitDir: repo.mirrorDir, clock: { now: () => new Date() } });
+  const jobs = new JobLoop(store, log);
+  const engine = new Engine(store, journal, ledger, contextFn(autonomy), systemIds, log);
+
+  const ctx: ServerContext = {
+    repo, policy: { autonomy, thresholds }, journal, signals, clock: { now: () => new Date() }, ids: systemIds, log,
+    inbox: {
+      put: (item) => store.inboxPut(item), remove: (id) => store.inboxRemove(id),
+      get: (id) => store.inboxGet(id), list: () => store.inboxList(),
+    },
+    jobs: { register: (k, r) => jobs.register(k, r), enqueue: (k, key, p, o) => jobs.enqueue(k, key, p, o) },
+    emit: async (input) => { await engine.emit(input); },
+    start: (trail, initial, effects) => engine.start(trail, initial, effects ?? []),
+    trails: {
+      get: (id) => store.getTrail(id), list: (f) => store.listTrails(f?.states), events: (id) => store.events(id),
+    },
+  };
+
+  const g = git(repo.mirrorDir);
+  const budget: Budget = { tokensUsed: 0, tokensMax: 2_000_000, wallclockMaxS: 4 * 3600, spendMicrousdUsed: 0, spendMicrousdMax: 0 };
+  const configured = backends(config);
+  const extract = configured.extract;
+  const decide = opts.decide ?? configured.decide;
+  const profile: ServiceProfile = {
+    name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
+    limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
+  };
+  const agent = opts.agent ?? agentFor(config);
+  const runner: Runner | null = opts.runner
+    ?? (agent ? new LocalRunner(join(config.EPHYRA_DATA_DIR, "runner"), { trusted: true, allowDevenv: false }) : null);
+  const intakeHooks = intake(ctx, {
+    extract, decide, budget,
+    baseSha: async () => (await g(["rev-parse", repo.baseRef])).trim(),
+  });
+  const slices = [
+    intakeHandlers(ctx),
+    humanHandlers(ctx),
+    agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S }),
+    landingHandlers(ctx, {
+      adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
+      git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
+    }),
+  ];
+  const handlers = Object.fromEntries(ALL_EFFECTS.map((t) => [t, notWired(t)])) as unknown as EffectHandlers;
+  for (const slice of slices) Object.assign(handlers, slice);
+  engine.setHandlers(handlers);
+
+  // OTLP ingest, authenticated with the API token.
   const otlp = otlpRoutes({
-    store: signals,
-    onNewSignal: (s) => console.log(JSON.stringify({ msg: "new signal", fingerprint: s.fingerprint, service: s.service })),
-    quota: quota(Number(env.EPHYRA_OTLP_PER_MINUTE ?? 600)),
-    maxBodyBytes: Number(env.EPHYRA_OTLP_MAX_BYTES ?? 4_000_000),
+    store: signals, quota: quota(600), maxBodyBytes: 4_000_000,
+    onNewSignal: async (s) => {
+      log("new signal", { fingerprint: s.fingerprint, service: s.service });
+      // Without a repository there is no base commit to open a trail on: keep the signal, skip triage.
+      if (!repo.url) { log("signal stored; no repository configured, triage skipped", { fingerprint: s.fingerprint }); return; }
+      await intakeHooks.onNewSignal(s);
+    },
   });
   const ingest = new Hono();
-  // OTLP is authenticated with the same bearer token as the API.
   ingest.use("*", async (c, next) => {
-    const ok = c.req.header("Authorization") === `Bearer ${config.EPHYRA_API_TOKEN}`;
-    if (!ok) return c.json({ error: "unauthorized" }, 401);
+    if (c.req.header("Authorization") !== `Bearer ${config.EPHYRA_API_TOKEN}`) return c.json({ error: "unauthorized" }, 401);
     await next();
   });
   ingest.route("/", otlp);
 
-  const mode = sql ? "postgres" : "memory";
+  const port = httpPort(ctx, audit);
+  port.ops = async () => ({
+    deadJobs: await store.deadJobs(),
+    reconciliations: client ? await (ledger as ConvexOperationLedger).reconciliations() : engine.reconciliations,
+    backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null },
+    repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
+  });
+  const api = createApp(config.EPHYRA_API_TOKEN, port, ingest);
+  const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {
-    if (!sql) return { db: "n/a" as const };
-    try { await sql`SELECT 1`; return { db: "ok" as const }; } catch { return { db: "unavailable" as const }; }
+    if (!client) return { store: "memory" as const };
+    try { await store.inboxList(); return { store: "ok" as const }; } catch { return { store: "unavailable" as const }; }
   };
-  const api = createApp(config.EPHYRA_API_TOKEN, readOnlyPort(sql), ingest);
   const app = new Hono();
   app.get("/healthz", async (c) => {
     const h = await health();
-    return c.json({ ok: h.db !== "unavailable", mode, ...h, version: VERSION }, h.db === "unavailable" ? 503 : 200);
+    return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
   });
   app.route("/", api);
-  return { app, mode, health, close: async () => { await sql?.close(); } };
+
+  if (opts.startJobs !== false) {
+    await store.recoverRunning?.();
+    jobs.start();
+  }
+  log("composed", { mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id });
+  return { app, mode, ctx, engine, jobs, health, close: async () => { jobs.stop(); } };
 }

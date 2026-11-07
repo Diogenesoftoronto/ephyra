@@ -58,7 +58,9 @@ export class EffectExecutor {
       await handler(effect, trail);
       await this.ledger.complete(effect.key, null);
     } catch (error) {
-      const note = "effect outcome requires reconciliation";
+      // Keep the cause so an operator can reconcile; error text is bounded and never carries credentials.
+      const cause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      const note = `effect outcome requires reconciliation: ${cause.slice(0, 500)}`;
       await this.ledger.markAmbiguous(effect.key, note);
       await this.reconciliation.record(effect.key, note);
       throw new ReconciliationRequired(effect.key, note);

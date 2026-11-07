@@ -70,7 +70,8 @@ export async function buildProof(options: ProofOptions): Promise<ProofBundle> {
     return ms;
   };
   const suffix = crypto.randomUUID();
-  const paths = [base, head].map((_, i) => `${handle.workdir}/.ephyra-proof-${suffix}-${i}`);
+  // Relative to the sandbox workdir: runners confine every cwd to the workdir and reject absolute paths.
+  const paths = [base, head].map((_, i) => `.ephyra-proof-${suffix}-${i}`);
   const made: string[] = [];
   const items: ProofItem[] = [];
   try {

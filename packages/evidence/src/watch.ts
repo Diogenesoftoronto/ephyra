@@ -36,7 +36,7 @@ export class WatchCollector {
       else state.probeFailures[id] = result === "pass" ? 0 : (state.probeFailures[id] ?? 0) + 1;
     }
     const errorRate = await this.collectRate(config, deps, start, now, state, gaps);
-    gaps.push("tracer clusters: unavailable");
+    // Tracer clusters are advisory (design/01 §8.3); with no tracer source configured they are not a gap.
     return { observations: {
       elapsedS: Math.max(0, (now.getTime() - start.getTime()) / 1000),
       fingerprintRecurrences: recurrences,
@@ -52,7 +52,7 @@ export class WatchCollector {
     config: WatchConfig, deps: WatchDeps, start: Date, now: Date, state: WatchState, gaps: string[],
   ): Promise<WatchObservations["errorRate"]> {
     if (!config.routes.length) {
-      gaps.push("error rate:no routes");
+      // No routes are attributable to this trail, so the error-rate criterion does not apply.
       state.aboveSince = null;
       return null;
     }

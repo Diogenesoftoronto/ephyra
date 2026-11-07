@@ -70,7 +70,9 @@ const cases: Case[] = [
   { name: 'watch regression', state: 'watching', type: 'probe_regressed_after_landing', data: { criterion: 'c', evidence: 'e' }, next: 'rolled_back', effects: ['rollback'] },
   { name: 'rollback complete', state: 'rolled_back', patch: { watchEvidence: 'e' }, type: 'rollback_completed', data: { receipt }, next: 'researching', effects: ['start_agent'] },
   { name: 'pause', state: 'patching', type: 'parked', data: { reason: 'pause' }, next: 'parked', effects: ['notify_inbox'] },
-  { name: 'resume', state: 'parked', patch: { resumeTo: 'patching' }, type: 'resumed', data: {}, next: 'patching' },
+  { name: 'resume', state: 'parked', patch: { resumeTo: 'patching' }, type: 'resumed', data: {}, next: 'patching', effects: ['start_agent'] },
+  { name: 'resume from triage park starts research', state: 'parked', patch: { resumeTo: 'triaged' }, type: 'resumed', data: {}, next: 'researching', effects: ['start_agent'] },
+  { name: 'resume into proving re-runs proof', state: 'parked', patch: { resumeTo: 'proving' }, type: 'resumed', data: {}, next: 'proving', effects: ['run_proof'] },
   { name: 'claim', state: 'patching', type: 'claimed_by_human', data: {}, next: 'handed_off', effects: ['stop_agent'] },
   { name: 'revision', state: 'patching', type: 'human_revision', data: { head: sha }, next: 'handed_off', effects: ['stop_agent', 'run_proof'] },
   { name: 'release', state: 'handed_off', patch: { resumeTo: 'proving' }, type: 'released_by_human', data: {}, next: 'proving' },
@@ -221,4 +223,22 @@ test('a new signal invalidates C approval and repeated effects have distinct sta
   if (!result.ok) return;
   expect(new Set(result.effects.map(effect => effect.key)).size).toBe(2);
   expect(transition(duplicateTrail, e, ctx)).toEqual(result);
+});
+
+test('landing records its modes and receipts survive landing and rollback', () => {
+  const ready = Trail.parse({ ...original, state: 'ready', head: sha });
+  const approved = transition(ready, event('checkpoint_decided', { checkpoint: 'C', decision: decision('approve') }, '00000000-0000-4000-8000-000000000010'), ctx);
+  expect(approved.ok).toBe(true);
+  if (!approved.ok) return;
+  expect(approved.trail.state).toBe('landing');
+  expect(approved.trail.landing).toEqual({ modes: ['trail_ref'], target: 'main', receipts: [] });
+  const landed = transition(approved.trail, event('landing_completed', { receipt }, '00000000-0000-4000-8000-000000000011'), ctx);
+  expect(landed.ok && landed.trail.landing?.receipts.length).toBe(1);
+  if (!landed.ok) return;
+  const regressed = transition(landed.trail,
+    event('probe_regressed_after_landing', { criterion: 'x', evidence: 'y' }, '00000000-0000-4000-8000-000000000012'), ctx);
+  if (!regressed.ok) throw new Error(regressed.error);
+  const rolled = transition(regressed.trail,
+    event('rollback_completed', { receipt: { ...receipt, oldOid: sha, newOid: 'b'.repeat(40) } }, '00000000-0000-4000-8000-000000000013'), ctx);
+  expect(rolled.ok && rolled.trail.landing?.receipts.length).toBe(2);
 });

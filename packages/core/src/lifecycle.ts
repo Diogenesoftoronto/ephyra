@@ -1,4 +1,4 @@
-import type { Trail, Signal, TriageResult, Budget, TrailState, Decision } from './schemas.ts';
+import type { Trail, Signal, TriageResult, Budget, TrailState, Decision, LandingMode } from './schemas.ts';
 import { shortId } from './ids.ts';
 import { z } from 'zod';
 import type { TrailEvent, Effect, TransitionContext, TransitionResult } from './events.ts';
@@ -85,6 +85,14 @@ class Machine {
   agent(step: Step, note?: string) {
     this.commands.push({ type: 'start_agent', step, ...(note === undefined ? {} : { note }) });
   }
+  /** Enter `landing`, recording the modes and target so receipts have somewhere to go. */
+  beginLanding(modes: LandingMode[]) {
+    this.trail.state = 'landing';
+    this.trail.landing = {
+      modes, target: this.trail.landing?.target ?? this.trail.base.ref, receipts: this.trail.landing?.receipts ?? [],
+    };
+    this.commands.push({ type: 'land', modes });
+  }
   park(reason: string) {
     if (this.trail.state !== 'parked') this.trail.resumeTo = this.trail.state;
     this.trail.state = 'parked';
@@ -116,8 +124,7 @@ class Machine {
       this.trail.state = 'patching';
       this.agent('patch');
     } else {
-      this.trail.state = 'landing';
-      this.commands.push({ type: 'land', modes: this.ctx.landingModes });
+      this.beginLanding(this.ctx.landingModes);
     }
     return true;
   }
@@ -178,8 +185,7 @@ class Machine {
   land_requested(e: EventOf<'land_requested'>) {
     if (this.trail.state !== 'ready' || this.trail.checkpoints.C?.verdict !== 'approve'
       || this.trail.checkpoints.C.shadow) return false;
-    this.trail.state = 'landing';
-    this.commands.push({ type: 'land', modes: e.data.modes ?? this.ctx.landingModes });
+    this.beginLanding(e.data.modes ?? this.ctx.landingModes);
     return true;
   }
   landing_completed(e: EventOf<'landing_completed'>) {
@@ -264,9 +270,27 @@ class Machine {
   }
   resumed(_e: EventOf<'resumed'>) {
     if (this.trail.state !== 'parked' || !this.trail.resumeTo || this.trail.waitingForParent) return false;
-    this.trail.state = this.trail.resumeTo;
+    const to = this.trail.resumeTo;
     delete this.trail.resumeTo;
+    // A trail parked at triage (route human) resumes into research.
+    this.trail.state = to === 'triaged' || to === 'sensed' ? 'researching' : to;
+    this.restartWork();
     return true;
+  }
+  /** Re-issue the work owned by the current state, so a resumed trail does not sit idle. */
+  restartWork() {
+    switch (this.trail.state) {
+      case 'researching': this.agent('research'); break;
+      case 'reproducing': this.agent('repro'); break;
+      case 'patching': this.agent('patch'); break;
+      case 'proving': this.commands.push({ type: 'run_proof' }); break;
+      case 'hypothesised': this.checkpoint('A'); break;
+      case 'planned': this.checkpoint('B'); break;
+      case 'ready': this.checkpoint('C'); break;
+      case 'landing': this.commands.push({ type: 'land', modes: this.trail.landing?.modes ?? this.ctx.landingModes }); break;
+      case 'watching': this.commands.push({ type: 'start_watch' }); break;
+      default: break;
+    }
   }
   killed(_e: EventOf<'killed'>) {
     this.trail.state = 'abandoned';

@@ -118,10 +118,11 @@ test("revert refuses a moved target and cleans its temporary worktree", async ()
     const oid = await git("rev-parse", "HEAD");
     const target = "refs/heads/moved";
     await git("update-ref", target, "HEAD~1");
+    // The landing moved `target` from HEAD~1 to oid; someone has since reset it, so the revert must refuse.
     const receipt = {
       mode: "auto_land" as const,
       target,
-      oldOid: null,
+      oldOid: await git("rev-parse", "HEAD~1"),
       newOid: oid,
       at: new Date().toISOString(),
     };
