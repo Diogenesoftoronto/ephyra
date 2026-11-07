@@ -60,7 +60,7 @@ export function createTrail(input: CreateTrailInput): CreateTrailResult {
     signals: [signal.id], area: triage.area, risk: triage.risk,
     route: triage.route === 'ignore' ? 'human' : triage.route, severity: triage.severity,
     base: input.base, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
-    budget: input.budget, mirrors: {}, ...(triage.conflictsWith ? { parent: triage.conflictsWith } : {}),
+    budget: input.budget, mirrors: {}, ...(triage.conflictsWith ? { parent: triage.conflictsWith, waitingForParent: true } : {}),
     createdAt: input.now, updatedAt: input.now,
   };
   const commands: Command[] = state === 'abandoned'
@@ -237,6 +237,7 @@ class Machine {
   }
   human_revision(e: EventOf<'human_revision'>) {
     if (this.trail.state !== 'handed_off') this.claimed_by_human({} as EventOf<'claimed_by_human'>);
+    if (this.trail.head !== e.data.head) this.trail.rev++;
     this.trail.head = e.data.head;
     this.trail.resumeTo = 'proving';
     this.commands.push({ type: 'run_proof' });
@@ -254,7 +255,7 @@ class Machine {
     return true;
   }
   resumed(_e: EventOf<'resumed'>) {
-    if (this.trail.state !== 'parked' || !this.trail.resumeTo || this.trail.parent) return false;
+    if (this.trail.state !== 'parked' || !this.trail.resumeTo || this.trail.waitingForParent) return false;
     this.trail.state = this.trail.resumeTo;
     delete this.trail.resumeTo;
     return true;
@@ -288,7 +289,8 @@ class Machine {
   }
   parent_trail_landed(e: EventOf<'parent_trail_landed'>) {
     if (this.trail.state !== 'parked' || this.trail.parent !== e.data.parent) return false;
-    delete this.trail.parent;
+    if (!this.trail.waitingForParent) return false;
+    delete this.trail.waitingForParent;
     delete this.trail.resumeTo;
     this.trail.state = 'researching';
     this.agent('research');
@@ -329,6 +331,7 @@ class Machine {
       this.trail.state = 'abandoned';
     } else if (result.conflictsWith) {
       this.trail.parent = result.conflictsWith;
+      this.trail.waitingForParent = true;
       this.trail.resumeTo = 'researching';
       this.trail.state = 'parked';
     } else if (result.route === 'human') {
@@ -345,10 +348,18 @@ class Machine {
 export function transition(trail: Trail, event: TrailEvent, ctx: TransitionContext): TransitionResult {
   if (event.trail !== trail.id) return { ok: false, error: 'Event belongs to another trail' };
   if (trail.state === 'closed' || trail.state === 'abandoned') return { ok: false, error: 'Terminal trail' };
-  const machine = new Machine(trail, ctx);
+  const humanProof = trail.state === 'handed_off' && trail.resumeTo === 'proving'
+    && event.type === 'proof_completed';
+  const startingTrail = humanProof ? { ...trail, state: 'proving' as const } : trail;
+  const effectiveContext = humanProof ? { ...ctx, blocking: { ...ctx.blocking, C: true } } : ctx;
+  const machine = new Machine(startingTrail, effectiveContext);
   // Every event handler has the matching discriminated event type; the lookup retains that pairing.
   const handler = machine[event.type] as (event: TrailEvent) => boolean;
   if (!handler.call(machine, event)) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
+  if (humanProof && machine.trail.state !== 'abandoned') {
+    machine.trail.resumeTo = machine.trail.state;
+    machine.trail.state = 'handed_off';
+  }
   machine.trail.updatedAt = ctx.now;
   return { ok: true, trail: machine.trail, effects: keyed(trail.id, machine.trail.rev, event.id, machine.commands) };
 }
