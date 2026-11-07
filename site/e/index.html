@@ -19,6 +19,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="tour.css">
+<link rel="stylesheet" href="console.css">
+  <link rel="stylesheet" href="jellyware.css">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
 <link rel="preload" as="image" href="img/cyst.webp" type="image/webp">
@@ -51,7 +53,7 @@
     <div class="copy">
       <div class="stanza">
         <h1 class="ln ln-head" data-s="0"><span class="ph">Software that</span> <span class="ph">fixes itself.</span></h1>
-        <p class="intro">Open source and self-hosted. <span class="badge">Pre-alpha</span> <a class="intro-link" href="#how">See an example trail <span aria-hidden="true">↓</span></a></p>
+        <p class="intro">Open source and self-hosted. <span class="badge">Pre-alpha</span> <a class="intro-link" href="#how">See the console <span aria-hidden="true">↓</span></a></p>
         <p class="ln" data-s="1"><span class="ph">It lives on your box,</span> <span class="ph">watches <span class="hl" data-hl="prod">production</span> and hunts <span class="mint">bugs</span>.</span></p>
         <p class="ln" data-s="2"><span class="ph">Each one becomes a <span class="amber">trail</span>:</span> <span class="ph">evidence, repro, patch.</span></p>
         <p class="ln" data-s="3"><span class="ph">It proves each fix.</span> <span class="ph">You approve what matters.</span></p>
@@ -77,7 +79,15 @@
 <section class="tour" id="how" aria-labelledby="how-title">
   <div class="tour-head">
     <h2 id="how-title">One bug, start to finish</h2>
-    <p class="lede">A sample checkout bug, followed through the real terminal inbox. It asks a person three times.</p>
+    <p class="lede">A sample checkout bug, from the first error to the watched fix. Follow it in the graphical console or the terminal.</p>
+  </div>
+  <div class="console-switch">
+    <div class="console-choices" role="group" aria-label="Console view">
+      <button id="gui-choice" type="button" data-console-view="gui" aria-pressed="true" aria-controls="gui-panel">Graphical <span>GUI</span></button>
+      <button id="tui-choice" type="button" data-console-view="tui" aria-pressed="false" aria-controls="tui-panel">Terminal <span>TUI</span></button>
+    </div>
+    <button class="terminal-invite" type="button">Born for the terminal? <span aria-hidden="true">→</span></button>
+    <span class="console-view-note" hidden>Same checkpoints. Your keyboard.</span>
   </div>
   <div class="tour-body">
     <div class="term-col">
@@ -92,8 +102,10 @@
             <button class="term-next" type="button" aria-label="Next step"><span>Next </span>›</button>
           </span>
         </div>
-        <div class="term-screen" role="img" aria-label="Terminal"><pre class="term-pre"></pre><div class="term-focus"></div></div>
-        <div class="term-strip" aria-hidden="true"></div>
+        <div id="gui-panel" class="gui-screen" role="region" aria-label="Graphical trail walkthrough" tabindex="0"></div>
+        <div id="tui-panel" class="term-screen" hidden role="img" aria-label="Terminal"><pre class="term-pre"></pre><div class="term-focus"></div></div>
+        <div class="term-strip" hidden aria-hidden="true"></div>
+        <div class="gui-example-note">Sample walkthrough. Buttons move through the example.</div>
         <div class="term-tools"><span>← → to browse steps</span><button class="term-read" type="button">Read the full screen</button></div>
       </figure>
     </div>
@@ -211,7 +223,7 @@ watch: 1h</pre>
   <div class="start-inner">
     <h2 id="start-title">Explore the pre-alpha</h2>
     <p class="lede">Ephyra is open source and pre-alpha. It is built to run on your own hardware or Railway, with no GitHub, and to land on Radicle, Tangled or plain git. The design explains how trails, checkpoints and landing work.</p>
-    <p class="actions"><a class="btn" href="#how">See the example trail</a><a class="btn-ghost" href="/blog/posts/trails-not-pull-requests">Read the design</a></p>
+    <p class="actions"><a class="btn" href="#how">Explore the console</a><a class="btn-ghost" href="/blog/posts/trails-not-pull-requests">Read the design</a></p>
   </div>
 </section>
 </main>
@@ -221,7 +233,7 @@ watch: 1h</pre>
     <div><p>Sample data · real CLI output</p><h2 id="screen-title">Full terminal screen</h2></div>
     <form method="dialog"><button class="screen-close" autofocus>Close</button></form>
   </div>
-  <div class="screen-content" tabindex="0" role="region" aria-label="Scrollable terminal output"><pre></pre></div>
+  <div class="screen-content" tabindex="0" role="region" aria-label="Scrollable walkthrough details"><pre></pre><div class="gui-reader" hidden></div></div>
 </dialog>
 
 <footer class="foot">
@@ -238,6 +250,6 @@ watch: 1h</pre>
 </footer>
 
 <script src="main.js" defer></script>
-<script src="tour.js" defer></script>
+<script src="tour.js" type="module"></script>
 </body>
 </html>

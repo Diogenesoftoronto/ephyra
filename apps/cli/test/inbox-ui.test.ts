@@ -11,6 +11,7 @@ import {
 	DEMO_OTHERS,
 	DEMO_PROOF,
 	DEMO_ROLLBACK,
+	DEMO_TEXT,
 	STAGES,
 	detailKey,
 	demoTrail,
@@ -475,15 +476,24 @@ test("the walkthrough export renders every step at its exact size", async () => 
 	const out = `${process.env.TMPDIR ?? "/tmp"}/ephyra-walkthrough-${process.pid}.json`;
 	const proc = Bun.spawn(["bun", "run", `${import.meta.dir}/../scripts/walkthrough.ts`, out, "96", "30"], { stdout: "pipe", stderr: "pipe" });
 	expect(await proc.exited).toBe(0);
-	const data = (await Bun.file(out).json()) as { steps: { id: string; wide: [string, string][][]; narrow: [string, string][][] }[] };
+	const data = (await Bun.file(out).json()) as {
+		steps: { id: string; wide: [string, string][][]; narrow: [string, string][][] }[];
+		gui: { moments: Record<string, ReturnType<typeof demoTrail>>; hypothesis: string; plan: string; evidence: unknown };
+	};
 	expect(data.steps.map((s) => s.id)).toEqual(["triaged", "hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback"]);
 	for (const s of data.steps) {
+		const moment = s.id === "explain" || s.id === "revise" ? "hypothesis" : s.id;
+		const expected = moment === "rollback" ? DEMO_ROLLBACK : demoTrail(moment as Parameters<typeof demoTrail>[0]);
+		expect(data.gui.moments[s.id]).toEqual(expected);
 		expect(s.wide).toHaveLength(30);
 		for (const row of s.wide) expect(width(row.map((x) => x[0]).join(""))).toBe(96);
 		for (const row of s.narrow) expect(width(row.map((x) => x[0]).join(""))).toBe(40);
 		// The phone frames are tall enough to hold everything: no "more below" marker.
 		expect(s.narrow.map((r) => r.map((x) => x[0]).join("")).join("\n"), s.id).not.toContain("↓ J");
 	}
+	expect(data.gui.hypothesis).toBe(DEMO_TEXT.hypothesis);
+	expect(data.gui.plan).toBe(DEMO_TEXT.plan);
+	expect(data.gui.evidence).toEqual(JSON.parse(DEMO_TEXT.evidence));
 	// The landing page ships a copy. It must be this one, and its steps must be the page's steps, in order.
 	const site = `${import.meta.dir}/../../../site/e`;
 	expect(await Bun.file(`${site}/walkthrough.json`).text(), "regenerate: bun run apps/cli/scripts/walkthrough.ts site/e/walkthrough.json").toBe(
