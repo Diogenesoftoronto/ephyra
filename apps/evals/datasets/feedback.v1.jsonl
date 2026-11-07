@@ -1,0 +1,11 @@
+{"version":1,"case_id":"feedback-checkpoint-a","suite":"feedback","input":{"scenario":"checkpoint-a"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-checkpoint-b","suite":"feedback","input":{"scenario":"checkpoint-b"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-checkpoint-c","suite":"feedback","input":{"scenario":"checkpoint-c"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-stale-rev","suite":"feedback","input":{"scenario":"stale-rev"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-stale-head","suite":"feedback","input":{"scenario":"stale-head"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-stale-digest","suite":"feedback","input":{"scenario":"stale-digest"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-missing-citation","suite":"feedback","input":{"scenario":"missing-citation"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-agent-timeout","suite":"feedback","input":{"scenario":"agent-timeout"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-agent-error","suite":"feedback","input":{"scenario":"agent-error"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-agent-false","suite":"feedback","input":{"scenario":"agent-false"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
+{"version":1,"case_id":"feedback-reconciliation","suite":"feedback","input":{"scenario":"reconciliation"},"expected":{"safe":true},"provenance":"server wiring with in-memory stores and explicitly fake I/O"}
