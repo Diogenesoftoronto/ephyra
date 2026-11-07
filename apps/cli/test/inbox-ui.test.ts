@@ -482,5 +482,12 @@ test("the walkthrough export renders every step at its exact size", async () => 
 		for (const row of s.wide) expect(width(row.map((x) => x[0]).join(""))).toBe(96);
 		for (const row of s.narrow) expect(width(row.map((x) => x[0]).join(""))).toBe(46);
 	}
+	// The landing page ships a copy. It must be this one, and its steps must be the page's steps, in order.
+	const site = `${import.meta.dir}/../../../site/e`;
+	expect(await Bun.file(`${site}/walkthrough.json`).text(), "regenerate: bun run apps/cli/scripts/walkthrough.ts site/e/walkthrough.json").toBe(
+		await Bun.file(out).text(),
+	);
+	const page = await Bun.file(`${site}/index.html`).text();
+	expect([...page.matchAll(/data-step="([a-z]+)"/g)].map((m) => m[1])).toEqual(data.steps.map((s) => s.id));
 	await Bun.file(out).delete();
 });
