@@ -245,3 +245,30 @@ test("triage decision table and offered candidate validation", () => {
     applyTriage(ignored, extraction, thresholds, area, candidates).route,
   ).toBe("ignore");
 });
+
+test("parser handles overrides, prose, and line-numbered errors", () => {
+  const policy = parseAutonomy(
+    "## defaults\nmode: enforce\n## area: cart\npaths: src/**\nlanding: trail_ref + devenv_live\nwatch: 1h\ndecide: local\ncheckpoints: B=advisory C=blocking\nKeep this.\n\n## notes\nrisk: high\n",
+  );
+  expect(policy.areas[0]).toMatchObject({
+    landing: ["trail_ref", "devenv_live"],
+    watch: "1h",
+    decide: "local",
+    prose: "Keep this.\n\n",
+    risk: "high",
+  });
+  for (const bad of [
+    "mode = shadow",
+    "paths:",
+    "watch: soon",
+    "checkpoints: C=maybe",
+    "risk: bogus",
+    "user_facing: yes",
+    "landing: unknown",
+    "voxq_budget_usd: nope",
+  ]) {
+    expect(() => parseAutonomy(`## area: test\n${bad}\n`)).toThrow("line 2");
+  }
+  expect(() => parseAutonomy("## area:\n")).toThrow("line 1");
+  expect(parseAutonomy(AUTONOMY_TEMPLATE).warnings).toEqual([]);
+});
