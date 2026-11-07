@@ -1,5 +1,13 @@
 # Forge adapters
 
-PlainGitAdapter supports local conditional ref writes and post-receive spool reading. Tests exercise local ref updates and replay in one adapter instance. Idempotency and locks are process-local, not durable or cross-process; callers must not use them as a durable retry guarantee. Hook installation refuses to overwrite an existing hook.
+Plain Git uses conditional ref updates, a post-receive JSONL spool, and temporary worktrees for revert. A process-local ledger is the default; inject a durable `OperationLedger` for recovery across restarts. Optional lockfiles serialize processes sharing a lock directory; stale lockfiles require manual recovery. Pending or ambiguous operations require reconciliation.
 
-Revert, plan preparation, Radicle operations and Tangled writes and events are Unverified. No live forge has been tested. Spool events do not contain a source timestamp; their observation time is recorded.
+| Surface | Evidence |
+| --- | --- |
+| Plain Git landing, hook, revert | Local Git tests; not production integration verification |
+| Tangled trail ref | Local bare Git remote test; knot deployment unverified |
+| Tangled pull and events | Unverified; throw `Unverified` |
+| Radicle | Command builders and documented output parser only; adapter remains unverified and does not write |
+| Radicle list, show, comments and event ingestion | Unverified; no installed CLI or recorded runtime fixtures |
+
+Radicle references: [user guide](https://radicle.dev/guides/user), [quick start](https://radicle.dev/guides/quick-start), [patch manual](https://github.com/radicle-dev/heartwood/blob/master/rad-patch.1.adoc), [protocol guide](https://radicle.dev/guides/protocol), and [CI broker](https://radicle-ci-broker.liw.fi/userguide.html). The documented CLI lists and shows patches with `rad patch` and `rad patch show`; JSON support has not been verified. Comments use `rad patch comment <revision-id> --message <text>`.
