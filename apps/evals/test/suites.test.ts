@@ -32,5 +32,5 @@ test('Repro must fail at base; missing probe is unverified, not proof',async()=>
  for(const id of ['proof-base-passes','proof-unavailable-probe']){const r=await invoke('proof',runProof,id);expect(r.scores.safe?.score).toBe(1);expect((r.output as any).verdict).toBe('unverified');}
 },15000);
 test('Feedback tests reach stale binding and failure paths in actual server wiring',async()=>{
- for(const id of ['feedback-stale-head','feedback-agent-timeout','feedback-reconciliation'])expect((await invoke('feedback',runFeedback,id)).scores.safe?.score).toBe(1);
+ for(const id of ['feedback-stale-head','feedback-agent-timeout','feedback-agent-false','feedback-reconciliation'])expect((await invoke('feedback',runFeedback,id)).scores.safe?.score).toBe(1);
 },15000);
