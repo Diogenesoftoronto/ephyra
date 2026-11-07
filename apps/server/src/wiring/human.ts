@@ -96,7 +96,7 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       const trail = await ctx.trails.get(id) ?? (await ctx.trails.list()).find((t) => t.short === id) ?? null;
       return trail ? { trail, events: await ctx.trails.events(trail.id) } : null;
     },
-    // The route has already checked `path` against READABLE_FILE; unknown trails read as missing.
+    // The route has already checked `path` with isReadableFile; unknown trails read as missing.
     async file(id, path) {
       const trail = await ctx.trails.get(id);
       return trail ? ctx.journal.readFile(trail.id, path) : null;
