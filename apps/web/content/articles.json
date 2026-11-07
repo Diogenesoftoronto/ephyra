@@ -4,7 +4,7 @@
     "path": "/posts/trails-not-pull-requests",
     "title": "Trails, not pull requests",
     "description": "Why Ephyra's unit of self-driving work is a trail stored in git, and what that buys a team that does not live on GitHub.",
-    "publishedAt": "2026-11-07T12:00:00.000Z",
+    "publishedAt": "2026-11-07T09:45:00.000Z",
     "tags": ["trails", "self-driving software", "radicle", "tangled"],
     "textContent": "A pull request is a conversation about a diff. Self-driving software needs something longer-lived: a record that starts when production reports an error and ends only after a fix has survived a watch window.\n\nEphyra calls that record a trail. A trail moves through evidence, a failing reproduction, a plan, a patch, proof, a landing and a watch. Each step is written to git under refs/ephyra/trails/<id>, so the trail travels with the repository to any forge: Radicle, Tangled, plain git, or a Sapling stack.\n\nHumans stay at three checkpoints. A asks whether the hypothesis is the right thing to chase, B approves the plan once the bug reproduces, and C approves landing once proof passes. Everything between the checkpoints is the machine's job, and everything it did is in the journal.\n\nThis is a design note. Ephyra is pre-alpha, and nothing here claims a production track record yet."
   }

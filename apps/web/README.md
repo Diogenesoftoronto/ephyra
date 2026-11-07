@@ -33,6 +33,13 @@ Every HTML page gets these at serve time:
 - an RSS link;
 - JSON-LD.
 
+## Live
+
+Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephyra-site.up.railway.app.
+The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
+The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
+Deploy with `railway up --service web --ci`.
+
 ## Publishing the journal
 
 ```sh
@@ -55,6 +62,5 @@ EPHYRA_BLOG_APP_PASSWORD="$(skate get ephyra-blog-app-password@secrets)" … --w
 
 - **The legal pages are review copies.** They are not reviewed by a lawyer and not yet effective. A public mailing address and a French edition are still to come.
 - **The hosted plan is a proposal.** No billing is implemented.
-- **The live publication has not been written yet.** It needs the Ephyra PDS account and the deployed origin.
 
 `design/04-pricing.md` explains the pricing and the Macroscope comparison.

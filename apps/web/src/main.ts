@@ -13,3 +13,5 @@ const handler = createSite({
 const server = Bun.serve({ hostname: "0.0.0.0", port, fetch: handler });
 const blog = Boolean(process.env.EPHYRA_BLOG_PUBLICATION_URI);
 console.log(JSON.stringify({ msg: "ephyra site listening", port: server.port, origin, home: home || "a", blog }));
+// As PID 1 in a container, Bun only exits on SIGTERM if it handles it.
+process.on("SIGTERM", () => { server.stop(); process.exit(0); });
