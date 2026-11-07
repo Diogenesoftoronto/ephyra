@@ -1,0 +1,209 @@
+.account-form {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+.account-fields {
+  display: grid;
+  gap: var(--s4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.account-fields:disabled {
+  opacity: 0.7;
+}
+.account-form .ui-field {
+  min-width: 0;
+}
+.account-form input,
+.account-form select {
+  width: 100%;
+  min-width: 0;
+}
+.account-hint {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}
+.account-advanced {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s3);
+}
+.account-advanced summary {
+  cursor: pointer;
+  padding: var(--s2) 0;
+  font-weight: 600;
+}
+.account-advanced-fields {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+}
+.account-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  cursor: pointer;
+}
+.account-checkbox input {
+  width: auto;
+  accent-color: var(--jelly-deep);
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+}
+.account-actions .ui-button {
+  min-height: 44px;
+}
+.account-feedback {
+  border-left: 3px solid var(--line);
+  padding: var(--s3) var(--s4);
+  display: grid;
+  justify-items: start;
+  gap: var(--s3);
+}
+.account-feedback p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.account-feedback[data-tone="warning"] {
+  border-color: var(--warn);
+  background: var(--warn-tint);
+}
+.account-saved {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+.account-current {
+  display: grid;
+  gap: var(--s2);
+  border-top: 1px solid var(--line);
+  padding-top: var(--s4);
+  min-width: 0;
+}
+.account-current code {
+  overflow-wrap: anywhere;
+}
+.account-provider-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.account-provider-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+  min-width: 0;
+}
+.account-provider-choice[data-provider="none"] {
+  grid-column: 1 / -1;
+}
+.account-provider-choice > input {
+  width: auto;
+  flex: none;
+  margin-top: 0.25rem;
+  accent-color: var(--jelly-deep);
+}
+.account-provider-choice > span {
+  display: grid;
+  gap: var(--s1);
+}
+.account-provider-choice > span > span {
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 1.45;
+}
+.account-provider-choice[data-selected] {
+  border-color: var(--jelly-deep);
+  background: var(--jelly-tint);
+}
+.account-provider-choice:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.account-provider-choice:has(input:disabled) {
+  cursor: default;
+}
+.account-form .account-advanced {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0;
+  background: var(--surface-2);
+}
+.account-form .account-advanced summary {
+  padding: var(--s3) var(--s4);
+  min-height: 44px;
+}
+.account-form .account-advanced-fields {
+  padding: var(--s3) var(--s4) var(--s4);
+  border-top: 1px solid var(--line);
+}
+.account-form .account-advanced-fields > .ui-button {
+  justify-self: start;
+}
+.account-label {
+  color: var(--muted);
+  font: 500 var(--fs-label) / 1.5 var(--font-mono);
+}
+.account-review dl {
+  margin: 0;
+}
+.account-review dl > div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--s4);
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--line);
+}
+.account-review dl > div:first-child {
+  padding-top: 0;
+}
+.account-review dt {
+  color: var(--muted);
+}
+.account-review dd {
+  display: grid;
+  justify-items: start;
+  gap: var(--s2);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.account-review > .account-hint {
+  margin-top: var(--s4);
+}
+@media (max-width: 600px) {
+  .account-review dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s2);
+  }
+  .account-actions > .ui-button {
+    flex: 1 1 100%;
+  }
+}
+@media (hover: hover) {
+  .account-provider-choice:hover:not(:has(input:disabled)) {
+    border-color: var(--jelly-deep);
+  }
+  .account-advanced summary:hover {
+    color: var(--jelly-deep);
+  }
+}
+@media (max-width: 450px) {
+  .account-provider-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,27 @@
+.settings-page {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+.settings-page > .ui-page-header {
+  margin-bottom: 0;
+}
+.settings-identity > div {
+  display: grid;
+  justify-items: start;
+  gap: var(--s2);
+}
+.settings-identity code {
+  overflow-wrap: anywhere;
+}
+.settings-connections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .settings-connections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

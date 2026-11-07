@@ -39,6 +39,28 @@ A service token also needs its principal; sign-in deployments restrict it to rea
 Demo mode uses fictional local data
 and never calls a provider or a server. It is opt-in and visibly labelled.
 
+## Onboarding, settings and controls
+
+First sign-in opens a resumable repository → model access → review flow. **Explore first** saves setup for later.
+Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
+are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
+Keys start blank, can be replaced or removed, and are never stored in browser storage or returned by the server.
+Changing provider protocol or endpoint does not silently reuse a saved key.
+
+The model picker reads public [models.dev](https://models.dev) metadata with a bounded, credential-free request.
+Search supports keyboard selection and exact custom IDs. Context limits, capabilities and published prices are metadata,
+not proof of account access or actual spending. Missing metadata stays unknown; catalog failure leaves manual entry usable.
+
+**⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/S navigates to
+Overview/Inbox/Runs/Usage/Workspace/Personas/Settings. Letter shortcuts are disabled while typing or using a modal.
+Menus, recessed inputs, active controls and hover/focus states share console tokens and reduced-motion behavior.
+New forms, pages, model picker and command menu have adjacent Storybook stories.
+
+Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
+account/workspace bindings, including when another tab changes the signed-in cookie. The sign-in browser harness now
+checks optional BYOK onboarding, hidden saved keys, shortcuts, real draft requests using a named offline model fixture,
+and separate workspaces for two signed-in accounts.
+
 ## Shared reviews
 
 The real Inbox shows authenticated authors, comments and review handoffs from the git journal.
@@ -80,7 +102,7 @@ env -u LD_LIBRARY_PATH bun apps/console/scripts/signin.ts
 ```
 
 The sign-in browser harness checks the public app link, PKCE redirect/callback, protected cookie, reload,
-real policy-draft creation, server-side sign-out and reader restrictions at desktop and phone widths.
+real policy-draft creation, server-side sign-out and account/workspace isolation at desktop and phone widths.
 It runs the real HTTP server with a fictional Not Organic gateway; hosted account authentication is a separate live check.
 Sign-in, manual connection and expired-session states are included in Storybook.
 
