@@ -17,7 +17,7 @@ function fail(c: Context, error: unknown) {
   return c.html(signInFailedView(message), status);
 }
 
-export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<string>): Hono {
+export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<string>, setupScopes?: (did: string) => Promise<string[]>): Hono {
   const app = new Hono();
   const origin = signIn.config.publicOrigin;
   app.use("*", async (c, next) => {
@@ -38,7 +38,9 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
     try {
       const browser = randomToken();
       const cli = c.req.query("cli");
-      const url = await signIn.begin(browser, cli || undefined);
+      const principal = c.req.query("setup") === "1" ? await signIn.authenticate(browserSessionToken(c, origin) ?? "") : null;
+      const scopes = principal && setupScopes ? await setupScopes(principal.did) : [];
+      const url = await signIn.begin(browser, cli || undefined, scopes);
       setCookie(c, LOGIN_COOKIE, browser, { httpOnly: true, secure: secure(origin), sameSite: "Lax", path: "/auth", maxAge: 600 });
       return c.redirect(url, 302);
     } catch (error) {

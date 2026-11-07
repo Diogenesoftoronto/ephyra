@@ -41,7 +41,7 @@ import { ConvexUsageStore, MemoryUsageStore, UsageRecorder, type BilledTo, type 
 import {
   AnthropicDraftModel, FakeDraftModel, NotOrganicDraftModel, OpenAiDraftModel, Velum, type DraftModel,
 } from "./velum.ts";
-import { ConvexAudit, ConvexOperationLedger, ConvexRuntimeStore, ConvexSignalStore, convexClient } from "./convex/stores.ts";
+import { ConvexAudit, ConvexOperationLedger, ConvexRuntimeStore, ConvexSignalStore, convexClient, scopedConvexClient } from "./convex/stores.ts";
 import { MemoryOperationLedger } from "./orchestrator/effects.ts";
 import type { EffectHandlers } from "./orchestrator.ts";
 import type { RepoConfig, ServerContext } from "./wiring/context.ts";
@@ -85,11 +85,13 @@ function notWired(type: string) {
   return async () => { throw new Error(`${type} is not wired on this deployment`); };
 }
 
-function git(dir: string): Git {
+function git(dir: string, isolated = false): Git {
   return async (args, opts) => {
     const proc = Bun.spawn(["git", "--git-dir", dir, ...args], {
       stdin: opts?.input ? new Blob([opts.input]) : "ignore", stdout: "pipe", stderr: "pipe",
-      env: { ...process.env, ...opts?.env },
+      env: { ...(isolated ? {
+        PATH: process.env.PATH, HOME: dir, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0",
+      } : process.env), ...opts?.env },
     });
     const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
     if (code !== 0) throw new Error(`git ${args[0]} failed: ${err.trim().slice(0, 300)}`);
@@ -231,11 +233,18 @@ export type ComposeOverrides = {
   draftModel?: DraftModel;
   speechProvider?: SpeechProvider;
   tutorBackend?: TutorBackend;
+  workspace?: string;
+  signIn?: NotOrganicSignIn;
+  /** Personal repos are fetched through the constrained connector, never through deployment Git. */
+  workspacePrepared?: boolean;
+  setupScopes?: (did: string) => Promise<string[]>;
+  resolveDraftModel?: () => Promise<DraftModel | null>;
 };
 
 export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
   const log: ServerContext["log"] = (msg, fields) => console.log(JSON.stringify({ msg, ...fields }));
-  const client = config.CONVEX_URL ? convexClient({ url: config.CONVEX_URL, secret: config.EPHYRA_CONVEX_SECRET! }) : null;
+  const baseClient = config.CONVEX_URL ? convexClient({ url: config.CONVEX_URL, secret: config.EPHYRA_CONVEX_SECRET! }) : null;
+  const client = baseClient && opts.workspace ? scopedConvexClient(baseClient, opts.workspace) : baseClient;
   const secret = config.EPHYRA_CONVEX_SECRET ?? "";
   const store: RuntimeStore & { recoverRunning?(): Promise<unknown> } = client ? new ConvexRuntimeStore(client, secret) : new MemoryStore();
   const signals: SignalStore = client ? new ConvexSignalStore(client, secret) : new MemorySignalStore();
@@ -252,7 +261,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     id: config.EPHYRA_REPO_ID, url: config.EPHYRA_REPO_URL ?? "", mirrorDir: join(config.EPHYRA_DATA_DIR, "workspace.git"),
     baseRef: config.EPHYRA_BASE_REF, forge: config.EPHYRA_FORGE, remote: "origin",
   };
-  await prepareWorkspace(repo, log);
+  if (!opts.workspacePrepared) await prepareWorkspace(repo, log);
   const autonomy = parseAutonomy(await readOptional(config.EPHYRA_AUTONOMY_FILE, AUTONOMY_TEMPLATE));
   const thresholds = parseThresholds(await readOptional(config.EPHYRA_THRESHOLDS_FILE, THRESHOLDS_TEMPLATE));
   const journal = new GitJournal({ gitDir: repo.mirrorDir, clock: { now: () => new Date() } });
@@ -273,11 +282,11 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
   };
 
-  const g = git(repo.mirrorDir);
+  const g = git(repo.mirrorDir, Boolean(opts.workspace));
   const budget: Budget = { tokensUsed: 0, tokensMax: 2_000_000, wallclockMaxS: 4 * 3600, spendMicrousdUsed: 0, spendMicrousdMax: 0 };
   const approvers = new Set(approverDids(config));
-  let signIn: NotOrganicSignIn | null = null;
-  if (config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY) {
+  let signIn: NotOrganicSignIn | null = opts.signIn ?? null;
+  if (!signIn && config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY) {
     signIn = new NotOrganicSignIn(
       {
         issuer: config.NOTORGANIC_ISSUER, authorizationUrl: config.NOTORGANIC_AUTHORIZATION_URL,
@@ -291,7 +300,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
             ? [...new Set([config.EPHYRA_VOICE_STT_MODEL!, config.EPHYRA_VOICE_TTS_MODEL!])].map(m => `infer:${m}`) : []),
         ],
       },
-      client ? new ConvexAuthStore(client, secret) : new MemoryAuthStore(),
+      baseClient ? new ConvexAuthStore(baseClient, secret) : new MemoryAuthStore(),
       await SecretBox.fromBase64(config.EPHYRA_SESSION_KEY),
       opts.notOrganicFetch,
     );
@@ -349,7 +358,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   port.ops = async () => ({
     deadJobs: await store.deadJobs(),
     reconciliations: client ? await (ledger as ConvexOperationLedger).reconciliations() : engine.reconciliations,
-    backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, draft: draftModel?.kind ?? null },
+    backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null,
+      draft: (opts.resolveDraftModel ? await opts.resolveDraftModel().catch(() => null) : draftModel)?.kind ?? null },
     repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
     signIn: signIn ? { provider: "notorganic", product: config.NOTORGANIC_PRODUCT, approvers: approvers.size } : null,
   });
@@ -361,7 +371,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const now = () => new Date();
   const drafts = new DraftService({
     store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, git: g, audit, baseRef: repo.baseRef, now, id: randomUUID, log,
-    velum: new Velum({ model: draftModel, usage, now, id: randomUUID, secrets: knownSecrets(config) }),
+    velum: new Velum({ model: draftModel, resolveModel: opts.resolveDraftModel, usage, now, id: randomUUID, secrets: knownSecrets(config) }),
   });
   const consolePort: ConsolePort = {
     usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
@@ -399,7 +409,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     const h = await health();
     return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
   });
-  if (signIn) app.route("/auth", authRoutes(signIn, approvers));
+  if (signIn) app.route("/auth", authRoutes(signIn, approvers, opts.setupScopes));
   else app.get("/auth/session", (c) => c.json({ signIn: false, identity: null }, 200, { "Cache-Control": "no-store" }));
   if (hasConsole(config.EPHYRA_CONSOLE_DIR)) app.route("/", consoleStatic(config.EPHYRA_CONSOLE_DIR));
   app.route("/", api);
