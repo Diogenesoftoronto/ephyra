@@ -1,11 +1,12 @@
+import { ME } from "../fake/fixtures.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { InboxPage } from "./InboxPage.tsx";
 import { trailId } from "../storybook/data.ts";
 const meta: Meta = { title: "Screens/InboxPage" };
 export default meta;
-export const Queue: StoryObj = { render: () => <InboxPage /> };
-export const Hypothesis: StoryObj = { render: () => <InboxPage trailId={trailId("7f3a2c")} /> };
-export const Plan: StoryObj = { render: () => <InboxPage trailId={trailId("91be04")} /> };
-export const Landing: StoryObj = { render: () => <InboxPage trailId={trailId("c2d018")} /> };
+export const Queue: StoryObj = { render: () => <InboxPage principal={ME} /> };
+export const Hypothesis: StoryObj = { render: () => <InboxPage principal={ME} trailId={trailId("7f3a2c")} /> };
+export const Plan: StoryObj = { render: () => <InboxPage principal={ME} trailId={trailId("91be04")} /> };
+export const Landing: StoryObj = { render: () => <InboxPage principal={ME} trailId={trailId("c2d018")} /> };
 export const Stale: StoryObj = { ...Landing, parameters: { fake: { movedTrails: [trailId("c2d018")] } } };
-export const ReadOnly: StoryObj = { render: () => <InboxPage trailId={trailId("c2d018")} canAct={false} /> };
+export const ReadOnly: StoryObj = { render: () => <InboxPage principal={ME} trailId={trailId("c2d018")} canAct={false} /> };

@@ -9,11 +9,13 @@ export function SpendRequestCard({
   purpose,
   microusd,
   canDecide = true,
+  unavailableReason,
   onDecide,
 }: {
   purpose: string;
   microusd: number;
   canDecide?: boolean;
+  unavailableReason?: string;
   onDecide?: (verdict: Verdict, note: string) => Promise<void>;
 }) {
   const { busy, error, submit } = useDecision(onDecide);
@@ -28,7 +30,7 @@ export function SpendRequestCard({
           <strong>{failure.title}.</strong> {failure.body}
         </p>
       )}
-      {!canDecide && <p className="muted">Only approvers can decide.</p>}
+      {!canDecide && <p className="muted">{unavailableReason ?? "Only approvers can decide."}</p>}
       <DecisionForm
         busy={busy}
         disabled={!canDecide || failure?.kind === "stale"}

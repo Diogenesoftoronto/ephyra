@@ -6,6 +6,7 @@ import { useAsync } from "./app/useAsync.ts";
 import { ConnectGate } from "./components/ConnectGate.tsx";
 import { Load } from "./components/Load.tsx";
 import { FakeApi } from "./fake/api.ts";
+import { ME } from "./fake/fixtures.ts";
 import "./theme.css";
 import "./layout.css";
 
@@ -67,7 +68,7 @@ function Root() {
     }
     setCredentials(value);
   };
-  if (fake) return <App api={fake} demo />;
+  if (fake) return <App api={fake} demo identity={{ principal: ME, kind: "human", approver: true }} />;
   if (!credentials) return <ConnectGate onConnect={(token, principal) => save({ token, principal })} />;
   return <Connected credentials={credentials} disconnect={() => save(null)} />;
 }

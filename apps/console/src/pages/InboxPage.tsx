@@ -7,9 +7,13 @@ import { TrailPanel } from "./TrailPanel.tsx";
 import "./InboxPage.css";
 
 /** The terminal inbox in a browser: what waits on a person, and the trail you have open beside it. */
-export function InboxPage({ trailId, canAct = true }: { trailId?: string; canAct?: boolean }) {
+export function InboxPage({ trailId, canAct = true, principal }: { trailId?: string; canAct?: boolean; principal?: string }) {
   const api = useApi();
   const inbox = useAsync(() => api.inbox(), "inbox");
+  const last = useRef<{ api: ConsoleApi; items: InboxEntry[] } | undefined>(undefined);
+  if (inbox.state.status === "ready") last.current = { api, items: inbox.state.data };
+  const detailState = inbox.state.status === "error" && last.current?.api === api
+    ? { status: "ready" as const, data: last.current.items, refreshing: false } : inbox.state;
   return (
     <div className="page">
       <PageHeader
@@ -33,9 +37,9 @@ export function InboxPage({ trailId, canAct = true }: { trailId?: string; canAct
               <p className="inbox-back">
                 <a href="#/inbox">← All items</a>
               </p>
-              <Load state={inbox.state} retry={inbox.reload} skeleton={<Skeleton block />}>
+              <Load state={detailState} retry={inbox.reload} skeleton={<Skeleton block />}>
                 {(items) => (
-                  <TrailPanel trailId={trailId} items={items} canAct={canAct} onChanged={inbox.reload} />
+                  <TrailPanel trailId={trailId} items={items} canAct={canAct} principal={principal} onChanged={inbox.reload} />
                 )}
               </Load>
             </>
@@ -49,3 +53,5 @@ export function InboxPage({ trailId, canAct = true }: { trailId?: string; canAct
     </div>
   );
 }
+import { useRef } from "react";
+import type { ConsoleApi, InboxEntry } from "../api.ts";

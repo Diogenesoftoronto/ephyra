@@ -101,7 +101,7 @@ export function TrailTimeline({ events }: { events: TrailEvent[] }) {
                   </>
                 ))}
             </span>
-            <span className="muted timeline-actor">{e.actor.kind === "human" ? "person" : e.actor.id}</span>
+            <span className="muted timeline-actor" style={{ overflowWrap: "anywhere", minWidth: 0, maxWidth: "24ch" }}>{e.actor.id}</span>
           </li>
         );
       })}
