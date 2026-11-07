@@ -1,77 +1,82 @@
-import { useState } from "react";
-import { Button, Card, Field } from "../kit.ts";
+import { useEffect, useState } from "react";
+import type { Trail } from "@ephyra/core";
+import { Button, Card } from "../kit.ts";
 import type { TrailAction } from "../api.ts";
 import { describeError } from "../lib/errors.ts";
 import "./TrailActions.css";
 
-/** Comment, claim or release, park or resume. The caller decides what each does; this shows busy and failure states. */
+/** Checkpoint review ownership. Claiming a review does not promise to stop or start an agent process. */
 export function TrailActions({
-  owned,
+  principal,
+  owner,
+  ownerUnknown = false,
   parked,
   canAct = true,
+  canClaim = false,
+  blocked = false,
   onAct,
 }: {
-  owned: boolean;
+  principal?: string;
+  owner?: Trail["owner"];
+  ownerUnknown?: boolean;
   parked: boolean;
   canAct?: boolean;
+  canClaim?: boolean;
+  blocked?: boolean;
   onAct: (action: TrailAction, input: { text?: string; reason?: string }) => Promise<void>;
 }) {
-  const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const humanOwner = owner?.kind === "human" ? owner.id : undefined;
+  const mine = !!principal && humanOwner === principal;
+  const otherOwner = !!humanOwner && !mine;
+  const failure = error ? describeError(error) : null;
+  const unavailable = !canAct || !principal || ownerUnknown || busy !== null || blocked || failure?.kind === "unknown-outcome";
+  useEffect(() => { if (!blocked) setError(null); }, [blocked]);
   const run = async (action: TrailAction, input: { text?: string; reason?: string } = {}) => {
+    if (unavailable || otherOwner || (action === "claim" && !canClaim)) return;
     setBusy(action);
     setError(null);
     try {
       await onAct(action, input);
-      if (action === "comment") setText("");
     } catch (e) {
       setError(e);
     } finally {
       setBusy(null);
     }
   };
-  const failure = error ? describeError(error) : null;
   return (
-    <Card title="Act on this trail" tone="quiet">
+    <Card title="Review ownership" tone="quiet">
       <div className="trail-actions">
-        <Field label="Comment" hint="Added to the timeline. Agents read it.">
-          <textarea
-            rows={2}
-            value={text}
-            maxLength={4000}
-            onChange={(e) => setText(e.target.value)}
-            disabled={!canAct}
-          />
-        </Field>
+        <p className="trail-actions-owner">
+          {humanOwner ? <><strong>{mine ? "You hold this review" : "Review claimed"}.</strong> <span>{humanOwner}</span></>
+            : ownerUnknown ? "This older handoff has no recorded owner." : "No reviewer has claimed this trail."}
+        </p>
         <div className="trail-actions-row">
           <Button
-            loading={busy === "comment"}
-            disabled={!canAct || busy !== null || text.trim() === ""}
-            onClick={() => void run("comment", { text: text.trim() })}
-          >
-            Comment
-          </Button>
-          <Button
             loading={busy === "claim" || busy === "release"}
-            disabled={!canAct || busy !== null}
-            onClick={() => void run(owned ? "release" : "claim")}
+            disabled={unavailable || otherOwner || (!mine && !canClaim)}
+            onClick={() => void run(mine ? "release" : "claim")}
           >
-            {owned ? "Release to agents" : "Claim for me"}
+            {mine ? "Release review" : "Claim review"}
           </Button>
           <Button
             loading={busy === "park" || busy === "resume"}
-            disabled={!canAct || busy !== null}
+            disabled={unavailable || otherOwner || mine}
             onClick={() =>
               void run(
                 parked ? "resume" : "park",
-                parked ? {} : { reason: text.trim() || "Parked from the console." },
+                parked ? {} : { reason: "Parked from the console." },
               )
             }
           >
-            {parked ? "Resume" : "Park"}
+            {parked ? "Resume trail" : "Park trail"}
           </Button>
         </div>
+        {ownerUnknown ? <p className="muted">An operator must reconcile this handoff before the workflow can continue.</p>
+          : humanOwner ? <p className="muted">Only the owner can release this review. Comments remain shared.</p>
+          : !canClaim && <p className="muted">Review claims are available while waiting at a checkpoint.</p>}
+        {mine && <p className="muted">Release the review to make the checkpoint decision available again.</p>}
         {!canAct && <p className="muted">Only approvers can act on trails.</p>}
         {failure && (
           <p role="alert">

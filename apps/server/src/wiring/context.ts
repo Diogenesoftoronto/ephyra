@@ -23,7 +23,13 @@ export type RepoConfig = {
 };
 
 /** `files` are written into the trail's journal tree with the event (hypothesis.md, artefacts/…). */
-export type EmitInput = { trail: string; actor: Actor; files?: JournalFiles } & TrailEventBody;
+export type EmitInput = {
+  trail: string; actor: Actor; files?: JournalFiles;
+  /** Stable ID for a keyed collaboration request. Only comment, claim, and release may supply one. */
+  eventId?: string;
+  /** Rechecked against the durable journal inside the per-trail serialization boundary. */
+  expectedBound?: InboxItem['bound'];
+} & TrailEventBody;
 
 export interface InboxStore {
   put(item: InboxItem & { id: string }): Promise<void>;

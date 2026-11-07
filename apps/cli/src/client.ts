@@ -23,7 +23,9 @@ export class Client {
 		readonly principal = "",
 	) {}
 	async request<T>(path: string, body?: unknown): Promise<T> {
-		const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
+		const headers: Record<string, string> = {
+			Authorization: `Bearer ${this.token}`,
+		};
 		// Only the service token names its principal; a signed-in session's principal is its Not Organic DID.
 		if (this.principal) headers["X-Ephyra-Principal"] = this.principal;
 		if (body !== undefined) {
@@ -71,6 +73,32 @@ export class Client {
 			id = matches[0]!.id;
 		}
 		return this.request<Detail>(`/v1/trails/${encodeURIComponent(id)}`);
+	}
+	/** A trail and its events, by full id. */
+	detail(id: string) {
+		return this.request<Detail>(`/v1/trails/${encodeURIComponent(id)}`);
+	}
+	/** A file from the trail's journal (hypothesis.md, plan.md, …), or null when the journal doesn't have it. */
+	async file(id: string, path: string): Promise<string | null> {
+		const headers: Record<string, string> = {
+			Authorization: `Bearer ${this.token}`,
+		};
+		if (this.principal) headers["X-Ephyra-Principal"] = this.principal;
+		let res: Response;
+		try {
+			res = await this.fetcher(
+				new URL(
+					`/v1/trails/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`,
+					this.url,
+				),
+				{ method: "GET", headers },
+			);
+		} catch {
+			throw new Error("API connection failed");
+		}
+		if (res.status === 404) return null;
+		if (!res.ok) throw new ApiError(res.status);
+		return res.text();
 	}
 	action(id: string, action: string, body: unknown = {}) {
 		return this.request<unknown>(

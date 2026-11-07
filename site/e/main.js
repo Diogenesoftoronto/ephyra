@@ -16,7 +16,7 @@
   const reel = $(".reel"), stage = $(".stage"), bar = $(".bar");
   const copy = $(".copy"), stanza = $(".stanza"), cta = $(".cta"), cue = $(".cue");
   const canvas = $(".scene"), box = $(".scene-box");
-  const tagProd = $(".tag-prod"), tagGit = $(".tag-git"), plate = $(".plate");
+  const tagProd = $(".tag-prod"), tagGit = $(".tag-git"), plate = $(".plate"), eventEl = $(".event");
   const lines = $$(".ln"), snaps = $$(".snaps i");
   const ctx0 = canvas.getContext && canvas.getContext("2d");
   if (!ctx0) { root.classList.remove("js", "motion"); return; }
@@ -51,16 +51,16 @@
     ring: [2.26, 2.48],               // proof runs around the bud
     ticks: [2.46, 2.7],
     pass: [2.68, 2.8],                // the repro now passes
-    keyIn: [2.7, 2.8],
-    keyPress: [2.84, 2.92],           // a human presses a
-    approved: [2.9, 2.99],
-    proofOut: [3.08, 3.3],
-    merge: [3.12, 3.45],              // the branch merges: it lands
-    mergeNode: [3.42, 3.56],
-    release: [3.58, 3.84],            // the bud lets go …
-    unfurl: [3.68, 4.12],
-    rise: [3.84, 4.55],               // … swims up to production …
-    grow: [3.94, 4.68],
+    keyIn: [2.72, 2.84],              // C waits on you: the stop at "You approve what matters" holds here
+    keyPress: [3.08, 3.16],           // scrolling on is the approval: a person presses a
+    approved: [3.14, 3.24],
+    proofOut: [3.3, 3.5],
+    merge: [3.34, 3.62],              // the branch merges: it lands
+    mergeNode: [3.6, 3.72],
+    release: [3.72, 3.92],            // the bud lets go …
+    unfurl: [3.8, 4.15],
+    rise: [3.92, 4.55],               // … swims up to production …
+    grow: [4.0, 4.68],
     set: [4.52, 4.74],                // … and sets
     ghostIn: [4.44, 4.58],            // a bad fix shows up …
     ghostCurl: [4.56, 4.72],
@@ -74,7 +74,7 @@
   const w = (k, p) => smooth(T[k][0], T[k][1], p);
 
   // Impacts fire when the focus crosses a point going forward, then ring out on the clock.
-  const EV = { hit: 0.95, land: 1.79, release: 3.62, set: 4.62, revert: 4.9 };
+  const EV = { hit: 0.95, land: 1.79, release: 3.76, set: 4.62, revert: 4.9 };
   const evAt = {};
   let prevP = 0;
   function fire(p, t) {
@@ -203,6 +203,7 @@
   const cystCore = (cw) => ({ x: (C.core[0] - C.cx) * cw, y: (C.baseY - C.core[1]) * cw * C.ar });   // stomach to base
 
   function measure() {
+    eventText = ""; // Fonts and viewport changes can resize a caption.
     stacked = stackMQ.matches;
     W = stage.clientWidth;
     H = stage.clientHeight;
@@ -216,7 +217,9 @@
     if (stacked) { yProd = sb.y + clamp(sb.h * 0.09, 20, 44); yGit = sb.y + sb.h - clamp(sb.h * 0.07, 16, 34); }
     else { yProd = headH + (sb.y - headH) * 0.5; yGit = sb.y + sb.h + (H - sb.y - sb.h) * 0.42; }
     D = yGit - yProd;
-    u = Math.max(14, Math.min(sb.w, D) / 10);
+    // A phone's drawing is short, so creatures are sized by its width as well as its height: the working cluster
+    // on the seabed (cyst, polyp, bud, proof, the approve key) stays big enough to read.
+    u = stacked ? Math.max(14, Math.min(sb.w / 8, D / 7)) : Math.max(14, Math.min(sb.w, D) / 10);
     BW = 1.75 * u; BH = BW * M.ar; CW = 0.95 * u; PH = 2.3 * u; TL = 1.9 * u;
 
     const X = (f) => sb.x + f * sb.w, Y = (f) => yProd + f * D;
@@ -538,8 +541,8 @@
     const s = 30, top = y - s / 2 + 3 * press;
     rrect(x - s / 2, y - s / 2 + 4, s, s, 6); ctx.fillStyle = col("ink", 0.28); ctx.fill();
     rrect(x - s / 2, top, s, s, 6);
-    ctx.fillStyle = ok > 0 ? mixc("bg", "jelly", ok * 0.9) : col("bg", 1); ctx.fill();
-    ctx.lineWidth = 1.2; ctx.strokeStyle = col("ink", 0.55); ctx.stroke();
+    ctx.fillStyle = ok > 0 ? mixc("bg", "jelly", ok * 0.9) : mixc("bg", "mint", 0.2); ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = ok > 0.5 ? col("ink", 0.55) : col("mint", 0.95); ctx.stroke();
     ctx.fillStyle = col("ink", 0.9);
     ctx.font = '600 16px "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif';
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -618,25 +621,25 @@
   }
 
   // The trail's branch is the cyst's runner (a stolon), so it's drawn as a living tube.
-  function tube(pts, t1, a) {
+  function tube(pts, t1, a, acc = 1) {                     // acc: 0 unapproved work (neutral) … 1 approved (amber)
     ctx.beginPath(); if (!tracePart(pts, t1)) return;
-    ctx.lineWidth = 3.4; ctx.strokeStyle = col("jelly", 0.42 * a); ctx.stroke();
-    ctx.lineWidth = 1.2; ctx.strokeStyle = col("rim", 0.9 * a); ctx.stroke();
+    ctx.lineWidth = 3.4; ctx.strokeStyle = mixc("ink", "jelly", acc, (0.16 + 0.26 * acc) * a); ctx.stroke();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = mixc("ink", "rim", acc, (0.55 + 0.35 * acc) * a); ctx.stroke();
   }
   function seabed(p, t) {
-    const br = w("branch", p), fade = 1 - 0.25 * w("warm", p);
+    const br = w("branch", p), fade = 1 - 0.25 * w("warm", p), acc = w("approved", p);
     if (br > 0) {
-      tube(G.branch, br, fade);
+      tube(G.branch, br, fade, acc);
       for (const nx of [G.xc + 1.0 * u]) {
         const k = pop(smooth((nx - G.xc) / G.brLen - 0.04, (nx - G.xc) / G.brLen + 0.06, br));
-        if (k > 0) ring(nx, G.yBr, 3.1 * k, col("rim", 0.9 * fade), 1.4, col("bg", 1));
+        if (k > 0) ring(nx, G.yBr, 3.1 * k, mixc("ink", "rim", acc, 0.9 * fade), 1.4, col("bg", 1));
       }
     }
     const mg = w("merge", p);
     if (mg > 0) tube(G.mergeP, mg, fade);
     const mk = pop(w("mergeNode", p));
     if (mk > 0) ring(G.xm, yGit, 5 * mk, col("rim", 1), 1.6, col("jelly", 1));
-    const rv = bump(p, 3.48, 3.62, 4.35, 4.6);             // the landing spreads along git while you look at it
+    const rv = bump(p, 3.62, 3.74, 4.35, 4.6);             // the landing spreads along git while you look at it
     if (rv > 0) {
       for (let k = 0; k < 2; k++) {
         const f = (t * 0.45 + k * 0.5) % 1, dx = 8 + f * W * 0.55;
@@ -772,7 +775,8 @@
         if (k > 0) { const ang = -Math.PI / 2 + (i * TAU) / 5; disc(Bs.x + Math.cos(ang) * R, Bs.y + Math.sin(ang) * R, 3 * k, col("rim", out)); }
       }
     }
-    keycap(Bs.x + 1.05 * u + 6, Bs.y - 0.95 * u - 6, w("keyIn", p) * out, w("keyPress", p) * (1 - w("approved", p) * 0.6), w("approved", p));
+    const keyAt = { x: Bs.x + 1.05 * u + 6, y: Bs.y - 0.95 * u - 6 };
+    keycap(keyAt.x, keyAt.y, w("keyIn", p) * out, w("keyPress", p) * (1 - w("approved", p) * 0.6), w("approved", p));
 
     // A, then its evidence and the bug it carries.
     const sq = 0.26 * ringOut(sLand, 2.3, 4.2) * landed, br = w("branch", p);
@@ -829,11 +833,62 @@
     L[0] = { x: G.a.x - 0.2 * BW * (1 - curl), y: G.a.y - bobA };
     L[1] = S || L[0];
     L[2] = { x: A.x, y: A.y };
-    L[3] = { x: Bs.x, y: Bs.y };
+    L[3] = w("keyIn", p) * out > 0.5 ? keyAt : { x: Bs.x, y: Bs.y };
     L[4] = { x: G.xm, y: yGit };
     L[5] = { x: Bs.x - 0.2 * BW * sB, y: Bs.y };
     L[6] = at(G.loop, 0.5);
     if (!stacked && motion()) leader(p);
+    caption(p, {
+      a: { x: G.a.x, y: G.a.y - bobA, r: 0.55 * BW },
+      spark: S ? { x: S.x, y: S.y, r: 10 } : { x: G.a.x, y: G.a.y - bobA, r: 0.55 * BW },
+      cyst: { x: A.x, y: A.y, r: Math.max(0.6 * CW, 12) },
+      bud: { x: Bs.x, y: Bs.y, r: 0.32 * BW * sB + 0.36 * u + 6 },
+      key: { x: keyAt.x, y: keyAt.y, r: 22 },
+      merge: { x: G.xm, y: yGit, r: 12 },
+      young: { x: Bs.x, y: Bs.y, r: 0.55 * BW * sB },
+      revert: { x: G.xr, y: yGit, r: 14 },
+    });
+  }
+
+  // ── What the drawing is showing, in words: one short caption at a time, beside the thing it's about. ──
+  // No numbers: the drawing is a diagram, not a measurement. Tones follow the colour contract.
+  const CAPTIONS = [
+    { a: -1, b: 0.4, text: "Your software, in production", at: "a", side: "right" },
+    { a: 0.42, b: 1.12, text: "An error in production", tone: "mint", at: "spark", side: "right" },
+    { a: 1.14, b: 1.76, text: "Its errors become one trail", at: "cyst", side: "right" },
+    { a: 1.78, b: 2.12, text: "The repro fails on main", tone: "mint", at: "cyst", side: "above" },
+    { a: 2.14, b: 2.5, text: "A patch, tested on that repro", at: "bud", side: "right" },
+    { a: 2.5, b: 2.74, text: "The same repro passes", tone: "amber", at: "bud", side: "right" },
+    { a: 2.74, b: 3.14, text: "C · waiting on you", tone: "mint", at: "key", side: "right" },
+    { a: 3.14, b: 3.38, text: "Approved", tone: "amber", at: "key", side: "right" },
+    { a: 3.4, b: 4.3, text: "Landed on git", tone: "amber", at: "merge", side: "above" },
+    { a: 4.3, b: 4.56, text: "Back in production, watched", tone: "amber", at: "young", side: "left" },
+    { a: 4.56, b: 4.76, text: "Watch clean: it sets", tone: "amber", at: "young", side: "left" },
+    { a: 4.76, b: 5.2, text: "A bad fix, reverted", tone: "cherry", at: "revert", side: "above" },
+  ];
+  let eventText = "", eventW = 0, eventH = 0;
+  function caption(p, pts) {
+    if (!eventEl) return;
+    const c = motion() ? CAPTIONS.find((x) => p >= x.a && p < x.b) : undefined;
+    const at = c && pts[c.at];
+    eventEl.classList.toggle("on", Boolean(at));
+    if (!c || !at) return;
+    if (c.text !== eventText) {                              // measure once per caption, not every frame
+      eventText = c.text;
+      eventEl.textContent = c.text;
+      eventEl.dataset.tone = c.tone ?? "";
+      eventW = eventEl.offsetWidth;
+      eventH = eventEl.offsetHeight;
+    }
+    const gap = at.r + 10;
+    let x = c.side === "above" ? at.x - eventW / 2 : c.side === "left" ? at.x - gap - eventW : at.x + gap;
+    let y = c.side === "above" ? at.y - gap - eventH : at.y - eventH / 2;
+    const x0 = sb.x + 2, x1 = sb.x + sb.w - 2, y0 = yProd + (stacked ? 30 : 10), y1 = yGit - 4;
+    if (c.side === "right" && x + eventW > x1) x = at.x - gap - eventW;   // no room: the other side
+    if (c.side === "left" && x < x0) x = at.x + gap;
+    x = clamp(x, x0, Math.max(x0, x1 - eventW));
+    y = clamp(y, y0, Math.max(y0, y1 - eventH));
+    put(eventEl, "transform", `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`);
   }
 
   // A dotted line from the line in focus to the thing it describes.
@@ -856,8 +911,9 @@
     lines.forEach((el, i) => {
       const d = i - p;
       let blur, op;
-      if (d >= 0) { blur = Math.min(0.3, 0.115 * d); op = Math.max(0.16, 1 - 0.42 * d); }
-      else { blur = Math.min(0.035, 0.03 * -d); op = Math.max(0.42, 1 + 0.34 * d); }
+      // The next line is always readable; lines further ahead soften, like a lens racking focus.
+      if (d >= 0) { blur = d > 1 ? Math.min(0.14, 0.07 * (d - 1)) : 0; op = Math.max(0.24, 1 - 0.3 * d); }
+      else { blur = 0; op = Math.max(0.5, 1 + 0.25 * d); }
       blur *= 1 - t;
       op = lerp(op, 1, t);
       put(el, "filter", blur > 0.002 ? `blur(${blur.toFixed(3)}em)` : "none");

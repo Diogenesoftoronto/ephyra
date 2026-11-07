@@ -36,6 +36,25 @@ A service token also needs its principal; sign-in deployments restrict it to rea
 The console does not yet complete browser SSO automatically. Demo mode uses fictional local data
 and never calls a provider or a server. It is opt-in and visibly labelled.
 
+## Shared reviews
+
+The real Inbox shows authenticated authors, comments and review handoffs from the git journal.
+Selected trails refresh every two seconds, with bounded retries and a connection indicator. Incoming
+changes and transient read failures preserve the comment input, selection and draft. Drafts and
+unconfirmed operations stay in memory per API connection, principal and trail across navigation.
+They are not a durable offline outbox and are lost on a full page reload.
+
+Approvers can claim a review at checkpoints A, B and C. The claim records the owner and blocks
+workflow decisions until that owner releases it; other approvers can still comment. Claims do not
+stop or start agent processes. Active-agent takeover, online presence and collaborative editing are
+not implemented. A failed proof ends a held review before ordinary repair work resumes.
+
+Comments, claims and releases carry durable operation keys. If a reply is lost, **Check delivery**
+reads the journal receipt. A recorded change is confirmed without another write. If no receipt is
+found, **Retry saved change** explicitly resends the same saved intent and key. The console never
+automatically retries an ambiguous write. Changed checkpoint bindings require an explicit review
+reload before deciding.
+
 ## Storybook and checks
 
 Every component and screen has a story, including assistant-ui parts, the validated json-render
@@ -53,6 +72,7 @@ bun run --filter @ephyra/console smoke --no-build
 bun run --filter @ephyra/console interactions
 bun run --filter @ephyra/console voice-interactions
 bun run --filter @ephyra/console tutor-interactions
+bun run --filter @ephyra/console multiplayer
 ```
 
 Build both the app and Storybook before `interactions`. The browser scripts start temporary loopback
@@ -61,6 +81,14 @@ They run with `LD_LIBRARY_PATH` unset to avoid the local Nix/Chromium library mi
 renders every story at desktop and phone widths; `interactions` exercises draft edits, forms,
 proposals, publishing, usage filters/pagination, mobile navigation, live events and refusal states.
 Screenshots go to the ignored `artifacts/interactions` directory.
+
+`multiplayer` starts an isolated loopback server with production HTTP handlers, trail engine and git
+journal, then uses independent Chromium profiles. Identity resolution and review snapshots are fixtures;
+shared comments, claims, releases and receipt checks use real requests and durable journal writes.
+It checks authorization, competing claims, draft/caret preservation, reconnect catch-up, ambiguous
+delivery, explicit same-key retry with a newer draft, changed review bindings, and mobile layouts.
+Its screenshots go to `artifacts/multiplayer`. Hosted Not Organic
+sign-in and multiple server processes remain unverified by this harness.
 
 Verified locally: schema-validated client/server contracts, draft publication to a temporary git
 repository with a fake model, unit/property tests, app/Storybook builds, and the local browser checks.

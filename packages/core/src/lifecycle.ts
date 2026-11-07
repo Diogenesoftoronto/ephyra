@@ -137,6 +137,11 @@ class Machine {
       delete this.trail.checkpoints.C;
       this.commands.push({ type: 'run_proof' });
     }
+    if (this.trail.state === 'handed_off' && this.trail.resumeTo === 'ready') {
+      delete this.trail.checkpoints.C;
+      this.trail.resumeTo = 'proving';
+      this.commands.push({ type: 'run_proof' });
+    }
     return true;
   }
   research_completed(_e: EventOf<'research_completed'>) {
@@ -246,15 +251,18 @@ class Machine {
     } else this.commands.push({ type: 'reply_comment', text: e.data.text });
     return true;
   }
-  claimed_by_human(_e: EventOf<'claimed_by_human'>) {
-    if (this.trail.state === 'handed_off') return false;
+  claimed_by_human(e: EventOf<'claimed_by_human'>) {
+    // A review claim never pretends to cancel a running agent or an external executor.
+    if (e.actor.kind !== 'human' || this.trail.owner?.kind === 'human'
+      || !['hypothesised', 'planned', 'ready'].includes(this.trail.state)) return false;
     this.trail.resumeTo = this.trail.state;
     this.trail.state = 'handed_off';
-    this.commands.push({ type: 'stop_agent', releaseLease: true });
+    this.trail.owner = { kind: 'human', id: e.actor.id };
     return true;
   }
   human_revision(e: EventOf<'human_revision'>) {
-    if (this.trail.state !== 'handed_off') this.claimed_by_human({} as EventOf<'claimed_by_human'>);
+    if (this.trail.state !== 'handed_off' || e.actor.kind !== 'human'
+      || this.trail.owner?.kind !== 'human' || this.trail.owner.id !== e.actor.id) return false;
     delete this.trail.checkpoints.C;
     if (this.trail.head !== e.data.head) this.trail.rev++;
     this.trail.head = e.data.head;
@@ -262,10 +270,13 @@ class Machine {
     this.commands.push({ type: 'run_proof' });
     return true;
   }
-  released_by_human(_e: EventOf<'released_by_human'>) {
-    if (this.trail.state !== 'handed_off' || !this.trail.resumeTo) return false;
+  released_by_human(e: EventOf<'released_by_human'>) {
+    if (this.trail.state !== 'handed_off' || !this.trail.resumeTo || e.actor.kind !== 'human'
+      || !['hypothesised', 'planned', 'ready', 'proving'].includes(this.trail.resumeTo)
+      || this.trail.owner?.kind !== 'human' || this.trail.owner.id !== e.actor.id) return false;
     this.trail.state = this.trail.resumeTo;
     delete this.trail.resumeTo;
+    delete this.trail.owner;
     return true;
   }
   parked(e: EventOf<'parked'>) {
@@ -310,7 +321,7 @@ class Machine {
     return true;
   }
   spend_decided(e: EventOf<'spend_decided'>) {
-    if (!this.trail.pendingSpend) return false;
+    if (!this.trail.pendingSpend || this.trail.state === 'handed_off') return false;
     this.trail.checkpoints.spend.push(e.data.decision);
     if (!e.data.decision.shadow) {
       if (e.data.decision.verdict === 'approve') {
@@ -395,6 +406,12 @@ class Machine {
 export function transition(trail: Trail, event: TrailEvent, ctx: TransitionContext): TransitionResult {
   if (event.trail !== trail.id) return { ok: false, error: 'Event belongs to another trail' };
   if (trail.state === 'closed' || trail.state === 'abandoned') return { ok: false, error: 'Terminal trail' };
+  if (trail.state === 'handed_off' && ['parked', 'resumed', 'killed', 'land_requested', 'checkpoint_decided', 'spend_decided', 'agent_failed']
+    .includes(event.type)) return { ok: false, error: 'Release the review before changing its workflow' };
+  if (trail.state === 'handed_off' && event.actor.kind === 'human' && event.type !== 'human_comment'
+    && (trail.owner?.kind !== 'human' || trail.owner.id !== event.actor.id)) {
+    return { ok: false, error: 'This review belongs to another person' };
+  }
   const humanProof = trail.state === 'handed_off' && trail.resumeTo === 'proving'
     && event.type === 'proof_completed';
   const startingTrail = humanProof ? { ...trail, state: 'proving' as const } : trail;
@@ -403,9 +420,16 @@ export function transition(trail: Trail, event: TrailEvent, ctx: TransitionConte
   // Every event handler has the matching discriminated event type; the lookup retains that pairing.
   const handler = machine[event.type] as (event: TrailEvent) => boolean;
   if (typeof handler !== 'function' || !handler.call(machine, event)) return { ok: false, error: `Invalid ${event.type} in ${trail.state}` };
-  if (humanProof && machine.trail.state !== 'abandoned') {
-    machine.trail.resumeTo = machine.trail.state;
-    machine.trail.state = 'handed_off';
+  if (humanProof) {
+    if (machine.trail.state === 'ready') {
+      machine.trail.resumeTo = 'ready';
+      machine.trail.state = 'handed_off';
+    } else {
+      // Failed proof leaves the checkpoint and ends its review claim. Never restart an agent with
+      // a human owner still attached, or trap that owner in a non-reviewable resume state.
+      delete machine.trail.owner;
+      if (machine.trail.state !== 'parked') delete machine.trail.resumeTo;
+    }
   }
   machine.trail.updatedAt = ctx.now;
   return { ok: true, trail: machine.trail, effects: keyed(trail.id, machine.trail.rev, event.id, machine.commands) };

@@ -14,6 +14,7 @@
     "interactions": "env -u LD_LIBRARY_PATH bun scripts/interactions.ts",
     "voice-interactions": "env -u LD_LIBRARY_PATH bun scripts/voice-interactions.ts",
     "tutor-interactions": "env -u LD_LIBRARY_PATH bun scripts/tutor-interactions.ts",
+    "multiplayer": "env -u LD_LIBRARY_PATH bun scripts/multiplayer.ts",
     "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts"
   },
   "dependencies": {

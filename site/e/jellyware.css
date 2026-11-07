@@ -1,0 +1,105 @@
+/* Connected Notes, G3-06. Softness joins the work; the reading surface stays open. */
+:root {
+  --g-bg: oklch(.985 .009 175);
+  --g-water: oklch(.94 .035 177);
+  --g-rim: oklch(.78 .07 176 / .35);
+  --g-resin: oklch(.84 .12 78);
+  --g-on-resin: oklch(.27 .05 65);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --g-bg: oklch(.21 .032 220); --g-water: oklch(.27 .045 209); --g-rim: oklch(.7 .08 177 / .3); }
+}
+:root[data-theme="dark"] { --g-bg: oklch(.21 .032 220); --g-water: oklch(.27 .045 209); --g-rim: oklch(.7 .08 177 / .3); }
+.tour[data-console-view="gui"] .term { border: 0; background: transparent; border-radius: 0; overflow: visible; }
+.tour[data-console-view="gui"] .term-bar { border: 0; padding-inline: 1rem; }
+.tour[data-console-view="gui"] .term-tools { border: 0; padding-inline: 1rem; }
+.tour[data-console-view="gui"] .gui-example-note { border: 0; padding-inline: 1.2rem; }
+.gui-screen {
+  border-radius: 36px 55px 32px 48px / 27px 33px 38px 35px;
+  background: var(--g-bg); box-shadow: inset 0 0 0 1px var(--g-rim), inset 0 2px 5px oklch(1 0 0 / .24);
+  container: workspace / inline-size;
+}
+.g-workspace { background: radial-gradient(ellipse at 100% 0, var(--g-water), transparent 42%), radial-gradient(ellipse at 0 100%, var(--g-water), transparent 28%), var(--g-bg); }
+.g-trail-head { padding: 1.1rem 1.65rem .8rem; }
+.g-trail-head h3 { font-size: 1.25rem; max-width: none; }
+.g-pill { border: 0; border-radius: 999px; background: var(--g-soft); padding: .3em .8em; }
+.g-pill.waiting { border: 0; background: color-mix(in oklab, var(--glow) 11%, var(--g-bg)); }
+.g-rail { border: 0; background: transparent; padding: .4rem 1.65rem .8rem; gap: .6rem; }
+.g-rail li { position: relative; font-size: .72rem; }
+.g-rail li:not(:last-child)::after { content: ''; width: 1.7rem; height: .35rem; border-bottom: 1px solid var(--g-rim); border-radius: 50%; margin-left: .25rem; }
+.g-rail .current { border-radius: 62% 38% 47% 53% / 47% 53% 47% 53%; background: color-mix(in oklab, var(--glow) 10%, transparent); padding: .25rem .5rem; margin: -.25rem -.5rem; }
+.g-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.g-toolbox { flex-direction: row; justify-content: center; border: 0; border-bottom: 1px solid var(--g-rim); margin: 0 1.5rem .5rem; padding: .3rem .3rem .7rem; gap: .2rem; border-radius: 0 0 48% 12% / 0 0 8px 5px; background: transparent; }
+.g-toolbox button { flex: 1 1 0; flex-direction: row; justify-content: center; gap: .5rem; min-width: 0; min-height: 40px; width: auto; padding: .4rem .6rem; border-radius: 999px; font-size: .8rem; }
+.g-toolbox button[aria-pressed="true"] { border-radius: 24px 19px 26px 16px / 20px 24px 18px 22px; box-shadow: none; background: color-mix(in oklab, var(--g-resin) 25%, var(--g-bg)); }
+.g-toolbox button:hover { background: color-mix(in oklab, var(--glow) 9%, var(--g-bg)); }
+.g-body { padding: 1.1rem 1.65rem 1.5rem; }
+.g-section-head { margin-bottom: 1rem; }
+.g-label { font-size: .75rem; }
+.g-section-head h4 { font-size: 1.3rem; }
+.g-signal, .g-excerpt, .g-repro, .g-repro-note, .g-receipt { border-radius: 0; background: transparent; padding-inline: 0; }
+.g-signal { padding-top: .3rem; }
+.g-repro { gap: 1.2rem; padding-block: .65rem; }
+.g-repro > div { padding: .65rem .8rem; border-radius: 55% 45% 51% 49% / 38% 55% 45% 62%; background: color-mix(in oklab, var(--cherry) 8%, transparent); }
+.g-repro > div:last-child { background: color-mix(in oklab, var(--glow) 9%, transparent); }
+.g-proof-list > div { border-bottom-color: color-mix(in oklab, var(--glow) 12%, transparent); }
+.g-actions { border: 0; padding: .75rem 1.65rem 1.1rem; background: transparent; }
+.g-button { border: 0; border-radius: 999px; background: color-mix(in oklab, var(--g-bg) 80%, transparent); padding: .65rem 1rem; box-shadow: inset 0 0 0 1px var(--g-rim); }
+.g-button:hover { background: color-mix(in oklab, var(--glow) 12%, var(--g-bg)); }
+.g-button.primary { color: var(--g-on-resin); background: linear-gradient(165deg, oklch(.91 .09 83), var(--g-resin)); box-shadow: inset 0 1px 2px oklch(1 0 0 / .7), 0 2px 5px oklch(.5 .1 70 / .12); }
+.g-button.primary:hover { background: oklch(.87 .12 78); }
+.g-room-preview { position: relative; display: flex; gap: 1rem; justify-content: space-between; align-items: center; padding: .75rem 1rem; margin-bottom: 1.2rem; border-radius: 24px 38px 28px 18px / 18px 28px 24px 20px; background: color-mix(in oklab, var(--glow) 8%, transparent); }
+.g-room-preview-label { color: var(--muted); font-size: .72rem; }
+.g-room-preview p { font-size: .85rem; line-height: 1.5; margin-top: .3rem; }
+.g-room-preview-control { display: block; color: var(--glow); font-size: .75rem; margin-top: .3rem; }
+.g-room-preview .g-button { flex: none; font-size: .75rem; }
+.g-room-scope, .g-room-storage, .g-room-empty { color: var(--muted); font-size: .8rem; line-height: 1.5; }
+.g-room-control { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; padding-block: .8rem; border-block: 1px solid var(--g-rim); }
+.g-room-control b { font-size: .85rem; }
+.g-room-control p { color: var(--muted); font-size: .75rem; margin-top: .25rem; }
+.g-room-control button { flex: none; }
+.g-room-messages { list-style: none; padding: 0; margin: 0; }
+.g-room-message { display: flex; gap: .75rem; padding-block: .8rem; }
+.g-room-avatar { width: 2rem; height: 2rem; display: grid; place-items: center; flex: none; border-radius: 46% 54% 60% 40% / 55% 43% 57% 45%; background: color-mix(in oklab, var(--glow) 15%, var(--g-bg)); font-size: .8rem; }
+.g-room-message > div { min-width: 0; }
+.g-room-message header { display: flex; flex-wrap: wrap; gap: .4rem .7rem; align-items: baseline; }
+.g-room-message b { font-size: .9rem; }
+.g-room-message header span { color: var(--muted); font-size: .7rem; }
+.g-room-message p { margin-top: .35rem; font-size: .9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.g-room-form { margin-top: 1.2rem; }
+.g-room-form label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .5rem; }
+.g-room-form textarea { display: block; width: 100%; min-height: 5rem; padding: .8rem 1rem; border: 1px solid var(--g-rim); border-radius: 16px; resize: vertical; background: var(--g-bg); color: var(--ink); font: 400 1rem/1.5 var(--font-body); }
+.g-room-form textarea::placeholder { color: var(--muted); }
+.g-room-compose-actions { display: flex; gap: 1rem; justify-content: space-between; align-items: center; margin-top: .6rem; }
+.g-room-compose-actions > span { max-width: 34ch; color: var(--muted); font-size: .72rem; }
+.g-room-compose-actions button { flex: none; }
+.g-room-feedback, .g-room-update { color: var(--glow); font-size: .8rem; margin-top: .6rem; }
+.g-workspace-reader .g-stage { display: block; }
+@container workspace (min-width: 760px) {
+  .g-body:has(> .g-room-preview) { display: grid; grid-template-columns: minmax(0, 1fr) 195px; column-gap: 2rem; align-items: start; }
+  .g-body:has(> .g-room-preview) > * { grid-column: 1; }
+  .g-body > .g-room-preview { grid-column: 2 !important; grid-row: 1 / span 12; display: block; padding: 1rem; margin: 0; }
+  .g-room-preview::before { content: ''; position: absolute; right: 100%; top: 3rem; width: 2rem; height: 1.5rem; border-top: 1px solid var(--g-rim); border-radius: 60% 40%; }
+  .g-room-preview .g-button { margin-top: 1rem; }
+  .g-proof-list > div { grid-template-columns: 7.8rem minmax(0, 1fr); }
+}
+@media (max-width: 40rem) {
+  .gui-screen { border-radius: 23px 30px 22px 28px; }
+  .g-trail-head { padding: .8rem 1rem .5rem; }
+  .g-trail-head h3 { font-size: .95rem; }
+  .g-toolbox { margin: .2rem .55rem .25rem; padding: .2rem; gap: 0; }
+  .g-toolbox button { flex-direction: column; padding: .35rem .15rem; gap: .2rem; min-height: 44px; font-size: .62rem; }
+  .g-toolbox svg { width: 15px; height: 15px; }
+  .g-body { padding: .7rem 1rem 1rem; }
+  .g-room-preview { padding: .2rem .6rem; margin-bottom: .6rem; gap: .4rem; }
+  .g-room-preview-copy p { display: none; }
+  .g-room-preview-label { font-size: .68rem; }
+  .g-room-preview .g-button { min-height: 32px; padding: .4rem .65rem; font-size: .68rem; }
+  .g-section-head h4 { font-size: 1.15rem; }
+  .g-actions { padding: .6rem .7rem .85rem; }
+  .g-button { font-size: .72rem; padding: .5rem .65rem; }
+  .g-room-control { align-items: start; gap: .6rem; }
+  .g-room-message { gap: .5rem; }
+  .g-room-avatar { width: 1.6rem; height: 1.6rem; }
+  .g-room-compose-actions { align-items: start; gap: .5rem; }
+}
