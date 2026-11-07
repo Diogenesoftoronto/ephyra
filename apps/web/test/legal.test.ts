@@ -7,7 +7,7 @@ import { createSite } from "../src/site.ts";
 
 const ROOT = join(import.meta.dir, "../../../site");
 const ORIGIN = "https://ephyra.example";
-const h = createSite({ origin: ORIGIN, root: ROOT, home: "", cacheS: 0, fetcher: async () => new Response("", { status: 502 }) });
+const h = createSite({ origin: ORIGIN, root: ROOT, cacheS: 0, fetcher: async () => new Response("", { status: 502 }) });
 const get = (path: string) => h(new Request(ORIGIN + path, { redirect: "manual" }));
 
 const PAGES = [...LEGAL_DOCS.map((d) => d.path), "/legal/", "/pricing"];
@@ -76,14 +76,17 @@ describe("legal pages", () => {
   });
 
   test("every internal link on the legal pages, pricing and landing cuts resolves (with its #anchor)", async () => {
-    const sources = [...PAGES, "/", "/b/", "/c/"];
+    const sources = [...PAGES, "/", "/a/", "/b/", "/c/"];
+    // The journal is not connected here, so article links are checked against the content the publisher writes.
+    const articles = new Set((await Bun.file(join(import.meta.dir, "../content/articles.json")).json() as { path: string }[]).map((a) => `/blog${a.path}`));
     const checked = new Set<string>();
     for (const source of sources) {
-      const html = await (await get(source)).text();
+      const html = (await (await get(source)).text()).replace(/<base [^>]*>/, "");
       for (const [, href] of html.matchAll(/href="(\/[^"]*)"/g)) {
         if (!href || checked.has(href) || href.startsWith("//")) continue;
         checked.add(href);
         const [path, anchor] = href.split("#");
+        if (articles.has(path!)) continue;
         const res = await get(path!);
         expect({ href, status: res.status }).toEqual({ href, status: 200 });
         if (anchor) expect(await res.text()).toContain(`id="${anchor}"`);

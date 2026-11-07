@@ -93,7 +93,7 @@ export async function legalBody(doc: LegalDoc, contentDir: string, op: Operator 
     ? `<nav class="toc" aria-label="Contents"><ol>${headings.map(([, id, text]) => `<li><a href="#${id}">${text}</a></li>`).join("")}</ol></nav>` : "";
   const glance = doc.glance ? `<section class="glance"><h2>At a glance</h2><ul>${doc.glance.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>`
     + "<p class=\"muted\">This summary is a guide to the full text below.</p></section>" : "";
-  return `<p class="muted"><a href="/legal/">Legal</a></p><h1>${esc(doc.title)}</h1><p class="lede">${esc(doc.summary)}</p>`
+  return `<p class="back"><a href="/legal/">← Legal</a></p><h1>${esc(doc.title)}</h1><p class="lede">${esc(doc.summary)}</p>`
     + `<p class="muted">Revised <time datetime="${REVISED}">${REVISED}</time> · Review copy</p>${reviewNotice(op)}${glance}${toc}${body}`;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { createSite } from "../src/site.ts";
+import { createSite, type HomeCut } from "../src/site.ts";
 import { buildRecords, writeRecords } from "../src/publish.ts";
 import { articlePath, publicationIdentity, publicOrigin } from "../src/standard.ts";
 
@@ -32,9 +32,9 @@ function fakeAtproto(docs: unknown[], pubUrl = ORIGIN) {
   return { fetcher, calls };
 }
 
-const site = (docs: unknown[] = [], opts: { publicationUri?: string; pubUrl?: string; home?: "" | "b" | "c" } = {}) =>
+const site = (docs: unknown[] = [], opts: { publicationUri?: string; pubUrl?: string; home?: HomeCut } = {}) =>
   createSite({
-    origin: ORIGIN, root: ROOT, home: opts.home ?? "", cacheS: 0,
+    origin: ORIGIN, root: ROOT, cacheS: 0, ...(opts.home ? { home: opts.home } : {}),
     ...("publicationUri" in opts ? (opts.publicationUri ? { publicationUri: opts.publicationUri } : {}) : { publicationUri: URI }),
     fetcher: fakeAtproto(docs, opts.pubUrl).fetcher,
   });
@@ -77,7 +77,7 @@ describe("SEO files", () => {
   });
 
   test("SEO files still serve when the PDS is down or the blog is not configured", async () => {
-    const down = createSite({ origin: ORIGIN, root: ROOT, home: "", publicationUri: URI, cacheS: 0, fetcher: async () => new Response("", { status: 502 }) });
+    const down = createSite({ origin: ORIGIN, root: ROOT, publicationUri: URI, cacheS: 0, fetcher: async () => new Response("", { status: 502 }) });
     expect((await get(down, "/sitemap.xml")).status).toBe(200);
     expect((await get(down, "/llms.txt")).status).toBe(200);
     expect((await get(down, "/blog/")).status).toBe(503);
@@ -123,15 +123,45 @@ describe("Standard.site blog", () => {
 });
 
 describe("static site", () => {
-  test("home serves the chosen cut; other cuts and assets stay reachable; dotfiles and traversal are refused", async () => {
-    const a = await (await get(site(), "/")).text();
-    expect(a).toContain("<title>Ephyra · Software that sets itself</title>");
+  test("cut E is the home page by default; the other cuts stay reachable; dotfiles and traversal are refused", async () => {
+    const e = await (await get(site(), "/")).text();
+    expect(e).toContain("<title>Ephyra · Software that fixes itself</title>");
+    expect(e).toContain('<canvas class="scene"');
     const c = await (await get(site([], { home: "c" }), "/")).text();
-    expect(c).toContain('class=');
-    expect((await get(site(), "/b/")).status).toBe(200);
+    expect(c).toContain('<main id="film" class="film"');
+    for (const cut of ["/a/", "/b/", "/c/", "/e/styles.css", "/e/main.js", "/e/img/medusa.webp"]) {
+      expect({ cut, status: (await get(site(), cut)).status }).toEqual({ cut, status: 200 });
+    }
     expect((await get(site(), "/assets/brand/logo.svg")).headers.get("content-type")).toBe("image/svg+xml");
     expect((await get(site(), "/.git/config")).status).toBe(404);
     expect((await get(site(), "/%2e%2e/package.json")).status).toBe(404);
+    expect((await get(site(), "/d/")).status).toBe(200); // the repo has it; the image does not copy it (Dockerfile.web)
+  });
+
+  test("the home cut has one URL: its folder and /index.html redirect home; folders without a slash get one", async () => {
+    for (const path of ["/e/", "/e", "/e/index.html", "/index.html"]) {
+      const res = await get(site(), path);
+      expect({ path, status: res.status, location: res.headers.get("location") }).toEqual({ path, status: 308, location: `${ORIGIN}/` });
+    }
+    const a = await get(site(), "/a");
+    expect([a.status, a.headers.get("location")]).toEqual([308, `${ORIGIN}/a/`]);
+    const e = await get(site([], { home: "a" }), "/e/");
+    expect(e.status).toBe(200);
+  });
+
+  test("the home cut's relative links resolve against its own folder through <base>", async () => {
+    const html = await (await get(site(), "/")).text();
+    expect(html).toMatch(/<meta charset="utf-8"><base href="\/e\/">/);
+    // Every relative URL on the page (stylesheet, script, sprites in main.js) must exist under /e/ or, via ../, at the root.
+    const base = new URL(`${ORIGIN}/e/`);
+    const refs = [...html.replace(/<base [^>]*>/, "").matchAll(/(?:href|src)="([^"#][^"]*)"/g)].map((m) => m[1]!).filter((u) => !/^[a-z]+:|^\//i.test(u)); // site-absolute links are checked in legal.test.ts
+    const js = await (await get(site(), "/e/main.js")).text();
+    refs.push(...[...js.matchAll(/src: "([^"]+)"/g)].map((m) => m[1]!));
+    expect(refs.length).toBeGreaterThan(8);
+    for (const ref of refs) {
+      const path = new URL(ref, base).pathname;
+      expect({ ref, status: (await get(site(), path)).status }).toEqual({ ref, status: 200 });
+    }
   });
 });
 
@@ -143,12 +173,25 @@ describe("landing SEO head", () => {
     expect(html).toContain('name="twitter:card"');
     expect(html).toContain('"@type":"SoftwareApplication"');
     expect(html).toContain(`href="${ORIGIN}/blog/feed.xml"`);
+    expect(html.match(/rel="canonical"/g)).toHaveLength(1);
+    expect(html).not.toContain('name="robots"');
     const c = await (await get(site(), "/c/")).text();
     expect(c).toContain(`<link rel="canonical" href="${ORIGIN}/c/">`);
     expect(c).toContain(`content="${ORIGIN}/assets/og/og.png"`); // ../assets/… made absolute
-    const home = await (await get(site([], { home: "c" }), "/")).text();
-    expect(home).toContain(`<link rel="canonical" href="${ORIGIN}/">`);
-    expect(home.match(/rel="canonical"/g)).toHaveLength(1);
+    expect(c).not.toContain("<base");
+  });
+
+  test("only the home cut is indexed: alternate cuts are noindex and left out of the sitemap and llms.txt", async () => {
+    for (const cut of ["/a/", "/b/", "/c/"]) {
+      expect(await (await get(site(), cut)).text()).toContain('<meta name="robots" content="noindex">');
+    }
+    const sitemap = await (await get(site(), "/sitemap.xml")).text();
+    const llms = await (await get(site(), "/llms.txt")).text();
+    for (const cut of ["/a/", "/b/", "/c/", "/e/"]) {
+      expect(sitemap).not.toContain(`<loc>${ORIGIN}${cut}</loc>`);
+      expect(llms).not.toContain(`](${ORIGIN}${cut})`);
+    }
+    expect(sitemap).toContain(`<loc>${ORIGIN}/</loc>`);
   });
 });
 

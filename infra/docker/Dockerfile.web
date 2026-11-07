@@ -1,13 +1,14 @@
 # Ephyra public site (apps/web): landing cuts, journal, pricing, legal, SEO files. Build context: repository root.
-# Only the published landing cuts are copied; site/_sources and work-in-progress cuts never enter the image.
+# Cut E is the home page; A, B and C stay reachable. Only published cuts are copied; site/_sources and work-in-progress cuts never enter the image.
 FROM oven/bun:1.4.4-alpine
 WORKDIR /app
 COPY tsconfig.base.json ./
 COPY apps/web/package.json apps/web/tsconfig.json apps/web/
 COPY apps/web/src apps/web/src
 COPY apps/web/content apps/web/content
-COPY site/index.html site/main.js site/styles.css site/
 COPY site/assets site/assets
+COPY site/e site/e
+COPY site/a site/a
 COPY site/b site/b
 COPY site/c site/c
 ENV NODE_ENV=production PORT=3000 EPHYRA_SITE_ROOT=/app/site

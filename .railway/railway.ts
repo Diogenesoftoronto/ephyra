@@ -47,7 +47,7 @@ export default defineRailway(() => {
       PORT: "3000",
       // Renamed from the generated web-production-a088f domain. The journal's publication record must name this origin.
       EPHYRA_SITE_ORIGIN: "https://ephyra-site.up.railway.app",
-      EPHYRA_HOME_CUT: "",
+      EPHYRA_HOME_CUT: "e",
       // Standard.site publication on the Ephyra PDS identity (ephyra.pds.notorganic.info).
       EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
       EPHYRA_API_ORIGIN: "https://server-production-932f.up.railway.app",
