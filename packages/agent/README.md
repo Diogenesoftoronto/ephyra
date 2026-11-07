@@ -4,6 +4,12 @@ Renders step-specific prompts with untrusted blocks, runs Claude Code or Codex t
 
 Offline tests cover prompt escaping, CLI invocation and timeout reporting, malformed review, a real temporary git repository with a failing-then-passing probe and Bun tests, and an observed Entire trailer. No live model, provider, Storybook or Textbook integration has been verified. Runner implementations must enforce `deadlineMs` and report timeouts. Neither installed CLI advertises a hard token cap or a max-turns option, so these adapters cannot enforce either limit; usage is reported after execution. Codex does not report cost in its JSON events, so cost is null. Test failure identity parsing currently supports Bun and Cargo output; other formats throw `Unverified` instead of inventing counts.
 
+Proof probes run three times at each revision by default (`probeRuns` accepts integers from 2 to 10).
+Every base run must fail and every head run must pass. A disagreement throws `Unverified` before
+policy evaluation; successful bundles retain redacted output and exit status for every attempt.
+Repeats share their revision's worktree, so probes must tolerate repeated execution. Repetition catches
+observed instability, not every possible flake, and does not rerun the entire test suite.
+
 ## Live run events (`run-events.ts`)
 
 `claudeStreamNormalizer` (Amp `--stream-json` and Claude Code `--output-format stream-json --verbose`, which share a format) and `codexNormalizer` (`codex exec --json`) turn an engine's output, line by line, into the console's `AgentRunEvent` (without `runId`, `seq` and `at`, which the server stamps): `message`, `reasoning`, paired `tool_call` / `tool_result`, `status` and `portal`. Everything is redacted (`redact.ts`, which now also covers JSON-quoted keys and well-known token shapes) and cut to the schema limits. A line that is not JSON, or an event type the normalizer does not know, yields nothing; the user turn that carries the prompt is never echoed (it holds quoted signal text). A `portal` event is emitted only when a command that asks for a portal (`amp orb portal …`, `--portal`) printed an `https://` URL.

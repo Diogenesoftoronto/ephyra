@@ -85,10 +85,15 @@ export const runProof: SuiteRunner = async (row, opts) => {
       actualProof(mutation),
     );
   } catch (e) {
-    if (["base-passes", "head-fails", "unavailable-probe"].includes(mutation) && e instanceof Unverified)
+    if (["base-passes", "head-fails", "unavailable-probe", "flaky-reruns"].includes(mutation) && e instanceof Unverified)
       return {
         identity: "harness/proof",
-        scores: { safe: check(true, "Builder refused unavailable or invalid evidence") },
+        scores: {
+          safe: check(
+            mutation !== "flaky-reruns" || String(e).includes("flaky probe"),
+            "Builder refused unavailable or invalid evidence; flaky fixtures must fail on a repeated probe",
+          ),
+        },
         output: { verdict: "unverified", reason: String(e) },
         costMicrousd: 0,
         tokens: 0,
@@ -117,7 +122,7 @@ export const runProof: SuiteRunner = async (row, opts) => {
     details = {
       rerun: source.rerun,
       policy,
-      limitation: "Builder runs once; policy has no rerun stability contract",
+      limitation: "Builder returned a proof despite the unstable probe fixture",
     };
     accepted = policy.passed;
   } else {
