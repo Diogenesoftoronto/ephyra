@@ -8,7 +8,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "textbook": "textbook --cwd . --web --host 127.0.0.1 --port 8008"
   },
   "dependencies": {
     "@ephyra/core": "workspace:*",

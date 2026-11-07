@@ -82,3 +82,15 @@ release of notorganic-provider (`PRODUCT_IDS` in `packages/contracts/src/catalog
 `bun test apps/server`: unit tests, Convex function tests (convex-test), and an end-to-end test that drives
 an OTLP error through triage, agent steps, real proof, three HTTP approvals, landing, the watch and a
 rollback. Run it against a live Convex with `EPHYRA_E2E_CONVEX=1 CONVEX_URL=… EPHYRA_CONVEX_SECRET=…`.
+
+## Application UI stories
+
+`bun run --filter @ephyra/server storybook` opens the browser UI workshop on port 6006;
+`bun run --filter @ephyra/server build-storybook` builds it into `dist/storybook`. `devenv up`
+also starts Storybook. The seven sign-in stories use the same view functions as the server, with
+example data in a sandboxed frame so the approval form cannot submit. They cover both account roles,
+terminal approval, successful sign-in, an expired request and an error. The terminal inbox is an
+OpenTUI application and its stories live in `apps/cli/src/inbox.stories.ts` for Textbook instead.
+
+New browser-facing application components and meaningful states should be added to Storybook alongside
+their implementation. The public marketing site is separate; there is no browser dashboard yet.

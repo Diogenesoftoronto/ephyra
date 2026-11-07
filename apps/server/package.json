@@ -10,6 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "start": "bun run src/main.ts",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build -o ../../dist/storybook",
     "convex:deploy": "convex deploy"
   },
   "dependencies": {
@@ -27,6 +29,9 @@
     "@ephyra/runner": "workspace:*"
   },
   "devDependencies": {
-    "convex-test": "0.0.67"
+    "convex-test": "0.0.67",
+    "@storybook/html-vite": "10.6.6",
+    "storybook": "10.6.6",
+    "vite": "8.3.6"
   }
 }
