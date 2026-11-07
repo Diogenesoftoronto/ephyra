@@ -72,6 +72,8 @@ export default defineSchema({
   cliGrants: defineTable({ challenge: v.string(), json: v.string(), approved: v.boolean(), createdMs: v.number() })
     .index("by_challenge", ["challenge"]),
 
+  usage: defineTable({ key: v.string(), json: v.string() }).index("by_key", ["key"]),
+
   /** Hash-chained audit log; the chain is extended inside a serializable mutation. */
   audit: defineTable({ seq: v.number(), auditId: v.string(), json: v.string(), prevHash: v.string(), hash: v.string() })
     .index("by_seq", ["seq"])

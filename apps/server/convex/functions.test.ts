@@ -12,6 +12,7 @@ const modules = {
   "./signals.ts": () => import("./signals"),
   "./runtime.ts": () => import("./runtime"),
   "./ledger.ts": () => import("./ledger"),
+  "./usage.ts": () => import("./usage"),
   "./audit.ts": () => import("./audit"),
 };
 const secret = "s".repeat(40);
@@ -108,4 +109,15 @@ describe("audit", () => {
     });
     await expect(t.mutation(api.audit.append, { secret, json: JSON.stringify(inputs[0]) })).rejects.toThrow("reused");
   });
+});
+
+test("usage records are secret-gated and idempotent", async () => {
+  const t = convexTest(schema, modules);
+  const json = JSON.stringify({ id: "1", idempotencyKey: "k", at: "2026-11-07T00:00:00.000Z", kind: "draft",
+    persona: "velum", step: "draft", engine: "fake", trailId: null, short: null, tokens: null,
+    costMicrousd: null, wallMs: null, outcome: "ok", billedTo: "unknown" });
+  await expect(t.mutation(api.usage.record, { secret: "wrong", key: "k", json })).rejects.toThrow();
+  await t.mutation(api.usage.record, { secret, key: "k", json });
+  await t.mutation(api.usage.record, { secret, key: "k", json });
+  expect(await t.query(api.usage.list, { secret })).toEqual([json]);
 });
