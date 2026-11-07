@@ -27,6 +27,7 @@ import { createApp } from "./http/app.ts";
 import { consoleRoutes } from "./http/console.ts";
 import { consoleStatic, hasConsole } from "./http/static.ts";
 import { activity } from "./activity.ts";
+import { ConvexRunStore, MemoryRunStore, RunBroker, RunRecorder, type RunStore } from "./runs.ts";
 import { ConvexDraftStore, DraftService, MemoryDraftStore } from "./drafts.ts";
 import { PolicyDocs } from "./docs.ts";
 import { ConvexUsageStore, MemoryUsageStore, UsageRecorder, type BilledTo, type UsageStore } from "./usage.ts";
@@ -53,6 +54,8 @@ export type Composed = {
   mode: "memory" | "convex";
   ctx: ServerContext;
   usage: UsageStore;
+  runs: RunStore;
+  runBroker: RunBroker;
   drafts: DraftService;
   /** The model behind Velum, or null when EPHYRA_DRAFT=none. */
   draftModel: DraftModel | null;
@@ -143,6 +146,14 @@ function backends(config: Config, usage: UsageRecorder): { extract: ExtractBacke
   return { extract, decide };
 }
 
+/** Configured credentials, so run events can scrub them by value as well as by pattern. */
+function knownSecrets(config: Config): string[] {
+  return [
+    config.EPHYRA_API_TOKEN, config.EPHYRA_CONVEX_SECRET, config.EPHYRA_SESSION_KEY, config.TYPESAFE_API_KEY, config.EPHYRA_SYSTEMONE_KEY,
+    config.CLOUDFLARE_AI_API_TOKEN, config.EPHYRA_DRAFT_ANTHROPIC_API_KEY, config.EPHYRA_DRAFT_OPENAI_API_KEY, process.env.AMP_API_KEY,
+  ].filter((v): v is string => typeof v === "string" && v.length >= 8);
+}
+
 function agentBilledTo(config: Config): BilledTo {
   if (config.EPHYRA_AGENT === "amp") return config.EPHYRA_AMP_EXECUTOR === "local" ? "local" : "byok";
   return config.EPHYRA_AGENT === "none" ? "unknown" : "local";
@@ -217,6 +228,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const ledger = client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger();
   const usageStore: UsageStore = client ? new ConvexUsageStore(client, secret) : new MemoryUsageStore();
   const usage = new UsageRecorder(usageStore, log);
+  const runStore: RunStore = client ? new ConvexRunStore(client, secret) : new MemoryRunStore();
+  const runBroker = new RunBroker();
+  const runs = new RunRecorder(runStore, runBroker, log);
   const memoryAudit = new MemoryAudit();
   const audit: AuditSink = client ? new ConvexAudit(client, secret) : { append: async (i) => memoryAudit.append(i) };
 
@@ -287,7 +301,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     intakeHandlers(ctx),
     humanHandlers(ctx),
     agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
-      usage, agentBilledTo: agentBilledTo(config) }),
+      usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config) }),
     landingHandlers(ctx, {
       adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
@@ -338,6 +352,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     { requireSignIn: Boolean(signIn), approvers },
     (approval) => consoleRoutes({
       usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
+      runs: runStore, broker: runBroker,
     }, approval),
   );
   const mode = client ? "convex" as const : "memory" as const;
@@ -356,11 +371,13 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
 
   if (opts.startJobs !== false) {
     await store.recoverRunning?.();
+    // A run still "running" belongs to a server that is gone (its job was just re-queued): close it rather than show it live forever.
+    await runStore.closeRunning("the server restarted while this run was in progress", new Date()).catch((e) => log("closing orphaned runs failed", { error: String(e) }));
     jobs.start();
   }
   log("composed", {
     mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id,
     signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
-  return { app, decide, signIn, mode, ctx, usage: usageStore, drafts, draftModel, engine, jobs, health, close: async () => { jobs.stop(); } };
+  return { app, decide, signIn, mode, ctx, usage: usageStore, runs: runStore, runBroker, drafts, draftModel, engine, jobs, health, close: async () => { jobs.stop(); } };
 }

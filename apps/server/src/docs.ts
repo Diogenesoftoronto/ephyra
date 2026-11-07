@@ -3,8 +3,10 @@
 // then the deployment repository at the base ref, then the shipped template (autonomy and thresholds only).
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import type { PolicyDoc, PolicyDocKind } from "@ephyra/core";
-import { AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, parseAutonomy, parseThresholds } from "@ephyra/policy";
+import type { AreaSketch, PolicyDoc, PolicyDocKind } from "@ephyra/core";
+import {
+  AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, applySketches, parseAutonomy, parseThresholds, renderAutonomy, sketchesOf,
+} from "@ephyra/policy";
 import type { Git } from "./wiring/landing.ts";
 
 export const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
@@ -35,6 +37,29 @@ export function inspectDoc(kind: PolicyDocKind, content: string): string[] {
   return content.trim() ? [] : [`${ERROR_PREFIX} the document is empty`];
 }
 
+/** The application map of an autonomy document, or undefined when the text does not parse (or is not an autonomy document). */
+export function sketchesFor(kind: PolicyDocKind, content: string): AreaSketch[] | undefined {
+  if (kind !== "autonomy") return undefined;
+  try { return sketchesOf(parseAutonomy(content)); } catch { return undefined; }
+}
+
+export type RenderedSketches = { content: string; notes: string[] } | { error: string };
+/**
+ * Renders an edited application map into the document: the sketches are the complete set of mapped areas, applied to the current text.
+ * What the map does not carry (comments, text outside areas, the parser's fallback) is not kept, and the notes say so.
+ */
+export function renderSketches(kind: PolicyDocKind, current: string, sketches: AreaSketch[]): RenderedSketches {
+  if (kind !== "autonomy") return { error: "the application map only applies to the autonomy document" };
+  try {
+    const { policy, notes } = applySketches(parseAutonomy(current), sketches);
+    const content = renderAutonomy(policy);
+    const rewritten = current.trim() === content.trim() ? [] : ["the document was re-rendered from the application map; comments and text outside areas are not kept"];
+    return { content, notes: [...notes, ...rewritten] };
+  } catch (error) {
+    return { error: String(error instanceof Error ? error.message : error).slice(0, 300) };
+  }
+}
+
 export type DocsConfig = { git: Git; baseRef: string; autonomyFile?: string; thresholdsFile?: string };
 
 export class PolicyDocs {
@@ -55,19 +80,20 @@ export class PolicyDocs {
     return kind === "autonomy" ? AUTONOMY_TEMPLATE : kind === "thresholds" ? THRESHOLDS_TEMPLATE : null;
   }
 
-  async get(path: string): Promise<PolicyDoc | null> {
+  async get(path: string): Promise<(PolicyDoc & { sketches?: AreaSketch[] }) | null> {
     const kind = docKind(path);
     const content = kind ? await this.content(path) : null;
     if (!kind || content === null) return null;
-    return { path, kind, content, digest: sha256(content), warnings: inspectDoc(kind, content) };
+    const sketches = sketchesFor(kind, content);
+    return { path, kind, content, digest: sha256(content), warnings: inspectDoc(kind, content), ...(sketches ? { sketches } : {}) };
   }
 
-  async list(): Promise<PolicyDoc[]> {
+  async list(): Promise<(PolicyDoc & { sketches?: AreaSketch[] })[]> {
     let intents: string[] = [];
     try {
       intents = (await this.config.git(["ls-tree", "--name-only", this.config.baseRef, "intents/"])).split("\n").filter((p) => INTENT_PATH.test(p));
     } catch { /* no repository yet, or no intents directory */ }
     const docs = await Promise.all(["autonomy.md", "thresholds.yaml", ...intents.sort()].map((p) => this.get(p)));
-    return docs.filter((d): d is PolicyDoc => d !== null);
+    return docs.filter((d): d is NonNullable<typeof d> => d !== null);
   }
 }
