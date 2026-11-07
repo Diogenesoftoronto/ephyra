@@ -192,9 +192,11 @@ test('random event sequences preserve schema, revision and replay invariants', (
 });
 
 test('terminal states absorb every event', () => {
-  for (const state of ['closed', 'abandoned'] as const) {
-    for (const c of cases) expect(transition({ ...original, state }, event(c.type, c.data), ctx).ok).toBe(false);
-  }
+  fc.assert(fc.property(
+    fc.constantFrom('closed', 'abandoned'), fc.constantFrom(...cases), (state, c) => {
+      expect(transition({ ...original, state }, event(c.type, c.data), ctx).ok).toBe(false);
+    },
+  ));
 });
 
 test('checkpoint shadow decisions preserve state for all verdicts and checkpoints', () => {
