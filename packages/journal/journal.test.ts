@@ -14,7 +14,7 @@ import {
   parseTrailers,
   configureRefspecs,
 } from "./src/index.ts";
-import { Trail, TrailEvent } from "@ephyra/core";
+import { proofDigest, Trail, TrailEvent } from "@ephyra/core";
 const id = "018f0000-0000-7000-8000-000000000001";
 const at = "2026-01-01T00:00:00Z";
 const trail = Trail.parse({
@@ -202,6 +202,7 @@ test("proof pins are immutable and canonical JSON rejects nonfinite numbers", as
       computedAt: at,
     };
     const first = await j.pinProof(id, 1, proof);
+    expect(first.digest).toBe(proofDigest(proof));
     expect(await j.pinProof(id, 1, proof)).toEqual(first);
     await expect(
       j.pinProof(id, 1, { ...proof, passed: true }),

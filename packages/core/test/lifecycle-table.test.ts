@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import fc from 'fast-check';
-import { createTrail, fold, shortId, Trail, TrailEvent, transition } from '../src/index.ts';
+import { createTrail, fold, proofDigest, shortId, Trail, TrailEvent, transition } from '../src/index.ts';
 import type { TransitionContext } from '../src/index.ts';
 
 const id = '00000000-0000-4000-8000-000000000001';
@@ -11,7 +11,7 @@ const ctx: TransitionContext = { now, blocking: { A: true, B: true, C: true }, l
 const original = Trail.parse({
   schema: 1, id, short: shortId(id), repo: 'repo', title: 'test', rev: 1, state: 'researching',
   signals: [id], area: 'a', risk: 'low', route: 'auto_fix', severity: 1, base: { ref: 'main', sha },
-  checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
+  head: sha, checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
   budget: { tokensUsed: 0, tokensMax: 1, wallclockMaxS: 1, spendMicrousdUsed: 0, spendMicrousdMax: 0 },
   mirrors: {}, createdAt: now, updatedAt: now,
 });
@@ -55,9 +55,9 @@ const cases: Case[] = [
   { name: 'approve B', state: 'planned', type: 'checkpoint_decided', data: { checkpoint: 'B', decision: decision('approve') }, next: 'patching', effects: ['start_agent'] },
   { name: 'revise B', state: 'planned', type: 'checkpoint_decided', data: { checkpoint: 'B', decision: decision('revise') }, next: 'reproducing', effects: ['start_agent'] },
   { name: 'patch proof', state: 'patching', type: 'patch_completed', data: { head: sha, revision: 1 }, next: 'proving', effects: ['run_proof'] },
-  { name: 'proof passes C', state: 'proving', type: 'proof_completed', data: { bundle: bundle(true), digest: 'x' }, next: 'ready', effects: ['request_checkpoint'] },
-  { name: 'proof fails', state: 'proving', type: 'proof_completed', data: { bundle: bundle(false), digest: 'x' }, next: 'patching', effects: ['start_agent'] },
-  { name: 'proof max', state: 'proving', patch: { attempts: { proof: 2, maxProof: 3 } }, type: 'proof_completed', data: { bundle: bundle(false), digest: 'x' }, next: 'parked', effects: ['notify_inbox'] },
+  { name: 'proof passes C', state: 'proving', type: 'proof_completed', data: { bundle: bundle(true), digest: proofDigest(bundle(true)) }, next: 'ready', effects: ['request_checkpoint'] },
+  { name: 'proof fails', state: 'proving', type: 'proof_completed', data: { bundle: bundle(false), digest: proofDigest(bundle(false)) }, next: 'patching', effects: ['start_agent'] },
+  { name: 'proof max', state: 'proving', patch: { attempts: { proof: 2, maxProof: 3 } }, type: 'proof_completed', data: { bundle: bundle(false), digest: proofDigest(bundle(false)) }, next: 'parked', effects: ['notify_inbox'] },
   { name: 'approve C', state: 'ready', type: 'checkpoint_decided', data: { checkpoint: 'C', decision: decision('approve') }, next: 'landing', effects: ['land'] },
   { name: 'revise C', state: 'ready', type: 'checkpoint_decided', data: { checkpoint: 'C', decision: decision('revise') }, next: 'patching', effects: ['start_agent'] },
   { name: 'land request', state: 'ready', patch: { checkpoints: { C: decision('approve') as Trail['checkpoints']['C'], spend: [] } }, type: 'land_requested', data: {}, next: 'landing', effects: ['land'] },
@@ -156,7 +156,7 @@ test('advisory checkpoint decisions advance and blocking decisions wait', () => 
   expect(a.ok && a.trail.state).toBe('reproducing');
   const b = transition({ ...original, state: 'reproducing' }, event('plan_completed', { plan: 'p' }), advisory);
   expect(b.ok && b.trail.state).toBe('patching');
-  const c = transition({ ...original, state: 'proving' }, event('proof_completed', { bundle: bundle(true), digest: 'x' }), { ...advisory, autoDecision: undefined, autoDecisionC: approve });
+  const c = transition({ ...original, state: 'proving' }, event('proof_completed', { bundle: bundle(true), digest: proofDigest(bundle(true)) }), { ...advisory, autoDecision: undefined, autoDecisionC: approve });
   expect(c.ok && c.trail.state).toBe('landing');
   const blocked = transition(original, event('research_completed', { hypothesis: 'h' }), { ...advisory, blocking: ctx.blocking });
   expect(blocked.ok && blocked.trail.state).toBe('hypothesised');
@@ -168,11 +168,12 @@ test('watch evidence and human revision bind later proof to the new revision', (
   const result = fold({ ...original, state: 'watching' }, [regression, rollback], ctx);
   expect(result.ok && result.trail.rev).toBe(2);
   expect(result.ok && result.effects[1]).toMatchObject({ type: 'start_agent', note: 'watch/log' });
-  const revised = transition(original, event('human_revision', { head: sha }), ctx);
+  const revisedHead = 'b'.repeat(40);
+  const revised = transition(original, event('human_revision', { head: revisedHead }), ctx);
   expect(revised.ok && revised.trail.rev).toBe(2);
   if (!revised.ok) return;
-  const proof = { ...bundle(true), rev: 2 };
-  const proved = transition(revised.trail, event('proof_completed', { bundle: proof, digest: 'x' }), ctx);
+  const proof = { ...bundle(true), rev: 2, head: revisedHead };
+  const proved = transition(revised.trail, event('proof_completed', { bundle: proof, digest: proofDigest(proof) }), ctx);
   expect(proved.ok && proved.trail).toMatchObject({ state: 'handed_off', resumeTo: 'ready' });
 });
 
@@ -249,4 +250,41 @@ test('mirror_linked records the mirror without changing state, and is idempotent
   expect(linked.ok && linked.trail.state).toBe(original.state);
   if (!linked.ok) return;
   expect(transition(linked.trail, event('mirror_linked', { kind: 'ampThread', id: 'T-01a1b539-866f-77a3-833f-b417d7707bbd' }, '00000000-0000-4000-8000-000000000020'), ctx).ok).toBe(false);
+});
+
+test('a proof is refused unless its digest, head and base match the trail (eval finding: proof binding)', () => {
+  const proving = { ...original, state: 'proving' as const, head: sha };
+  const good = bundle(true);
+  const ok = transition(proving, event('proof_completed', { bundle: good, digest: proofDigest(good) }), ctx);
+  expect(ok.ok && ok.trail.state).toBe('ready');
+  const wrongDigest = transition(proving, event('proof_completed', { bundle: good, digest: 'sha256:' + '0'.repeat(64) }), ctx);
+  expect(wrongDigest.ok).toBe(false);
+  const otherHead = { ...good, head: 'b'.repeat(40) };
+  expect(transition(proving, event('proof_completed', { bundle: otherHead, digest: proofDigest(otherHead) }), ctx).ok).toBe(false);
+  const otherBase = { ...good, base: 'c'.repeat(40) };
+  expect(transition(proving, event('proof_completed', { bundle: otherBase, digest: proofDigest(otherBase) }), ctx).ok).toBe(false);
+  expect(transition({ ...proving, head: undefined }, event('proof_completed', { bundle: good, digest: proofDigest(good) }), ctx).ok).toBe(false);
+  expect(transition({ ...proving, risk: 'high' }, event('proof_completed', { bundle: good, digest: proofDigest(good) }), ctx).ok).toBe(false);
+});
+
+test('proof binding rejects substitutions and leaves the input trail unchanged', () => {
+  const oid = fc.stringMatching(/^[0-9a-f]{40}$/);
+  fc.assert(fc.property(oid, oid, fc.integer({ min: 1, max: 1000 }), fc.constantFrom('low', 'medium', 'high', 'critical'),
+    (base, head, rev, risk) => {
+      const proving = Trail.parse({ ...original, state: 'proving', base: { ...original.base, sha: base }, head, rev, risk });
+      const good = { ...bundle(true), base, head, rev, risk };
+      const completion = (proof: typeof good, digest = proofDigest(proof)) => event('proof_completed', { bundle: proof, digest });
+      const accepted = transition(proving, completion(good), ctx);
+      expect(accepted.ok && accepted.trail.state).toBe('ready');
+      const flip = (s: string) => (s[0] === '0' ? '1' : '0') + s.slice(1);
+      const substitutions: Partial<typeof good>[] = [{ base: flip(base) }, { head: flip(head) }, { rev: rev + 1 }, { trail: other },
+        { risk: risk === 'low' ? 'high' : 'low' }];
+      for (const patch of substitutions) {
+        const before = structuredClone(proving);
+        expect(transition(proving, completion({ ...good, ...patch }), ctx).ok).toBe(false);
+        expect(proving).toEqual(before);
+      }
+      // Altering proof contents while retaining the original digest must fail as well.
+      expect(transition(proving, completion({ ...good, env: { runner: 'substituted' } }, proofDigest(good)), ctx).ok).toBe(false);
+    }));
 });
