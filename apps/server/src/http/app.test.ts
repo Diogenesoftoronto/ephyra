@@ -22,3 +22,17 @@ test("stale approvals return conflict", async () => {
   });
   expect(response.status).toBe(409);
 });
+
+test("session identity reports server-derived permissions for humans and machines", async () => {
+  const { Hono } = await import("hono");
+  const app = createApp("service", port, new Hono(), async (token) =>
+    token === "reader" || token === "approver" ? { did: `did:example:${token}` } : null,
+    { requireSignIn: true, approvers: new Set(["did:example:approver"]) });
+  const me = async (token: string) => (await app.request("/v1/me", {
+    headers: { Authorization: `Bearer ${token}`, "X-Ephyra-Principal": "spoofed" },
+  })).json();
+  expect(await me("reader")).toEqual({ principal: "did:example:reader", kind: "human", approver: false });
+  expect(await me("approver")).toEqual({ principal: "did:example:approver", kind: "human", approver: true });
+  expect(await me("service")).toEqual({ principal: "spoofed", kind: "service", approver: false });
+  expect((await app.request("/v1/me")).status).toBe(401);
+});

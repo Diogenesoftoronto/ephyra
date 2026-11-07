@@ -1,0 +1,31 @@
+.trail-panel {
+  min-width: 0;
+}
+.trail-checkpoints {
+  display: grid;
+  gap: 1rem;
+}
+.trail-evidence {
+  display: grid;
+  gap: 0.4rem;
+}
+.trail-evidence li {
+  overflow-wrap: anywhere;
+}
+
+.review-document {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 20px;
+  max-height: 28rem;
+  overflow: auto;
+}
+.review-proof-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.review-proof-item summary {
+  cursor: pointer;
+  min-height: 32px;
+}

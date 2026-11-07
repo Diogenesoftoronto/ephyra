@@ -1,0 +1,12 @@
+.breakdown-pick {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.breakdown-pick[aria-pressed="true"] {
+  text-decoration: underline;
+}
