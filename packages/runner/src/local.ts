@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { access, lstat, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { ArtifactRef, ExecOutput, Runner, RunnerHandle, ServiceProfile, Trail } from "@ephyra/core";
 import { ArtifactStore } from "./cas.ts";
@@ -169,6 +169,9 @@ export class LocalRunner implements Runner {
     const file = join(this.root, `restore-${randomUUID()}.tar`);
     try {
       await writeFile(file, snapshot.bytes);
+      for (const entry of await readdir(handle.workdir)) {
+        if (entry !== ".git") await rm(join(handle.workdir, entry), { recursive: true, force: true });
+      }
       await command(["tar", "-xf", file, "-C", handle.workdir]);
       return handle;
     } catch (error) { await this.destroy(handle); throw error; }

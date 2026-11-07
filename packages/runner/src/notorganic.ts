@@ -87,7 +87,8 @@ export class NotOrganicSandboxRunner implements Runner {
     if (new TextEncoder().encode((run.stdout ?? "") + (run.stderr ?? "")).length > 256000) throw new Error("sandbox output exceeds limit");
     if (run.stdout) yield { stream: "stdout", chunk: run.stdout };
     if (run.stderr) yield { stream: "stderr", chunk: run.stderr };
-    yield { exit: run.exit_code ?? (run.status === "succeeded" ? 0 : 1), durationMs: Date.now() - start, timedOut: false };
+    if (run.exit_code === undefined) throw new Unverified("Not Organic run exit code unavailable");
+    yield { exit: run.exit_code, durationMs: Date.now() - start, timedOut: false };
   }
   async checkpoint(handle: RunnerHandle): Promise<{ snapshotId: string; kind: "disk" }> {
     this.state(handle); throw new Unverified("Not Organic checkpoints unsupported");
