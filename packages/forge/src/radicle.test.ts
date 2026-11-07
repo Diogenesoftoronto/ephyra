@@ -31,3 +31,29 @@ test("COB list and show produce stable resumable revision events", async () => {
   expect(resumed).toHaveLength(0);
   expect(commands[0]?.slice(0, 3)).toEqual(["rad", "cob", "list"]);
 });
+
+test("COB comment maps its original author, timestamp and body", async () => {
+  const show = await readFile(
+    new URL("./fixtures/rad-cob-show.json", import.meta.url),
+    "utf8",
+  );
+  const patch = JSON.parse(show);
+  const id = patch.timeline[0];
+  // Synthetic comment added to the upstream snapshot to exercise the parser.
+  patch.revisions[id].discussion.comments["comment-id"] = {
+    author: "did:key:reviewer",
+    edits: [{ timestamp: 1671125285000, body: "Review text" }],
+  };
+  const { parseRadicleCob } = await import("./radicle");
+  const events = parseRadicleCob(
+    id,
+    JSON.stringify(patch),
+    "workspace",
+    "repo",
+  );
+  expect(events[1]).toMatchObject({
+    kind: "review.comment",
+    actor: "did:key:reviewer",
+    body: "Review text",
+  });
+});
