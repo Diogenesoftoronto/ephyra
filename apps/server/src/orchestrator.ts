@@ -12,7 +12,7 @@ export class LocalOrchestrator {
   readonly trails = new Map<string, Trail>();
   readonly events = new Map<string, TrailEvent>();
   readonly operations = new Map<string, Operation>();
-  readonly outbox: { trail: Trail; event: TrailEvent; published: boolean }[] = [];
+  readonly outbox: { trail: Trail; event: TrailEvent; effects: Effect[]; published: boolean; dispatched: boolean }[] = [];
   constructor(private transition: TransitionFn, private policy: PolicyPort, private handlers: EffectHandlers) {}
   async apply(event: TrailEvent): Promise<void> {
     if (this.events.has(event.id)) return;
@@ -22,8 +22,7 @@ export class LocalOrchestrator {
     if (!result.ok) throw new Error(result.error);
     this.trails.set(trail.id, result.trail);
     this.events.set(event.id, event);
-    this.outbox.push({trail: result.trail, event, published: false});
-    for (const effect of result.effects) await this.execute(effect, result.trail);
+    this.outbox.push({ trail: result.trail, event, effects: result.effects, published: false, dispatched: false });
   }
   async execute(effect: Effect, trail: Trail): Promise<void> {
     const state = this.operations.get(effect.key);
@@ -42,12 +41,39 @@ export class LocalOrchestrator {
   }
   async publish(journal: Journal): Promise<void> {
     for (const row of this.outbox) {
-      if (row.published) continue;
-      const current = await journal.read(row.trail.id);
-      if (current?.events.some(e => e.id === row.event.id)) { row.published = true; continue; }
-      if (current) await journal.append(row.trail.id, current.head, row.trail, [row.event]);
-      else await journal.create(row.trail, row.event);
-      row.published = true;
+      if (!row.published) await this.publishRow(journal, row);
+      if (!row.dispatched) {
+        for (const effect of row.effects) await this.execute(effect, row.trail);
+        row.dispatched = true;
+      }
     }
+  }
+
+  private async publishRow(journal: Journal, row: (typeof this.outbox)[number]): Promise<void> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const current = await journal.read(row.trail.id);
+      if (current?.events.some((event) => event.id === row.event.id)) {
+        row.published = true;
+        return;
+      }
+      if (current) {
+        const result = this.transition(current.trail, row.event, await this.policy.context(current.trail, row.event));
+        if (!result.ok) throw new Error(result.error);
+        row.trail = result.trail;
+        row.effects = result.effects;
+      }
+      try {
+        if (current) await journal.append(row.trail.id, current.head, row.trail, [row.event]);
+        else await journal.create(row.trail, row.event);
+        this.trails.set(row.trail.id, row.trail);
+        row.published = true;
+        return;
+      } catch (error) {
+        const after = await journal.read(row.trail.id);
+        // Only a changed head proves a conflict; other failures may be ambiguous.
+        if (after?.head === current?.head || (!after && !current)) throw error;
+      }
+    }
+    throw new Error("journal conflict retry limit exceeded");
   }
 }
