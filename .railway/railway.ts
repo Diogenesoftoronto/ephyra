@@ -1,6 +1,6 @@
 // Ephyra on Railway: control plane + Postgres + a volume for the git trail journal.
 // Preview: `railway config plan`. Apply: `railway config apply`. See design/02-platform.md §6.
-import { defineRailway, postgres, preserve, ref, service, volume } from "railway/iac";
+import { defineRailway, postgres, preserve, project, ref, service, volume } from "railway/iac";
 
 export default defineRailway(() => {
   const region = "us-east4-eqdc4a";
@@ -24,5 +24,5 @@ export default defineRailway(() => {
     },
   });
 
-  return [db, journal, server];
+  return project("ephyra", { resources: [db, journal, server] });
 });
