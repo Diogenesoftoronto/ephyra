@@ -7,9 +7,9 @@ export class OpenObserveEvidence implements EvidenceSource {
     readonly options: { url: string; org: string; stream: string; authorization: string; from: Date; to: Date },
     readonly request: typeof fetch = fetch,
   ) {}
-  async search(query: { text: string; fingerprint?: string; limit: number }): Promise<EvidenceHit[]> {
-    const field = query.fingerprint ? "fingerprint" : "trace_id";
-    const value = (query.fingerprint ?? query.text).replaceAll("'", "''");
+  async search(query: { text: string; fingerprint?: string; traceId?: string; route?: string; limit: number }): Promise<EvidenceHit[]> {
+    const field = query.fingerprint ? "fingerprint" : query.route ? "route" : "trace_id";
+    const value = (query.fingerprint ?? query.route ?? query.traceId ?? query.text).replaceAll("'", "''");
     const stream = this.options.stream.replaceAll('"', '""');
     const sql = `SELECT * FROM "${stream}" WHERE "${field}" = '${value}'`;
     const response = await this.request(`${this.options.url.replace(/\/$/, "")}/api/${encodeURIComponent(this.options.org)}/_search`, {

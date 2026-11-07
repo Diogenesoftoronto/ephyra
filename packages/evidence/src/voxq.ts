@@ -1,4 +1,4 @@
-import { ReconciliationRequired, type Decision } from "@ephyra/core";
+import { ReconciliationRequired, Unverified, type Decision, type ProofItem } from "@ephyra/core";
 
 export class SpendNotApproved extends Error {
   constructor() { super("Respondent spend is not approved"); this.name = "SpendNotApproved"; }
@@ -42,5 +42,40 @@ export class VoxqClient {
   results(id: string, runId: string) {
     return this.call(`/surveys/${encodeURIComponent(id)}/results?run_id=${encodeURIComponent(runId)}`, "GET");
   }
-  export(id: string) { return this.call(`/surveys/${encodeURIComponent(id)}/export`, "GET"); }
+  export(id: string, runId: string) {
+    return this.call(`/surveys/${encodeURIComponent(id)}/export?run_id=${encodeURIComponent(runId)}`, "GET");
+  }
+}
+
+/** A Voxq export combines a selected simulation with current human interviews. */
+export type VoxqExport = {
+  survey: { id: string };
+  provenance: { status: string; run: { id: string; survey_id: string; status: string } | null };
+  responses: Array<{ source: string; run_id?: string | null; respondent?: string | null; interview_status?: string | null }>;
+};
+
+export function personaProof(data: VoxqExport, study: string, runId: string, report: string): ProofItem {
+  const run = data.provenance?.run;
+  if (data.survey?.id !== study || data.provenance?.status !== "recorded" || run?.id !== runId ||
+      run.survey_id !== study || run.status !== "completed" ||
+      !data.responses?.some(row => row.source === "simulation" && row.run_id === runId)) {
+    throw new Unverified("completed Voxq simulation evidence");
+  }
+  return { kind: "persona_study", study, runId, synthetic: true, report };
+}
+
+/** The collection ID and spend must come from recorded external evidence, not simulation provenance. */
+export function respondentProof(data: VoxqExport, options: {
+  study: string; runId: string; via: "share_link" | "embed" | "prolific";
+  spendMicrousd: number; expectMet: boolean; report: string; syntheticRunId?: string;
+}): ProofItem {
+  if (data.survey?.id !== options.study || !options.runId || !options.report ||
+      !Number.isSafeInteger(options.spendMicrousd) || options.spendMicrousd < 0 || !Array.isArray(data.responses)) {
+    throw new Unverified("Voxq respondent evidence");
+  }
+  const respondents = new Set(data.responses.filter(row => row.source === "human" &&
+    row.interview_status === "completed" && typeof row.respondent === "string" && row.respondent.length > 0)
+    .map(row => row.respondent));
+  if (!respondents.size) throw new Unverified("completed Voxq respondents");
+  return { kind: "voxq_study", ...options, respondents: respondents.size };
 }
