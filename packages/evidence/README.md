@@ -1,0 +1,11 @@
+# Evidence
+
+`GitEvidence` searches pickaxe history and exposes grep, recent commits and blame. `EntireEvidence` searches JSON, falls back to text when an older CLI rejects JSON flags, and returns only recorded checkpoint IDs. Missing or disabled Entire is `Unavailable`; unrecognized output is `Unverified`.
+
+`OpenObserveEvidence` searches configured fields for a fingerprint, trace ID or route. It uses the [OpenObserve search API](https://openobserve.ai/docs/reference/api/search/search/), with an injected Authorization header and microsecond time bounds. Configure the stream and field names to match the telemetry deployment. Partial or failed responses are not empty success. `TrailsEvidence` ranks journal records by shared files and fingerprints, then recency; its injected resolver provides those associations.
+
+`VoxqClient` uses the Rust service's survey, estimate, simulation, publication, results and export endpoints. Publication requires a non-shadow approval; policy approval also requires an explicit budget. `personaProof` requires a completed selected simulation with recorded responses. `respondentProof` counts distinct completed human interview labels in an export and requires the caller to supply the recorded collection ID, channel, spend and outcome. Human interviews in the export are current, not frozen to the selected simulation; collection ID and spend are not verified by the export. They must be independently recorded. An unknown spend must not be represented as zero. Synthetic results never become human proof.
+
+The Voxq service does not establish idempotency from the operation key header. Persist operation keys and reconcile ambiguous writes externally; never retry them blindly. The adapters and proof mapping are verified with fixtures, not live services. Entire text parsing is limited to full checkpoint IDs in text rows; unknown formats fail closed. Live Entire, OpenObserve and Voxq behavior remains unverified.
+
+`WatchCollector` returns observations and state for callers to persist; policy decides rollback. Error-rate duration uses elapsed timestamps between observed above-threshold samples, not a guarantee of continuous telemetry. Gaps reset this interval, unavailable probes retain their previous failure count, and a passing probe resets it. Tracer clusters are currently unavailable and reported as a coverage gap.
