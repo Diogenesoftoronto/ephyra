@@ -87,7 +87,9 @@ export function exampleTriageUsd(p = pricing): number {
   const [extraction, judgement] = p.models;
   const { signals, extractionTokens, judgementTokens } = p.example;
   const usd = (signals * extractionTokens * extraction.usd + signals * judgementTokens * judgement.usd) / 1e6;
-  return Math.ceil(Math.round(usd * 1e6) / 1e4) / 100;
+  // Round up to the cent. The 1e-9 slack absorbs float noise (0.39 * 100 = 39.00000000000001) without
+  // ever showing $0 for a real cost; rounding to whole micro-dollars first did, for sub-micro-dollar totals.
+  return Math.max(0, Math.ceil(usd * 100 - 1e-9)) / 100;
 }
 
 function rateRows(rates: readonly Rate[], plan: string): string {
