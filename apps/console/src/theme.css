@@ -1,0 +1,147 @@
+/* Ephyra console · tokens and base.
+   Tokens match the public site (site/e/styles.css, cut E). Dark applies for the system preference unless the page is
+   forced light, and when forced dark; `[data-theme]` also works on any wrapper, which is how Storybook shows both.
+   Persona colours come in pairs: `--persona-x` (text/outline) and `--persona-x-tint` (fill behind it). Contrast of
+   every pair against the page, the card and the tint is checked by src/theme.test.ts. */
+@import "@fontsource-variable/anybody/standard.css";
+@import "@fontsource/atkinson-hyperlegible-next/400.css";
+@import "@fontsource/atkinson-hyperlegible-next/400-italic.css";
+@import "@fontsource/atkinson-hyperlegible-next/600.css";
+
+:root, [data-theme="light"] {
+  --bg: oklch(0.975 0.012 85);
+  --surface: oklch(0.992 0.006 85);
+  --surface-2: oklch(0.955 0.014 85);
+  --ink: oklch(0.24 0.03 60);
+  --muted: oklch(0.45 0.03 65);
+  --line: oklch(0.86 0.02 80);
+  --jelly: oklch(0.74 0.162 68);
+  --jelly-deep: oklch(0.52 0.135 52);
+  --on-jelly: oklch(0.2 0.03 60);
+  --glow: oklch(0.55 0.11 180);
+  --cherry: oklch(0.56 0.19 24);
+  --ok: oklch(0.46 0.12 155);
+  --warn: oklch(0.5 0.12 70);
+  --ok-tint: oklch(0.94 0.04 155);
+  --warn-tint: oklch(0.95 0.05 85);
+  --bad-tint: oklch(0.94 0.04 24);
+  --info-tint: oklch(0.945 0.025 222);
+  --add: oklch(0.92 0.06 150);
+  --del: oklch(0.92 0.05 25);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .6) inset, 0 8px 24px -16px oklch(0.52 0.135 52 / .45);
+  --water-top: oklch(0.955 0.02 222);
+  --water-mid: oklch(0.968 0.014 150);
+
+  --persona-rho: #126b70;    --persona-rho-tint: #dcefee;
+  --persona-bell: #854f9a;   --persona-bell-tint: #efe3f4;
+  --persona-nema: #a33e3d;   --persona-nema-tint: #f6e0df;
+  --persona-lappet: #80520b; --persona-lappet-tint: #f3e6cf;
+  --persona-turri: #315f9c;  --persona-turri-tint: #dfe8f6;
+  --persona-velum: #7353a4;  --persona-velum-tint: #e8e0f3;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"], [data-theme="dark"] {
+  --bg: oklch(0.165 0.022 250);
+  --surface: oklch(0.205 0.026 250);
+  --surface-2: oklch(0.245 0.03 250);
+  --ink: oklch(0.95 0.015 85);
+  --muted: oklch(0.74 0.025 80);
+  --line: oklch(0.34 0.03 250);
+  --jelly-deep: oklch(0.80 0.15 72);
+  --glow: oklch(0.86 0.13 178);
+  --cherry: oklch(0.72 0.17 24);
+  --ok: oklch(0.78 0.14 155);
+  --warn: oklch(0.82 0.13 80);
+  --ok-tint: oklch(0.28 0.05 155);
+  --warn-tint: oklch(0.3 0.05 80);
+  --bad-tint: oklch(0.29 0.06 24);
+  --info-tint: oklch(0.27 0.04 230);
+  --add: oklch(0.32 0.07 150);
+  --del: oklch(0.3 0.07 25);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+  --water-top: oklch(0.245 0.038 230);
+  --water-mid: oklch(0.195 0.03 240);
+
+  --persona-rho: #7bd3ce;    --persona-rho-tint: #12383b;
+  --persona-bell: #d8b2ed;   --persona-bell-tint: #3a2646;
+  --persona-nema: #ffaaaa;   --persona-nema-tint: #44201f;
+  --persona-lappet: #e9c37d; --persona-lappet-tint: #402d0a;
+  --persona-turri: #a5c6ff;  --persona-turri-tint: #1a2c47;
+  --persona-velum: #c9b7ff;  --persona-velum-tint: #2d2145;
+  color-scheme: dark;
+}
+/* Same dark values for the system preference, written once more because a media query cannot share a selector list. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.165 0.022 250);
+    --surface: oklch(0.205 0.026 250);
+    --surface-2: oklch(0.245 0.03 250);
+    --ink: oklch(0.95 0.015 85);
+    --muted: oklch(0.74 0.025 80);
+    --line: oklch(0.34 0.03 250);
+    --jelly-deep: oklch(0.80 0.15 72);
+    --glow: oklch(0.86 0.13 178);
+    --cherry: oklch(0.72 0.17 24);
+    --ok: oklch(0.78 0.14 155);
+    --warn: oklch(0.82 0.13 80);
+    --ok-tint: oklch(0.28 0.05 155);
+    --warn-tint: oklch(0.3 0.05 80);
+    --bad-tint: oklch(0.29 0.06 24);
+    --info-tint: oklch(0.27 0.04 230);
+    --add: oklch(0.32 0.07 150);
+    --del: oklch(0.3 0.07 25);
+    --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+    --water-top: oklch(0.245 0.038 230);
+    --water-mid: oklch(0.195 0.03 240);
+    --persona-rho: #7bd3ce;    --persona-rho-tint: #12383b;
+    --persona-bell: #d8b2ed;   --persona-bell-tint: #3a2646;
+    --persona-nema: #ffaaaa;   --persona-nema-tint: #44201f;
+    --persona-lappet: #e9c37d; --persona-lappet-tint: #402d0a;
+    --persona-turri: #a5c6ff;  --persona-turri-tint: #1a2c47;
+    --persona-velum: #c9b7ff;  --persona-velum-tint: #2d2145;
+    color-scheme: dark;
+  }
+}
+
+:root {
+  --font-display: "Anybody Variable", "Anybody", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --gutter: clamp(1rem, 4vw, 2rem);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-width: 320px; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 1rem; line-height: 1.5; overflow-x: clip;
+}
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+img, svg, video { display: block; max-width: 100%; }
+a { color: inherit; text-decoration-color: var(--jelly); text-decoration-thickness: 2px; text-underline-offset: .2em; }
+a:hover { text-decoration-color: var(--jelly-deep); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--jelly); outline-offset: 2px; border-radius: 6px; }
+code, pre, kbd { font-family: var(--font-mono); font-size: .92em; }
+h1, h2, h3 { font-family: var(--font-display); font-stretch: 90%; font-weight: 680; letter-spacing: -.01em; line-height: 1.15; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: .88em; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* The water: a light gradient behind the page head, nothing more. */
+.water { background: linear-gradient(180deg, var(--water-top) 0%, var(--water-mid) 55%, var(--bg) 100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
