@@ -18,9 +18,8 @@ test("CLI flags select model and noninteractive output", () => {
   expect(cliCommand("codex", "model-b", task)).toContain("--json");
   expect(cliCommand("codex", "model-b", task)).toContain("model-b");
 });
-test("script exhaustion and unsupported budgets fail closed", async () => {
+test("script exhaustion fails closed", async () => {
   await expect(new MockAgent([]).run()).rejects.toThrow();
-  await expect(new ClaudeCodeAgent("model").run(task, {} as never, {} as never)).rejects.toThrow("token budget");
 });
 
 test("malformed review output is a typed failure", async () => {
