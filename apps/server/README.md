@@ -55,6 +55,28 @@ Durable state is hosted Convex: team `Tungsten-Cube`, project `ephyra`.
 3. Server secrets on Railway, once: `EPHYRA_CONVEX_SECRET` and `EPHYRA_API_TOKEN` on `server`.
 4. Server code: `railway up --service server`.
 
+## Sign in with Not Organic
+
+When `EPHYRA_PUBLIC_ORIGIN` and `EPHYRA_SESSION_KEY` are set, people sign in with their Not Organic account and the
+server stops accepting trail changes from the service token.
+
+- Browser: `/auth/login` → `id.notorganic.info` (PKCE S256) → `/auth/callback`. The server exchanges the code at
+  `api.notorganic.info/v1/public/token` with its own DPoP key, then checks `/v1/account` against the token's DID,
+  issuer and product before creating a session.
+- Terminal: `ephyra login <server-url>` prints a link and a code; the browser page shows the same code and an Approve
+  button; the CLI then collects its session once and stores it in `~/.config/ephyra/credentials.json` (mode 600).
+  `ephyra whoami`, `ephyra logout`.
+- Sessions live in Convex: the session token only as a SHA-256 hash, the Not Organic refresh token and DPoP key
+  sealed with AES-256-GCM under `EPHYRA_SESSION_KEY`. Refresh-token rotation is saved with compare-and-swap.
+- Changing trails needs a signed-in account listed in `EPHYRA_APPROVER_DIDS`; other signed-in accounts can read.
+- `EPHYRA_DECIDE=notorganic` / `EPHYRA_EXTRACT=notorganic` run triage on Not Organic judgement and extraction,
+  paid from `EPHYRA_BILLING_DID` (default: the first approver), using that account's sign-in session.
+
+**Registration.** Not Organic only signs users into approved client origins. Ephyra's origin is in the gateway's
+`PUBLIC_CLIENT_PRODUCT_CATALOG` on the notorganic-provider Railway project, mapped to product `notorganic`, so tokens
+carry `product: "notorganic"` (set `NOTORGANIC_PRODUCT` to match). A dedicated `ephyra` product id would need a
+release of notorganic-provider (`PRODUCT_IDS` in `packages/contracts/src/catalog.ts`).
+
 ## Tests
 
 `bun test apps/server`: unit tests, Convex function tests (convex-test), and an end-to-end test that drives
