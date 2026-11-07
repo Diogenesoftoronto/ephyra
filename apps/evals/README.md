@@ -57,7 +57,7 @@ rtk proxy env EPHYRA_LIVE=1 bun apps/evals/src/main.ts run --suite agent --agent
 Default offline triage uses `fixture/oracle-v1` scripted oracle replay plus the
 real parser. It tests decision-policy plumbing, **not** classifier quality.
 `--backend parser` and `workers-ai` measure extraction only; TypeSafe measures
-real decisions with parser extraction. Extraction never impersonates a decision
+real decisions with parser extraction. `--backend typesafe-workers-ai` runs the full Clairic → Jev pipeline (and reserves $0.04/case). Extraction never impersonates a decision
 backend. Exact returned identities partition every metric; unknown identities
 remain conservative through the real policy. `TYPESAFE_MODEL` selects the
 requested model; no hidden fallback. The live model listing currently exposes
