@@ -8,7 +8,8 @@ The console uses the server API for these implemented screens:
   proof results, history and trail actions. Stale approvals and read-only accounts cannot decide.
 - **Usage:** 7/14-day totals, spend by day, persona/engine/trail breakdowns, budgets and a paginated,
   filterable ledger. Unknown prices stay unknown; totals are explicitly lower bounds when incomplete.
-- **Runs:** executor/persona filters and read-only assistant-ui transcripts with tool calls, policy
+- **Team:** single-use invitations with owner-selected Viewer or Approver access, explicit joining, and revocation.
+- **Runs:** an activity roster, executor/persona filters and read-only assistant-ui transcripts with tool calls, policy
   decisions and live SSE updates. Reconnection resumes by sequence without dropping received events.
 - **Workspace:** the application map and autonomy, threshold and intent documents. Edit a draft
   directly or with Velum, review a proposal or json-render form, apply it, and publish a policy ref.
@@ -53,13 +54,14 @@ and never calls a provider or a server. It is opt-in and visibly labelled.
 
 ## Onboarding, settings and controls
 
-First sign-in opens a resumable repository → model access → review flow. **Explore first** saves setup for later.
+First sign-in opens automatic repository setup. Choose Self-driving or Supervised, connect a repository, and inspect
+recorded preparation steps and blockers. **Explore first** saves setup for later; model access remains available in Settings.
 Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
 Settings groups Repository, Model access and Account into a text tab row at every screen size.
 Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
-leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses one heading, a progress line and a focused form.
-Both screens use an unframed reading column. Saved model connection details expand from their status row.
+leaving Settings, reloading, or accepting updated saved settings resets them. Setup pairs a focused form with an illustrated
+explanation on wide screens. Settings keeps one reading column. Saved model connection details expand from their status row.
 Keys start blank, can be replaced or removed, and are never stored in browser storage or returned by the server.
 Changing provider protocol or endpoint does not silently reuse a saved key.
 
@@ -67,14 +69,14 @@ The model picker reads public [models.dev](https://models.dev) metadata with a b
 Search supports keyboard selection and exact custom IDs. Context limits, capabilities and published prices are metadata,
 not proof of account access or actual spending. Missing metadata stays unknown; catalog failure leaves manual entry usable.
 
-**⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/S navigates to
-Overview/Inbox/Runs/Usage/Workspace/Personas/Settings. Letter shortcuts are disabled while typing or using a modal.
+**⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/T/S navigates to
+Overview/Inbox/Runs/Usage/Workspace/Personas/Team/Settings. Letter shortcuts are disabled while typing or using a modal.
 Menus, recessed inputs, active controls and hover/focus states share console tokens and reduced-motion behavior.
 The light/dark switch sits beside Commands. It follows the system color preference until toggled;
 an explicit choice is remembered in this browser. There is no separate Auto control.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
-Welcome and setup include a small interactive amber specimen. Hover, touch, Enter or Space triggers a 2.1-second
+Welcome, invitation acceptance, and wide-screen setup include an interactive amber specimen on a textured glass surface. Hover, touch, Enter or Space triggers a 2.1-second
 texture-refraction shader, then it settles. WebGL is allocated only on interaction, capped at 384px and about 30fps.
 The ordinary image remains the fallback when WebGL is unavailable or lost. Reduced motion uses stills;
 moving offscreen or hiding the tab stops drawing. Persona pulses use transparent stills in both themes,
@@ -85,10 +87,36 @@ The [motion asset notes](../../design/brand/CONSOLE-MOTION.md) record the image-
 transparent GIF/WebP exports and reproduction commands. GIFs are shareable exports; the app loads the 46KB poster
 and runs its small shader only on interaction, rather than downloading a video or GIF for every visit.
 
+The local material layers reuse the existing site artwork; two new fal Ideogram tiling candidates were rejected after
+visual inspection and are not shipped. See `public/materials/manifest.json` and the motion asset notes.
+
 Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
 account/workspace bindings, including when another tab changes the signed-in cookie. The sign-in browser harness now
 checks optional BYOK onboarding, hidden saved keys, shortcuts, real draft requests using a named offline model fixture,
 and separate workspaces for two signed-in accounts.
+
+## Team access
+
+The owner chooses **Viewer** or **Approver** before creating a link. Viewer access reads the workspace; Approver access
+also permits the existing approval, drafting, and model-assisted work allowed by the workspace policy. Repository/model
+settings, setup changes, and invitations remain owner-only. Links can be used once and expire after seven days if unused.
+The owner shares the link themselves; Ephyra does not send an email. Invitation labels are notes, not verified identities.
+The actual signed-in DID is displayed after acceptance.
+
+A teammate sees the exact workspace and role before choosing **Join workspace**. The invitation is retained in tab-only
+session storage for at most 30 minutes to survive OAuth; accept, cancel, and sign-out clear it. Workspace selection is
+remembered per account in the same tab, but every list/read/write is authorized against current server membership.
+Revocation removes shared access and ends open streams. The console removes cached workspace UI when its membership
+refresh confirms the removal; it refreshes every 15 seconds while visible and on focus. A removed workspace is shown explicitly rather than silently selecting another.
+
+Interrupted invite, revoke, and accept requests retain their operation key in memory. The UI first offers a saved-state
+check and then an explicit retry of that same operation. It does not blindly retry writes or claim an email was sent.
+A full reload loses an in-memory write receipt; the saved membership list remains authoritative.
+
+`team-experience.ts` tests the real local server and built UI with a fake OAuth issuer, including both roles, sign-in handoff,
+explicit acceptance, reload, workspace selection, UI/server permissions, revocation, and recovery to the personal workspace.
+`team-recovery.ts` tests ambiguous responses and clipboard fallback in named Storybook fixtures. `experience-layout.ts`
+checks six screens at 320/390/1440 pixels in both themes. These are local checks, not live account or deployment proof.
 
 ## Shared reviews
 

@@ -2,10 +2,11 @@ import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ConsoleClient, type SessionInfo } from "./api.ts";
 import { AccountClient, type AccountApi } from "./account-api.ts";
-import { SetupClient } from "./setup-api.ts";
 import { FakeSetupApi } from "./fake/setup.ts";
-import type { AccountSettings } from "@ephyra/core";
 import { App } from "./app/App.tsx";
+import { AccountWorkspace, type InvitationFlow } from "./app/AccountWorkspace.tsx";
+import { pendingInvitation, invitationToken, forgetInvitation } from "./lib/invitation.ts";
+import { FakeTeamApi } from "./fake/team.ts";
 import { useAsync } from "./app/useAsync.ts";
 import { ConnectGate } from "./components/ConnectGate.tsx";
 import { ErrorState, Load } from "./components/Load.tsx";
@@ -14,6 +15,7 @@ import { ME } from "./fake/fixtures.ts";
 import { FakeAccountApi } from "./fake/account.ts";
 import "./theme.css";
 import "./layout.css";
+import "./materials.css";
 
 type Credentials = { token: string; principal?: string };
 const TOKEN_KEY = "ephyra.connection";
@@ -34,7 +36,9 @@ try {
   /* storage may be blocked */
 }
 
-function Connected({ credentials, disconnect }: { credentials: Credentials; disconnect: () => void }) {
+function Connected({ credentials, disconnect, invitation }: {
+  credentials: Credentials; disconnect: () => void; invitation: InvitationFlow;
+}) {
   const api = useMemo(
     () => new ConsoleClient(location.origin, credentials.token, fetch, credentials.principal),
     [credentials],
@@ -49,6 +53,7 @@ function Connected({ credentials, disconnect }: { credentials: Credentials; disc
               key={identity.principal}
               identity={identity}
               token={credentials.token}
+              invitation={invitation}
               onDisconnect={disconnect}
             />
           ) : (
@@ -69,6 +74,23 @@ function Connected({ credentials, disconnect }: { credentials: Credentials; disc
 
 function Root() {
   const demo = new URLSearchParams(location.search).has("demo");
+  const [invited, setInvited] = useState(() => {
+    try { return pendingInvitation(location.hash, sessionStorage); } catch { return invitationToken(location.hash); }
+  });
+  useEffect(() => {
+    const update = () => {
+      if (!location.hash.startsWith("#/join/")) return;
+      try { setInvited(pendingInvitation(location.hash, sessionStorage)); }
+      catch { setInvited(invitationToken(location.hash)); }
+    };
+    addEventListener("hashchange", update);
+    return () => removeEventListener("hashchange", update);
+  }, []);
+  const invitation: InvitationFlow = { token: invited, clear: () => {
+    try { forgetInvitation(sessionStorage); } catch { /* Storage is blocked. */ }
+    setInvited(null);
+    if (location.hash.startsWith("#/join/")) history.replaceState(null, "", "#/overview");
+  } };
   const [credentials, setCredentials] = useState<Credentials | null>(readCredentials);
   const fake = useMemo(() => (demo ? new FakeApi({ now: Date.now() }) : null), [demo]);
   const save = (value: Credentials | null) => {
@@ -81,11 +103,13 @@ function Root() {
     setCredentials(value);
   };
   if (fake) return <Demo api={fake} />;
-  if (!credentials) return <BrowserConnection onConnect={(token, principal) => save({ token, principal })} />;
-  return <Connected credentials={credentials} disconnect={() => save(null)} />;
+  if (!credentials) return <BrowserConnection invitation={invitation} onConnect={(token, principal) => save({ token, principal })} />;
+  return <Connected credentials={credentials} invitation={invitation} disconnect={() => { invitation.clear(); save(null); }} />;
 }
 
-function BrowserConnection({ onConnect }: { onConnect: (token: string, principal?: string) => void }) {
+function BrowserConnection({ onConnect, invitation }: {
+  onConnect: (token: string, principal?: string) => void; invitation: InvitationFlow;
+}) {
   const api = useMemo(() => new ConsoleClient(location.origin), []);
   const session = useAsync(() => api.browserSession(), "browser-session");
   const [logoutError, setLogoutError] = useState<unknown>(null);
@@ -123,6 +147,7 @@ function BrowserConnection({ onConnect }: { onConnect: (token: string, principal
     setLogoutError(null);
     try {
       await api.signOut();
+      invitation.clear();
       session.set({ signIn: true, identity: null });
     } catch (error) {
       setLogoutError(error);
@@ -143,11 +168,12 @@ function BrowserConnection({ onConnect }: { onConnect: (token: string, principal
             <AccountConnection
               key={identity.principal}
               identity={identity}
+              invitation={invitation}
               onDisconnect={signOut}
               disconnectLabel={signingOut ? "Signing out…" : "Sign out"}
             />
           ) : (
-            <ConnectGate signIn={signIn} onConnect={onConnect} />
+            <ConnectGate invitation={Boolean(invitation.token)} signIn={signIn} onConnect={onConnect} />
           )
         }
       </Load>
@@ -160,7 +186,9 @@ function AccountConnection({
   token = "",
   onDisconnect,
   disconnectLabel,
+  invitation,
 }: {
+  invitation: InvitationFlow;
   identity: SessionInfo;
   token?: string;
   onDisconnect: () => void;
@@ -174,8 +202,10 @@ function AccountConnection({
   return (
     <Load state={account.state} retry={account.reload}>
       {(settings) => (
-        <PersonalApp
+        <AccountWorkspace
+          key={settings.workspaceId}
           identity={identity}
+          invitation={invitation}
           token={token}
           settings={settings}
           accountApi={accountApi}
@@ -188,57 +218,9 @@ function AccountConnection({
   );
 }
 
-function PersonalApp({
-  identity,
-  token,
-  settings,
-  accountApi,
-  onChange,
-  onDisconnect,
-  disconnectLabel,
-}: {
-  identity: SessionInfo;
-  token: string;
-  settings: AccountSettings;
-  accountApi: AccountApi;
-  onChange: (settings: AccountSettings) => void;
-  onDisconnect: () => void;
-  disconnectLabel?: string;
-}) {
-  const api = useMemo(
-    () => new ConsoleClient(location.origin, token, fetch, undefined, settings.workspaceId),
-    [token, settings.workspaceId],
-  );
-  const automation = useMemo(
-    () => new SetupClient(location.origin, token, settings.workspaceId, identity.principal),
-    [token, settings.workspaceId, identity.principal],
-  );
-  const workspace = useAsync(() => api.identity(), `workspace:${identity.principal}:${settings.workspaceId}`);
-  useEffect(() => {
-    if (
-      ["new", "in_progress"].includes(settings.onboarding.status) &&
-      ["", "#", "#/", "#/overview"].includes(location.hash)
-    )
-      location.hash = "#/onboarding";
-  }, [identity.principal]);
-  return (
-    <Load state={workspace.state} retry={workspace.reload}>
-      {(owner) => (
-        <App
-          api={api}
-          identity={{ ...owner, alias: identity.alias }}
-          approver={owner.approver}
-          account={{ api: accountApi, settings, onChange, automation }}
-          onDisconnect={onDisconnect}
-          disconnectLabel={disconnectLabel}
-        />
-      )}
-    </Load>
-  );
-}
-
 function Demo({ api }: { api: FakeApi }) {
   const accountApi = useMemo(() => new FakeAccountApi(), []);
+  const team = useMemo(() => new FakeTeamApi(), []);
   const automation = useMemo(() => new FakeSetupApi(), []);
   const account = useAsync(() => accountApi.settings(), "demo-account");
   return (
@@ -247,6 +229,7 @@ function Demo({ api }: { api: FakeApi }) {
         <App
           api={api}
           demo
+          team={{ api: team }}
           identity={{ principal: ME, kind: "human", approver: true }}
           account={{ api: accountApi, settings, onChange: account.set, automation }}
         />

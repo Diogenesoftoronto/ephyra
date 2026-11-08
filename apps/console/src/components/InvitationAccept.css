@@ -1,0 +1,43 @@
+.invitation-accept { display: grid; place-items: center; min-width: 0; padding: var(--s6) var(--s4); }
+.invitation-card { display: grid; gap: var(--s4); width: min(100%, 38rem); box-sizing: border-box; }
+.invitation-card h1, .invitation-card h2, .invitation-card p { margin: 0; }
+.invitation-card h1 { text-wrap: balance; }
+.invitation-card h2, .invitation-card code { overflow-wrap: anywhere; }
+.invitation-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--jelly-deep);
+}
+.invitation-mark svg { width: 28px; height: 28px; }
+.invitation-access-note { display: grid; gap: var(--s2); padding-block: var(--s4); border-block: 1px solid var(--line); }
+.invitation-note { font-size: var(--fs-small); color: var(--muted); }
+.invitation-actions { display: flex; flex-wrap: wrap; gap: var(--s3); }
+.invitation-feedback { display: grid; gap: var(--s2); }
+.invitation-feedback:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.invitation-feedback [data-tone="error"], .invitation-feedback [data-tone="uncertain"] {
+  border-inline-start: 3px solid var(--warn);
+  padding-inline-start: var(--s3);
+}
+.invitation-saved-access { display: grid; gap: var(--s3); padding-block: var(--s4); border-top: 1px solid var(--line); }
+.invitation-saved-access h2 { font-size: var(--fs-h3); }
+.invitation-saved-access ul { list-style: none; padding: 0; margin: 0; }
+.invitation-saved-access li { display: flex; gap: var(--s4); align-items: center; padding-block: var(--s3); }
+.invitation-saved-access li + li { border-top: 1px solid var(--line); }
+.invitation-saved-access li > div { display: grid; gap: var(--s1); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.invitation-saved-access li span { font-size: var(--fs-small); color: var(--muted); }
+.invitation-return { border-top: 1px solid var(--line); padding-top: var(--s3); }
+@media (max-width: 480px) {
+  .invitation-accept { padding: var(--s4) 0; }
+  .invitation-actions > button { width: 100%; }
+}

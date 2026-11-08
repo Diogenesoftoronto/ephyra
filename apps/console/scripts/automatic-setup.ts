@@ -49,6 +49,9 @@ try {
       if (url.pathname === "/auth/session") return json({ signIn: true, identity });
       if (url.pathname === "/v1/me") return json(identity);
       if (url.pathname === "/v1/account") return json(account);
+      if (url.pathname === "/v1/account/workspaces") return json([
+        { workspaceId: account.workspaceId, ownerDid: account.did, name: "Offline fixture", role: "owner" },
+      ]);
       if (url.pathname === "/v1/inbox") return json([]);
       if (url.pathname === "/v1/account/repository") {
         repositorySaves++;
