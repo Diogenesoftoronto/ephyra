@@ -5,7 +5,7 @@ import { AgentRun, AgentRunEvent } from "@ephyra/core";
 import { createApp } from "./http/app.ts";
 import { consoleRoutes } from "./http/console.ts";
 import { MemoryUsageStore } from "./usage.ts";
-import { MemoryRunStore, RunBroker, RunRecorder, type RunStore } from "./runs.ts";
+import { MemoryRunStore, RunBroker, RunRecorder, runEventBatches, type RunStore } from "./runs.ts";
 
 const TOKEN = "t".repeat(32);
 const H = { Authorization: `Bearer ${TOKEN}`, "X-Ephyra-Principal": "plugin" };
@@ -85,6 +85,35 @@ describe("RunStore", () => {
 });
 
 describe("RunRecorder", () => {
+  test("large visual records stay intact across bounded storage batches", () => {
+    const events = Array.from({ length: 7 }, (_, index) => ({ type: "message" as const, at: "2026-11-08T01:00:00.000Z",
+      visual: { id: `v${index}`, title: "Inspect", html: "界".repeat(200000), height: 420 } }));
+    const batches = runEventBatches(events);
+    expect(batches.flat()).toEqual(events);
+    expect(batches).toHaveLength(7);
+    for (const batch of batches) {
+      const bytes = new TextEncoder().encode(JSON.stringify(batch.map((event) => JSON.stringify(event))));
+      expect(bytes.byteLength).toBeLessThan(800000);
+    }
+  });
+
+  test("live metadata arrives before completion; saved visuals replay through the authorized API", async () => {
+    const h = harness();
+    const run = await h.recorder.start(start("visual-live"));
+    const response = await h.get("/v1/runs/visual-live/events", { Accept: "text/event-stream" });
+    const pending = frames(response, 2);
+    const threadUrl = "https://ampcode.com/threads/T-01a1b539-f083-765f-8b6b-9255cfec4fb5";
+    run.executor({ threadUrl });
+    const states = (await pending).filter((frame) => frame.event === "run_state").map((frame) => JSON.parse(frame.data!));
+    expect(states.at(-1)).toMatchObject({ status: "running", executor: { threadUrl } });
+    const visual = { id: "v", title: "Inspect", html: "<button>Inspect</button>", height: 420 };
+    await run.event({ type: "message", visual });
+    await run.finish({ status: "done" });
+    const replay = await (await h.get("/v1/runs/visual-live/events")).json() as AgentRunEvent[];
+    expect(replay[0]?.visual).toEqual(visual);
+    expect((await h.app.request("/v1/runs/visual-live/events")).status).toBe(401);
+  });
+
   test("buffers, stamps seq, merges executor details, closes with usage and a redacted error", async () => {
     const h = harness();
     const run = await h.recorder.start(start("r1"));
@@ -170,7 +199,7 @@ describe("routes", () => {
     const both = (await frames(await h.get("/v1/runs/live/events?after=0", { ...sse, "Last-Event-ID": "3" }))).filter((f) => f.event === "run_event");
     expect(both.map((f) => Number(f.id))).toEqual([1, 2, 3]);
     const none = await frames(await h.get("/v1/runs/live/events?after=3", sse));
-    expect(none.map((f) => f.event)).toEqual(["end"]);
+    expect(none.map((f) => f.event)).toEqual(["run_state", "end"]);
   });
 
   test("SSE: a client that disconnects stops the loop; a failed run ends the stream with its status", async () => {

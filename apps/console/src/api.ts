@@ -85,7 +85,8 @@ export type PolicyDocView = z.infer<typeof PolicyDocView>;
 export const DraftView = Draft.extend({ sketches: z.array(AreaSketch).optional() });
 export type DraftView = z.infer<typeof DraftView>;
 /** One decoded SSE frame: a run event, or the terminal `end` frame with the run's final status. */
-export type RunFrame = { kind: "event"; event: AgentRunEvent } | { kind: "end"; status: AgentRun["status"] };
+export type RunFrame = { kind: "event"; event: AgentRunEvent } | { kind: "state"; run: AgentRun }
+  | { kind: "end"; status: AgentRun["status"] };
 export type TrailAction = "comment" | "claim" | "release" | "park" | "resume";
 export type SharedTrailAction = Extract<TrailAction, "comment" | "claim" | "release">;
 export const TrailOperation = z.object({ status: z.enum(["recorded", "not_found"]) });
@@ -149,6 +150,7 @@ export interface ConsoleApi {
     after: number | undefined,
     onEvents: (events: AgentRunEvent[]) => void,
     signal: AbortSignal,
+    onRun?: (run: AgentRun) => void,
   ): Promise<AgentRun["status"] | null>;
   docs(): Promise<PolicyDocView[]>;
   doc(path: string): Promise<PolicyDocView>;
@@ -185,7 +187,7 @@ const END_STATUSES = ["running", "done", "failed", "unavailable"] as const;
 
 /**
  * One SSE frame to zero or one decoded frame. The server sends `event: run_event` frames (data is an `AgentRunEvent`),
- * a final `event: end` frame (data is `{ status }`), `retry:` lines and `: ping` comments. Anything else is skipped.
+ * `run_state` snapshots when links/status change, a final `end` frame, `retry:` lines and `: ping` comments.
  */
 export function parseSseFrame(frame: string): RunFrame[] {
   const lines = frame.split("\n");
@@ -200,6 +202,10 @@ export function parseSseFrame(frame: string): RunFrame[] {
   if (!data) return [];
   try {
     const json: unknown = JSON.parse(data);
+    if (name === "run_state") {
+      const parsed = AgentRun.safeParse(json);
+      return parsed.success ? [{ kind: "state", run: parsed.data }] : [];
+    }
     if (name === "end") {
       const status = (json as { status?: unknown }).status;
       return typeof status === "string" && (END_STATUSES as readonly string[]).includes(status)
@@ -389,6 +395,7 @@ export class ConsoleClient implements ConsoleApi {
     after: number | undefined,
     onEvents: (events: AgentRunEvent[]) => void,
     signal: AbortSignal,
+    onRun?: (run: AgentRun) => void,
   ) {
     const url = new URL(`/v1/runs/${encodeURIComponent(id)}/events${query({ after })}`, this.baseUrl);
     let response: Response;
@@ -418,6 +425,7 @@ export class ConsoleClient implements ConsoleApi {
         const frames = buffer.split("\n\n");
         buffer = frames.pop() ?? "";
         const decoded = frames.flatMap(parseSseFrame);
+        for (const frame of decoded) if (frame.kind === "state" && frame.run.id === id) onRun?.(frame.run);
         const events = decoded.flatMap((f) => (f.kind === "event" ? [f.event] : []));
         if (events.length) onEvents(events);
         const end = decoded.find((f) => f.kind === "end");

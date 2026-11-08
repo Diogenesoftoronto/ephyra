@@ -3,6 +3,24 @@ import { FakeApi } from "../fake/api.ts";
 import { RUN_IDS } from "../fake/runs.ts";
 import { followRun, type RunSnapshot } from "./followRun.ts";
 
+test("a live metadata snapshot updates access links without ending or reconnecting the stream", async () => {
+  const api = new FakeApi();
+  const initial = await api.run(RUN_IDS.orb);
+  const ctl = new AbortController();
+  const frames: RunSnapshot[] = [];
+  api.run = async () => ({ ...initial, executor: { kind: "orb" } });
+  api.watchRun = async (_id, _after, _batch, _signal, onRun) => {
+    onRun?.({ ...initial, executor: { kind: "orb", threadUrl: "https://ampcode.com/threads/recorded-session" } });
+    ctl.abort();
+    onRun?.({ ...initial, id: "wrong-run", status: "done" });
+    return null;
+  };
+  await followRun(api, initial.id, ctl.signal, (snapshot) => frames.push(snapshot));
+  expect(frames).toHaveLength(2);
+  expect(frames.at(-1)?.run.executor.threadUrl).toBe("https://ampcode.com/threads/recorded-session");
+  expect(frames.at(-1)?.stream).toBe("live");
+});
+
 test("a clean disconnect resumes from the last sequence and de-duplicates replay", async () => {
   const api = new FakeApi();
   const initial = await api.run(RUN_IDS.orb);

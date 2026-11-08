@@ -43,7 +43,11 @@ test("revocation closes an idle real run SSE stream and releases its broker wait
     Authorization: `Bearer ${token}`, "X-Ephyra-Principal": VIEWER, Accept: "text/event-stream",
   } }), (request) => { upstreamSignal = request.signal; return app.fetch(request); }, a.allowed, 10);
   const reader = response.body!.getReader();
-  expect(new TextDecoder().decode((await reader.read()).value)).toContain("retry:");
+  let initial = new TextDecoder().decode((await reader.read()).value);
+  expect(initial).toContain("retry:");
+  // The initial snapshot is already authorized and may be queued before revocation. Drain it to reach an idle stream.
+  while (!initial.includes("event: run_state")) initial += new TextDecoder().decode((await bounded(reader.read())).value);
+  expect(initial).toContain('"status":"running"');
   await a.revoke();
   expect((await bounded(reader.read())).done).toBe(true);
   expect(upstreamSignal?.aborted).toBe(true);

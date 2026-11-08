@@ -281,9 +281,11 @@ export class FakeApi implements ConsoleApi {
     after: number | undefined,
     onEvents: (events: AgentRunEvent[]) => void,
     signal: AbortSignal,
+    onRun?: (run: AgentRun) => void,
   ) {
     await this.gate("watchRun");
     const b = this.bundle(id);
+    if (!signal.aborted) onRun?.(structuredClone(b.run));
     const interval = this.options.streamIntervalMs ?? 1200;
     let cursor = after ?? -1;
     const sendNew = () => {

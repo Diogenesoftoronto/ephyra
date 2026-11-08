@@ -98,6 +98,23 @@ After building the app and Storybook, `env -u LD_LIBRARY_PATH bun apps/console/s
 themes at 320/390/1440px, hoverable details, keyboard/touch access, long IDs, missing artwork and independent navigation.
 These checks use fictional local runs; they do not establish live agent availability.
 
+Runs and the agent roster offer **Open Amp orb** (or the recorded agent session) and **Open app preview** when those links
+exist. A live `run_state` frame updates them during execution. Amp's thread supplies its conversation, terminal, files and
+portal; Ephyra membership does not grant access to an Amp account. No orb URL or ID is guessed from the launcher's sandbox.
+
+The **From the agent** panel displays saved interactive HTML alongside the transcript. Agents publish through the
+[stream envelope](../../packages/agent/README.md#sharing-a-visual-during-a-run), using ordinary shell tools or an explicit
+assistant block. Pages resize, adopt the current theme and expand without resetting their controls. A later revision waits
+behind **Load update**; saved visuals replay after the run finishes and the page reloads. Portal links remain external and
+are not presented as proof of health. The HTML frame has an opaque origin, no access to Ephyra's DOM/storage, and a CSP
+blocking external requests and form submissions. Inline scripts, styles and data-URI media remain available.
+
+The design follows T3 Code's [saved visual reference](https://github.com/pingdotgg/t3code/blob/dff0b1159bf7aa3ad5e5598d6e1bb7d6243f51a2/packages/shared/src/htmlRender.ts)
+and [isolated document frame](https://github.com/pingdotgg/t3code/blob/dff0b1159bf7aa3ad5e5598d6e1bb7d6243f51a2/apps/web/src/components/files/BrowserDocumentFrame.tsx).
+Ephyra does not claim T3's headless preview measurement or MCP publication tools: publication here is captured from its
+existing run stream. `run-handoff.ts` exercises that stream through a real local server, recorder and browser at 320/390/1440px
+in both themes. Agent output is a named fixture. Live Amp access, provider behavior, deployed storage and Safari remain unverified.
+
 Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
 account/workspace bindings, including when another tab changes the signed-in cookie. The sign-in browser harness now
 checks optional BYOK onboarding, hidden saved keys, shortcuts, real draft requests using a named offline model fixture,

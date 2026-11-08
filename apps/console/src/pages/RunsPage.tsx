@@ -8,6 +8,7 @@ import { noRunFilters, RunFilters, type RunFilterValue } from "../components/Run
 import { RunList } from "../components/RunList.tsx";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
 import { EngineBadge } from "../components/EngineBadge.tsx";
+import { RunAccess } from "../components/RunAccess.tsx";
 import "./RunsPage.css";
 
 /** Every running and recent agent run, wherever it executes: Amp orbs and runners, local processes, sandboxes. */
@@ -79,7 +80,9 @@ function RunsBody({
               <span className="run-roster__status">{working.length ? `${working.length} running`
                 : latest ? `Last run ${latest.status}` : "No recent run"}</span>
             </button>
-            <span className="run-roster__engine"><EngineBadge engine={latest?.engine} executor={latest?.executor} /></span>
+            <span className="run-roster__engine"><EngineBadge engine={latest?.engine} executor={latest?.executor} />
+              {latest && <RunAccess run={latest} compact />}
+            </span>
           </div>;
         })}
       </section>

@@ -157,7 +157,9 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
   });
   try {
     result = await withSandbox(deps, ctx, trail, attempt, async (runner, handle) => {
-      if (run && executorFor(agent, runner).kind !== "local") run.executor({ id: handle.id });
+      // The launcher's sandbox id is not an Amp orb or remote Amp runner id.
+      // Remote agent identity is reported by that agent; never overwrite it with the launcher's handle.
+      if (run && (!executorOf(agent) || executorOf(agent)?.kind === "local")) run.executor({ id: handle.id });
       const r = await runAgent(agent, task, runner, handle, {
         ...(run ? { onEvent: run.event, onExecutor: run.executor } : {}), ...(deps.secrets ? { secrets: deps.secrets } : {}),
       });

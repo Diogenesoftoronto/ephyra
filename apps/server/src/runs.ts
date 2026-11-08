@@ -94,8 +94,7 @@ export class ConvexRunStore implements RunStore {
   }
   async append(runId: string, events: Omit<AgentRunEvent, "runId" | "seq">[]) {
     const out: AgentRunEvent[] = [];
-    for (let i = 0; i < events.length; i += 100) {
-      const batch = events.slice(i, i + 100);
+    for (const batch of runEventBatches(events)) {
       const first = await this.client.mutation(api.runs.appendEvents, { secret: this.secret, runId, events: batch.map((e) => JSON.stringify(e)) });
       out.push(...batch.map((e, k) => AgentRunEvent.parse({ ...e, runId, seq: first + k })));
     }
@@ -108,6 +107,20 @@ export class ConvexRunStore implements RunStore {
   async closeRunning(reason: string, endedAt: Date) {
     return this.client.mutation(api.runs.closeRunning, { secret: this.secret, reason: safeNote(reason, 500), endedAt: endedAt.toISOString() });
   }
+}
+
+/** Keep saved HTML events below the mutation argument limit, including JSON string escaping. */
+export function runEventBatches(events: Omit<AgentRunEvent, "runId" | "seq">[]) {
+  const batches: typeof events[] = [];
+  let batch: typeof events = [];
+  let bytes = 0;
+  for (const event of events) {
+    const size = new TextEncoder().encode(JSON.stringify(JSON.stringify(event))).byteLength;
+    if (batch.length && (batch.length >= 100 || bytes + size > 800_000)) { batches.push(batch); batch = []; bytes = 0; }
+    batch.push(event); bytes += size;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
 }
 
 /** Wakes readers waiting for new events or for a run to close (same process; others poll). */

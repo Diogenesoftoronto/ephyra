@@ -1,6 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import { ApiError, ConsoleClient, UnknownWriteOutcome, VoiceRequestError } from "./api.ts";
 import { FakeApi } from "./fake/api.ts";
+import { RUN_IDS } from "./fake/runs.ts";
+
+test("SSE run snapshots preserve new links, ignore another run, and do not interrupt the event channel", async () => {
+  const fixture = new FakeApi();
+  const run = await fixture.run(RUN_IDS.orb);
+  const event = (await fixture.runEvents(run.id))[0]!;
+  const body = `event: run_state\ndata: ${JSON.stringify(run)}\n\n`
+    + `event: run_state\ndata: ${JSON.stringify({ ...run, id: "foreign" })}\n\n`
+    + `event: run_event\ndata: ${JSON.stringify(event)}\n\nevent: end\ndata: {"status":"done"}\n\n`;
+  const client = new ConsoleClient("https://fixture.test", "", async () => new Response(body));
+  const ids: string[] = [];
+  const seqs: number[] = [];
+  const status = await client.watchRun(run.id, undefined, (events) => seqs.push(...events.map((e) => e.seq)),
+    new AbortController().signal, (snapshot) => ids.push(snapshot.id));
+  expect(ids).toEqual([run.id]);
+  expect(seqs).toEqual([event.seq]);
+  expect(status).toBe("done");
+});
 
 describe("console HTTP client", () => {
   test("browser sessions use same-origin cookies across reads, writes, streams and voice without an empty bearer header", async () => {

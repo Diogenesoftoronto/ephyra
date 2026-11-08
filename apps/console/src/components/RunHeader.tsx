@@ -1,18 +1,17 @@
 import type { AgentRun } from "@ephyra/core";
 import { Card, Status } from "../kit.ts";
-import { formatMicrousd, formatTokens, safeHref } from "../lib/format.ts";
+import { formatMicrousd, formatTokens } from "../lib/format.ts";
 import { Elapsed } from "./Elapsed.tsx";
 import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaLabel } from "./PersonaLabel.tsx";
 import { RunStatus } from "./RunList.tsx";
+import { RunAccess } from "./RunAccess.tsx";
 import "./RunHeader.css";
 
 export type StreamState = "idle" | "live" | "reconnecting" | "ended";
 
 /** Who ran what, where, and the links out: the engine's own thread, and a live preview when the engine opened one. */
 export function RunHeader({ run, stream = "idle" }: { run: AgentRun; stream?: StreamState }) {
-  const thread = safeHref(run.executor.threadUrl);
-  const portal = safeHref(run.executor.portalUrl);
   return (
     <Card tone={run.status === "failed" ? "alert" : "quiet"}>
       <div className="run-header">
@@ -42,19 +41,7 @@ export function RunHeader({ run, stream = "idle" }: { run: AgentRun; stream?: St
             )}
           </span>
         </div>
-        <div className="run-header-line">
-          {thread && (
-            <a href={thread} target="_blank" rel="noopener noreferrer">
-              Open agent thread ↗
-            </a>
-          )}
-          {portal && (
-            <a href={portal} target="_blank" rel="noopener noreferrer">
-              Live preview ↗
-            </a>
-          )}
-          {!thread && !portal && <span className="muted">No external links for this run.</span>}
-        </div>
+        <RunAccess run={run} />
         {run.usage && (
           <p className="muted run-header-text">
             {formatTokens(run.usage.tokens)} tokens ·{" "}

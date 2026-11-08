@@ -1,0 +1,34 @@
+.run-presentations { min-width: 0; }
+.run-visual-deck { display: grid; gap: var(--s3); }
+.run-visual-picker { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.run-visual-picker button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.run-visual-picker button[aria-pressed="true"] { border-color: var(--jelly-deep); background: var(--jelly-tint); }
+.run-visual-update { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin: 0; font-size: var(--fs-small); }
+.run-visual-stage {
+  position: relative;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.run-visual-stage > header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--s2); padding: var(--s3); }
+.run-visual-stage > header strong { overflow-wrap: anywhere; min-width: 0; }
+.run-visual-stage iframe { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: var(--surface); }
+.run-visual-stage--expanded {
+  position: fixed; inset: 0; margin: auto; width: calc(100vw - 32px); height: calc(100dvh - 32px);
+  max-width: 1440px; max-height: none; display: flex; flex-direction: column;
+}
+.run-visual-stage--expanded iframe { flex: 1; min-height: 0; }
+.run-visual-stage::backdrop { background: oklch(0.12 0.02 250 / .72); }
+.run-visual-note { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.5; }
+.run-portals { display: grid; gap: var(--s3); margin-top: var(--s4); }
+.run-portals h3 { margin: 0; font-size: var(--fs-body); }
+.run-portals a { display: grid; gap: 4px; padding: var(--s3); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.run-portals a span { color: var(--muted); font-size: var(--fs-small); }
+@media (pointer: coarse), (max-width: 760px) { .run-visual-picker button { min-height: 44px; } }

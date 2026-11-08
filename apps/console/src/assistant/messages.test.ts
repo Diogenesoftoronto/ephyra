@@ -15,7 +15,8 @@ describe("run transcript", () => {
     const ps = parts(message!);
     const types = ps.map((p) => p.type);
     expect(types[0]).toBe("data-status");
-    expect(types.at(-1)).toBe("data-portal");
+    expect(types.slice(-2)).toEqual(["data-portal", "text"]);
+    expect(ps.at(-1)).toMatchObject({ type: "text", text: "Fictional demo: an interactive explanation of the rounding change." });
     expect(types).toContain("reasoning");
     const push = ps.find((p) => p.toolCallId === "c3")!;
     expect(push.isError).toBe(true);
