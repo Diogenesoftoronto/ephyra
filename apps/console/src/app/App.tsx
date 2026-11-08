@@ -231,7 +231,7 @@ function Frame({
       ? "Usage, last 7 days"
       : voiceContext.kind === "overview"
         ? "Application overview"
-        : `${voiceContext.kind === "trail" ? "Trail" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
+        : `${voiceContext.kind === "trail" ? "Quest" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
   return (
     <VoiceProvider
       api={api}

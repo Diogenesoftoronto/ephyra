@@ -83,24 +83,24 @@ The journal, pricing, legal and security pages share cut E's tokens and type (An
 
 ## Landing walkthrough
 
-Cut E reads `site/e/walkthrough.json`, exported by the CLI from its sample trail. Regenerate it after changing the inbox:
+Cut E reads `site/e/walkthrough.json`, exported by the CLI from its sample quest. Regenerate it after changing the inbox:
 
 ```sh
 bun run apps/cli/scripts/walkthrough.ts site/e/walkthrough.json
 ```
 
-The Graphical / Terminal selector keeps the same trail moment when switching views. “Born for the terminal?” opens the TUI. Both views use the CLI's exported sample trail, events, hypothesis, plan, and evidence. The GUI offers Review, Evidence, Files, Activity, and Discuss; unavailable documents and source diffs are explicitly identified. Checkpoint buttons advance the sample and never call the control plane.
+The Graphical / Terminal selector keeps the same quest moment when switching views. Both views use the CLI's exported sample quest, events, hypothesis, plan, and evidence. The GUI embeds the production React `TrailPanel`; its fixture adapter never calls the control plane. The six workspace scenes use the production `App` with fictional local adapters.
 
 The sample label stays visible at every width. Previous/Next buttons and Left/Right, Home/End keys navigate when focus is in the walkthrough. The terminal phone view uses the real 40-column detail layout at a minimum of 13px; short or narrow windows can scroll. Key hints stay outside that window. The full reader opens complete, selectable content in a native dialog with Escape and focus restoration. Short phones use explicit step navigation so the pinned console cannot cover the viewport.
 
-Discuss combines the recorded reviewer comment with local notes and review claim/release controls. Notes and control changes synchronize between tabs at the same origin through browser storage and BroadcastChannel. Drafts stay scoped to their trail; incoming changes preserve the input node, focus, and caret. This is labeled a local demo: it does not send messages to a server, show live teammates, start/stop agents, or provide authenticated multiplayer. Storage failure falls back to memory with an explicit notice.
+The inline frames are inert previews, so wheel and touch gestures continue down the page. “Explore this screen” and “Read full details” open an interactive, scrollable native dialog. The recorded quest remains read-only. It does not send messages to a server, show live teammates, start/stop agents, or provide authenticated multiplayer. Evidence positioning uses the child window's `scrollTo`; `scrollIntoView` would also move the parent page and desynchronize the story.
 
 The visual direction is G3-06, “Connected Notes”: open reading surfaces, curved connections, restrained membrane edges, and amber checkpoint actions. `output/jellyware-exploration/` contains the 30-concept, three-generation MAP-Elites comparison, prompts, lineage, and subjective assessment scores. The generated concept images include proposed collaboration behavior; the walkthrough uses only the recorded fixture and the local demo described above.
 
-`apps/web/scripts/check-tour.js` checks every terminal step, keyboard boundaries, sample labels, the complete reader output against the exported fixture, and checkpoint C's highlighted approval key. `check-console.js` checks all nine GUI moments and five tools, view switching, actions, full reader, focus restoration, and overflow. Evaluate these scripts in the served home page after the walkthrough loads. GUI checks passed at 1440×900 and 390×844 in both themes, and 320×568 dark; the TUI checks passed at desktop, phone, and short-phone sizes. A separate two-tab browser exercise verified note/control synchronization and draft/caret preservation. These are local UI checks with sample data, not evidence of real production repairs, forge landing, or networked collaboration.
+`apps/console/scripts/landing-scroll.probe.js` runs in the shared browser. It checks all nine scenes forward and backward, page drift, alignment, preview gesture handling, arrow navigation and details-dialog position restoration. `apps/console/scripts/product-walkthrough.ts` covers the six workspace scenes, nine recorded moments and frame-origin boundary. Older `apps/web/scripts/check-console.js` checks the retired hand-built GUI and does not validate the React walkthrough. These checks use sample data; they are not evidence of real production repairs, forge landing, or networked collaboration.
 
 Cut D remains an untracked draft; the landing walkthrough and its checks do not depend on it. A local server without `EPHYRA_BLOG_PUBLICATION_URI` cannot serve the design article; the walkthrough link works without a connected publication.
 
 ## Opening the application
 
-Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_ORIGIN` to the control-plane server origin; the public site redirects there without forwarding user-supplied destinations. The server image includes the console and offers browser sign-in when Not Organic is configured. The sample trail remains explicitly a demonstration. Without an API origin, `/app/` reports that the deployment is not connected.
+Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_ORIGIN` to the control-plane server origin; the public site redirects there without forwarding user-supplied destinations. The server image includes the console and offers browser sign-in when Not Organic is configured. The sample quest remains explicitly a demonstration. Without an API origin, `/app/` reports that the deployment is not connected.

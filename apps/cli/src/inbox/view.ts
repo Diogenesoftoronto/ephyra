@@ -700,7 +700,7 @@ function trailBody(
 		out.push(
 			...fact(
 				"budget",
-				`${usd(trail.budget.spendMicrousdUsed)} of ${usd(trail.budget.spendMicrousdMax)} spent on this trail`,
+				`${usd(trail.budget.spendMicrousdUsed)} of ${usd(trail.budget.spendMicrousdMax)} spent on this quest`,
 				w,
 			),
 		);
@@ -786,7 +786,7 @@ function detailLines(
 		out.push(
 			...railLines(itemRail(item), w),
 			[],
-			[g("loading the trail…", "muted")],
+			[g("loading the quest…", "muted")],
 			[],
 			...para(oneLine(item.artefact.summary), w, "muted"),
 		);
@@ -796,7 +796,7 @@ function detailLines(
 		out.push(
 			...railLines(itemRail(item), w),
 			[],
-			[g(`couldn't load the trail: ${oneLine(entry.message)}`, "cherry")],
+			[g(`couldn't load the quest: ${oneLine(entry.message)}`, "cherry")],
 		);
 		return out;
 	}
@@ -848,7 +848,7 @@ function evidenceLines(
 	if (file.status === "missing") {
 		out.push(
 			...para(
-				"No evidence index in this trail's journal yet. The agent writes one when it researches.",
+				"No evidence index in this quest's journal yet. The agent writes one when it researches.",
 				w,
 				"muted",
 			),
@@ -904,15 +904,15 @@ export const KEYS: [string, string][] = [
 	["j k", "move between items"],
 	["a", "approve the checkpoint or the spend; at C, this lands it"],
 	["r", "send it back with a note"],
-	["x", "kill the trail, with a reason"],
-	["c", "comment; everyone on the trail sees it"],
+	["x", "kill the quest, with a reason"],
+	["c", "comment; everyone on the quest sees it"],
 	["t", "claim a checkpoint review; release it before deciding"],
 	["p", "park it, or resume it"],
 	["o", "open the landing or the agent's thread"],
-	["l", "land a ready trail whose proof is approved"],
+	["l", "land a ready quest whose proof is approved"],
 	["e", "explain: the evidence behind it"],
 	["J K", "scroll this pane"],
-	["esc", "back to the trail"],
+	["esc", "back to the quest"],
 	["q", "quit"],
 ];
 function helpLines(w: number): Line[] {
@@ -927,7 +927,7 @@ function helpLines(w: number): Line[] {
 		),
 		[],
 		...para(
-			"Every decision is bound to the revision you saw. If the trail changed underneath you, it's refused and the item refreshes.",
+			"Every decision is bound to the revision you saw. If the quest changed underneath you, it's refused and the item refreshes.",
 			w,
 			"muted",
 		),
@@ -1175,9 +1175,9 @@ export function trailView(
 /** A table of trails for `ephyra trails`. */
 export function trailsView(trails: Trail[], w = 80): Line[] {
 	w = Math.max(40, Math.floor(w));
-	if (!trails.length) return [[g("No trails.", "muted")]];
+	if (!trails.length) return [[g("No quests.", "muted")]];
 	const head = [
-		g("trail     ", "muted"),
+		g("quest     ", "muted"),
 		g("state         ", "muted"),
 		g("area          ", "muted"),
 		g("risk     ", "muted"),

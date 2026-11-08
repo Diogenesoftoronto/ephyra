@@ -90,8 +90,8 @@ export function CheckpointCard({
       meta={
         <>
           {item.blocking
-            ? "Blocking: the trail waits for you."
-            : "Advisory: the trail carries on without you."}
+            ? "Blocking: the quest waits for you."
+            : "Advisory: the quest carries on without you."}
         </>
       }
     >
@@ -131,12 +131,12 @@ export function CheckpointCard({
         <div className="cp-stale" role="alert">
           <strong>This approval is stale.</strong>
           <span>
-            {stale ?? "The trail changed after you opened this."} Nothing was recorded. Read the new version,
+            {stale ?? "The quest changed after you opened this."} Nothing was recorded. Read the new version,
             then decide.
           </span>
           {onReload && (
             <Button size="sm" onClick={onReload}>
-              Reload this trail
+              Reload this quest
             </Button>
           )}
         </div>

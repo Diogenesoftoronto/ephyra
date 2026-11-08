@@ -65,6 +65,6 @@ try {
     assert.equal(await trail.locator('[data-tour-scene="rollback"]').count(), 1);
     assert.deepEqual(errors, []); assert.deepEqual(missing, []);
     await context.close();
-    console.log(`PASS actual app screens, nine recorded trail scenes, frame boundary and layout at ${width}px`);
+    console.log(`PASS actual app screens, nine recorded quest scenes, frame boundary and layout at ${width}px`);
   }
 } finally { await browser.close(); server.stop(true); }

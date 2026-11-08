@@ -71,7 +71,7 @@ export function PublishBar({
         </dl>
         <p className="muted">
           The policy in effect changes when this commit lands on the base ref, through the same landing as
-          trails.
+          quests.
         </p>
       </Card>
     );

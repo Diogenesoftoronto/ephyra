@@ -148,7 +148,7 @@ export function InvitationAccept({ api, token, onAccepted, onCancel }: {
           <p>You now have access to <strong>{state.workspace.name}</strong>.</p>
           <div><Badge tone="ok">{state.workspace.role === "approver" ? "Approver" : state.workspace.role === "viewer" ? "Viewer" : "Owner"}</Badge></div>
           <p>{state.workspace.role === "viewer"
-            ? "Follow runs, read trails, and see what the models have spent."
+            ? "Follow runs, read quests, and see what the models have spent."
             : "Follow the work and help approve changes and spend under the workspace’s policy."}</p>
           <Button variant="primary" onClick={() => onAccepted(state.workspace)}>Open shared workspace</Button>
         </> : <>
@@ -159,8 +159,8 @@ export function InvitationAccept({ api, token, onAccepted, onCancel }: {
             <h2>{preview.workspace.name}</h2>
             <div><Badge tone="info">{preview.workspace.role === "approver" ? "Approver" : "Viewer"}</Badge></div>
             <p>{preview.workspace.role === "approver"
-              ? "Follow runs, read trails, and see costs. You can also approve changes and spend under this workspace’s policy."
-              : "Follow runs, read trails, and see costs. The owner and approvers handle decisions."}</p>
+              ? "Follow runs, read quests, and see costs. You can also approve changes and spend under this workspace’s policy."
+              : "Follow runs, read quests, and see costs. The owner and approvers handle decisions."}</p>
             <p className="invitation-note">Account settings and team access stay with the owner.</p>
             <p className="invitation-note">Workspace owner <code>{preview.workspace.ownerDid}</code></p>
           </div>}

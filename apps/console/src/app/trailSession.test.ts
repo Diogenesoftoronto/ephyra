@@ -17,7 +17,7 @@ function fixture() {
   return { api, writes, failure: (value: typeof fail) => { fail = value; }, receipt: (value: typeof receipt) => { receipt = value; } };
 }
 
-test("route revisits retain drafts, while account, API and trail changes isolate them", () => {
+test("route revisits retain drafts, while account, API and quest changes isolate them", () => {
   const f = fixture();
   const session = getTrailSession(f.api, "alice", "one");
   session.setDraft("Please inspect the coupon path.");

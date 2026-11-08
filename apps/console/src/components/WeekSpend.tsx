@@ -19,11 +19,11 @@ export function WeekSpend({
         label={label}
         value={formatMicrousd(usage.totals.costMicrousd)}
         unknownCount={usage.totals.unknownCost}
-        sub={budget > 0 ? `across ${usage.byTrail.length} trail budgets` : "no trail budgets in this window"}
+        sub={budget > 0 ? `across ${usage.byTrail.length} quest budgets` : "no quest budgets in this window"}
       />
       {budget > 0 && (
         <Meter
-          label="Against trail budgets"
+          label="Against quest budgets"
           used={usage.totals.costMicrousd}
           max={budget}
           unknown={usage.totals.unknownCost}

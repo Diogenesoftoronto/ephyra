@@ -67,20 +67,24 @@ function RecordedTrail({ scene }: { scene: string }) {
         const details = document.querySelector<HTMLDetailsElement>('[aria-label="Review evidence"] details');
         if (details) { details.open = true; target = details; }
       }
-      if (scene === "revise") target = document.querySelector('[aria-label="Shared trail discussion"]');
+      if (scene === "revise") target = document.querySelector('[aria-label="Shared quest discussion"]');
       if (["watching", "set", "rollback"].includes(scene)) target = document.querySelector('[aria-label="Timeline"]');
       if (scene === "triaged") { done = true; scrollTo(0, 0); return; }
       if (!target) return;
-      target.dataset.tourFocus = ""; target.scrollIntoView({ block: "start" }); done = true;
+      target.dataset.tourFocus = "";
+      // scrollIntoView also scrolls the containing landing page. Only move this document.
+      const inset = (document.querySelector(".tour-recorded-heading")?.getBoundingClientRect().height ?? 0) + 20;
+      scrollTo({ top: scrollY + target.getBoundingClientRect().top - inset, behavior: "instant" });
+      done = true;
     };
     const observer = new MutationObserver(reveal); observer.observe(document.getElementById("root")!, { childList: true, subtree: true });
     reveal(); return () => observer.disconnect();
   }, [scene]);
   return <ApiProvider api={api}><VoiceProvider api={api} context={{ kind: "trail", id }}
-    label="Sample trail" scopeKey={scene} canSpend={false}>
+    label="Sample quest" scopeKey={scene} canSpend={false}>
     <div className="tour-recorded">
       <header className="tour-recorded-heading"><img src="/app/brand/logo.svg" width="24" height="24" alt="" />
-        <b>Ephyra</b><span>Inbox / Trail</span><small>Recorded example · read-only</small></header>
+        <b>Ephyra</b><span>Inbox / Quest</span><small>Recorded example · read-only</small></header>
       <TrailPanel key={scene} trailId={id} items={api.items} canAct={false} principal={ME} />
     </div>
   </VoiceProvider></ApiProvider>;
@@ -104,7 +108,11 @@ function Tour() {
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== parent || event.origin !== location.origin || event.data?.type !== "ephyra:tour") return;
-      if (acceptsScene(event.data.scene)) { setScene(event.data.scene); scrollTo(0, 0); }
+      if (acceptsScene(event.data.scene)) {
+        setScene(event.data.scene);
+        // Reselecting a workspace tab also returns from any internal sample navigation.
+        if (productScenes.includes(event.data.scene)) location.hash = `#/${event.data.scene}`;
+      }
       if (event.data.theme === "light" || event.data.theme === "dark") document.documentElement.dataset.theme = event.data.theme;
     };
     addEventListener("message", receive);

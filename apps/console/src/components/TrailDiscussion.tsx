@@ -81,14 +81,14 @@ export function TrailDiscussion({
   };
 
   return (
-    <section className="trail-discussion" aria-label="Shared trail discussion">
+    <section className="trail-discussion" aria-label="Shared quest discussion">
       <header className="trail-discussion-head">
         <h2>Discussion</h2>
         <span className="trail-discussion-connection" data-state={status} role="status">
           {CONNECTION[status]}
         </span>
       </header>
-      <p className="trail-discussion-intro">Notes and review handoffs stay with this trail.</p>
+      <p className="trail-discussion-intro">Notes and review handoffs stay with this quest.</p>
       {entries.length ? (
         <ol className="trail-discussion-messages" aria-label="Comments and review handoffs">
           {entries.map((event) => (
@@ -111,7 +111,7 @@ export function TrailDiscussion({
       ) : <p className="trail-discussion-empty">No comments yet. Leave the next reviewer a question or useful context.</p>}
       <span className="sr-only" role="status">{entries.length} recorded discussion entries.</span>
       <form className="trail-discussion-compose" onSubmit={(event) => { event.preventDefault(); void send(); }}>
-        <Field label="Comment on this trail" hint="Shared with everyone who can read this trail. Up to 4,000 characters.">
+        <Field label="Comment on this quest" hint="Shared with everyone who can read this quest. Up to 4,000 characters.">
           <textarea
             rows={3}
             value={draft}

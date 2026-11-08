@@ -39,7 +39,7 @@ export function LedgerFilters({
           ))}
         </select>
       </Field>
-      <Field label="Trail">
+      <Field label="Quest">
         <select value={value.trail} onChange={(e) => set({ trail: e.target.value })}>
           <option value="">All</option>
           {trails.map((t) => (

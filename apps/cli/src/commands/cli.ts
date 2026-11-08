@@ -83,7 +83,7 @@ export async function main(args: string[]) {
 		);
 	const cols = process.stdout.columns || 100;
 	if (cmd === "status") result = await client.health();
-	else if (cmd === "trails") {
+	else if (cmd === "quests" || cmd === "trails") {
 		const i = args.indexOf("--state");
 		result = await client.trails(i < 0 ? undefined : args[i + 1]);
 		if (!json) return paint(trailsView(result as Trail[], cols));
@@ -150,7 +150,7 @@ export async function main(args: string[]) {
 		);
 	} else
 		throw new Error(
-			"Usage: ephyra login|logout|whoami|init|status|trails|show|decide|comment|claim|release|park|resume|kill|land|inbox",
+			"Usage: ephyra login|logout|whoami|init|status|quests|show|decide|comment|claim|release|park|resume|kill|land|inbox",
 		);
 	console.log(JSON.stringify(result, null, json ? 0 : 2));
 }

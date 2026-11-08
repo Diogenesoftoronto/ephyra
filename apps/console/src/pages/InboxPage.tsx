@@ -35,7 +35,7 @@ export function InboxPage({ trailId, canAct = true, principal, questionWorkspace
             {(items) => <InboxList items={items} selected={trailId} />}
           </Load>
         </section>
-        <section className="inbox-detail-pane" aria-label="Trail detail">
+        <section className="inbox-detail-pane" aria-label="Quest detail">
           {trailId ? (
             <>
               <p className="inbox-back">
@@ -49,7 +49,7 @@ export function InboxPage({ trailId, canAct = true, principal, questionWorkspace
             </>
           ) : (
             <Card tone="inset">
-              <Empty title="Pick an item" body="Open a trail to see its checkpoints, runs and timeline." />
+              <Empty title="Pick an item" body="Open a quest to see its checkpoints, runs and timeline." />
             </Card>
           )}
         </section>

@@ -21,7 +21,7 @@ const documentBody = (text) => text.replace(/^# [^\n]+\n?/, '').trim().split(/\n
 
 function rail(id) {
   const selected = { triaged: 0, hypothesis: 1, explain: 1, revise: 1, plan: 2, proof: 3, watching: 4, set: 5, rollback: 4 }[id];
-  return `<ol class="g-rail" aria-label="Trail progress">${['Signal', 'A · Cause', 'B · Plan', 'C · Proof', 'Landed', 'Set'].map((label, i) =>
+  return `<ol class="g-rail" aria-label="Quest progress">${['Signal', 'A · Cause', 'B · Plan', 'C · Proof', 'Landed', 'Set'].map((label, i) =>
     `<li class="${i === selected ? 'current' : i < selected ? 'done' : ''}"><span>${i < selected ? '✓' : i === selected ? '●' : '○'}</span>${label}</li>`).join('')}</ol>`;
 }
 
@@ -34,7 +34,7 @@ const icons = {
   discuss: '<path d="M21 11a8 8 0 0 1-8 8H7l-5 3 2-6a8 8 0 0 1-1-5 8 8 0 0 1 8-8h2a8 8 0 0 1 8 8ZM7 10h10M7 14h6"/>',
 };
 function toolbox(selected) {
-  return `<nav class="g-toolbox" aria-label="Trail tools">${Object.entries(toolNames).map(([tool, label]) =>
+  return `<nav class="g-toolbox" aria-label="Quest tools">${Object.entries(toolNames).map(([tool, label]) =>
     `<button type="button" data-console-tool="${tool}" aria-pressed="${tool === selected}" aria-controls="gui-tool-content" title="${label}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[tool]}</svg><span>${label}</span></button>`).join('')}</nav>`;
 }
@@ -47,7 +47,7 @@ function inspectEvidence(id, data, events) {
   }
   const evidence = event(events, 'research_completed') ? data.gui.evidence : data.gui.evidence.slice(0, 1);
   return heading('Evidence', 'Follow the source.', pill(`${evidence.length} ${evidence.length === 1 ? 'source' : 'sources'}`))
-    + evidenceRows(evidence) + (evidence.length === 1 ? '<p class="g-inspector-note">Research has not completed at this point in the trail.</p>' : '');
+    + evidenceRows(evidence) + (evidence.length === 1 ? '<p class="g-inspector-note">Research has not completed at this point in the quest.</p>' : '');
 }
 
 function inspectFiles(id, data, events) {
@@ -58,13 +58,13 @@ function inspectFiles(id, data, events) {
   const scope = proof?.items.find((item) => item.kind === 'diff_scope');
   const documents = entries.map(([path, body]) => `<details class="g-file-document"><summary>${code(path)}<span>Read document</span></summary><div class="g-document">${documentBody(body)}</div></details>`).join('');
   const changed = scope ? `<h5 class="g-file-heading">Changed in revision ${proof.rev}</h5><ul class="g-file-list">${scope.paths.map((path) => `<li>${code(path)}</li>`).join('')}</ul><p class="g-inspector-note">${scope.lines} lines changed. This sample includes the file paths and proof summary; it does not include a source diff.</p>` : '';
-  if (!documents && !changed) return heading('Trail files', 'No documents at this step.') + '<p class="g-inspector-note">The trail keeps its hypothesis, plan, and proof in git as the investigation progresses. Use Activity to inspect what has happened so far.</p>';
-  return heading('Trail files', 'The work stays with the trail.') + documents + changed;
+  if (!documents && !changed) return heading('Quest files', 'No documents at this step.') + '<p class="g-inspector-note">The quest keeps its hypothesis, plan, and proof in git as the investigation progresses. Use Activity to inspect what has happened so far.</p>';
+  return heading('Quest files', 'The work stays with the quest.') + documents + changed;
 }
 
 function inspectActivity(events) {
   const labels = {
-    trail_created: 'Trail opened', triage_completed: 'Triage completed', research_completed: 'Hypothesis written',
+    trail_created: 'Quest opened', triage_completed: 'Triage completed', research_completed: 'Hypothesis written',
     repro_completed: 'Repro completed', plan_completed: 'Plan written', human_comment: 'Comment added',
     patch_completed: 'Patch completed', proof_completed: 'Proof recorded', landing_completed: 'Fix landed',
     watch_started: 'Production watch started', watch_completed: 'Production watch completed',
@@ -86,8 +86,8 @@ const localControl = (room) => !room?.claimed ? 'No local review claim.'
 function roomPreview(events, room, reader) {
   const recorded = recordedComments(events).at(-1);
   const count = recordedComments(events).length + (room?.comments.length ?? 0);
-  return `<aside class="g-room-preview" aria-label="Shared trail discussion"><div class="g-room-preview-copy">
-    <span class="g-room-preview-label">${recorded ? 'Reviewer · recorded sample' : 'Shared trail'}</span>
+  return `<aside class="g-room-preview" aria-label="Shared quest discussion"><div class="g-room-preview-copy">
+    <span class="g-room-preview-label">${recorded ? 'Reviewer · recorded sample' : 'Shared quest'}</span>
     ${recorded ? `<p>${escape(recorded.data.text)}</p>` : '<p>Keep questions and handoffs beside the work.</p>'}
     ${room?.claimed ? `<span class="g-room-preview-control">${localControl(room)}</span>` : ''}</div>
     ${reader ? `<span>${count} ${count === 1 ? 'note' : 'notes'}</span>` : `<button type="button" class="g-button g-discuss-open" data-console-tool="discuss">Discuss${count ? ` · ${count}` : ''}</button>`}</aside>`;
@@ -104,8 +104,8 @@ export function renderDiscussion(events, room = null, { reader = false, draft = 
   const scope = room ? 'Local demo, in this browser only. No messages are sent to a server.'
     : 'Recorded sample conversation. Local notes are available in the interactive walkthrough.';
   const status = room?.persistence === 'memory' ? '<p class="g-room-storage">Browser storage is unavailable. Notes in this tab will be lost when it closes.</p>' : '';
-  return `<section class="g-room" aria-label="Trail discussion">
-    ${heading('Discuss', 'The trail is shared.', pill('Local demo'))}
+  return `<section class="g-room" aria-label="Quest discussion">
+    ${heading('Discuss', 'The quest is shared.', pill('Local demo'))}
     <p class="g-room-scope">${scope}</p>${status}
     <div class="g-room-control"><div><b>${localControl(room)}</b><p>Demo controls only. No agent is started or stopped.</p></div>
       ${room && !reader ? `<button type="button" class="g-button" data-room-action="${room.isOwner ? 'release' : 'claim'}">${room.isOwner ? 'Release review' : 'Claim review'}</button>` : ''}</div>
@@ -154,7 +154,7 @@ function landing(events, settled) {
     + `<div class="g-receipt"><span class="g-receipt-icon" aria-hidden="true">✓</span><div><h5>${escape(receipt?.externalId ?? 'Landing')}</h5><p>${code(receipt?.target)}</p><p class="g-muted">Commit ${code(receipt?.newOid?.slice(0, 7))}</p></div></div>`
     + `<ol class="g-watch"><li class="done"><span class="g-watch-dot"></span><div><b>Fix landed</b><p>${receipt ? clock(receipt.at) : ''} · approval recorded at C</p></div></li>
       <li class="${settled ? 'done' : 'current'}"><span class="g-watch-dot"></span><div><b>${watch ? watch.windowS / 3600 : ''}-hour production watch</b><p>${escape(watch?.routes.join(', '))}</p></div></li>
-      <li class="${settled ? 'done' : ''}"><span class="g-watch-dot"></span><div><b>${result ? `Watch ${escape(result.outcome)}` : 'Close after a clean watch'}</b><p>${settled ? 'The trail is closed. Its repro protects against regression.' : 'The trail stays open while production is being watched.'}</p></div></li></ol>`;
+      <li class="${settled ? 'done' : ''}"><span class="g-watch-dot"></span><div><b>${result ? `Watch ${escape(result.outcome)}` : 'Close after a clean watch'}</b><p>${settled ? 'The quest is closed. Its repro protects against regression.' : 'The quest stays open while production is being watched.'}</p></div></li></ol>`;
 }
 
 /** Pure renderer: no generated results, provider calls, account changes, or invented later events. */
@@ -204,10 +204,10 @@ export function renderConsole(id, data, { reader = false, tool = id === 'explain
     const landedAt = events.find((e) => e.type === 'landing_completed')?.at;
     const regressedAt = events.find((e) => e.type === 'probe_regressed_after_landing')?.at;
     const minutes = Math.round((Date.parse(regressedAt) - Date.parse(landedAt)) / 60000);
-    content = heading('A different trail', 'A regression. Then a revert.', pill('Rolled back', 'undo'))
+    content = heading('A different quest', 'A regression. Then a revert.', pill('Rolled back', 'undo'))
       + `<div class="g-regression"><b>${minutes} minutes after landing</b><p>${escape(regression?.criterion)}</p></div>`
       + `<dl class="g-proof-list"><div><dt>Revert commit</dt><dd>${code(receipt?.newOid?.slice(0, 7))}</dd></div><div><dt>Target</dt><dd>${code(receipt?.target)}</dd></div><div><dt>Evidence</dt><dd>${code(regression?.evidence)}</dd></div></dl>`
-      + `<p class="g-next-revision">Back to research at revision ${trail.rev}. The failed attempt stays on the trail.</p>`;
+      + `<p class="g-next-revision">Back to research at revision ${trail.rev}. The failed attempt stays on the quest.</p>`;
     actions = action('Replay the example', 'triaged', true);
   }
   if (tool === 'evidence') content = inspectEvidence(id, data, events);

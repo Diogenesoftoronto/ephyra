@@ -11,7 +11,7 @@ export const questionStatus = (question: InvestigationQuestion): string => {
   if (question.status === "awaiting_answer" && question.answer) return "Checking the saved answer";
   if (question.status === "answered") return question.answer?.accepted ? "Answer accepted for investigation" : "Answer acceptance unconfirmed";
   return { checking: "Checking the question", awaiting_answer: "Waiting for an answer",
-    rejected: "Check did not pass", ambiguous: "Outcome needs reconciliation", superseded: "Trail moved on" }[question.status];
+    rejected: "Check did not pass", ambiguous: "Outcome needs reconciliation", superseded: "Quest moved on" }[question.status];
 };
 
 export function InvestigationQuestions({ api, principal, workspace, trailId }: {
@@ -81,7 +81,7 @@ export function QuestionRecord({ question, children }: { question: Investigation
         <pre>{JSON.stringify({ request: check.request, response: check.response }, null, 2)}</pre>
       </details>)}
     </details>
-    <a href={`#/inbox/${encodeURIComponent(question.trailId)}`}>Inspect this trail →</a>
+    <a href={`#/inbox/${encodeURIComponent(question.trailId)}`}>Inspect this quest →</a>
   </article>;
 }
 

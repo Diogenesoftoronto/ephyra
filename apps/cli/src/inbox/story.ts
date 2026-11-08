@@ -90,7 +90,7 @@ export const duration = (s: number) =>
 	s % 3600 === 0 ? `${s / 3600}h` : s % 60 === 0 ? `${s / 60}m` : `${s}s`;
 export const MODE: Record<LandingReceipt["mode"], string> = {
 	devenv_live: "live in devenv",
-	trail_ref: "trail ref",
+	trail_ref: "quest ref",
 	radicle_patch: "Radicle patch",
 	tangled_pull: "Tangled pull",
 	auto_land: "auto-land",
@@ -218,9 +218,9 @@ export function describe(e: TrailEvent): { text: string; tone: Mood } {
 				tone: e.data.decision.verdict === "approve" ? "ok" : "warn",
 			};
 		case "child_trail_finished":
-			return { text: "a child trail finished", tone: "plain" };
+			return { text: "a child quest finished", tone: "plain" };
 		case "parent_trail_landed":
-			return { text: "the parent trail landed", tone: "plain" };
+			return { text: "the parent quest landed", tone: "plain" };
 		case "intent_updated":
 			return { text: `intent updated: ${e.data.intent}`, tone: "plain" };
 		case "mirror_linked":

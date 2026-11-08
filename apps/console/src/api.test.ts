@@ -100,7 +100,7 @@ test("checkpoint writes send the binding the human reviewed", async () => {
   expect(body).toEqual({ checkpoint: "C", verdict: "approve", bound });
 });
 
-test("trail reads carry authentication, abort signal, and bypass caches", async () => {
+test("quest reads carry authentication, abort signal, and bypass caches", async () => {
   const fake = new FakeApi();
   const id = (await fake.inbox())[0]!.trailId;
   const detail = await fake.trail(id);

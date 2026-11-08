@@ -141,6 +141,8 @@
 .workspace-bar__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   flex: none;
   gap: var(--s3);
 }

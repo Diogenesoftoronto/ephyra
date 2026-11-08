@@ -126,7 +126,7 @@ export function makeRuns(trails: Trail[], now: number): RunBundle[] {
     .add({
       dt: 64_000,
       type: "message",
-      text: "Pushing to `main` is blocked. I'll push to the trail ref instead and let the proof run decide.",
+      text: "Pushing to `main` is blocked. I'll push to the quest ref instead and let the proof run decide.",
     })
     .add({
       dt: 66_000,

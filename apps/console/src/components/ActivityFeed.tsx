@@ -49,7 +49,7 @@ export function ActivityFeed({
   empty?: string;
 }) {
   if (items.length === 0)
-    return <Empty title={empty} body="When an agent starts work on a trail, it shows up here." />;
+    return <Empty title={empty} body="When an agent starts work on a quest, it shows up here." />;
   return (
     <Rows>
       {items.map((i) => (

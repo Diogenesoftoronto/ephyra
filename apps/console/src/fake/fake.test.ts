@@ -29,7 +29,7 @@ describe("FakeApi fixtures", () => {
     }
   });
 
-  test("trails exist at every checkpoint and are deterministic", async () => {
+  test("quests exist at every checkpoint and are deterministic", async () => {
     const api = new FakeApi();
     const inbox = await api.inbox();
     expect(
@@ -148,7 +148,7 @@ describe("FakeApi writes", () => {
     expect((await api.trail(item.trailId)).trail).toMatchObject({ state: "hypothesised" });
   });
 
-  test("shared action keys deduplicate, reject changed intent, and remain separate by trail and action", async () => {
+  test("shared action keys deduplicate, reject changed intent, and remain separate by quest and action", async () => {
     const api = new FakeApi();
     const [a, b] = (await api.inbox()).filter((i) => i.kind === "checkpoint");
     const before = (await api.trail(a!.trailId)).events.length;
@@ -157,7 +157,7 @@ describe("FakeApi writes", () => {
     expect((await api.trail(a!.trailId)).events.length).toBe(before + 1);
     expect(((await rejects(api.trailAction(a!.trailId, "comment", { text: "changed" }, "same-key"))) as ApiError).status).toBe(409);
     await api.trailAction(a!.trailId, "claim", {}, "same-key");
-    await api.trailAction(b!.trailId, "comment", { text: "different trail" }, "same-key");
+    await api.trailAction(b!.trailId, "comment", { text: "different quest" }, "same-key");
     expect(await api.trailOperation(b!.trailId, "claim", "same-key")).toEqual({ status: "not_found" });
   });
 

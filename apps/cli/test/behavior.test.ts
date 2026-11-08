@@ -45,7 +45,7 @@ for (const [key, action] of [
 		expect(inboxReducer(state, "escape").state.modal).toBeUndefined();
 	});
 }
-test("parked resumes and only ready trails can land", () => {
+test("parked resumes and only ready quests can land", () => {
 	const parked = { ...item, state: "parked" as const };
 	expect(
 		inboxReducer({ items: [parked], selected: 0 }, "p").command?.action,

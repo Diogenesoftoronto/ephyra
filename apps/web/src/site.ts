@@ -35,7 +35,7 @@ export type HomeCut = (typeof HOME_CUTS)[number];
 
 const NAME = "Ephyra";
 const TAGLINE = "Software that fixes itself.";
-const SUMMARY = "Ephyra is open-source, self-hostable self-driving software: production errors become trails that go from "
+const SUMMARY = "Ephyra is open-source, self-hostable self-driving software: production errors become quests that go from "
   + "evidence to a failing repro, a patch, proof and a landing on a forge you own, with humans approving at checkpoints. "
   + "No pull requests, no GitHub required. Pre-alpha.";
 
@@ -54,7 +54,7 @@ const TYPES: Record<string, string> = {
 /** Static pages listed in the sitemap and llms.txt. */
 const PAGES = [
   { path: "/", title: `${NAME} · ${TAGLINE}`, summary: SUMMARY },
-  { path: "/blog/", title: `${NAME} journal`, summary: "Notes on building self-driving software: trails, proof, jellyware." },
+  { path: "/blog/", title: `${NAME} journal`, summary: "Notes on building self-driving software: quests, proof, jellyware." },
   { path: "/pricing", title: `Pricing · ${NAME}`, summary: "Self-hosting is free; hosted models bill per call; a usage-based hosted plan is proposed." },
   { path: "/legal/", title: `Legal · ${NAME}`, summary: "Terms, privacy, acceptable use, service providers and security." },
   ...LEGAL_DOCS.map((d) => ({ path: d.path, title: `${d.title} · ${NAME}`, summary: d.summary })),
@@ -182,7 +182,7 @@ export function createSite(config: SiteConfig) {
     const lines = [
       `# ${NAME}`, "", `> ${TAGLINE} ${SUMMARY}`, "",
       "Ephyra watches production through OpenTelemetry, triages each new error with small System One decision models",
-      "(Jev, Clairic, or self-hosted d1/Clef), and opens a trail: a durable unit of work stored as git refs",
+      "(Jev, Clairic, or self-hosted d1/Clef), and opens a quest: a durable unit of work stored as git refs",
       "(refs/ephyra/trails/<id>) that moves through research, a failing reproduction, a plan, a patch and proof.",
       "Humans approve at checkpoints A, B and C from a keyboard inbox. Approved fixes land on Radicle, Tangled,",
       "plain git or a Sapling stack, then a watch window rolls them back automatically if the error returns.",

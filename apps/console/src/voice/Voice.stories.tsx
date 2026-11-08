@@ -50,7 +50,7 @@ const conversation: VoiceState["turns"] = [
   {
     id: 2,
     role: "assistant",
-    text: "The checkout trail is waiting at checkpoint C. Its recorded tests passed, but the production watch has not run yet. " +
+    text: "The checkout quest is waiting at checkpoint C. Its recorded tests passed, but the production watch has not run yet. " +
       "Open the proof to review what was tested before you decide.",
   },
 ];

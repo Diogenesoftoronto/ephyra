@@ -125,7 +125,7 @@ export function OverviewPage() {
                 sub={`${u.totals.failed} failed · ${u.totals.unavailable} unavailable`}
                 tone={u.totals.failed ? "bad" : undefined}
               />
-              <Stat label="Trails that spent" value={u.byTrail.length} />
+              <Stat label="Quests that spent" value={u.byTrail.length} />
               <Stat
                 label="Budget used"
                 value={`${u.totals.unknownCost ? "At least " : ""}${Math.round(
@@ -135,7 +135,7 @@ export function OverviewPage() {
                       u.byTrail.reduce((n, t) => n + t.budget.spendMicrousdMax, 0),
                     ),
                 )}%`}
-                sub="lifetime usage of the listed trails"
+                sub="lifetime usage of the listed quests"
               />
             </Stats>
             <div className="two-col">
@@ -151,10 +151,10 @@ export function OverviewPage() {
               >
                 <SpendByDay days={u.byDay} />
               </Card>
-              <Card tone="quiet" title="Trail budgets" meta="Highest usage first"
+              <Card tone="quiet" title="Quest budgets" meta="Highest usage first"
                 actions={<a className="ui-button ui-button--sm ui-button--ghost" href="#/usage">All budgets</a>}>
                 <TrailBudgets trails={u.byTrail} limit={3} />
-                {u.byTrail.length > 3 && <p className="ui-label">Showing 3 of {u.byTrail.length} trails. <a href="#/usage">View all trail budgets</a>.</p>}
+                {u.byTrail.length > 3 && <p className="ui-label">Showing 3 of {u.byTrail.length} quests. <a href="#/usage">View all quest budgets</a>.</p>}
               </Card>
             </div>
           </section>

@@ -179,7 +179,7 @@ export function TrailPanel({
               <section className="stack" aria-label="Agent runs">
                 <h2>Agent runs</h2>
                 <Load state={runs.state} retry={runs.reload} skeleton={<Skeleton lines={2} />}>
-                  {(list) => <RunList runs={list} empty="No agent runs on this trail yet." />}
+                  {(list) => <RunList runs={list} empty="No agent runs on this quest yet." />}
                 </Load>
               </section>
               <section className="stack" aria-label="Timeline">

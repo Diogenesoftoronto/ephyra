@@ -94,7 +94,7 @@ if (import.meta.main) {
   if (!input) throw new Error("Usage: bun apps/web/src/publish.ts --input=articles.json [--write]");
   const records = buildRecords(uri, origin, await Bun.file(input).json(), {
     name: "Ephyra journal",
-    description: "Notes on building self-driving software: trails, proof, landing on forges you own, and jellyware.",
+    description: "Notes on building self-driving software: quests, proof, landing on forges you own, and jellyware.",
   });
   const { did } = publicationIdentity(uri);
   if (!process.argv.includes("--write")) {

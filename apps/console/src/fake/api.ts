@@ -483,7 +483,7 @@ export class FakeApi implements ConsoleApi {
       if (action === "release" && (trail.state !== "handed_off" || trail.owner?.kind !== "human" || trail.owner.id !== principal))
         throw new ApiError(409, "only the person who claimed the review can release it");
       if (trail.state === "handed_off" && action !== "comment" && action !== "release")
-        throw new ApiError(409, "release the review claim before changing the trail");
+        throw new ApiError(409, "release the review claim before changing the quest");
       this.writes.push(["trailAction", { trailId, action, ...input }]);
       if (action === "park") {
         trail.resumeTo = trail.state;
@@ -790,7 +790,7 @@ export class FakeApi implements ConsoleApi {
         ),
         proposal: {
           content,
-          summary: "Add a billing area: high risk, Propose level, lands as a trail ref.",
+          summary: "Add a billing area: high risk, Propose level, lands as a quest ref.",
           warnings: lintAutonomy(content),
           sketches: [...current, sketch],
         },

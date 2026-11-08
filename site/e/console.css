@@ -154,13 +154,14 @@
 @keyframes gui-reveal { from { opacity: .55; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .motion .g-body { animation: none; } }
 @media (max-width: 69.99rem) {
-  .gui-screen { height: max(20rem, calc((100svh - var(--head-h) - var(--console-switch-h)) * .48)); }
+  .gui-screen { height: clamp(180px, 36svh, 360px); min-height: 0; }
 }
 @media (max-width: 40rem) {
   .console-switch { flex-wrap: wrap; gap: .15rem; padding-block: .5rem; }
   .console-choices { width: 100%; }
   .console-choices button { flex: 1; justify-content: center; padding-inline: .5rem; }
   .terminal-invite { min-height: 36px; padding: .4rem 0; font-size: .85rem; }
+  .terminal-invite, .console-view-note { display: none; }
   .console-view-note { padding-block: .55rem; font-size: .85rem; }
   .g-trail-head { padding: .7rem 1rem; }
   .g-trail-meta { font-size: .68rem; gap: .35rem .6rem; }
@@ -189,7 +190,7 @@
 }
 /* Short phones use explicit step navigation so a pinned workspace cannot cover the whole viewport. */
 @media (max-width: 69.99rem) and (max-height: 700px) {
-  .gui-screen { height: 25rem; min-height: 25rem; }
+  .gui-screen { height: clamp(180px, 46svh, 400px); min-height: 0; }
   .tour.live .term-col { position: relative; top: auto; }
   .tour.live .steps { padding-bottom: 0; }
   .tour.live .step { display: none; min-height: 0; padding-top: 1rem; }

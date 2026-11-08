@@ -19,9 +19,9 @@ export function RunFilters({
   const active = value.trail !== "" || value.persona !== "" || value.executor !== "";
   return (
     <form className="run-filters" aria-label="Run filters" onSubmit={(e) => e.preventDefault()}>
-      <Field label="Trail">
+      <Field label="Quest">
         <select value={value.trail} onChange={(e) => set({ trail: e.target.value })}>
-          <option value="">All trails</option>
+          <option value="">All quests</option>
           {trails.map((t) => (
             <option key={t.id} value={t.id}>
               {t.short}

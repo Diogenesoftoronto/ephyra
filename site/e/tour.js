@@ -1,6 +1,6 @@
 import { renderConsole, setupConsoleSelector } from "./console.js";
 import { createDemoRoom } from "./multiplayer.js";
-import { showProductScreen } from "./product-tour.js";
+import { showProductScreen, readProductScreen } from "./product-tour.js";
 
 // Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
 // The screens come from walkthrough.json, which apps/cli/scripts/walkthrough.ts renders with the inbox's own view,
@@ -251,7 +251,7 @@ import { showProductScreen } from "./product-tour.js";
     const visible = Math.max(5, Math.min(rows.length, Math.floor(budget / lineH)));
     screen.style.height = `${(visible * lineH + padT + 12).toFixed(1)}px`;
     if (f) offset = Math.max(0, Math.min(rows.length - visible, Math.floor((f.i0 + f.i1 + 1 - visible) / 2)));
-    // Native scrolling makes every row reachable, including on short or zoomed viewports.
+    // Pan the preview to this evidence. The full reader makes every row reachable.
     screen.scrollTop = offset * lineH;
     screen.scrollLeft = 0;
     if (f) {
@@ -296,11 +296,10 @@ import { showProductScreen } from "./product-tour.js";
     const guiReader = reader.querySelector(".gui-reader");
     guiReader.hidden = !graphical;
     if (graphical) {
-      showProductScreen(guiReader, step.id);
-      if (!reader.open) reader.showModal();
-      readerContent.scrollTop = 0;
+      readProductScreen(step.id, reader.querySelector("h2").textContent, "Recorded example · actual application");
       return;
     }
+    reader.querySelector(".screen-heading p").textContent = "Sample data · real CLI output";
     const variant = innerWidth < 800 ? "narrow" : "wide";
     readerPre.innerHTML = html(step.id, step[variant], variant);
     if (!reader.open) reader.showModal();
@@ -314,14 +313,17 @@ import { showProductScreen } from "./product-tour.js";
   reader.addEventListener("click", (e) => { if (e.target === reader) reader.close(); });
   // Native dialog handles Escape, focus containment, and restoring focus to the opener.
 
+  // Keep button navigation and scrolling on the same reading line.
+  function readingLine() {
+    if (splitMQ.matches) return innerHeight * 0.5;
+    const bottom = term.getBoundingClientRect().bottom;
+    return bottom + (innerHeight - bottom) * 0.25;
+  }
+
   /** The step whose heading has crossed the reading line. */
   function active() {
     if (compactMQ.matches) return Math.max(0, current);
-    let line = innerHeight * 0.5;
-    if (!splitMQ.matches) {
-      const bottom = term.getBoundingClientRect().bottom;
-      line = bottom + (innerHeight - bottom) * 0.32;
-    }
+    const line = readingLine();
     let k = 0;
     steps.forEach((s, i) => {
       if (s.querySelector("h3").getBoundingClientRect().top <= line) k = i;
@@ -335,7 +337,7 @@ import { showProductScreen } from "./product-tour.js";
     raf = requestAnimationFrame(() => {
       raf = 0;
       if (bar && reel) bar.classList.toggle("solid", reel.getBoundingClientRect().bottom <= bar.offsetHeight + 1);
-      if (data) show(active());
+      if (data && !reader.open) show(active());
     });
   };
   addEventListener("scroll", onScroll, { passive: true });
@@ -349,7 +351,7 @@ import { showProductScreen } from "./product-tour.js";
       fit();
       if (before !== size) cache.clear();
       show(current < 0 ? active() : current, true);
-      if (reader.open) readScreen(readerStep);
+      if (reader.open && !reader.classList.contains("gui-reading")) readScreen(readerStep);
     });
   };
   addEventListener("resize", onResize);
@@ -378,7 +380,7 @@ import { showProductScreen } from "./product-tour.js";
       term.scrollIntoView({ block: "start", behavior: "instant" });
       return;
     }
-    const line = splitMQ.matches ? innerHeight * 0.5 : bar.offsetHeight + switchHeight() + term.offsetHeight + 32;
+    const line = readingLine();
     const top = scrollY + steps[k].querySelector("h3").getBoundingClientRect().top - line + 8;
     // An explicit step selection should settle on that step, without intermediate scroll selections.
     scrollTo({ top, behavior: "instant" });
@@ -420,8 +422,8 @@ import { showProductScreen } from "./product-tour.js";
   const originalCopy = new Map(steps.map((step) => [step.dataset.step, step.querySelector("p:last-child").innerHTML]));
   const guiCopy = {
     hypothesis: "The agent writes down what it thinks is wrong, and why. You read a page, not a diff. In checkout, policy waits for a person to approve the cause before code is written.",
-    explain: "Open the evidence behind the hypothesis: the error stream, the commit that started it, past trails, and the agent session that wrote that commit.",
-    revise: "Ask for changes and leave a note. The agent gets it with the trail and tries again. Here, nothing is built until someone approves.",
+    explain: "Open the evidence behind the hypothesis: the error stream, the commit that started it, past quests, and the agent session that wrote that commit.",
+    revise: "Ask for changes and leave a note. The agent gets it with the quest and tries again. Here, nothing is built until someone approves.",
   };
   setupConsoleSelector(tour, (nextView) => {
     view = nextView;

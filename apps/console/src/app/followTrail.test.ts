@@ -30,7 +30,7 @@ test("unchanged polls keep the same snapshot and reads never overlap", async () 
 test("disconnect retains data and reconnect catches up without duplicate publication", async () => {
   const initial = await sample();
   const updated = structuredClone(initial);
-  updated.trail.title = "Another reviewer updated the trail";
+  updated.trail.title = "Another reviewer updated the quest";
   const ctl = new AbortController();
   const frames: TrailSnapshot[] = [];
   let calls = 0;
@@ -62,7 +62,7 @@ for (const status of [401, 403, 404]) {
   });
 }
 
-test("aborting an old account or trail cancels transport and ignores a late response", async () => {
+test("aborting an old account or quest cancels transport and ignores a late response", async () => {
   const detail = await sample();
   const ctl = new AbortController();
   const frames: TrailSnapshot[] = [];

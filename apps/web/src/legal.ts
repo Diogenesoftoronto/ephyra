@@ -38,7 +38,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
   },
   {
     path: "/legal/privacy", file: "privacy.html", title: "Privacy Policy",
-    summary: "What Ephyra processes for the website, sign-in, production signals, trails and model calls.",
+    summary: "What Ephyra processes for the website, sign-in, production signals, quests and model calls.",
     glance: [
       "The public pages use no analytics, advertising or cookies.",
       "Sign-in goes through Not Organic. Ephyra stores your DID, handle and an encrypted session.",

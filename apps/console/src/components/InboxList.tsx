@@ -8,7 +8,7 @@ import { ItemLead, itemStep } from "./WaitingList.tsx";
 export function InboxList({ items, selected }: { items: InboxEntry[]; selected?: string | null }) {
   const now = useNow(30_000);
   if (items.length === 0)
-    return <Empty title="No trail requests" body="Checkpoints, spend requests and parked trails appear here." />;
+    return <Empty title="No quest requests" body="Checkpoints, spend requests and parked quests appear here." />;
   return (
     <Rows>
       {items.map((i) => (

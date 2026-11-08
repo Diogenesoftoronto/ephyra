@@ -6,7 +6,7 @@ const usd = (n: number) => formatMicrousd(Math.round(n));
 
 /** Each trail's spend and tokens as used of max. */
 export function TrailBudgets({ trails, limit }: { trails: UsageSummary["byTrail"]; limit?: number }) {
-  if (trails.length === 0) return <Empty title="No trail spent anything in this window" />;
+  if (trails.length === 0) return <Empty title="No quest spent anything in this window" />;
   return (
     <div className="stack">
       {[...trails]

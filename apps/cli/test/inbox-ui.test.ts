@@ -34,7 +34,7 @@ import {
 
 // ───── The example data is real data ─────
 
-test("demo trails, events and proof parse with the core schemas", () => {
+test("demo quests, events and proof parse with the core schemas", () => {
 	for (const m of [
 		"triaged",
 		"hypothesis",
@@ -56,7 +56,7 @@ test("demo trails, events and proof parse with the core schemas", () => {
 
 // ───── What a trail has been through ─────
 
-test("the story follows the trail through its stages and gates", () => {
+test("the story follows the quest through its stages and gates", () => {
 	const at = (m: Parameters<typeof demoTrail>[0]) => {
 		const d = demoTrail(m);
 		return trailStory(d.trail, d.events);
@@ -235,7 +235,7 @@ test("wrap never exceeds the width and keeps every word", () =>
 		),
 	));
 
-test("trail and trails views", () => {
+test("quest and quests views", () => {
 	const d = demoTrail("watching");
 	const text = plain(
 		trailView(
@@ -290,7 +290,7 @@ function fakeApi(opts: { fail?: boolean } = {}) {
 	};
 }
 
-test("loadDetail fetches the trail, then the checkpoint's file, once per revision", async () => {
+test("loadDetail fetches the quest, then the checkpoint's file, once per revision", async () => {
 	const { client, calls } = fakeApi();
 	let state: InboxState = { items: await client.inbox(), selected: 0 };
 	await loadDetail(
@@ -336,7 +336,7 @@ test("a failing API shows an error in the pane, never a response body", async ()
 		(s) => (state = s),
 	);
 	expect(renderInbox(state, 100, 30)).toContain(
-		"couldn't load the trail: API request failed (500)",
+		"couldn't load the quest: API request failed (500)",
 	);
 });
 
@@ -403,7 +403,7 @@ test("every Textbook story renders in OpenTUI's test renderer", async () => {
 	}
 });
 
-test("the same trail at its next checkpoint is a fresh detail, not the cached one", async () => {
+test("the same quest at its next checkpoint is a fresh detail, not the cached one", async () => {
 	// Regression: within one revision a trail moves A → B → C; caching by revision alone showed the old hypothesis.
 	expect(detailKey(DEMO_ITEMS.A)).not.toBe(detailKey(DEMO_ITEMS.B));
 	expect(detailKey(DEMO_ITEMS.B)).not.toBe(detailKey(DEMO_ITEMS.C));
@@ -443,7 +443,7 @@ test("the same trail at its next checkpoint is a fresh detail, not the cached on
 	);
 });
 
-test("every other example item has a valid trail of its own", () => {
+test("every other example item has a valid quest of its own", () => {
 	for (const item of DEMO_OTHERS) {
 		const { trail, events } = demoTrailFor(item);
 		expect(() => Trail.parse(trail)).not.toThrow();
