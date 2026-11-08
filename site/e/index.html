@@ -18,8 +18,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="tour.css">
-<link rel="stylesheet" href="console.css">
+<link rel="stylesheet" href="tour.css?v=console-app-v2">
+<link rel="stylesheet" href="console.css?v=console-app-v2">
   <link rel="stylesheet" href="jellyware.css">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
@@ -104,10 +104,12 @@
             <button class="term-next" type="button" aria-label="Next step"><span>Next </span>›</button>
           </span>
         </div>
-        <div id="gui-panel" class="gui-screen" role="region" aria-label="Graphical trail walkthrough" tabindex="0"></div>
+        <div id="gui-panel" class="gui-screen" role="region" aria-label="Graphical trail walkthrough" tabindex="0">
+          <p class="console-unavailable">The interactive console needs a connected Ephyra server. <a href="/app/">Open app</a>.</p>
+        </div>
         <div id="tui-panel" class="term-screen" hidden role="img" aria-label="Terminal"><pre class="term-pre"></pre><div class="term-focus"></div></div>
         <div class="term-strip" hidden aria-hidden="true"></div>
-        <div class="gui-example-note">Sample walkthrough. Buttons move through the example.</div>
+        <div class="gui-example-note">Actual console application, with sample data. Explore it or follow the guided steps.</div>
         <div class="term-tools"><span>← → to browse steps</span><button class="term-read" type="button">Read the full screen</button></div>
       </figure>
     </div>
@@ -253,6 +255,6 @@ watch: 1h</pre>
 </footer>
 
 <script src="main.js" defer></script>
-<script src="tour.js" type="module"></script>
+<script src="tour.js?v=console-app-v2" type="module"></script>
 </body>
 </html>

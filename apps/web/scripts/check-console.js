@@ -1,62 +1,55 @@
-// Evaluate in the served landing page at desktop and phone widths, in both themes.
-// Checks the actual tools, sample navigation, full reader, and preservation of the story across GUI/TUI.
+// Evaluate in the served landing page. Checks the actual-console frame protocol and the retained terminal tour.
+// Console controls are exercised separately through browser frame locators; no live account is used.
 (async () => {
-  const $ = (selector) => document.querySelector(selector);
-  const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
-  const active = () => $(".step.is-on")?.dataset.step;
-  const key = (value) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true }));
-  await document.fonts.ready;
-  assert($(".tour.live"), "Walkthrough did not load");
-  const data = await fetch(new URL("walkthrough.json", document.baseURI)).then((r) => r.json());
+  const $ = selector => document.querySelector(selector);
+  const checks = [];
+  const check = (name, passed) => { checks.push({ name, passed: Boolean(passed) }); };
+  const wait = async predicate => {
+    for (let i = 0; i < 60; i++) { if (predicate()) return true; await new Promise(resolve => setTimeout(resolve, 50)); }
+    return false;
+  };
+  const data = await fetch(new URL("walkthrough.json", document.baseURI), { credentials: "omit" }).then(response => response.json());
+  if (!await wait(() => $(".tour.live"))) throw new Error("Walkthrough data did not load.");
   $("#gui-choice").click();
-  $(".term-next").focus({ preventScroll: true }); key("Home"); await settle();
-  const checked = [];
-  for (let i = 0; i < data.steps.length; i++) {
-    const id = data.steps[i].id;
-    if (i) $(".term-next").click();
-    await settle();
-    assert(active() === id, `GUI navigation selected ${active()}, expected ${id}`);
-    assert($("#gui-panel .g-workspace").dataset.guiMoment === id, "GUI moment is out of sync");
-    for (const tool of ["review", "evidence", "files", "discuss", "activity"]) {
-      $(`#gui-panel [data-console-tool=${tool}]`).click();
-      assert($("#gui-panel .g-workspace").dataset.guiTool === tool, `${tool} did not open`);
-      assert($("#gui-panel [aria-pressed=true]").dataset.consoleTool === tool, "Tool selection is not exposed");
-      assert(active() === id, "Inspecting a tool advanced the story");
-      const scroll = $("#gui-panel .g-scroll");
-      assert(scroll.clientHeight >= 70, `${id}/${tool} content window is too short: ${scroll.clientHeight}`);
-      assert(scroll.scrollWidth <= scroll.clientWidth + 1, `${id}/${tool} overflows horizontally`);
-      assert($("#gui-panel").scrollWidth <= $("#gui-panel").clientWidth + 1, `${id}/${tool} tools extend past the workspace`);
-      assert($("#gui-panel .g-actions").getBoundingClientRect().bottom <= $("#gui-panel").getBoundingClientRect().bottom + 1,
-        "Checkpoint actions are outside the workspace");
-    }
-    $("#tui-choice").click(); await settle();
-    assert(active() === id, `Switching to TUI lost ${id}`);
-    assert($("#gui-panel").hidden && !$("#tui-panel").hidden, "TUI is not exclusively visible");
-    $("#gui-choice").click(); await settle();
-    assert(active() === id, `Switching to GUI lost ${id}`);
-    assert(!$("#gui-panel").hidden && $("#tui-panel").hidden, "GUI is not exclusively visible");
-    assert($("#gui-panel .g-workspace").dataset.guiTool === "activity", "Switching views lost the selected tool");
-    $(".term-read").focus({ preventScroll: true }); $(".term-read").click();
-    assert($("dialog").open && !$(".gui-reader").hidden && $(".screen-content pre").hidden, "GUI reader did not open");
-    assert($(".gui-reader .g-workspace").dataset.guiTool === "activity", "Reader opened the wrong tool");
-    assert($(".gui-reader .g-activity").children.length === data.gui.moments[id].events.length, "Reader omitted activity");
-    $(".screen-close").click();
-    assert(document.activeElement === $(".term-read"), "Reader lost focus on close");
-    checked.push(id);
+  const panel = $("#gui-panel");
+  const frame = panel.querySelector("iframe");
+  check("actual console iframe replaces the separate GUI renderer", frame && !panel.querySelector(".g-workspace"));
+  if (!frame) throw new Error("Console application iframe is unavailable.");
+  check("console is explicitly isolated sample mode", new URL(frame.src).searchParams.get("demo") === "1"
+    && new URL(frame.src).searchParams.get("walkthrough") === "1" && frame.title.includes("sample"));
+  const steps = [];
+  for (const step of data.steps) {
+    $(`.step[data-step="${step.id}"]`).click();
+    const expected = data.gui.moments[step.id].trail;
+    const applied = await wait(() => panel.dataset.consoleStep === step.id && panel.dataset.consoleTrail === expected.id
+      && panel.dataset.consoleState === expected.state && panel.dataset.consoleStatus === "ready");
+    check(`actual console accepts ${step.id} with its exact trail and state`, applied);
+    check(`frame stays mounted through ${step.id}`, panel.querySelector("iframe") === frame);
+    steps.push({ step: step.id, applied, state: panel.dataset.consoleState });
   }
-  $(".term-prev").focus({ preventScroll: true }); key("Home"); await settle();
-  for (const target of ["hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback", "triaged"]) {
-    const action = $(`#gui-panel [data-preview-go=${target}]`);
-    assert(action, `No action leading to ${target}`);
-    action.click(); await settle();
-    assert(active() === target, `Action did not navigate to ${target}`);
+  const selected = panel.dataset.consoleStep;
+  $("#tui-choice").click();
+  check("terminal view exclusively replaces graphical view", panel.hidden && !$("#tui-panel").hidden);
+  check("real CLI output remains populated", $(".term-pre").textContent.length > 200);
+  $("#gui-choice").click();
+  check("switching back preserves the sample step and frame", !panel.hidden && $("#tui-panel").hidden
+    && panel.querySelector("iframe") === frame && panel.dataset.consoleStep === selected);
+  $(".term-read").focus({ preventScroll: true });
+  $(".term-read").click();
+  const reader = $(".screen-dialog");
+  const full = reader.querySelector(".gui-reader");
+  const ready = await wait(() => full.dataset.consoleStatus === "ready" && full.dataset.consoleStep === selected);
+  check("expanded view uses the actual console with the same selected step", reader.open && ready && full.querySelector("iframe"));
+  reader.querySelector(".screen-close").click();
+  check("native dialog closes", !reader.open);
+  check("parent page has no horizontal overflow", document.documentElement.scrollWidth <= innerWidth);
+  // Leave the review step ready for direct interaction checks.
+  $('.step[data-step="hypothesis"]').click();
+  check("review step is ready for interaction", await wait(() => panel.dataset.consoleStep === "hypothesis"));
+  if (innerWidth < 1120 && innerHeight > 700) {
+    check("selected story label clears the pinned console controls",
+      $('.step.is-on .step-n').getBoundingClientRect().top >= $('.term-tools').getBoundingClientRect().bottom + 8);
   }
-  $(".terminal-invite").focus({ preventScroll: true }); $(".terminal-invite").click();
-  assert($("#tui-choice").getAttribute("aria-pressed") === "true", "Terminal invitation did not select TUI");
-  assert(document.activeElement === $("#tui-choice"), "Terminal invitation lost focus");
-  key("ArrowLeft"); await settle();
-  assert($("#gui-choice").getAttribute("aria-pressed") === "true", "Keyboard view selection failed");
-  assert(document.documentElement.scrollWidth <= innerWidth, "Page has horizontal overflow");
-  return { passed: true, viewport: [innerWidth, innerHeight], theme: getComputedStyle(document.documentElement).colorScheme, steps: checked, tools: 5 };
+  return { passed: checks.filter(check => check.passed).length, failed: checks.filter(check => !check.passed).length,
+    viewport: [innerWidth, innerHeight], checks, steps, scope: "Actual console components with fictional sample data; no provider or account actions." };
 })();

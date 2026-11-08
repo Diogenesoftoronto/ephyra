@@ -198,21 +198,41 @@ describe("Standard.site blog", () => {
 });
 
 describe("static site", () => {
-  test("the default homepage serves the recovered GUI/TUI walkthrough and all of its assets", async () => {
+  test("the default homepage serves the real-console entry and terminal walkthrough assets", async () => {
     const h = site();
     const html = await (await get(h, "/")).text();
     expect(html).toContain('id="gui-choice"');
     expect(html).toContain('id="tui-choice"');
     expect(html).toContain("Born for the terminal?");
     expect(html).toContain('id="how"');
-    expect(html).toContain("Sample walkthrough. Buttons move through the example.");
-    for (const asset of ["tour.css", "tour.js", "console.css", "console.js", "jellyware.css", "multiplayer.js", "walkthrough.json"]) {
+    expect(html).toContain("Actual console application, with sample data.");
+    expect(html).toContain("The interactive console needs a connected Ephyra server.");
+    expect(html).not.toContain("data-console-app=");
+    for (const asset of ["tour.css", "tour.js", "console.css", "console.js", "console-embed.js", "jellyware.css", "multiplayer.js", "walkthrough.json"]) {
       expect({ asset, status: (await get(h, `/e/${asset}`)).status }).toEqual({ asset, status: 200 });
     }
     const walkthrough = await (await get(h, "/e/walkthrough.json")).json() as { steps: { id: string }[] };
     expect(walkthrough.steps.map((step) => step.id)).toEqual([
       "triaged", "hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback",
     ]);
+  });
+
+  test("landing embeds only the configured console in isolated sample mode and revalidates its entry point", async () => {
+    const h = createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "https://control.example/ignored?private=discard" });
+    const response = await get(h, "/?apiOrigin=https://attacker.test&demo=0");
+    const html = await response.text();
+    expect(html).toContain('data-console-app="https://control.example/app/?demo=1&amp;walkthrough=1&amp;parentOrigin=https%3A%2F%2Fephyra.example"');
+    expect(html).not.toContain("attacker.test");
+    expect(html).not.toContain("private=discard");
+    expect(html).toContain('src="tour.js?v=console-app-v2"');
+    expect(html).toContain('href="tour.css?v=console-app-v2"');
+    expect(html).toContain('href="console.css?v=console-app-v2"');
+    expect(response.headers.get("cache-control")).toBe("no-cache");
+    const secondary = await get(h, "/a/");
+    expect(secondary.headers.get("cache-control")).toBe("public, max-age=300");
+    const head = await h(new Request(ORIGIN + "/", { method: "HEAD" }));
+    expect(head.headers.get("cache-control")).toBe("no-cache");
+    expect(await head.text()).toBe("");
   });
 
   test("cut E is the home page by default; the other cuts stay reachable; dotfiles and traversal are refused", async () => {

@@ -150,9 +150,16 @@ export function createSite(config: SiteConfig) {
     }
     const ext = /\.[a-z0-9]+$/i.exec(file.name ?? "")?.[0]?.toLowerCase() ?? "";
     if (ext === ".html") {
-      const html = asHome ? seoHead(await file.text(), "/", { base: `/${rel.replace(/index\.html$/, "")}` })
-        : seoHead(await file.text(), ("/" + rel).replace(/index\.html$/, ""), { noindex: true });
-      return new Response(html, { headers: { "content-type": TYPES[".html"]!, "cache-control": "public, max-age=300" } });
+      let source = await file.text();
+      if (apiOrigin) {
+        const console = new URL("/app/", apiOrigin.origin);
+        console.search = new URLSearchParams({ demo: "1", walkthrough: "1", parentOrigin: origin }).toString();
+        source = source.replace('<div id="gui-panel"', `<div id="gui-panel" data-console-app="${esc(console.href)}"`);
+      }
+      const html = asHome ? seoHead(source, "/", { base: `/${rel.replace(/index\.html$/, "")}` })
+        : seoHead(source, ("/" + rel).replace(/index\.html$/, ""), { noindex: true });
+      return new Response(html, { headers: { "content-type": TYPES[".html"]!,
+        "cache-control": asHome ? "no-cache" : "public, max-age=300" } });
     }
     const immutable = rel.startsWith("assets/");
     return new Response(file, { headers: {

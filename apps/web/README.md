@@ -126,3 +126,9 @@ Cut D remains an untracked draft; the landing walkthrough and its checks do not 
 ## Opening the application
 
 Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_ORIGIN` to the control-plane server origin; the public site redirects there without forwarding user-supplied destinations. The server image includes the console and offers browser sign-in when Not Organic is configured. The sample trail remains explicitly a demonstration. Without an API origin, `/app/` reports that the deployment is not connected.
+
+The graphical landing walkthrough embeds that actual console in isolated sample
+mode, synchronized to the terminal's nine recorded trail moments. Its stable frame
+and expanded view use validated origin/window messages; no live account connection
+is created. An unconfigured console shows an unavailable notice. The homepage
+revalidates on reload, and the updated walkthrough assets use versioned URLs.

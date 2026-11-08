@@ -1,5 +1,5 @@
-import { renderConsole, setupConsoleSelector } from "./console.js";
-import { createDemoRoom } from "./multiplayer.js";
+import { setupConsoleSelector } from "./console.js";
+import { createConsoleEmbed } from "./console-embed.js";
 
 // Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
 // The screens come from walkthrough.json, which apps/cli/scripts/walkthrough.ts renders with the inbox's own view,
@@ -13,7 +13,6 @@ import { createDemoRoom } from "./multiplayer.js";
   const tuiPanel = document.getElementById("tui-panel");
   const guiPanel = document.getElementById("gui-panel");
   let view = "gui";
-  let guiTool = "review";
   const viewingTerminal = () => view === "tui";
   const switchHeight = () => tour.querySelector(".console-switch")?.offsetHeight ?? 0;
   const motion = () => root.classList.contains("motion");
@@ -57,88 +56,11 @@ import { createDemoRoom } from "./multiplayer.js";
   let fs = 13;
   let chRatio = 0.6;
   const cache = new Map();
-  const room = createDemoRoom();
-  const drafts = new Map();
-
-  function rememberDraft() {
-    const field = guiPanel.querySelector("[data-room-draft]");
-    if (field) drafts.set(field.dataset.roomDraft, field.value);
-  }
-
-  function guiOptions(id, extra = {}) {
-    const trailId = data.gui.moments[id].trail.id;
-    return { tool: guiTool, room: room.getSnapshot(trailId), draft: drafts.get(trailId) ?? "", ...extra };
-  }
-
-  function renderGui(id, preserve = false) {
-    rememberDraft();
-    const field = guiPanel.querySelector("[data-room-draft]");
-    const focused = field && document.activeElement === field;
-    const selection = focused ? [field.selectionStart, field.selectionEnd, field.selectionDirection] : null;
-    const fieldScroll = field?.scrollTop ?? 0;
-    const scroll = guiPanel.querySelector(".g-scroll")?.scrollTop ?? 0;
-    const same = guiPanel.querySelector(".g-workspace")?.dataset.guiMoment === id;
-    const focusedTool = document.activeElement?.closest("[data-console-tool]");
-    guiPanel.innerHTML = renderConsole(id, data, guiOptions(id));
-    if (preserve && same) {
-      guiPanel.querySelector(".g-scroll").scrollTop = scroll;
-      const replacement = guiPanel.querySelector("[data-room-draft]");
-      if (focused && replacement?.dataset.roomDraft === field.dataset.roomDraft) {
-        replacement.focus({ preventScroll: true });
-        replacement.setSelectionRange(...selection);
-        replacement.scrollTop = fieldScroll;
-      } else if (focusedTool && guiPanel.contains(focusedTool) === false) {
-        guiPanel.querySelector(`[data-console-tool="${focusedTool.dataset.consoleTool}"]`)?.focus({ preventScroll: true });
-      }
-    }
-  }
-
-  // Remote updates replace only discussion output. Keep the live form node, draft, selection, and caret intact.
-  function refreshRoomSurface(container, id, isReader = false) {
-    const workspace = container.querySelector(".g-workspace");
-    if (!workspace) return;
-    const template = document.createElement("template");
-    template.innerHTML = renderConsole(id, data, guiOptions(id, { reader: isReader, tool: workspace.dataset.guiTool }));
-    const oldRoom = container.querySelector(".g-room");
-    const nextRoom = template.content.querySelector(".g-room");
-    const scroll = container.querySelector(".g-scroll");
-    const scrollTop = scroll?.scrollTop ?? 0;
-    const focusedControl = oldRoom?.contains(document.activeElement) && document.activeElement.matches("[data-room-action]");
-    if (oldRoom && nextRoom) {
-      for (const selector of [".g-section-head", ".g-room-scope", ".g-room-storage", ".g-room-control", ".g-room-messages", ".g-room-empty"]) {
-        const existing = oldRoom.querySelector(selector);
-        const replacement = nextRoom.querySelector(selector);
-        if (existing && replacement) existing.replaceWith(replacement);
-        else if (existing) existing.remove();
-        else if (replacement) oldRoom.insertBefore(replacement, oldRoom.querySelector(".g-room-form, .g-room-update"));
-      }
-      if (focusedControl) oldRoom.querySelector("[data-room-action]")?.focus({ preventScroll: true });
-      oldRoom.querySelector(".g-room-update").textContent = "Local discussion updated.";
-    }
-    const oldPreview = container.querySelector(".g-room-preview");
-    const nextPreview = template.content.querySelector(".g-room-preview");
-    if (oldPreview && nextPreview) {
-      const focused = oldPreview.contains(document.activeElement);
-      oldPreview.replaceWith(nextPreview);
-      if (focused) nextPreview.querySelector("button")?.focus({ preventScroll: true });
-    }
-    if (scroll) scroll.scrollTop = scrollTop;
-  }
-
-  room.subscribe((trailId) => {
-    if (!data || current < 0) return;
-    const id = steps[current].dataset.step;
-    if (data.gui.moments[id].trail.id === trailId) refreshRoomSurface(guiPanel, id);
-    if (reader.open && reader.classList.contains("gui-reading")) {
-      const readId = steps[readerStep].dataset.step;
-      if (data.gui.moments[readId].trail.id === trailId) {
-        const top = readerContent.scrollTop;
-        refreshRoomSurface(reader.querySelector(".gui-reader"), readId, true);
-        readerContent.scrollTop = top;
-      }
-    }
+  const embeddedConsole = createConsoleEmbed(guiPanel, guiPanel.dataset.consoleApp);
+  let readerConsole = null;
+  addEventListener("pagehide", event => {
+    if (!event.persisted) { embeddedConsole?.close(); readerConsole?.close(); }
   });
-  addEventListener("pagehide", (event) => { if (!event.persisted) room.close(); });
 
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
   // Anything outside ASCII and box drawing gets its own one-column cell, so a fallback glyph can't shift the grid.
@@ -212,7 +134,6 @@ import { createDemoRoom } from "./multiplayer.js";
   function show(k, force = false) {
     if (!data || k < 0 || k >= steps.length || (k === current && !force)) return;
     const changed = k !== current;
-    if (changed) guiTool = steps[k].dataset.step === "explain" ? "evidence" : "review";
     current = k;
     steps.forEach((s, i) => {
       s.classList.toggle("is-on", i === k);
@@ -241,12 +162,12 @@ import { createDemoRoom } from "./multiplayer.js";
       else s.removeAttribute("aria-current");
     });
 
-    tour.querySelector(".tag-long").textContent = viewingTerminal() ? "Sample data · real CLI output" : "Sample data · guided console";
-    tour.querySelector(".term-read").textContent = viewingTerminal() ? "Read the full screen" : "Read full details";
+    tour.querySelector(".tag-long").textContent = viewingTerminal() ? "Sample data · real CLI output" : "Sample data · real console";
+    tour.querySelector(".term-read").textContent = viewingTerminal() ? "Read the full screen" : "Expand the console";
     if (!viewingTerminal()) {
       cmd.textContent = "ephyra / " + data.gui.moments[step.id].trail.short;
       strip.hidden = true;
-      renderGui(step.id, !changed);
+      embeddedConsole?.select(step.id, data);
       return;
     }
 
@@ -314,7 +235,11 @@ import { createDemoRoom } from "./multiplayer.js";
     const guiReader = reader.querySelector(".gui-reader");
     guiReader.hidden = !graphical;
     if (graphical) {
-      guiReader.innerHTML = renderConsole(step.id, data, guiOptions(step.id, { reader: true }));
+      if (!readerConsole) {
+        guiReader.innerHTML = '<p class="console-unavailable">The sample console is unavailable. <a href="/app/">Open app</a>.</p>';
+        readerConsole = createConsoleEmbed(guiReader, guiPanel.dataset.consoleApp);
+      }
+      readerConsole?.select(step.id, data);
       if (!reader.open) reader.showModal();
       readerContent.scrollTop = 0;
       return;
@@ -390,14 +315,14 @@ import { createDemoRoom } from "./multiplayer.js";
   function go(k) {
     if (!data) return;
     k = Math.max(0, Math.min(steps.length - 1, k));
-    guiTool = steps[k].dataset.step === "explain" ? "evidence" : "review";
     show(k, true);
     if (compactMQ.matches) {
       term.scrollIntoView({ block: "start", behavior: "instant" });
       return;
     }
-    const line = splitMQ.matches ? innerHeight * 0.5 : bar.offsetHeight + switchHeight() + term.offsetHeight + 32;
-    const top = scrollY + steps[k].querySelector("h3").getBoundingClientRect().top - line + 8;
+    const line = splitMQ.matches ? innerHeight * 0.5 : bar.offsetHeight + switchHeight() + term.parentElement.offsetHeight + 32;
+    const heading = steps[k].querySelector(splitMQ.matches ? "h3" : ".step-n");
+    const top = scrollY + heading.getBoundingClientRect().top - line + 8;
     // An explicit step selection should settle on that step, without intermediate scroll selections.
     scrollTo({ top, behavior: "instant" });
   }
@@ -452,57 +377,6 @@ import { createDemoRoom } from "./multiplayer.js";
     });
     if (data) { measure(); fit(); show(current < 0 ? 0 : current, true); }
   });
-  guiPanel.addEventListener("click", (e) => {
-    const control = e.target.closest("[data-room-action]");
-    if (control && data && current >= 0) {
-      const trailId = data.gui.moments[steps[current].dataset.step].trail.id;
-      const action = control.dataset.roomAction;
-      if (action === "claim") room.claim(trailId);
-      else if (action === "release") room.release(trailId);
-      guiPanel.querySelector("[data-room-action]")?.focus({ preventScroll: true });
-      return;
-    }
-    const tool = e.target.closest("[data-console-tool]");
-    if (tool) {
-      guiTool = tool.dataset.consoleTool;
-      renderGui(steps[current].dataset.step);
-      guiPanel.querySelector(`[data-console-tool="${guiTool}"]`).focus({ preventScroll: true });
-      return;
-    }
-    const button = e.target.closest("[data-preview-go]");
-    if (!button) return;
-    const k = steps.findIndex((step) => step.dataset.step === button.dataset.previewGo);
-    if (k < 0) return;
-    go(k);
-    tour.querySelector(k === steps.length - 1 ? ".term-prev" : ".term-next").focus({ preventScroll: true });
-  });
-  guiPanel.addEventListener("input", (e) => {
-    const field = e.target.closest("[data-room-draft]");
-    if (!field) return;
-    drafts.set(field.dataset.roomDraft, field.value);
-    field.removeAttribute("aria-invalid");
-    const feedback = field.closest("form").querySelector(".g-room-feedback");
-    feedback.textContent = "";
-  });
-  guiPanel.addEventListener("submit", (e) => {
-    const form = e.target.closest(".g-room-form");
-    if (!form) return;
-    e.preventDefault();
-    const field = form.querySelector("[data-room-draft]");
-    const feedback = form.querySelector(".g-room-feedback");
-    try {
-      room.addComment(form.dataset.roomTrail, field.value);
-      drafts.set(form.dataset.roomTrail, "");
-      field.value = "";
-      field.removeAttribute("aria-invalid");
-      feedback.textContent = "Note added in this browser.";
-    } catch (error) {
-      field.setAttribute("aria-invalid", "true");
-      feedback.textContent = error.message;
-    }
-    field.focus({ preventScroll: true });
-  });
-
   fetch("walkthrough.json", { credentials: "omit" })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((d) => {
