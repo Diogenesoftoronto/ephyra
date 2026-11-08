@@ -1,0 +1,12 @@
+.landing-walkthrough { min-height: 100vh; }
+.walkthrough-waiting { max-width: 36rem; padding: var(--s5); color: var(--muted); }
+.walkthrough-waiting h1 { color: var(--ink); font-size: var(--fs-h2); }
+.walkthrough-notice { position: sticky; top: 0; z-index: var(--z-toast); margin: 0; padding: var(--s3) var(--s4);
+  color: var(--ink); background: var(--surface); border-bottom: 1px solid var(--line); }
+.landing-walkthrough .inbox-split[data-detail="true"] { grid-template-columns: minmax(0, 1fr); }
+.landing-walkthrough .inbox-split[data-detail="true"] .inbox-list-pane { display: none; }
+.landing-walkthrough .inbox-back { display: block; }
+/* A selected trail is the walkthrough's subject; keep it visible in the small embedded viewport. */
+.landing-walkthrough .page:has(.inbox-split[data-detail="true"]) > .ui-page-header { display: none; }
+.landing-walkthrough .investigation-questions,
+.landing-walkthrough .voice-entry { display: none; }

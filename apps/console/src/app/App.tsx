@@ -26,6 +26,7 @@ import { CommandMenu } from "../components/CommandMenu.tsx";
 
 export type AccountContext = {
   automation?: SetupApi;
+  loadCatalog?: () => Promise<import("../model-catalog.ts").ModelCatalog>;
   api: AccountApi;
   settings: AccountSettings;
   onChange: (settings: AccountSettings) => void;

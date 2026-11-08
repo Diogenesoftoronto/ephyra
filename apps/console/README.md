@@ -287,3 +287,19 @@ After building, run `env -u LD_LIBRARY_PATH bun apps/console/scripts/connections
 escaped question evidence, addressed replies, lost-answer reload recovery, settings conflict/reconciliation and account
 isolation. Screenshots and a verification manifest are written under ignored `artifacts/connections`. These checks do
 not establish live forge access, PostHog credentials, webhook delivery or model checking.
+
+## Landing walkthrough
+
+The public landing embeds this console with `demo=1&walkthrough=1` and an exact
+`parentOrigin`. That branch runs before account/session clients and uses only the
+fictional adapters. It receives bounded, schema-validated trail snapshots from the
+configured parent window; those snapshots drive the actual `App`, review cards,
+evidence and discussion components. Repeated snapshots preserve forms and focus.
+Embedded navigation stays within the sample workspace, and its model catalogue
+uses fixture data. No account, model, telemetry or messaging provider is contacted.
+
+The landing and console validate message origin and window identity. Guided steps
+use the same recorded example as the terminal walkthrough. Browser checks cover
+frame readiness, all nine snapshots, fullscreen and GUI/TUI switching; offline
+tests check isolated sample comments, review claims and approvals. These sample
+interactions do not establish production repair or provider behavior.
