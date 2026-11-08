@@ -5,12 +5,13 @@ The control plane: OTLP ingest, triage, the trail engine, effect wiring, the HTT
 ## Personal accounts and setup
 
 `composeApplication` routes signed-in humans to their own workspace; service tokens retain the deployment workspace.
-Not Organic supplies the authenticated DID. Each account can configure its HTTPS repository/branch, optional Git token,
+Not Organic supplies the authenticated DID. Each account can configure its GitHub, GitLab, Forgejo, native Radicle, native Tangled or public HTTPS Git repository, optional scoped token,
 and Hosted, OpenAI, Anthropic-compatible Messages, or OpenAI-compatible Chat Completions model access.
 Personal configuration never inherits deployment provider credentials, policy overrides, or the trusted local runner.
-Personal execution stays unconfigured unless the host provisions workspace-scoped automation adapters; saved model access powers Velum's document drafting. Speech remains separately configured.
+Hosted execution uses the selected account model with an isolated Railway sandbox when the operator grants that account access.
+Model and repository credentials remain on the control plane. Saved model access also powers Velum. Speech remains separately configured.
 
-`GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding,knowledge}` requires an authenticated human,
+`GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding,knowledge,telemetry,people}` requires an authenticated human,
 `X-Ephyra-Account` matching that DID, an `Idempotency-Key`, and `expectedVersion`. Cookie writes also require same-origin
 browser requests. Keys and repository tokens are encrypted with `EPHYRA_SESSION_KEY`; responses and operation receipts
 contain only public settings. Completed receipts are immutable, pending receipts require reconciliation, and versions
@@ -22,8 +23,11 @@ stale account/repository writes are refused. Changing repository or branch selec
 preserving previous work. Current account queues resume at boot. Hosted model changes may need another sign-in to grant
 the exact inference scope; no fallback model is chosen.
 
-Repository setup fetches one shallow branch over public HTTPS smart Git with DNS pinning, disabled redirects/hooks,
-isolated Git configuration and transient credentials. Provider HTTPS requests use the same public-destination policy.
+Repository setup resolves a canonical identity before choosing the workspace. Public HTTPS smart Git negotiates SHA-1/SHA-256
+and fetches one shallow branch with DNS pinning, disabled redirects/hooks, isolated Git configuration and transient credentials.
+Tangled resolves the owner declaration and repository manifest to the exact knot, with credentials bound to that host.
+Radicle uses a temporary account-scoped reader profile and foreground node; the bundled CLI is pinned and checksum verified.
+Private Radicle identity provisioning remains an explicit host callback, never the operator's ambient profile. Provider HTTPS requests use the same public-destination policy.
 Local/private-network endpoints, SSH URLs and dumb HTTP Git are not supported by hosted account setup. Existing
 deployment configuration remains available for self-hosted local integrations. Repository fetches have time/output/disk
 bounds; disk polling can briefly exceed the configured 512 MB limit.
@@ -372,16 +376,34 @@ repeating a key cannot start a second run. Reusing a key for a different mode is
 `ephyra/{verification,evidence,recovery}.json`. `refs/ephyra/setup/current` points to the latest run. These refs stay in
 the workspace mirror: setup does not push, change the source branch or deploy. Existing autonomy/intent/calibration
 files are retained; supervised mode can narrow checkpoint permissions. Repository scripts are untrusted candidates,
-not executed checks. Generated intent text explicitly leaves product-specific intent unverified.
+not proof until their sandbox command receipts exist. Generated intent text leaves product-specific intent unverified.
 
-Setup creates real documents and checks configured capabilities. It does not provision a cloud sandbox, run a baseline,
-or verify remote write access by itself yet. Missing coding-agent, runner, decision, telemetry, verification, landing or
-watch capabilities produce specific operator blockers. Only ready setup is activated, and restart rechecks availability.
-The host supplies `composeApplication(..., { workspaceAutomation: async ({ did, workspaceId, directory }) => ... })`
-with account-bound `agent`, `runner`, `decide`, `evidenceSources` and previously verified `automationReadiness` flags.
-A personal agent without its own runner is rejected; deployment CLI credentials are not inherited. The flags represent
-host-supplied verification, not new proof performed by this setup job. Native Radicle transport, forge OAuth/apps,
-Tangled write operations and hosted automatic provisioning remain Unverified; HTTPS smart Git works across hosts.
+Setup provisions a sandbox and runs discovered package scripts when hosted execution is configured. The observed package
+manager, lockfile, command exits/logs/durations, source head and cleanup receipt are retained in `ephyra/provisioning.json`.
+Missing tools, missing locks, incomplete commands, empty verification and uncertain cleanup cannot pass. Unsupported
+non-JavaScript toolchains need a verification adapter. Existing failures are recorded rather than silently baselined away.
+
+The operator configures `EPHYRA_HOSTED_RUNNER=railway`, `EPHYRA_RAILWAY_TOKEN`, `EPHYRA_RAILWAY_ENVIRONMENT_ID`, and
+`EPHYRA_HOSTED_ACCOUNTS` (comma-separated DIDs; `*` explicitly grants all signed-in accounts). Optional
+`EPHYRA_RAILWAY_CHECKPOINT` selects a prepared toolchain image; otherwise the SDK's default image is used and actual
+missing tools are reported. CPU, memory and idle timeout are configurable with `EPHYRA_RAILWAY_CPU`,
+`EPHYRA_RAILWAY_MEMORY_MB`, `EPHYRA_RAILWAY_IDLE_MINUTES` (defaults 1 CPU, 2000 MB, 5 minutes). The provider does not enforce
+a disk quota; the profile explicitly records `diskMb: 0`. CPU/memory enforcement and idle timeout are separate from the
+server's lease deadline. Cleanup jobs recover from persisted resource IDs and surface uncertain cleanup in operations.
+A lost create without an observed provider ID requires reconciliation and never allocates a replacement automatically.
+
+The account coding agent calls its selected model on the server and executes bounded structured actions in the sandbox.
+Every model turn and tool action has a durable receipt; unknown outcomes do not replay. Fresh contexts keep the objective,
+failed approaches and budget. Git bundles transfer only selected code history and return exact patch commits, without
+sending account credentials, remotes or journal refs into the VM. This works with SHA-1 and SHA-256 repositories, including shallow history: transfer metadata carries only reachable
+code boundaries, validated and installed before fetch. Unrelated journal refs and objects are excluded.
+
+`investigationActive` can be true while setup is `blocked`: investigation is enabled once the agent, runner, decision
+backend and verification baseline are available. Unverified landing/watch capabilities remain explicit blockers and
+cannot write through the personal landing handler. A connection or baseline is not proof of production repair.
+`workspaceAutomation` remains the adapter injection point for other hosting implementations; no deployment CLI identity
+is inherited. Durable workflow queues and account settings require Convex; local file ledgers preserve external-operation
+receipts but do not turn development memory mode into a durable deployment.
 
 `checkpointHandlers` evaluates advisory A/B/C checkpoints using the decision backend and calibrated response identity.
 It records questions, source documents, answers and decisions under `decisions/`, with `latest-A/B/C.json` available
@@ -396,12 +418,11 @@ actual `/api/state` contract with a server-configured account/workspace/project 
 Self-hosted deployments can set `EPHYRA_TRACTION_ORIGIN`, `EPHYRA_TRACTION_TOKEN` and a comma-separated
 `EPHYRA_TRACTION_PROJECTS` allowlist; personal workspaces never inherit this token. Its aggregate PostHog/service-health
 evidence supplies context, not traces or causal proof. Traction's operator token
-is broad; a hosted integration must authorize the configured project binding. Global briefings are excluded. No direct
-PostHog log/replay integration or automatic contacting of users is implemented here.
+is broad; a hosted integration must authorize the configured project binding. Global briefings are excluded.
 
 Recovery plans preserve the declared trail budget, prior failure references and attempted hypotheses. Isolated retries
-change approach; a fresh context is named only for the CLI adapters that actually start a fresh session. Other adapters
-seek additional evidence. Ambiguous external operations do not retry. The planner is not a replacement for provider
+change approach; supported CLI adapters and the account model start fresh contexts. Other adapters seek additional evidence.
+One checked factual answer permits one additional isolated attempt; prior failures, uncertain operations and budgets remain intact. Ambiguous external operations do not retry. The planner is not a replacement for provider
 metering, hard spend reservations or a production sandbox's enforcement.
 
 Verified with local Git fixtures, fake decision/evidence services and browser flows: persistent setup documents,
@@ -409,3 +430,45 @@ idempotent starts, restart recovery, capability blockers, supervised mode, machi
 responses, bounded recovery, source isolation and desktop/phone onboarding. No paid model, production repair, remote
 forge landing, live PostHog query or hosted provisioning was performed. Traction's public health endpoint responded,
 but authenticated coverage and end-to-end usefulness remain Unverified.
+
+
+## PostHog investigation and contact routing
+
+`PUT /v1/account/telemetry` accepts the version/workspace binding, `enabled`, exact PostHog `origin`, numeric `projectId`,
+write-only `apiKey`, and optional `includeRecordings`. Saving checks read access with a bounded query; it does not claim
+that an empty response proves health. Keys are encrypted, bound to the exact origin/project/workspace, and cannot follow
+repository changes. The adapter rechecks authority before fetching and before releasing data.
+
+`posthog_poll` jobs query recorded exceptions with a timestamp-plus-UUID cursor, overlap windows and deduplicate immutable
+provider event IDs. Only observed exceptions become signals. Queued continuations survive restart on Convex. Research can
+read exception details and optional recording metadata/console logs; missing replay, stale computations and unknown
+retention remain explicit. Project URLs and fixed read-only SQL come from saved settings, never model instructions.
+
+`PUT /v1/account/people` configures an optional contact roster (`id`, `alias`, roles, areas, optional DID) and authenticated
+HTTPS delivery bridge (`webhookUrl`, write-only `token`). The default is the workspace owner inbox; no contact setup is
+required. Other recipients require the configured bridge. The model chooses from that roster and drafts one targeted
+factual question per code revision. A separately checked decision, keyed by exact backend identity, must accept its
+necessity and recipient before dispatch. Questions never ask for new permissions or spending authority.
+
+The bridge receives `ephyra.investigation.question`, a stable idempotency key, configured recipient ID, question, reason,
+acceptance criterion and seven-day `/answer#<capability>` link. It routes the message through the operator's existing
+messaging system. The capability stays out of request URLs/logs and is bound to account/workspace/trail/question/recipient.
+Non-acknowledged delivery remains uncertain and is never sent again automatically. A valid recipient reply can confirm
+such a delivery. Reassigning the contact or changing workspaces revokes the old link.
+
+`GET /v1/questions` lists current questions; `GET /v1/questions/:trail/:question` reads the exact operation record for
+reconciliation; owner inbox replies use `POST /v1/questions/:trail/:question/answer`. `questions/<id>.json` and
+`questions/latest.json` retain the checks, exact models, delivery state and answer in git. Accepted answers resume only
+the same parked code revision and are supplied as untrusted evidence. Unknown outcomes and rejected answers remain
+inspectable. No answer changes policy, budgets or proof requirements.
+
+Verified offline: scoped PostHog queries/paging/revocation, ingestion dedupe across file-ledger restarts, native forge
+metadata and SHA-256 imports, hosted SDK contracts, real local account-agent patch/bundle transfer, provisioned setup
+receipts, checked questions/answers, uncertain delivery, HTTP account isolation and browser flows. Live paid Railway
+allocation, authenticated native transport, real PostHog projects, message bridges, remote landing and production repair
+remain Unverified; none was exercised or deployed by this implementation pass.
+
+Hosted proof prepares both base and head worktrees from the observed package-manager/lockfile baseline, installs
+locked dependencies with operation receipts, and uses the selected recorded test script. Bun, Cargo, TAP/node:test,
+Jest and Vitest reports require consistent actual counts and failure identities; unsupported or ambiguous reports
+remain Unverified. A proof integration failure parks the trail instead of allocating another sandbox blindly.

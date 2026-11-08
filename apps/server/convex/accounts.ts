@@ -11,6 +11,8 @@ const accountRecord = z
     settings: AccountSettings,
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
+    telemetryKey: z.string().optional(),
+    peopleToken: z.string().optional(),
   })
   .strict();
 

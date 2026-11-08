@@ -4,7 +4,7 @@ import { z } from "zod";
 import { api } from "../../convex/_generated/api";
 
 /** Server-only account state. Credential strings are already sealed; this store never opens them. */
-export type AccountRecord = { settings: AccountSettings; modelKey?: string; repoToken?: string };
+export type AccountRecord = { settings: AccountSettings; modelKey?: string; repoToken?: string; telemetryKey?: string; peopleToken?: string };
 export type AccountBeginResult =
   | { status: "fresh" }
   | { status: "completed"; record: AccountRecord }
@@ -25,6 +25,8 @@ const accountRecord = z
     settings: AccountSettings,
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
+    telemetryKey: z.string().optional(),
+    peopleToken: z.string().optional(),
   })
   .strict();
 const decode = (json: string): AccountRecord => accountRecord.parse(JSON.parse(json));

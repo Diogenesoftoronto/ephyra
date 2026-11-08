@@ -50,11 +50,13 @@ import { MemoryStore, type RuntimeStore } from "./wiring/store.ts";
 import { Engine, JobLoop } from "./wiring/runtime.ts";
 import { intake, intakeHandlers } from "./wiring/intake.ts";
 import { httpPort, humanHandlers, type AuditSink } from "./wiring/human.ts";
-import { agentHandlers, type BuildProofFn } from "./wiring/agents.ts";
+import { agentHandlers, type BuildProofFn, type AgentDeps } from "./wiring/agents.ts";
 import { landingHandlers, type Git } from "./wiring/landing.ts";
 import { checkpointHandlers } from "./wiring/checkpoints.ts";
-import { AutomaticSetup, setupGit } from "./setup/automation.ts";
+import { AutomaticSetup, setupGit, type SetupOptions } from "./setup/automation.ts";
 import { setupRoutes } from "./http/setup.ts";
+import { InvestigationQuestions, type QuestionOptions } from "./setup/questions.ts";
+import { registerPostHogPolling } from "./setup/telemetry.ts";
 
 export const VERSION = "0.1.0-prealpha";
 
@@ -75,7 +77,10 @@ export type Composed = {
   engine: Engine;
   jobs: JobLoop;
   setup: AutomaticSetup;
+  questions: InvestigationQuestions | null;
+  telemetry: ReturnType<typeof registerPostHogPolling> | null;
   health(): Promise<{ store: "ok" | "unavailable" | "memory" }>;
+  start(): Promise<void>;
   close(): Promise<void>;
 };
 
@@ -169,6 +174,7 @@ function knownSecrets(config: Config): string[] {
     config.CLOUDFLARE_AI_API_TOKEN, config.EPHYRA_DRAFT_ANTHROPIC_API_KEY, config.EPHYRA_DRAFT_OPENAI_API_KEY, process.env.AMP_API_KEY,
     config.EPHYRA_VOICE_API_KEY, config.EPHYRA_HUMANS_API_KEY,
     config.EPHYRA_TRACTION_TOKEN,
+    config.EPHYRA_RAILWAY_TOKEN,
   ].filter((v): v is string => typeof v === "string" && v.length >= 8);
 }
 
@@ -234,6 +240,12 @@ export type ComposeOverrides = {
   /** Test/dev injection points. */
   agent?: CodingAgent;
   runner?: Runner;
+  profile?: ServiceProfile;
+  operationLedger?: import("@ephyra/core").OperationLedger;
+  questions?: Omit<QuestionOptions, "ctx" | "decide" | "ledger">;
+  resolveTelemetry?: () => Promise<import("@ephyra/evidence").PostHogEvidence | null>;
+  setupProvision?: SetupOptions["provision"];
+  prepareProof?: AgentDeps["prepareProof"];
   decide?: DecideBackend;
   /** Replaces the configured Velum model (tests: nothing here may touch the network). */
   draftModel?: DraftModel;
@@ -259,7 +271,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const secret = config.EPHYRA_CONVEX_SECRET ?? "";
   const store: RuntimeStore & { recoverRunning?(): Promise<unknown> } = client ? new ConvexRuntimeStore(client, secret) : new MemoryStore();
   const signals: SignalStore = client ? new ConvexSignalStore(client, secret) : new MemorySignalStore();
-  const ledger = client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger();
+  const ledger = opts.operationLedger ?? (client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger());
   const usageStore: UsageStore = client ? new ConvexUsageStore(client, secret) : new MemoryUsageStore();
   const usage = new UsageRecorder(usageStore, log);
   const runStore: RunStore = client ? new ConvexRunStore(client, secret) : new MemoryRunStore();
@@ -323,7 +335,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const decide = opts.decide
     ?? (config.EPHYRA_DECIDE === "notorganic" && signIn && billingDid ? new HostedDecide(signIn, billingDid, hosted) : configured.decide);
   const draftModel = opts.draftModel ?? draftModelFor(config, signIn, billingDid, ledger);
-  const profile: ServiceProfile = {
+  const profile: ServiceProfile = opts.profile ?? {
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
   };
@@ -340,16 +352,27 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     extract, decide, budget,
     baseSha: async () => (await g(["rev-parse", repo.baseRef])).trim(),
   });
+  const questions = opts.questions ? new InvestigationQuestions({ ...opts.questions, ctx, decide, ledger }) : null;
+  const telemetry = opts.resolveTelemetry ? registerPostHogPolling({ ctx, resolve: opts.resolveTelemetry, ledger,
+    onSignal: (signal) => intakeHooks.onNewSignal(signal) }) : null;
+  const human = humanHandlers(ctx);
+  const notify = human.notify_inbox!;
+  if (questions) human.notify_inbox = async (effect, trail) => {
+    await notify(effect, trail);
+    await questions.schedule(trail, effect.reason, effect.key);
+  };
   const slices = [
     intakeHandlers(ctx),
-    humanHandlers(ctx),
+    human,
     checkpointHandlers(ctx, { decide, ledger, secrets: knownSecrets(config) }),
     agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
       usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources,
+      prepareProof: opts.prepareProof,
       resolveEvidenceSources: opts.resolveEvidenceSources ? () => opts.resolveEvidenceSources!(ledger) : undefined }),
     landingHandlers(ctx, {
       adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
+      canLand: opts.workspace ? async () => opts.automationReadiness?.landing === true && opts.automationReadiness?.watch === true : undefined,
     }),
   ];
   const handlers = Object.fromEntries(ALL_EFFECTS.map((t) => [t, notWired(t)])) as unknown as EffectHandlers;
@@ -358,22 +381,33 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
 
   const setup = new AutomaticSetup({
     git: setupGit(repo.mirrorDir), repo, jobs: ctx.jobs, secrets: knownSecrets(config),
-    capabilities: async () => [
-      { id: "agent", available: Boolean(agent), summary: "A coding agent is not configured for this workspace.",
+    provision: opts.setupProvision,
+    capabilities: async (run) => {
+      let baseline = false;
+      try {
+        const receipt = JSON.parse(run?.artifacts.find((a) => a.path === "ephyra/provisioning.json")?.content ?? "null");
+        baseline = receipt?.verification === true && receipt.head === run?.repository.head;
+      } catch { /* an invalid receipt cannot establish readiness */ }
+      return [
+      { id: "agent", available: Boolean(agent) && (!opts.resolveDraftModel || Boolean(await opts.resolveDraftModel().catch(() => null))),
+        summary: "A coding agent is not configured for this workspace.",
         action: "Connect a workspace-scoped coding agent on the host." },
       { id: "runner", available: Boolean(runner), summary: "An execution sandbox is not configured.",
         action: "Provision an isolated workspace runner through the hosting integration." },
-      { id: "decision", available: Boolean(decide), summary: "A checkpoint decision model is not configured.",
+      { id: "decision", available: Boolean(decide) && (config.EPHYRA_DECIDE !== "notorganic" || !signIn || !billingDid
+          || await signIn.hasScope(billingDid, "judgement:evaluate")), summary: "A checkpoint decision model is not configured.",
         action: "Connect the decision backend and calibrate its exact returned identity." },
-      { id: "telemetry", available: opts.automationReadiness?.telemetry === true, summary: "Live telemetry coverage is unverified.",
+      { id: "telemetry", available: opts.automationReadiness?.telemetry === true || Boolean(await opts.resolveTelemetry?.()),
+        summary: "Live telemetry coverage is unverified.",
         action: "Connect scoped error telemetry and verify ingestion for this repository." },
-      { id: "verification", available: opts.automationReadiness?.verification === true, summary: "Repository checks have not been baselined.",
+      { id: "verification", available: opts.automationReadiness?.verification === true || baseline,
+        summary: "Repository checks have not been baselined.",
         action: "Run the discovered checks in the sandbox and record baseline failures and intent probes." },
       { id: "landing", available: opts.automationReadiness?.landing === true, summary: "Remote landing access is unverified.",
         action: "Verify the selected forge transport and rollback permissions for this workspace." },
       { id: "watch", available: opts.automationReadiness?.watch === true, summary: "Post-landing watch coverage is unverified.",
         action: "Verify the deployed revision, telemetry baseline and regression watch before enabling landing." },
-    ],
+    ]; },
     activate: async (run) => {
       const policy = run.artifacts.find((a) => a.path === "autonomy.md");
       const calibration = run.artifacts.find((a) => a.path === "thresholds.yaml");
@@ -381,6 +415,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       Object.assign(autonomy, parseAutonomy(policy.content));
       for (const key of Object.keys(thresholds)) delete thresholds[key];
       Object.assign(thresholds, parseThresholds(calibration.content));
+      await telemetry?.start();
     },
   });
   await setup.restore();
@@ -405,7 +440,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const port = httpPort(ctx, audit);
   port.ops = async () => ({
     deadJobs: await store.deadJobs(),
-    reconciliations: client ? await (ledger as ConvexOperationLedger).reconciliations() : engine.reconciliations,
+    reconciliations: ledger instanceof ConvexOperationLedger ? await ledger.reconciliations() : engine.reconciliations,
     backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null,
       draft: (opts.resolveDraftModel ? await opts.resolveDraftModel().catch(() => null) : draftModel)?.kind ?? null },
     repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
@@ -415,7 +450,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     git: g, baseRef: repo.baseRef,
     activeContent: async (path) => {
       const run = await setup.current();
-      return run?.status === "ready" ? run.artifacts.find((a) => a.path === path)?.content ?? null : null;
+      return run?.status === "ready" || run?.investigationActive ? run.artifacts.find((a) => a.path === path)?.content ?? null : null;
     },
     ...(config.EPHYRA_AUTONOMY_FILE ? { autonomyFile: config.EPHYRA_AUTONOMY_FILE } : {}),
     ...(config.EPHYRA_THRESHOLDS_FILE ? { thresholdsFile: config.EPHYRA_THRESHOLDS_FILE } : {}),
@@ -466,18 +501,29 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   else app.get("/auth/session", (c) => c.json({ signIn: false, identity: null }, 200, { "Cache-Control": "no-store" }));
   if (hasConsole(config.EPHYRA_CONSOLE_DIR)) app.route("/", consoleStatic(config.EPHYRA_CONSOLE_DIR));
   app.route("/", api);
+  if (!opts.workspace && repo.url) await telemetry?.start();
 
-  if (opts.startJobs !== false) {
-    await store.recoverRunning?.();
-    // A run still "running" belongs to a server that is gone (its job was just re-queued): close it rather than show it live forever.
-    await runStore.closeRunning("the server restarted while this run was in progress", new Date()).catch((e) => log("closing orphaned runs failed",
-      { error: String(e) }));
-    jobs.start();
-  }
+  let startup: Promise<void> | null = null;
+  let generation = 0;
+  const start = (): Promise<void> => {
+    if (startup) return startup;
+    const version = generation;
+    startup = (async () => {
+      await store.recoverRunning?.();
+      if (version !== generation) return;
+      // Only the first concurrent request may recover runs and start the workspace worker.
+      await runStore.closeRunning("the server restarted while this run was in progress", new Date())
+        .catch(() => log("closing orphaned runs failed"));
+      if (version === generation) jobs.start();
+    })().catch((error) => { if (version === generation) startup = null; throw error; });
+    return startup;
+  };
+  if (opts.startJobs !== false) await start();
   log("composed", {
     mode, extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null, repo: repo.id,
     signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
-  return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel, engine, jobs, setup, health,
-    close: async () => { jobs.stop(); } };
+  return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel,
+    engine, jobs, setup, questions, telemetry, health, start,
+    close: async () => { generation++; telemetry?.stop(); jobs.stop(); startup = null; } };
 }

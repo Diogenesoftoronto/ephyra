@@ -3,7 +3,7 @@
 // No sandbox is kept alive while a trail waits on a human.
 import { evaluateProof } from "@ephyra/policy";
 import { ReconciliationRequired, Unverified, personaFor } from "@ephyra/core";
-import { ClaudeCodeAgent, CodexAgent, executorOf, redact, runAgent, type ExecutorInfo } from "@ephyra/agent";
+import { ClaudeCodeAgent, CodexAgent, executorOf, redact, runAgent, type ExecutorInfo, type ProofOptions } from "@ephyra/agent";
 import type {
   AgentStep, AgentTask, CodingAgent, ProofBundle, ProofItem, Runner, RunnerHandle, ServiceProfile, Signal, Trail,
 } from "@ephyra/core";
@@ -12,10 +12,12 @@ import type { BilledTo, UsageRecorder } from "../usage.ts";
 import type { RunHandle, RunRecorder } from "../runs.ts";
 import { gatherResearchEvidence } from "./research-evidence.ts";
 import { buildRecovery } from "./recovery.ts";
+import { importRunnerPatch } from "../setup/repository-bundle.ts";
 
 export type BuildProofFn = (options: {
   runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string; probe: string;
   evaluate: (items: ProofItem[], trail: Trail) => { passed: boolean; missing: string[] };
+  prepareRevision?: ProofOptions["prepareRevision"];
 }) => Promise<ProofBundle>;
 
 export type AgentDeps = {
@@ -35,10 +37,11 @@ export type AgentDeps = {
   secrets?: string[];
   evidenceSources?: import("@ephyra/core").EvidenceSource[];
   resolveEvidenceSources?: () => Promise<import("@ephyra/core").EvidenceSource[]>;
+  prepareProof?: (runner: Runner, handle: RunnerHandle, trail: Trail) => Promise<ProofOptions["prepareRevision"]>;
 };
 
-type StepPayload = { trailId: string; rev: number; step: AgentStep; note?: string };
-type ProofPayload = { trailId: string; rev: number };
+type StepPayload = { trailId: string; rev: number; step: AgentStep; note?: string; operationKey?: string };
+type ProofPayload = { trailId: string; rev: number; operationKey?: string };
 
 const decoder = new TextDecoder();
 
@@ -50,6 +53,8 @@ async function untrustedFor(ctx: ServerContext, trail: Trail): Promise<Record<st
       s.title, s.message, s.exceptionType ?? "", ...s.frames.slice(0, 12).map((f) => `  at ${f.fn ?? "?"} (${f.file}:${f.line ?? "?"})`),
     ].join("\n");
   });
+  const answer = await ctx.journal.readFile(trail.id, "questions/latest.json");
+  if (answer) out.investigation_answer = decoder.decode(answer).slice(0, 20_000);
   return out;
 }
 
@@ -71,24 +76,18 @@ async function contextFor(ctx: ServerContext, trail: Trail, note?: string): Prom
 /** Push the agent's head commit from the sandbox into the workspace repo, as an immutable revision ref. */
 async function publishHead(runner: Runner, handle: RunnerHandle, ctx: ServerContext, trail: Trail, head: string) {
   const ref = `refs/ephyra/trails/${trail.id}/revisions/${String(trail.rev + 1).padStart(4, "0")}`;
-  let exit = -1;
-  let stderr = "";
-  for await (const out of runner.exec(handle, ["git", "push", ctx.repo.mirrorDir, `${head}:${ref}`], { deadlineMs: 120_000 })) {
-    if ("chunk" in out) { if (out.stream === "stderr") stderr += out.chunk; }
-    else exit = out.exit;
-  }
-  if (exit !== 0) throw new Error(`could not publish the patch head: ${stderr.slice(0, 300)}`);
+  await importRunnerPatch(runner, handle, ctx.repo.mirrorDir, head, ref);
 }
 
 /** Commit identifying the code the step should run against. */
 function commitFor(trail: Trail): string { return trail.head ?? trail.base.sha; }
 
-async function withSandbox<T>(deps: AgentDeps, ctx: ServerContext, trail: Trail, attempt: number,
+async function withSandbox<T>(deps: AgentDeps, ctx: ServerContext, trail: Trail, attempt: number, operationKey: string,
   work: (runner: Runner, handle: RunnerHandle) => Promise<T>): Promise<T> {
   if (!deps.runner) throw new Error("no runner configured on this deployment");
   const runner = deps.runner;
   const handle = await runner.allocate({
-    trail, attempt, repoUrl: ctx.repo.url, commit: commitFor(trail), profile: deps.profile, leaseS: deps.stepTimeoutS + 300,
+    trail, attempt, repoUrl: ctx.repo.url, commit: commitFor(trail), profile: deps.profile, leaseS: deps.stepTimeoutS + 300, operationKey,
   });
   try {
     return await work(runner, handle);
@@ -133,7 +132,7 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
   const events = await ctx.trails.events(trail.id);
   const recovery = buildRecovery(trail, events, payload.step, {
     retrySafety: deps.profile.readOnlyProd && deps.profile.credentials.length === 0 ? "isolated" : "unknown",
-    canResetContext: deps.agent instanceof CodexAgent || deps.agent instanceof ClaudeCodeAgent,
+    canResetContext: deps.agent instanceof CodexAgent || deps.agent instanceof ClaudeCodeAgent || deps.agent.name === "account-model",
     secrets: deps.secrets,
   });
   const recoveryFiles = { [`artefacts/recovery/${payload.step}-${trail.rev}-${recovery.attempt}.json`]: JSON.stringify(recovery.artifact) };
@@ -159,7 +158,8 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     persona: personaFor(payload.step), engine: engineOf(agent), executor: executorFor(agent, deps.runner),
   });
   try {
-    result = await withSandbox(deps, ctx, trail, attempt, async (runner, handle) => {
+    result = await withSandbox(deps, ctx, trail, attempt,
+      `${payload.operationKey ?? `${trail.id}:${trail.rev}:${payload.step}`}:${attempt}`, async (runner, handle) => {
       if (run && executorFor(agent, runner).kind !== "local") run.executor({ id: handle.id });
       const r = await runAgent(agent, task, runner, handle, {
         ...(run ? { onEvent: run.event, onExecutor: run.executor } : {}), ...(deps.secrets ? { secrets: deps.secrets } : {}),
@@ -250,13 +250,18 @@ async function runProof(ctx: ServerContext, deps: AgentDeps, payload: ProofPaylo
   try {
     await proofRun(ctx, deps, payload, attempt, trail);
   } catch (error) {
-    await record(error instanceof Unverified ? "unavailable" : "failed", String(error));
-    throw error;
+    const reason = redact(String(error), deps.secrets ?? [], 500);
+    await record(error instanceof Unverified ? "unavailable" : "failed", reason);
+    await ctx.emit({ trail: trail.id, actor: { kind: "system", id: "proof" }, type: "agent_failed",
+      data: { step: "proof", reason, retryable: false }, expectedBound: { rev: trail.rev, head: trail.head },
+      files: { "proof/error.json": JSON.stringify({ reason, operationKey: payload.operationKey ?? null,
+        reconciliationRequired: error instanceof ReconciliationRequired }) } });
+    return;
   }
   await record("ok");
 }
 
-async function proofRun(ctx: ServerContext, deps: AgentDeps, _payload: ProofPayload, attempt: number, trail: Trail): Promise<void> {
+async function proofRun(ctx: ServerContext, deps: AgentDeps, payload: ProofPayload, attempt: number, trail: Trail): Promise<void> {
   const events = await ctx.trails.events(trail.id);
   const repro = [...events].reverse().find((e) => e.type === "repro_completed" && e.data.ok);
   const probe = repro?.type === "repro_completed" ? repro.data.probe : undefined;
@@ -264,10 +269,12 @@ async function proofRun(ctx: ServerContext, deps: AgentDeps, _payload: ProofPayl
   const flags = proofFlags(ctx, trail);
   const script = await ctx.journal.readFile(trail.id, probe);
   if (!script) throw new Error(`repro probe ${probe} is missing from the journal`);
-  const bundle = await withSandbox(deps, ctx, trail, attempt, async (runner, handle) => {
+  const bundle = await withSandbox(deps, ctx, trail, attempt,
+    `${payload.operationKey ?? `${trail.id}:${trail.rev}:proof`}:${attempt}`, async (runner, handle) => {
     await runner.writeFile(handle, probe, script);
     return deps.buildProof({
     runner, handle, trail, base: trail.base.sha, head: trail.head!, probe,
+    prepareRevision: await deps.prepareProof?.(runner, handle, trail),
     evaluate: (items, t) => {
       const r = evaluateProof(items, t.risk, flags);
       return { passed: r.passed, missing: r.missing.map(String) };
@@ -285,11 +292,11 @@ export function agentHandlers(ctx: ServerContext, deps: AgentDeps): HandlerSlice
   return {
     start_agent: async (effect, trail) => {
       await ctx.jobs.enqueue("agent_step", effect.key, {
-        trailId: trail.id, rev: trail.rev, step: effect.step, ...(effect.note ? { note: effect.note } : {}),
+        trailId: trail.id, rev: trail.rev, step: effect.step, operationKey: effect.key, ...(effect.note ? { note: effect.note } : {}),
       } satisfies StepPayload);
     },
     run_proof: async (effect, trail) => {
-      await ctx.jobs.enqueue("proof", effect.key, { trailId: trail.id, rev: trail.rev } satisfies ProofPayload);
+      await ctx.jobs.enqueue("proof", effect.key, { trailId: trail.id, rev: trail.rev, operationKey: effect.key } satisfies ProofPayload);
     },
     stop_agent: async (_effect, trail) => {
       // Steps check the trail revision before emitting, so a stale step's result is discarded.

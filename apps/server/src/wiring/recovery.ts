@@ -43,10 +43,14 @@ export function buildRecovery(trail: Trail, events: TrailEvent[], step: AgentSte
   const proofAttempts = step === "patch" ? Math.max(trail.attempts.proof, proofs.length) : 0;
   const previousAttempts = failures.length + revisions.length + proofAttempts;
   const attempt = previousAttempts + 1;
-  const limit = Number.isInteger(options.maxAttempts) ? Math.min(10, Math.max(1, options.maxAttempts!)) : 3;
+  const newEvidence = events.some((event) => event.type === "resumed" && event.rev === trail.rev
+    && event.actor.kind === "system" && /^answer:[a-f0-9]{64}$/.test(event.actor.id));
+  // One checked factual answer permits one additional isolated attempt. Earlier failures and budgets remain intact.
+  const limit = (Number.isInteger(options.maxAttempts) ? Math.min(10, Math.max(1, options.maxAttempts!)) : 3) + (newEvidence ? 1 : 0);
   const safety = options.retrySafety ?? "unknown";
   const unsafe = safety === "ambiguous_external" || (previousAttempts > 0 && safety === "unknown")
-    || failures.some((event) => event.type === "agent_failed" && !event.data.retryable);
+    || failures.some((event) => event.type === "agent_failed" && !event.data.retryable
+      && (!newEvidence || /ReconciliationRequired|uncertain|ambiguous|credential|permission|authenticat/i.test(event.data.reason)));
   const budgetExhausted = trail.budget.tokensUsed >= trail.budget.tokensMax
     || trail.budget.spendMicrousdUsed > trail.budget.spendMicrousdMax;
   const exhausted = unsafe || budgetExhausted || attempt > limit;

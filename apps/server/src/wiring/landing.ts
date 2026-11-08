@@ -16,6 +16,8 @@ export type LandingDeps = {
   git: Git;
   /** How often to observe a watching trail. */
   watchEveryMs: number;
+  /** Personal workspaces require verified remote authority and watch coverage before a landing effect can write. */
+  canLand?: () => Promise<boolean>;
 };
 
 type WatchPayload = { trailId: string; rev: number; config: WatchConfig; state?: WatchState; tick: number };
@@ -80,6 +82,12 @@ export function landingHandlers(ctx: ServerContext, deps: LandingDeps): HandlerS
 
   return {
     land: async (effect, trail) => {
+      if (deps.canLand && !await deps.canLand()) {
+        await ctx.emit({ trail: trail.id, actor, type: "parked", data: {
+          reason: "Remote landing authority and post-landing watch coverage must be verified before this patch can land.",
+        } });
+        return;
+      }
       const events: TrailEvent[] = await ctx.trails.events(trail.id);
       const digest = latestProofDigest(trail, events);
       const approval = trail.checkpoints.C;
