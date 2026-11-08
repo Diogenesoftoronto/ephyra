@@ -16,6 +16,7 @@ const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".svg": "image/svg+xml", ".woff2": "font/woff2", ".woff": "font/woff", ".webp": "image/webp", ".png": "image/png", ".ico": "image/x-icon",
   ".map": "application/json",
+  ".webm": "video/webm", ".mp4": "video/mp4",
 };
 
 /** Serve a built directory. `mount` is a URL prefix to strip (the app is built for /app/). Missing files answer 404. */

@@ -1,16 +1,16 @@
 /* Local material exports. These layers are static; reading surfaces stay opaque. */
 :root, [data-theme="light"] {
-  --material: url("/app/materials/amber-glass-light-v1.webp");
-  --material-wash: color-mix(in oklab, var(--bg) 94%, transparent);
+  --material: url("/app/materials/day-v2.webp");
+  --material-wash: color-mix(in oklab, var(--bg) 92%, transparent);
 }
 [data-theme="dark"] {
-  --material: url("/app/materials/amber-glass-dark-v1.webp");
-  --material-wash: color-mix(in oklab, var(--bg) 93%, transparent);
+  --material: url("/app/materials/night-v2.webp");
+  --material-wash: color-mix(in oklab, var(--bg) 91%, transparent);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --material: url("/app/materials/amber-glass-dark-v1.webp");
-    --material-wash: color-mix(in oklab, var(--bg) 93%, transparent);
+    --material: url("/app/materials/night-v2.webp");
+    --material-wash: color-mix(in oklab, var(--bg) 91%, transparent);
   }
 }
 .ui-shell, .entry-page {

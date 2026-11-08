@@ -6,6 +6,7 @@ import { TotalCost } from "./Cost.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
 import { EngineBadge } from "./EngineBadge.tsx";
 import "./PersonaCard.css";
+import "./PersonaMaterial.css";
 
 /** A persona: its face, its role, who it is named for, what it does, what it did lately and what that cost. */
 export function PersonaCard({
@@ -26,7 +27,7 @@ export function PersonaCard({
   const engines = [...new Set(recent.flatMap((a) => a.engine ? [a.engine] : []))];
   return (
     <Card className="persona-card" tone="tray">
-      <div className="persona-head">
+      <div className="persona-head persona-material" data-persona={persona.id}>
         <PersonaAvatar persona={persona.id} size={96} live={running} />
         <div>
           <h2 className="persona-name">

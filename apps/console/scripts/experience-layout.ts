@@ -32,6 +32,9 @@ try {
         await page.goto(`${site.url}/iframe.html?id=${id}&viewMode=story&globals=theme:${scheme}`);
         await page.locator(".sb-frame h1").waitFor();
         await page.evaluate(() => document.fonts.ready);
+        await page.locator("img:not([loading=lazy])").evaluateAll(async (images) => {
+          await Promise.all(images.map((image) => (image as HTMLImageElement).decode()));
+        });
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: page fits ${width}`);
         const clipped = await page.locator("h1, h2, input, select, button").evaluateAll((elements) => elements.filter((el) => {
           const r = el.getBoundingClientRect();
