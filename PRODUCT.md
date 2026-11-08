@@ -23,7 +23,9 @@ No cyberpunk jellyfish, purple-to-blue SaaS gradients, invented metrics, or simu
 
 ## Design Principles
 
-- Put blocking decisions and exceptions before history and totals.
+- Make autonomous operation the primary path: connect a repository, prepare configuration automatically, and expose the loop.
+- Show current investigations, checked questions, evidence, recovery attempts and outcomes; request targeted help only when it unblocks progress.
+- Offer supervised checkpoints as an explicit preference, not the default onboarding workload.
 - Tie every review to the revision and evidence the person saw.
 - Keep unknown costs, unavailable providers and missing evidence explicit.
 - Distinguish saved drafts, published policy refs and policy in effect.

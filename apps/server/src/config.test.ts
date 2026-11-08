@@ -19,3 +19,15 @@ test("hosted Velum needs sign-in and a billing account like the other hosted mod
 test("the console directory defaults to apps/console/dist", () => {
   expect(readConfig(base).EPHYRA_CONSOLE_DIR).toEndWith("apps/console/dist");
 });
+
+
+test("Traction configuration requires a complete explicit origin, secret and project binding", () => {
+  expect(() => readConfig({ EPHYRA_API_TOKEN: "fixture-token-123456", EPHYRA_TRACTION_ORIGIN: "https://traction.example" })).toThrow("Traction needs");
+  const base = { EPHYRA_API_TOKEN: "fixture-token-123456", EPHYRA_TRACTION_ORIGIN: "https://traction.example",
+    EPHYRA_TRACTION_TOKEN: "fixture-secret", EPHYRA_TRACTION_PROJECTS: "project-a,project-b" };
+  expect(readConfig(base).EPHYRA_TRACTION_PROJECTS).toBe("project-a,project-b");
+  for (const origin of ["https://user:secret@traction.example", "https://traction.example/path", "http://traction.example"]) {
+    expect(() => readConfig({ ...base, EPHYRA_TRACTION_ORIGIN: origin })).toThrow();
+  }
+  expect(() => readConfig({ ...base, EPHYRA_TRACTION_PROJECTS: "project-a,,project-b" })).toThrow("allowlist");
+});

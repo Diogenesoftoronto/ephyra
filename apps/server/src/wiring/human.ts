@@ -108,7 +108,7 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       if (!trail) return null;
       const events = durable?.events ?? await ctx.trails.events(trail.id);
       // Only journal-owned review documents. Never accept arbitrary application paths from the browser.
-      const paths = ["hypothesis.md", "plan.md"];
+      const paths = ["hypothesis.md", "plan.md", "evidence/index.json", "decisions/latest-A.json", "decisions/latest-B.json", "decisions/latest-C.json"];
       const before = await ctx.journal.read(trail.id);
       const artefacts = await Promise.all(paths.map(async (path) => {
         const bytes = before?.trail.rev === trail.rev ? await ctx.journal.readFile(trail.id, path) : null;
@@ -117,7 +117,7 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       const after = await ctx.journal.read(trail.id);
       // A moved journal cannot supply the text for the reviewed revision. The caller can reload.
       if (before?.head !== after?.head) for (const a of artefacts) a.content = null;
-      return { trail, events, artefacts };
+      return { trail, events, artefacts: artefacts.filter((a) => a.path === "hypothesis.md" || a.path === "plan.md" || a.content !== null) };
     },
     async operationStatus(id, action, key, principal) {
       if (!z.uuid().safeParse(id).success) return null;

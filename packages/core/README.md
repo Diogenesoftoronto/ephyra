@@ -95,3 +95,11 @@ The offline tests exercise the lifecycle table, triage creation, checkpoints, ro
 handoff, and randomized replay invariants. They verify pure decisions and schema
 validity only. Actual agents, proof runs, forge writes, rollback, watch, inbox delivery,
 respondent runs, and durable journal/outbox integration remain **Unverified** here.
+
+
+## Automatic setup contracts (core changes)
+
+New additive exports `SetupMode`, `SetupRequest` and `SetupRun` describe requested operation mode, recorded progress,
+artifacts, source commit and readiness blockers. `RepositoryUpdate.discoverDefaultBranch` is a new optional field;
+existing explicit-branch requests are unchanged. Setup readiness is configuration state, not evidence that a repair or
+verification ran. The server validates these contracts against real local Git fixtures and the console consumes them.

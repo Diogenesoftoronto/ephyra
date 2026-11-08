@@ -222,3 +222,23 @@ checkpoint controls remain the decision surface. Read-only accounts can inspect 
 unknown outcomes, read-only access and dark mode. They use labelled fixtures. The browser check exercises explanations,
 sources, follow-ups and the voice handoff at desktop and phone widths. [Server configuration](../server/README.md#humans-collaboration-and-tutoring)
 documents Not Organic account routing, direct Humans& keys, limits and what remains unverified.
+
+### Automatic repository setup
+
+Onboarding starts automatic setup after connecting a repository. Leaving the branch field blank asks the server for
+its default branch. The HTTPS connector accepts clone URLs from GitHub, GitLab, Forgejo, Tangled and other Git hosts;
+Radicle needs an HTTPS gateway for this connector. Native Radicle transport is not claimed by this screen.
+
+Self-driving is the default preference; supervised checkpoints are selectable before connecting. Setup progress comes
+from the authenticated workspace's `/v1/setup` record. The page shows each stage, generated documents and digests,
+readiness blockers with their responsible role, and links to agent runs and requests for help. A saved repository is
+never presented as proof that execution is available. Model/provider configuration remains available in the secondary
+settings section, and an explicit recheck records a new setup run after a missing capability is connected.
+
+Interrupted starts retain a credential-free operation key scoped to the account and workspace. Refreshes query that
+exact key and never repeat the write automatically; a different tab's run cannot clear the uncertainty. Setup polling
+pauses while the page is hidden. The workflow continues on the server after leaving the page.
+
+Verified locally: setup HTTP contract, default/supervised startup, duplicate-mount protection, exact lost-write
+reconciliation, output escaping, console tests/typecheck/build. Storybook and demo setup data are marked fictional.
+Live repository authentication, provider execution, forge landing and hosted Traction remain separate integration checks.

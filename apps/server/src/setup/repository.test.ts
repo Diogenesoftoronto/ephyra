@@ -52,7 +52,7 @@ async function fixture() {
     invocations.push(input);
     // Trusted test-only adapter: production input is captured first, then the remote is replaced by our local fixture.
     const args = [...input.args];
-    if (args.includes("fetch")) args[args.indexOf("--") + 1] = pathToFileURL(source).href;
+    if (args.includes("fetch") || args.includes("ls-remote")) args[args.indexOf("--") + 1] = pathToFileURL(source).href;
     return localGit(["-c", "protocol.file.allow=always", ...args], undefined, {
       ...input.env,
       GIT_ALLOW_PROTOCOL: "file",
@@ -288,4 +288,26 @@ describe("repository connection", () => {
     expect(results.map((result) => result.head)).toEqual([f.head, f.head]);
     expect(f.invocations.filter((item) => item.args.includes("init"))).toHaveLength(1);
   });
+});
+
+
+test("default branch discovery follows the advertised branch without guessing main", async () => {
+  const f = await fixture();
+  expect(localGit(["branch", "-m", "main", "trunk"], f.source).code).toBe(0);
+  const connector = new RepositoryConnector({ lookup: publicLookup, execute: f.execute });
+  expect(await connector.discover({ url: cloneUrl })).toBe("trunk");
+  const invocation = f.invocations.find((item) => item.args.includes("ls-remote"))!;
+  expect(invocation.args).toEqual(["ls-remote", "--symref", "--", cloneUrl, "HEAD"]);
+  expect(configuration(invocation.env)["http.followRedirects"]).toEqual(["false"]);
+});
+
+test("default branch discovery refuses private targets and malformed advertised refs", async () => {
+  let calls = 0;
+  const blocked = new RepositoryConnector({ lookup: async () => [{ address: "127.0.0.1", family: 4 }],
+    execute: async () => { calls++; return { code: 0, stdout: "" }; } });
+  await expect(blocked.discover({ url: cloneUrl })).rejects.toMatchObject({ code: "private_destination" });
+  expect(calls).toBe(0);
+  const malformed = new RepositoryConnector({ lookup: publicLookup,
+    execute: async () => ({ code: 0, stdout: "ref: refs/heads/--upload-pack=evil\tHEAD\n" }) });
+  await expect(malformed.discover({ url: cloneUrl })).rejects.toMatchObject({ code: "invalid_branch" });
 });

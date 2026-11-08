@@ -19,11 +19,13 @@ import { VoiceProvider, VoiceLauncher } from "../voice/Voice.tsx";
 import type { VoiceContext } from "@ephyra/core";
 import type { AccountSettings } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
+import type { SetupApi } from "../setup-api.ts";
 import { SettingsPage } from "../pages/SettingsPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { CommandMenu } from "../components/CommandMenu.tsx";
 
 export type AccountContext = {
+  automation?: SetupApi;
   api: AccountApi;
   settings: AccountSettings;
   onChange: (settings: AccountSettings) => void;
@@ -250,8 +252,8 @@ function Frame({
           route.page !== "onboarding" &&
           route.page !== "settings" && (
             <aside className="workspace-setup-note">
-              <span>Finish connecting your repository and model access.</span>
-              <a href="#/onboarding">Resume setup →</a>
+              <span>Ephyra can prepare your repository and autonomy documents.</span>
+              <a href="#/onboarding">View automatic setup →</a>
             </aside>
           )}
         {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && (
