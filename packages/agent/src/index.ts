@@ -6,4 +6,5 @@ export * from "./proof";
 export * from "./review";
 export * from "./redact";
 export * from "./amp";
+export * from "./amp-report";
 export * from "./run-events";
