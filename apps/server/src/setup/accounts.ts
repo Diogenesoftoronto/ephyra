@@ -2,6 +2,7 @@ import { createHash, createHmac } from "node:crypto";
 import { join } from "node:path";
 import {
   AccountSettings,
+  IsoTime,
   Unverified,
   type ModelUpdate,
   type RepositoryUpdate,
@@ -20,7 +21,7 @@ import { NotOrganicKnowledge, KnowledgeAccessError } from "../auth/knowledge.ts"
 import { AnthropicDraftModel, OpenAiDraftModel, NotOrganicDraftModel, type DraftModel } from "../velum.ts";
 import { canonicalJson } from "../audit.ts";
 import type { AccountRecord, AccountStore } from "./account-store.ts";
-import { ConnectionError, parsePublicHttps, publicHttpsFetch } from "./network.ts";
+import { ConnectionError, parsePublicHttps, publicHttpsFetch, resolvePublicHttps } from "./network.ts";
 import { RepositoryConnector } from "./repository.ts";
 import { ForgeRepositoryConnector, type ForgeResolution, type ForgeRepositoryInput } from "./forge-repository.ts";
 import { ownerContact } from "./questions.ts";
@@ -40,7 +41,7 @@ export type AccountOptions = {
   operationSecret: string;
   dataDir: string;
   signIn: NotOrganicSignIn;
-  repository?: Pick<RepositoryConnector, "prepare"> & Partial<Pick<RepositoryConnector, "discover">>
+  repository?: Pick<RepositoryConnector, "prepare"> & Partial<Pick<RepositoryConnector, "discover" | "command">>
     & { resolve?: (input: ForgeRepositoryInput) => Promise<ForgeResolution> };
   fetcher?: Fetch;
   onWorkspaceChange?: (before: string, after: string) => void;
@@ -109,6 +110,57 @@ export class Accounts {
   async settings(did: string) {
     return this.public(await this.record(did));
   }
+  async repositoryCommand(did: string, workspace: string, argv: string[]) {
+    const record = await this.record(did);
+    const repository = record.settings.repository;
+    if (record.settings.workspaceId !== workspace || !repository || !this.repository.command)
+      throw new AccountError(409, "The repository authority changed or its write transport is unavailable.");
+    const input = { url: repository.url, branch: repository.branch, username: repository.username,
+      credentialHost: repository.credentialHost, token: record.repoToken ? await this.options.box.open<string>(record.repoToken) : undefined };
+    const result = await this.repository.command(input, this.directory(workspace), argv);
+    const fresh = await this.record(did);
+    if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.repository) !== canonicalJson(repository)
+      || fresh.repoToken !== record.repoToken) throw new AccountError(409, "Repository authority changed during the operation.");
+    return result;
+  }
+  async refreshRepository(did: string, workspace: string): Promise<string> {
+    const record = await this.record(did);
+    const repository = record.settings.repository;
+    if (record.settings.workspaceId !== workspace || !repository) throw new AccountError(409, "The workspace repository changed.");
+    const result = await this.repository.prepare({ url: repository.url, branch: repository.branch, username: repository.username,
+      credentialHost: repository.credentialHost, token: record.repoToken ? await this.options.box.open<string>(record.repoToken) : undefined },
+    this.directory(workspace));
+    const fresh = await this.record(did);
+    if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.repository) !== canonicalJson(repository))
+      throw new AccountError(409, "Repository authority changed while refreshing its base.");
+    return result.head;
+  }
+  async deploymentFor(did: string, workspace: string, expected: string) {
+    const record = await this.record(did);
+    const config = record.settings.telemetry;
+    const repository = record.settings.repository;
+    if (record.settings.workspaceId !== workspace || !config?.enabled || config.workspaceId !== workspace
+      || !config.deploymentUrl || !repository) return null;
+    const response = await this.fetcher(config.deploymentUrl, {
+      method: "GET", redirect: "error", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Unverified("deployment receipt endpoint");
+    const text = await response.text();
+    if (Buffer.byteLength(text) > 16_000) throw new Unverified("bounded deployment receipt");
+    let value: Record<string, unknown>;
+    try { value = JSON.parse(text); } catch { throw new Unverified("deployment receipt JSON"); }
+    const at = typeof value?.deployedAt === "string" ? Date.parse(value.deployedAt) : NaN;
+    if (value?.schema !== 1 || value.repository !== repository.url
+      || value.branch !== repository.branch.replace(/^refs\/heads\//, "")
+      || typeof value.commit !== "string" || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(value.commit)
+      || !IsoTime.safeParse(value.deployedAt).success || !Number.isFinite(at) || at > Date.now() + 5000)
+      throw new Unverified("deployment receipt repository and branch binding");
+    const fresh = await this.record(did);
+    if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.telemetry) !== canonicalJson(config)
+      || canonicalJson(fresh.settings.repository) !== canonicalJson(repository)) throw new Unverified("deployment source authority changed");
+    return value.commit === expected ? { sha: value.commit, deployedAt: value.deployedAt as string,
+      observedAt: new Date().toISOString(), source: config.deploymentUrl } : null;
+  }
   async scopes(did: string): Promise<string[]> {
     const record = await this.options.store.get(did);
     return [
@@ -168,10 +220,17 @@ export class Accounts {
       if (input.workspaceId !== record.settings.workspaceId) throw new AccountError(409, "Your workspace changed. Reload before saving telemetry.");
       if (input.apiKey && input.clearKey) throw new AccountError(400, "Replace the key or remove it.");
       const origin = input.enabled ? parsePublicHttps(input.origin).origin : "";
-      if (input.enabled && (!/^\d+$/.test(input.projectId) || new URL(input.origin).pathname.replace(/\/$/, "")))
-        throw new AccountError(400, "Enter the PostHog origin and numeric project ID.");
       const previous = record.settings.telemetry;
       const retained = previous?.origin === origin && previous.projectId === input.projectId && previous.workspaceId === input.workspaceId;
+      const deploymentUrl = input.enabled ? (input.deploymentUrl === undefined && retained
+        ? previous.deploymentUrl : input.deploymentUrl?.trim() || undefined) : undefined;
+      if (deploymentUrl) {
+        const parsed = parsePublicHttps(deploymentUrl);
+        if (parsed.search || parsed.hash) throw new AccountError(400, "Use a public HTTPS deployment receipt URL without a query or fragment.");
+        await resolvePublicHttps(deploymentUrl);
+      }
+      if (input.enabled && (!/^\d+$/.test(input.projectId) || new URL(input.origin).pathname.replace(/\/$/, "")))
+        throw new AccountError(400, "Enter the PostHog origin and numeric project ID.");
       const secret = input.apiKey ?? (!input.clearKey && retained && record.telemetryKey
         ? await this.options.box.open<string>(record.telemetryKey) : undefined);
       if (input.enabled && !secret) throw new AccountError(400, "A PostHog personal API key with project read access is required.");
@@ -183,6 +242,7 @@ export class Accounts {
         checkedAt = new Date().toISOString();
       }
       record.settings.telemetry = { enabled: input.enabled, workspaceId: input.workspaceId, provider: "posthog", origin,
+        ...(deploymentUrl ? { deploymentUrl } : {}),
         projectId: input.projectId, keyConfigured: Boolean(input.enabled && secret), includeRecordings: input.includeRecordings,
         status: input.enabled ? "verified" : "saved", checkedAt,
         detail: input.enabled ? "Project access checked. Ephyra polls observed exceptions and uses them during research."

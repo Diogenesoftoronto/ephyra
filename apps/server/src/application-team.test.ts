@@ -2,13 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AccountSettings, Draft, TeamInviteResult, TeamState, WorkspaceAccess } from "@ephyra/core";
+import { AccountSettings, Draft, PolicyActivationReceipt, TeamInviteResult, TeamState, WorkspaceAccess } from "@ephyra/core";
 import { AUTONOMY_TEMPLATE } from "@ephyra/policy";
 import { composeApplication } from "./application";
 import { readConfig } from "./config";
 import { fakeNotOrganic } from "./auth/notorganic.fixture";
 import { sessionCookieName } from "./auth/browser-session";
 import { MemoryAccountStore } from "./setup/account-store";
+import { sha256 } from "./docs";
 
 const ALICE = "did:plc:alice", BOB = "did:plc:bob", CAROL = "did:plc:carol";
 const ORIGIN = "https://ephyra.example", SERVICE = "s".repeat(32);
@@ -95,6 +96,7 @@ describe("signed-in shared workspace authority", () => {
       [`/v1/drafts/${draft.id}/messages`, "POST", { text: "Spend on a reply." }],
       [`/v1/drafts/${draft.id}/content`, "PUT", { content: AUTONOMY_TEMPLATE, baseDigest: draft.baseDigest }],
       [`/v1/drafts/${draft.id}/publish`, "POST", {}],
+      [`/v1/drafts/${draft.id}/activate`, "POST", {}],
       ["/v1/trails/missing/decide", "POST", { checkpoint: "A", verdict: "approve" }],
       ["/v1/spend/missing/decide", "POST", { verdict: "approve" }],
       ["/v1/setup", "POST", {}],
@@ -114,7 +116,7 @@ describe("signed-in shared workspace authority", () => {
     expect((await f.settings(ALICE)).version).toBe(owner.version);
   });
 
-  test("Approver can draft, request the owner's configured model and publish, then loses access immediately on revoke", async () => {
+  test("Approver can draft, publish and activate the owner's policy, then loses access immediately on revoke", async () => {
     const f = await fixture();
     const invitation = await f.invite(CAROL, "approver");
     const workspace = invitation.team.workspaceId;
@@ -134,7 +136,14 @@ describe("signed-in shared workspace authority", () => {
       body: { content: AUTONOMY_TEMPLATE, baseDigest: draft.baseDigest } })).status).toBe(200);
     const published = await f.request(CAROL, `/v1/drafts/${draft.id}/publish`, { method: "POST", workspace, body: {} });
     expect(published.status).toBe(200);
-    expect(Draft.parse(await published.json()).published?.by).toBe(CAROL);
+    const saved = Draft.parse(await published.json());
+    expect(saved.published?.by).toBe(CAROL);
+    const activation = { expectedCommit: saved.published!.commit, expectedDigest: sha256(saved.content), expectedActive: null };
+    const activated = await f.request(CAROL, `/v1/drafts/${draft.id}/activate`, { method: "POST", workspace, body: activation });
+    expect(activated.status).toBe(200);
+    const receipt = PolicyActivationReceipt.parse(await activated.json());
+    expect(receipt.sourceCommit).toBe(saved.published!.commit);
+    expect(await (await f.request(ALICE, "/v1/policy/active", { workspace })).json()).toEqual(receipt);
     expect((await f.request(CAROL, "/v1/setup", { method: "POST", workspace, body: {} })).status).toBe(403);
     const current = await f.settings(ALICE);
     const removed = await f.request(ALICE, "/v1/account/team/revoke", { method: "POST", workspace,
@@ -142,11 +151,13 @@ describe("signed-in shared workspace authority", () => {
     expect(removed.status).toBe(200);
     for (const path of ["/v1/me", "/v1/drafts", `/v1/drafts/${draft.id}`]) expect((await f.request(CAROL, path, { workspace })).status).toBe(409);
     expect((await f.request(CAROL, "/v1/drafts", { method: "POST", workspace, body: { path: "autonomy.md" } })).status).toBe(409);
+    expect((await f.request(CAROL, `/v1/drafts/${draft.id}/activate`, { method: "POST", workspace, body: activation })).status).toBe(409);
     expect((await (await f.request(CAROL, "/v1/account/workspaces")).json() as WorkspaceAccess[]).map((item) => item.role)).toEqual(["owner"]);
     // Reinviting as Viewer cannot inherit the old cached runtime's Approver permission.
     await f.invite(CAROL, "viewer");
     expect(await (await f.request(CAROL, "/v1/me", { workspace })).json()).toMatchObject({ approver: false });
     expect((await f.request(CAROL, `/v1/drafts/${draft.id}/publish`, { method: "POST", workspace, body: {} })).status).toBe(403);
+    expect((await f.request(CAROL, `/v1/drafts/${draft.id}/activate`, { method: "POST", workspace, body: activation })).status).toBe(403);
   });
 
   test("team endpoints require a human, exact account/workspace binding, Origin and version; errors never reflect a token", async () => {

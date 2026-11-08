@@ -32,6 +32,7 @@ export type WorkspaceContext = { name: string; role: "owner" | "viewer" | "appro
 
 export type AccountContext = {
   automation?: SetupApi;
+  loadCatalog?: () => Promise<import("../model-catalog.ts").ModelCatalog>;
   api: AccountApi;
   settings: AccountSettings;
   onChange: (settings: AccountSettings) => void;
@@ -86,7 +87,8 @@ function Page({
     case "usage":
       return <UsagePage />;
     case "inbox":
-      return <InboxPage trailId={route.id} canAct={approver} principal={principal} questionWorkspace={account?.settings.workspaceId} />;
+      return <InboxPage trailId={route.id} canAct={approver} principal={principal}
+        questionWorkspace={account?.settings.workspaceId} setupApi={account?.automation} />;
     case "runs":
       return route.id ? <RunPage runId={route.id} /> : <RunsPage />;
     case "workspace":

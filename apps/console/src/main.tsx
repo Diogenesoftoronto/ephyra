@@ -13,6 +13,8 @@ import { ErrorState, Load } from "./components/Load.tsx";
 import { FakeApi } from "./fake/api.ts";
 import { ME } from "./fake/fixtures.ts";
 import { FakeAccountApi } from "./fake/account.ts";
+import { LandingWalkthrough } from "./components/LandingWalkthrough.tsx";
+import { walkthroughParentOrigin, walkthroughRequested } from "./lib/landing-walkthrough.ts";
 import "./theme.css";
 import "./layout.css";
 import "./materials.css";
@@ -73,6 +75,11 @@ function Connected({ credentials, disconnect, invitation }: {
 }
 
 function Root() {
+  if (walkthroughRequested(location.search)) return <LandingWalkthrough parentOrigin={walkthroughParentOrigin(location.search)} />;
+  return <WorkspaceRoot />;
+}
+
+function WorkspaceRoot() {
   const demo = new URLSearchParams(location.search).has("demo");
   const [invited, setInvited] = useState(() => {
     try { return pendingInvitation(location.hash, sessionStorage); } catch { return invitationToken(location.hash); }

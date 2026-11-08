@@ -133,6 +133,7 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       return trail ? ctx.journal.readFile(trail.id, path) : null;
     },
     async decide(id: string, input: DecisionInput, principal: string) {
+      await ctx.refreshPolicy?.();
       const trail = await ctx.trails.get(id);
       if (!trail) throw new StaleApproval("trail not found");
       const itemId = input.checkpoint === "spend" ? `${id}:spend` : `${id}:${input.checkpoint}`;

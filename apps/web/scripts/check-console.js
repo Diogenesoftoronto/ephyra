@@ -1,62 +1,70 @@
-// Evaluate in the served landing page at desktop and phone widths, in both themes.
-// Checks the actual tools, sample navigation, full reader, and preservation of the story across GUI/TUI.
+// Evaluate in the served landing page. Tests the same-origin app walkthrough, page scroll and details dialog.
+// Check at 1440x900, 390x844 and 320x640, with normal and reduced motion.
 (async () => {
-  const $ = (selector) => document.querySelector(selector);
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
-  const active = () => $(".step.is-on")?.dataset.step;
-  const key = (value) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true }));
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const until = async (read, label) => {
+    for (let i = 0; i < 150; i++) { if (read()) return; await wait(100); }
+    throw new Error(`Timed out: ${label}`);
+  };
   await document.fonts.ready;
-  assert($(".tour.live"), "Walkthrough did not load");
-  const data = await fetch(new URL("walkthrough.json", document.baseURI)).then((r) => r.json());
-  $("#gui-choice").click();
-  $(".term-next").focus({ preventScroll: true }); key("Home"); await settle();
-  const checked = [];
-  for (let i = 0; i < data.steps.length; i++) {
-    const id = data.steps[i].id;
-    if (i) $(".term-next").click();
-    await settle();
-    assert(active() === id, `GUI navigation selected ${active()}, expected ${id}`);
-    assert($("#gui-panel .g-workspace").dataset.guiMoment === id, "GUI moment is out of sync");
-    for (const tool of ["review", "evidence", "files", "discuss", "activity"]) {
-      $(`#gui-panel [data-console-tool=${tool}]`).click();
-      assert($("#gui-panel .g-workspace").dataset.guiTool === tool, `${tool} did not open`);
-      assert($("#gui-panel [aria-pressed=true]").dataset.consoleTool === tool, "Tool selection is not exposed");
-      assert(active() === id, "Inspecting a tool advanced the story");
-      const scroll = $("#gui-panel .g-scroll");
-      assert(scroll.clientHeight >= 70, `${id}/${tool} content window is too short: ${scroll.clientHeight}`);
-      assert(scroll.scrollWidth <= scroll.clientWidth + 1, `${id}/${tool} overflows horizontally`);
-      assert($("#gui-panel").scrollWidth <= $("#gui-panel").clientWidth + 1, `${id}/${tool} tools extend past the workspace`);
-      assert($("#gui-panel .g-actions").getBoundingClientRect().bottom <= $("#gui-panel").getBoundingClientRect().bottom + 1,
-        "Checkpoint actions are outside the workspace");
+  await until(() => document.querySelector('.tour.live'), 'walkthrough data');
+  const steps = [...document.querySelectorAll('.step')];
+  const compact = matchMedia('(max-width: 69.99rem) and (max-height: 700px)').matches;
+  const split = matchMedia('(min-width: 70rem)').matches;
+  const frame = () => document.querySelector('#gui-panel iframe');
+  const scene = () => frame()?.contentDocument?.querySelector('[data-tour-scene]')?.dataset.tourScene;
+  const results = [];
+  const settle = async id => {
+    await until(() => scene() === id && (id === 'triaged'
+      ? frame().contentDocument.querySelector('.trail-head')
+      : frame().contentDocument.querySelector('[data-tour-focus]')), id);
+    await wait(250);
+  };
+  for (const index of [...steps.keys(), ...steps.keys()].map((n, i) => i < steps.length ? n : steps.length - 1 - n)) {
+    const step = steps[index], id = step.dataset.step;
+    let expected;
+    if (compact) {
+      let current = steps.findIndex(s => s.classList.contains('is-on'));
+      while (current !== index) {
+        document.querySelector(current < index ? '.term-next' : '.term-prev').click();
+        current += current < index ? 1 : -1;
+      }
+      expected = scrollY;
+    } else {
+      const term = document.querySelector('.term');
+      const top = document.querySelector('.bar').offsetHeight + document.querySelector('.console-switch').offsetHeight + (split ? 8 : 16);
+      const bottom = top + term.offsetHeight;
+      const line = split ? innerHeight * .5 : bottom + (innerHeight - bottom) * .25;
+      expected = Math.round(scrollY + step.querySelector('h3').getBoundingClientRect().top - line + 8);
+      scrollTo({ top: expected, behavior: 'instant' });
     }
-    $("#tui-choice").click(); await settle();
-    assert(active() === id, `Switching to TUI lost ${id}`);
-    assert($("#gui-panel").hidden && !$("#tui-panel").hidden, "TUI is not exclusively visible");
-    $("#gui-choice").click(); await settle();
-    assert(active() === id, `Switching to GUI lost ${id}`);
-    assert(!$("#gui-panel").hidden && $("#tui-panel").hidden, "GUI is not exclusively visible");
-    assert($("#gui-panel .g-workspace").dataset.guiTool === "activity", "Switching views lost the selected tool");
-    $(".term-read").focus({ preventScroll: true }); $(".term-read").click();
-    assert($("dialog").open && !$(".gui-reader").hidden && $(".screen-content pre").hidden, "GUI reader did not open");
-    assert($(".gui-reader .g-workspace").dataset.guiTool === "activity", "Reader opened the wrong tool");
-    assert($(".gui-reader .g-activity").children.length === data.gui.moments[id].events.length, "Reader omitted activity");
-    $(".screen-close").click();
-    assert(document.activeElement === $(".term-read"), "Reader lost focus on close");
-    checked.push(id);
+    await settle(id);
+    assert(Math.abs(scrollY - expected) <= 2, `${id}: page jumped ${scrollY - expected}px`);
+    assert(step.getAttribute('aria-current') === 'step', `${id}: story and app disagree`);
+    const rect = frame().getBoundingClientRect();
+    assert(frame().inert && getComputedStyle(frame()).pointerEvents === 'none', `${id}: preview captures page gestures`);
+    assert(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) !== frame(), `${id}: iframe captures pointer`);
+    if (!compact && !split) {
+      assert(step.querySelector('h3').getBoundingClientRect().top > document.querySelector('.term').getBoundingClientRect().bottom,
+        `${id}: sticky preview covers the active heading`);
+    }
+    results.push({ id, y: scrollY, drift: scrollY - expected });
   }
-  $(".term-prev").focus({ preventScroll: true }); key("Home"); await settle();
-  for (const target of ["hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback", "triaged"]) {
-    const action = $(`#gui-panel [data-preview-go=${target}]`);
-    assert(action, `No action leading to ${target}`);
-    action.click(); await settle();
-    assert(active() === target, `Action did not navigate to ${target}`);
-  }
-  $(".terminal-invite").focus({ preventScroll: true }); $(".terminal-invite").click();
-  assert($("#tui-choice").getAttribute("aria-pressed") === "true", "Terminal invitation did not select TUI");
-  assert(document.activeElement === $("#tui-choice"), "Terminal invitation lost focus");
-  key("ArrowLeft"); await settle();
-  assert($("#gui-choice").getAttribute("aria-pressed") === "true", "Keyboard view selection failed");
-  assert(document.documentElement.scrollWidth <= innerWidth, "Page has horizontal overflow");
-  return { passed: true, viewport: [innerWidth, innerHeight], theme: getComputedStyle(document.documentElement).colorScheme, steps: checked, tools: 5 };
-})();
+  // A direct arrow selection settles on the same step instead of immediately bouncing back.
+  document.querySelector('.term-next').click();
+  await settle('hypothesis');
+  const arrowY = scrollY;
+  await wait(1200);
+  assert(scene() === 'hypothesis' && scrollY === arrowY, 'Next bounces back');
+  document.querySelector('.term-read').click();
+  const dialog = document.querySelector('.screen-dialog');
+  await until(() => dialog.open && dialog.querySelector('iframe')?.contentDocument?.querySelector('.trail-head'), 'details dialog');
+  assert(!dialog.querySelector('iframe').inert, 'details cannot be explored');
+  dialog.close();
+  await wait(1200);
+  assert(Math.abs(scrollY - arrowY) <= 2, 'closing details loses page position');
+  assert(document.documentElement.scrollWidth <= innerWidth, 'page overflows horizontally');
+  return { viewport: [innerWidth, innerHeight], reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    compact, checks: results.length, maxDrift: Math.max(...results.map(r => Math.abs(r.drift))), results };
+})()

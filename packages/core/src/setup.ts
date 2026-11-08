@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BootstrapAssessment } from "./bootstrap.ts";
 
 /** Setup is a recorded workflow. Readiness is distinct from a connected repository. */
 export const SetupMode = z.enum(["autonomous", "supervised"]);
@@ -25,5 +26,6 @@ export const SetupRun = z.object({
     id: z.string(), summary: z.string(), action: z.string(), owner: z.enum(["operator", "maintainer"]),
   })),
   policyRef: z.string().optional(),
+  bootstrap: BootstrapAssessment.optional(),
 });
 export type SetupRun = z.infer<typeof SetupRun>;

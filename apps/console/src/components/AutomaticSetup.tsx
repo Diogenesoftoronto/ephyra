@@ -3,6 +3,7 @@ import type { SetupMode, SetupRun } from "@ephyra/core";
 import type { SetupApi } from "../setup-api.ts";
 import { Button, Tag } from "../kit.ts";
 import { browserSetupStore, SetupController } from "./setup-controller.ts";
+import { BootstrapCoverage } from "./BootstrapSetup.tsx";
 
 export function SetupModeChoice({ value, onChange, disabled }: {
   value: SetupMode; onChange: (mode: SetupMode) => void; disabled?: boolean;
@@ -41,6 +42,12 @@ export function SetupProgress({ run }: { run: SetupRun }) {
         Ephyra can investigate signals in this workspace.
         {run.blockers.length > 0 && " The remaining blockers below limit later steps such as landing or watching a change."}
       </p>}
+      {run.bootstrap && <section className="bootstrap-setup-summary" aria-label="Application observation coverage">
+        <h3>What Ephyra can see</h3>
+        <BootstrapCoverage assessment={run.bootstrap} compact />
+        <p className="account-hint">{run.bootstrap.requests.filter((request) => request.status === "open").length} setup requests are waiting.</p>
+        <a href="#/inbox">Answer setup questions in your inbox</a>
+      </section>}
       <ol className="setup-progress" aria-label="Automatic setup progress">
         {run.steps.map((step) => (
           <li key={step.id} data-status={step.status}>

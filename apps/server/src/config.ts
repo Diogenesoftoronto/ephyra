@@ -43,6 +43,9 @@ const Config = z.object({
   // Policy files (optional; shadow-mode templates otherwise).
   EPHYRA_AUTONOMY_FILE: optional,
   EPHYRA_THRESHOLDS_FILE: optional,
+  /** Operator-owned external proof receipts. Both paths are required; repository configuration cannot grant trust. */
+  EPHYRA_PROOF_RECEIPTS_DIR: optional,
+  EPHYRA_PROOF_TRUST_FILE: optional,
 
   // System One backends. Each is optional; without a decide backend triage routes every signal to a human.
   EPHYRA_EXTRACT: z.enum(["parser", "workers-ai", "notorganic", "none"]).default("parser"),
@@ -85,6 +88,11 @@ const Config = z.object({
   EPHYRA_AGENT_MODEL: optional,
   EPHYRA_STEP_TIMEOUT_S: z.coerce.number().int().positive().default(1800),
   EPHYRA_WATCH_EVERY_S: z.coerce.number().int().positive().default(300),
+  EPHYRA_TRAIL_TOKENS: z.coerce.number().int().positive().default(2_000_000),
+  EPHYRA_TRAIL_WALLCLOCK_S: z.coerce.number().int().positive().default(4 * 3600),
+  /** Zero grants no metered spend. A deployment must choose its allowance explicitly. */
+  EPHYRA_TRAIL_SPEND_MICROUSD: z.coerce.number().int().nonnegative().default(0),
+  EPHYRA_REQUIRE_KNOWN_COST: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   /** Optional self-hosted evidence source. Personal workspaces receive their own authorized binding. */
   EPHYRA_TRACTION_ORIGIN: optional,
   EPHYRA_TRACTION_TOKEN: optional,
@@ -94,6 +102,8 @@ export type Config = z.infer<typeof Config>;
 
 export function readConfig(env: Record<string, string | undefined>): Config {
   const config = Config.parse(env);
+  if (Boolean(config.EPHYRA_PROOF_RECEIPTS_DIR) !== Boolean(config.EPHYRA_PROOF_TRUST_FILE))
+    throw new Error("External proof needs both EPHYRA_PROOF_RECEIPTS_DIR and EPHYRA_PROOF_TRUST_FILE");
   if (config.EPHYRA_TRACTION_ORIGIN || config.EPHYRA_TRACTION_TOKEN || config.EPHYRA_TRACTION_PROJECTS) {
     if (!(config.EPHYRA_TRACTION_ORIGIN && config.EPHYRA_TRACTION_TOKEN && config.EPHYRA_TRACTION_PROJECTS))
       throw new Error("Traction needs EPHYRA_TRACTION_ORIGIN, EPHYRA_TRACTION_TOKEN and EPHYRA_TRACTION_PROJECTS");

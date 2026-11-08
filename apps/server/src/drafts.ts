@@ -8,6 +8,7 @@ import { PolicyRefConflict, writePolicyRef } from "./policy-ref.ts";
 import type { Velum, Quote } from "./velum.ts";
 import type { AuditSink } from "./wiring/human.ts";
 import type { Git } from "./wiring/landing.ts";
+import type { PolicyActivation, PolicyActivationRequest, PolicyActivationReceipt } from "./policy-activation.ts";
 
 export interface DraftStore {
   get(id: string): Promise<Draft | null>;
@@ -50,6 +51,7 @@ export class DraftError extends Error {
 export type DraftDeps = {
   store: DraftStore; docs: PolicyDocs; velum: Velum; git: Git; audit: AuditSink; baseRef: string;
   now: () => Date; id: () => string; log: (msg: string, fields?: Record<string, unknown>) => void;
+  activation?: PolicyActivation;
 };
 
 const MAX_TEXT = 8000;
@@ -88,6 +90,12 @@ export class DraftService {
 
   get(id: string) { return this.load(id); }
   list(status?: Draft["status"]) { return this.d.store.list(status); }
+
+  /** A separate approver action; publication alone never changes the running policy. */
+  async activate(id: string, input: PolicyActivationRequest): Promise<PolicyActivationReceipt> {
+    if (!this.d.activation) throw new DraftError(422, "Policy activation is not configured.");
+    return this.d.activation.activate(await this.load(id), input);
+  }
 
   async create(path: string, principal: string): Promise<Draft> {
     const kind = docKind(path);

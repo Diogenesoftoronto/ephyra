@@ -6,6 +6,7 @@ import {
 } from "./standard.ts";
 import { LEGAL_DOCS, OPERATOR, legalBody, legalIndex, securityTxt, type Operator } from "./legal.ts";
 import { pricingBody, pricingSummary } from "./pricing.ts";
+import { DOCS_DESCRIPTION, DOCS_UPDATED, docsBody, docsPlainText } from "./docs.ts";
 
 export type SiteConfig = {
   /** Canonical origin of the public site, e.g. https://ephyra.dev */
@@ -18,7 +19,7 @@ export type SiteConfig = {
   home?: HomeCut;
   /** at://did/site.standard.publication/rkey; the blog shows a setup notice without it. */
   publicationUri?: string;
-  /** The control-plane origin; /app/ sends people to its console. Also linked from llms.txt. */
+  /** The control-plane origin for the console, agent instructions and owner access management. */
   apiOrigin?: string;
   fetcher?: Fetcher;
   /** Seconds to cache the publication read. */
@@ -54,6 +55,7 @@ const TYPES: Record<string, string> = {
 /** Static pages listed in the sitemap and llms.txt. */
 const PAGES = [
   { path: "/", title: `${NAME} · ${TAGLINE}`, summary: SUMMARY },
+  { path: "/docs", title: `Documentation · ${NAME}`, summary: DOCS_DESCRIPTION },
   { path: "/blog/", title: `${NAME} journal`, summary: "Notes on building self-driving software: quests, proof, jellyware." },
   { path: "/pricing", title: `Pricing · ${NAME}`, summary: "Self-hosting is free; hosted models bill per call; a usage-based hosted plan is proposed." },
   { path: "/legal/", title: `Legal · ${NAME}`, summary: "Terms, privacy, acceptable use, service providers and security." },
@@ -183,12 +185,18 @@ export function createSite(config: SiteConfig) {
     const posts = await postsOrEmpty();
     const lines = [
       `# ${NAME}`, "", `> ${TAGLINE} ${SUMMARY}`, "",
-      "Ephyra watches production through OpenTelemetry, triages each new error with small System One decision models",
-      "(Jev, Clairic, or self-hosted d1/Clef), and opens a quest: a durable unit of work stored as git refs",
-      "(refs/ephyra/trails/<id>) that moves through research, a failing reproduction, a plan, a patch and proof.",
-      "Humans approve at checkpoints A, B and C from a keyboard inbox. Approved fixes land on Radicle, Tangled,",
-      "plain git or a Sapling stack, then a watch window rolls them back automatically if the error returns.",
-      "Accounts are Not Organic identities; state lives in Convex; agent steps can run in Amp orbs.", "",
+      "Ephyra turns production signals into Git-backed quests: evidence, a failing reproduction, a patch, proof, landing and watch.",
+      "Accounts use Not Organic identities; the executable stores durable runtime state in Convex and journals in Git.",
+      "Setup defaults to autonomous operation, with supervised checkpoints available. High and critical changes require named-human review.",
+      "Personal HTTPS landing, isolated execution, model access, study sources and telemetry each need explicit configuration.",
+      "Native forge proposal transports, remote Amp verification and respondent dispatch require host integrations.", "",
+      "## Agent setup",
+      "An agent can discover scoped setup access through auth.md and establish repository context before an incident.",
+      "Owner claims use the intended Not Organic DID, exact repository and explicit bootstrap scopes.",
+      "Email service_auth and external provider ID-JAG assertions are unsupported by this DID-bound profile.",
+      `- [Agent setup instructions](${origin}/auth.md): Authoritative control-plane registration, claim, token and bootstrap instructions.`,
+      `- [Owner agent access](${origin}/agent/access): Review and revoke agent registrations after signing in.`,
+      `- [Agent setup guide](${origin}/docs#agent-setup): Observation coverage and proactive owner questions.`, "",
       "## Pages",
       ...PAGES.map((p) => `- [${p.title}](${origin}${p.path}): ${p.summary}`), "",
       "## Pricing",
@@ -202,6 +210,7 @@ export function createSite(config: SiteConfig) {
       ...(config.apiOrigin ? [`- [Control plane API health](${config.apiOrigin}/healthz)`] : []),
       `- [Full text for LLMs](${origin}/llms-full.txt)`, "",
     ];
+    if (full) lines.push("## Documentation", "", docsPlainText(), "");
     if (full && posts.length) {
       lines.push("## Article text", "");
       for (const p of posts) {
@@ -228,9 +237,9 @@ export function createSite(config: SiteConfig) {
    * Every page that is not a landing cut: journal, pricing, legal, security. It wears cut E's look (the main site):
    * the same tokens and type, water at the top of the page where production is, and the seabed under the footer.
    */
-  function page(title: string, description: string, path: string, body: string, head = "", type = "website", wide = false): Response {
+  function page(title: string, description: string, path: string, body: string, head = "", type = "website", wide = false, bodyClass = ""): Response {
     const url = origin + path;
-    const nav = ([["/blog/", "Journal"], ["/pricing", "Pricing"], ["/security", "Security"]] as const).map(([href, label]) => {
+    const nav = ([["/docs", "Docs"], ["/blog/", "Journal"], ["/pricing", "Pricing"], ["/security", "Security"]] as const).map(([href, label]) => {
       const current = path === href ? ' aria-current="page"' : href === "/blog/" && path.startsWith("/blog/") ? ' aria-current="true"' : "";
       return `<a href="${href}"${current}>${label}</a>`;
     }).join("") + '<a href="/app/">Open app ↗</a>';
@@ -301,10 +310,11 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
 .foot nav{display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem 1.25rem;margin-bottom:1rem}.foot nav a{display:inline-block;padding:.35rem 0}
 .foot p{margin:.25rem 0}
 @media (max-width:24rem){.logo span{display:none}}
-</style></head><body${wide ? ' class="wide"' : ""}><header class="bar">
+</style></head><body id="top" class="${[wide ? "wide" : "", bodyClass].filter(Boolean).map(esc).join(" ")}"><header class="bar">
 <a class="logo" href="/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span aria-hidden="true">ephyra</span></a>
 <nav aria-label="Site">${nav}</nav></header><main>${body}</main>
-<footer class="foot"><nav aria-label="Site and legal"><a href="/blog/">Journal</a><a href="/pricing">Pricing</a><a href="/security">Security</a>
+<footer class="foot"><nav aria-label="Site and legal"><a href="/docs">Docs</a><a href="/blog/">Journal</a>
+<a href="/pricing">Pricing</a><a href="/security">Security</a>
 <a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/acceptable-use">Acceptable use</a>
 <a href="/legal/providers">Service providers</a></nav>
 <p>The journal is published with <a href="https://standard.site">Standard.site</a> on AT Protocol. <a href="/blog/feed.xml">RSS</a></p>
@@ -369,6 +379,12 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path !== "/healthz" && redirectHosts.has(url.host)) {
       return Response.redirect(`${origin}${path}${url.search}`, 308);
     }
+    if (path === "/auth.md" || path === "/agent/access") {
+      const headers = { "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" };
+      if (apiOrigin) return new Response(null, { status: 307, headers: { ...headers, location: `${apiOrigin.origin}${path}` } });
+      return text("Agent setup is unavailable until the operator connects this site to an Ephyra server with EPHYRA_API_ORIGIN.",
+        "text/plain", headers, 503);
+    }
     if (path === "/app" || path === "/app/") {
       if (apiOrigin) return new Response(null, {
         status: 302, headers: { location: `${apiOrigin.origin}/app/`, "cache-control": "no-store", "x-robots-tag": "noindex" },
@@ -379,6 +395,24 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path === "/healthz") return Response.json({ ok: true, blog: Boolean(config.publicationUri) }, { headers: { "x-robots-tag": "noindex" } });
     // The actual app components share their public asset paths with the isolated walkthrough build.
     if (path.startsWith("/app/")) return (await staticFile(`e/app/${path.slice(5)}`)) ?? notFound();
+    if (path === "/docs/") return Response.redirect(`${origin}/docs${url.search}`, 308);
+    if (path === "/docs") {
+      const schema = { "@context": "https://schema.org", "@type": "TechArticle", headline: "Ephyra documentation",
+        description: DOCS_DESCRIPTION, dateModified: DOCS_UPDATED, url: `${origin}/docs`, inLanguage: "en",
+        publisher: { "@type": "Organization", name: NAME, url: origin } };
+      return page(`Documentation · ${NAME}`, DOCS_DESCRIPTION, path, docsBody(),
+        `<link rel="stylesheet" href="/docs/styles.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500&display=swap">`
+        + `<script type="module" src="/docs/client.js"></script><script type="application/ld+json">${ldJson(schema)}</script>`,
+        "website", true, "docs-page");
+    }
+    if (path === "/docs.txt") return text(docsPlainText(), "text/plain");
+    if (path === "/docs/styles.css" || path === "/docs/client.js") {
+      return new Response(Bun.file(join(import.meta.dir, "../content", path.slice(1))), { headers: {
+        "content-type": path.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
+        "cache-control": "public, max-age=300", "x-content-type-options": "nosniff",
+      } });
+    }
+    if (path.startsWith("/docs/")) return notFound();
     if (path === "/robots.txt") return text(robots(), "text/plain");
     if (path === "/sitemap.xml") return text(await sitemap(), "application/xml");
     if (path === "/llms.txt") return text(await llms(false), "text/plain");

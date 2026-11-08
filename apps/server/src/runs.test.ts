@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import { Hono } from "hono";
+import { ConvexHttpClient } from "convex/browser";
 import { AgentRun, AgentRunEvent } from "@ephyra/core";
 import { createApp } from "./http/app.ts";
 import { consoleRoutes } from "./http/console.ts";
 import { MemoryUsageStore } from "./usage.ts";
-import { MemoryRunStore, RunBroker, RunRecorder, runEventBatches, type RunStore } from "./runs.ts";
+import { ConvexRunStore, MemoryRunStore, RunBroker, RunRecorder, runEventBatches, type RunStore } from "./runs.ts";
 
 const TOKEN = "t".repeat(32);
 const H = { Authorization: `Bearer ${TOKEN}`, "X-Ephyra-Principal": "plugin" };
@@ -85,6 +86,32 @@ describe("RunStore", () => {
 });
 
 describe("RunRecorder", () => {
+  test("large visual writes preserve both the payload limit and the current worker fence", async () => {
+    const client = new ConvexHttpClient("https://test.convex.cloud");
+    const calls: { events: string[]; ownerId: string; fence: number; runId: string }[] = [];
+    let next = 0;
+    Object.defineProperty(client, "mutation", { value: async (_: unknown, args: typeof calls[number]) => {
+      calls.push(args);
+      const first = next;
+      next += args.events.length;
+      return first;
+    } });
+    const owner = { ownerId: "current-worker", fence: 7 };
+    const store = new ConvexRunStore(client, TOKEN, () => owner);
+    const events = Array.from({ length: 3 }, (_, i) => ({ type: "message" as const, at: "2026-11-08T01:00:00.000Z",
+      visual: { id: `visual-${i}`, title: "Recorded visual", html: "界".repeat(200000), height: 420 } }));
+    const saved = await store.append("visual-run", events);
+    expect(calls).toHaveLength(3);
+    for (const call of calls) {
+      expect(call).toMatchObject({ ...owner, runId: "visual-run" });
+      expect(new TextEncoder().encode(JSON.stringify(call)).byteLength).toBeLessThan(800000);
+    }
+    expect(saved.map(event => event.visual)).toEqual(events.map(event => event.visual));
+    expect(saved.map(event => event.seq)).toEqual([0, 1, 2]);
+    await expect(new ConvexRunStore(client, TOKEN).append("visual-run", events)).rejects.toThrow();
+    expect(calls).toHaveLength(3);
+  });
+
   test("large visual records stay intact across bounded storage batches", () => {
     const events = Array.from({ length: 7 }, (_, index) => ({ type: "message" as const, at: "2026-11-08T01:00:00.000Z",
       visual: { id: `v${index}`, title: "Inspect", html: "界".repeat(200000), height: 420 } }));

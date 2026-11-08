@@ -34,11 +34,15 @@ export const TrailEventBody = z.discriminatedUnion("type", [
   e("resumed", {}),
   e("killed", { reason: z.string() }),
   e("budget_exceeded", { summary: z.string() }),
+  /** Stable operation identity deduplicates this receipt in the journal before counters are charged. */
+  e("usage_recorded", { operationKey: z.string().min(1).max(500), tokens: z.number().int().nonnegative().nullable(),
+    costMicrousd: z.number().int().nonnegative().nullable(), wallMs: z.number().int().nonnegative() }),
   e("spend_requested", { purpose: z.string(), microusd: z.number().int().positive() }),
   e("spend_decided", { decision: Decision }),
   e("child_trail_finished", { child: z.string().uuid(), proofDigest: z.string() }),
   e("parent_trail_landed", { parent: z.string().uuid() }),
   e("intent_updated", { intent: z.string() }),
+  e("policy_updated", { commit: Sha, path: z.string().max(200), risk: Risk.optional(), area: z.string().optional() }),
   /** An external mirror of this trail was created (e.g. its Amp thread). Never changes state. */
   e("mirror_linked", { kind: z.enum(["ampThread", "radicleCob", "tangledUri", "saplingStack"]), id: z.string().min(1).max(500) }),
   e("agent_failed", { step: z.string(), reason: z.string(), retryable: z.boolean() }),

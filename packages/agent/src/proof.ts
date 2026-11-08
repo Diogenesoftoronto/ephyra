@@ -1,10 +1,16 @@
-import { Unverified, type ProofBundle, type ProofItem, type Runner, type RunnerHandle, type Trail } from "@ephyra/core";
+import { ProofItem, Unverified, type ProofBundle, type ProofItem as ProofItemType, type Runner, type RunnerHandle, type Trail } from "@ephyra/core";
 import { execute } from "./execute";
 import { redact } from "./redact";
 
 export type ParsedTestResult = { passed: number; failed: number; failures: string[]; log: string };
 export type PreparedProofRevision = { testCommand?: string[]; log?: string };
 type UiRun = { command: string[]; parse: (output: string) => ProofItem[] };
+/** Collectors run while both exact revisions still have their prepared environments. */
+export type ProofEvidenceContext = {
+  runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string;
+  baseCwd: string; headCwd: string; remainingMs(): number; items: readonly ProofItemType[];
+};
+export type ProofEvidenceCollector = (context: ProofEvidenceContext) => Promise<ProofItemType[]>;
 export type ProofOptions = {
   runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string; probe: string;
   testCommand?: string[]; ui?: UiRun[]; secrets?: string[]; deadlineMs?: number;
@@ -13,6 +19,8 @@ export type ProofOptions = {
   probeRuns?: number;
   /** Runs in each isolated worktree before its probes/tests; no dependencies are inherited from setup. */
   prepareRevision?: (revision: { cwd: string; commit: string; remainingMs: number }) => Promise<PreparedProofRevision>;
+  /** Host-wired collectors must execute their sources; missing collectors never imply passing evidence. */
+  collectEvidence?: ProofEvidenceCollector;
   evaluate: (items: ProofItem[], trail: Trail) => { passed: boolean; missing: string[] } | Promise<{ passed: boolean; missing: string[] }>;
 };
 
@@ -207,6 +215,21 @@ export async function buildProof(options: ProofOptions): Promise<ProofBundle> {
           throw new Unverified("invalid UI proof item");
         }
         items.push(item.kind === "story_interaction" ? { ...item, log: redact(item.log, options.secrets) } : item);
+      }
+    }
+    if (options.collectEvidence) {
+      const evidence = await options.collectEvidence({ runner, handle, trail, base, head,
+        baseCwd: paths[0]!, headCwd: paths[1]!, remainingMs: remaining, items: structuredClone(items) });
+      remaining();
+      if (!Array.isArray(evidence) || evidence.length > 200) throw new Unverified("bounded proof evidence collection");
+      for (const raw of evidence) {
+        const item = ProofItem.parse(raw);
+        if (["repro_before", "repro_after", "tests", "diff_scope"].includes(item.kind)) {
+          throw new Unverified("collector cannot replace observed core proof");
+        }
+        const serialized = JSON.stringify(item);
+        if (serialized.length > 256_000) throw new Unverified("bounded proof item");
+        items.push(ProofItem.parse(JSON.parse(redact(serialized, options.secrets, 256_000))));
       }
     }
     const evaluation = await options.evaluate(items, trail);

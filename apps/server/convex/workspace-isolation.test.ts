@@ -21,6 +21,24 @@ const secret = "s".repeat(40);
 const scopes = ["workspace-a", "workspace-b", undefined] as const;
 const scoped = (workspace: string | undefined) => (workspace === undefined ? { secret } : { secret, workspace });
 const label = (workspace: string | undefined) => workspace ?? "legacy";
+type TestStore = ReturnType<typeof convexTest>;
+const workers = new WeakMap<TestStore, Map<string | undefined, { secret: string; workspace?: string; ownerId: string; fence: number }>>();
+async function owned(t: TestStore, workspace: string | undefined) {
+  const owners = workers.get(t) ?? new Map();
+  workers.set(t, owners);
+  if (!owners.has(workspace)) {
+    const ownerId = crypto.randomUUID();
+    const result = await t.mutation(api.runtime.registerWorker, { ...scoped(workspace), ownerId, ttlMs: 30000 });
+    owners.set(workspace, { ...scoped(workspace), ownerId, fence: result.fence });
+  }
+  return owners.get(workspace)!;
+}
+async function successor(t: TestStore, workspace: string | undefined) {
+  await t.mutation(api.runtime.releaseWorker, await owned(t, workspace));
+  workers.get(t)!.delete(workspace);
+  return owned(t, workspace);
+}
+
 const trailId = "01a1b539-866f-77a3-833f-b417d7707bbd";
 const at = "2026-11-07T10:00:00.000Z";
 const later = "2026-11-07T11:00:00.000Z";
@@ -73,18 +91,18 @@ describe("workspace persistence isolation", () => {
       // Before its own write, even the legacy namespace cannot see previously inserted namespaced rows.
       expect(await t.query(api.runtime.getTrail, { ...args, trailId })).toBeNull();
       expect(await t.query(api.runtime.inboxGet, { ...args, itemId: "same-inbox" })).toBeNull();
-      await t.mutation(api.runtime.putTrail, { ...args, trailId, state: "hypothesised", json });
-      expect(await t.mutation(api.runtime.recordEvent, { ...args, eventId: "same-event", trailId, json })).toBe(true);
-      expect(await t.mutation(api.runtime.recordEvent, { ...args, eventId: "same-event", trailId, json })).toBe(false);
-      await t.mutation(api.runtime.inboxPut, { ...args, itemId: "same-inbox", trailId, json });
+      await t.mutation(api.runtime.putTrail, { ...await owned(t, workspace), trailId, state: "hypothesised", json });
+      expect(await t.mutation(api.runtime.recordEvent, { ...await owned(t, workspace), eventId: "same-event", trailId, json })).toBe(true);
+      expect(await t.mutation(api.runtime.recordEvent, { ...await owned(t, workspace), eventId: "same-event", trailId, json })).toBe(false);
+      await t.mutation(api.runtime.inboxPut, { ...await owned(t, workspace), itemId: "same-inbox", trailId, json });
     }
     await t.mutation(api.runtime.putTrail, {
-      ...scoped("workspace-a"),
+      ...await owned(t, "workspace-a"),
       trailId,
       state: "patched",
       json: JSON.stringify({ owner: "updated-a" }),
     });
-    await t.mutation(api.runtime.inboxRemove, { ...scoped("workspace-a"), itemId: "same-inbox" });
+    await t.mutation(api.runtime.inboxRemove, { ...await owned(t, "workspace-a"), itemId: "same-inbox" });
     for (const workspace of scopes) {
       const args = scoped(workspace);
       const expected = workspace === "workspace-a" ? "updated-a" : label(workspace);
@@ -110,25 +128,22 @@ describe("workspace persistence isolation", () => {
       expect(await t.mutation(api.runtime.enqueue, args)).toBe(true);
       expect(await t.mutation(api.runtime.enqueue, args)).toBe(false);
     }
-    expect(await t.mutation(api.runtime.claim, { ...scoped("empty"), nowMs: 10, limit: 1 })).toEqual([]);
+    expect(await t.mutation(api.runtime.claim, { ...await owned(t, "empty"), nowMs: 10, limit: 1 })).toEqual([]);
+    const claims = new Map<string | undefined, string>();
     for (const workspace of scopes) {
-      const claimed = await t.mutation(api.runtime.claim, { ...scoped(workspace), nowMs: 10, limit: 1 });
+      const claimed = await t.mutation(api.runtime.claim, { ...await owned(t, workspace), nowMs: 10, limit: 1 });
       expect(claimed.map((job) => [job.key, job.payload, job.attempts])).toEqual([["same-job", label(workspace), 1]]);
+      claims.set(workspace, claimed[0]!.claimId);
     }
-    expect(await t.mutation(api.runtime.recoverRunning, scoped("workspace-a"))).toBe(1);
+    // Booting/recovering without an ownership change cannot close a live worker's jobs.
+    expect(await t.mutation(api.runtime.recoverRunning, await owned(t, "workspace-a"))).toBe(0);
     for (const workspace of scopes) {
-      const jobs = await t.query(api.runtime.activeJobs, scoped(workspace));
-      expect(jobs.map((job) => [job.payload, job.status])).toEqual([
-        [label(workspace), workspace === "workspace-a" ? "queued" : "running"],
-      ]);
+      expect((await t.query(api.runtime.activeJobs, scoped(workspace))).map((job) => job.status)).toEqual(["running"]);
     }
-    await t.mutation(api.runtime.finish, { ...scoped("workspace-a"), key: "same-job" });
+    await t.mutation(api.runtime.finish, { ...await owned(t, "workspace-a"), key: "same-job", claimId: claims.get("workspace-a")! });
     await t.mutation(api.runtime.fail, {
-      ...scoped("workspace-b"),
-      key: "same-job",
-      error: "b failed",
-      runAtMs: 20,
-      dead: true,
+      ...await owned(t, "workspace-b"), key: "same-job", claimId: claims.get("workspace-b")!,
+      error: "b failed", runAtMs: 20, dead: true,
     });
     expect(await t.query(api.runtime.activeJobs, scoped("workspace-a"))).toEqual([]);
     expect(await t.query(api.runtime.deadJobs, scoped("workspace-a"))).toEqual([]);
@@ -137,8 +152,10 @@ describe("workspace persistence isolation", () => {
     ]);
     expect((await t.query(api.runtime.activeJobs, scoped(undefined))).map((job) => job.status)).toEqual(["running"]);
     expect(await t.query(api.runtime.deadJobs, scoped(undefined))).toEqual([]);
-    expect(await t.mutation(api.runtime.recoverRunning, scoped(undefined))).toBe(1);
-    expect(await t.mutation(api.runtime.recoverRunning, scoped("workspace-b"))).toBe(0);
+    await successor(t, undefined);
+    expect(await t.mutation(api.runtime.recoverRunning, await owned(t, undefined))).toBe(1);
+    expect(await t.mutation(api.runtime.recoverRunning, await owned(t, "workspace-b"))).toBe(0);
+    expect((await t.query(api.runtime.deadJobs, scoped(undefined)))[0]!.error).toContain("reconciliation");
   });
 
   test("fingerprints, occurrences, request baselines and mutes belong to their workspace", async () => {
@@ -292,17 +309,17 @@ describe("workspace persistence isolation", () => {
       const args = scoped(workspace);
       expect(await t.query(api.runs.get, { ...args, runId: "same-run" })).toBeNull();
       expect(
-        await t.mutation(api.runs.create, { ...args, runId: "same-run", json: JSON.stringify(run(workspace)) }),
+        await t.mutation(api.runs.create, { ...await owned(t, workspace), runId: "same-run", json: JSON.stringify(run(workspace)) }),
       ).toBe(true);
       expect(
-        await t.mutation(api.runs.appendEvents, { ...args, runId: "same-run", events: [event(label(workspace))] }),
+        await t.mutation(api.runs.appendEvents, { ...await owned(t, workspace), runId: "same-run", events: [event(label(workspace))] }),
       ).toBe(0);
     }
     for (const workspace of scopes) {
       const args = scoped(workspace);
       expect(
         await t.mutation(api.runs.appendEvents, {
-          ...args,
+          ...await owned(t, workspace),
           runId: "same-run",
           events: [event(`${label(workspace)}-next`)],
         }),
@@ -320,14 +337,15 @@ describe("workspace persistence isolation", () => {
       ]);
     }
     await expect(
-      t.mutation(api.runs.appendEvents, { ...scoped("empty"), runId: "same-run", events: [event("wrong")] }),
+      t.mutation(api.runs.appendEvents, { ...await owned(t, "empty"), runId: "same-run", events: [event("wrong")] }),
     ).rejects.toThrow("unknown run");
+    await successor(t, "workspace-a");
     expect(
-      await t.mutation(api.runs.closeRunning, { ...scoped("workspace-a"), reason: "a restart", endedAt: later }),
+      await t.mutation(api.runs.closeRunning, { ...await owned(t, "workspace-a"), reason: "a restart", endedAt: later }),
     ).toBe(1);
     expect(
       await t.mutation(api.runs.update, {
-        ...scoped("workspace-b"),
+        ...await owned(t, "workspace-b"),
         runId: "same-run",
         json: JSON.stringify(run("workspace-b", { status: "done", endedAt: later })),
       }),
@@ -337,8 +355,9 @@ describe("workspace persistence isolation", () => {
         status: workspace === "workspace-a" ? "failed" : workspace === "workspace-b" ? "done" : "running",
       });
     }
+    await successor(t, undefined);
     expect(
-      await t.mutation(api.runs.closeRunning, { ...scoped(undefined), reason: "legacy restart", endedAt: later }),
+      await t.mutation(api.runs.closeRunning, { ...await owned(t, undefined), reason: "legacy restart", endedAt: later }),
     ).toBe(1);
   });
 
@@ -439,7 +458,7 @@ describe("workspace persistence isolation", () => {
     });
     expect((await t.query(api.runtime.activeJobs, scoped("workspace-a"))).map((job) => job.key)).toEqual(["a"]);
     expect(
-      (await t.mutation(api.runtime.claim, { ...scoped("workspace-a"), nowMs: 1, limit: 1 })).map((job) => job.key),
+      (await t.mutation(api.runtime.claim, { ...await owned(t, "workspace-a"), nowMs: 1, limit: 1 })).map((job) => job.key),
     ).toEqual(["a"]);
     expect(
       (await t.query(api.drafts.list, { ...scoped("workspace-a"), status: "open" })).map((json) => parse(json).content),

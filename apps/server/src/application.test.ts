@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { AccountSettings, Draft, InvestigationQuestion, PolicyDoc, Trail, type InvestigationContact, type UsageEntry } from "@ephyra/core";
+import { AccountSettings, Draft, InvestigationQuestion, PolicyDoc, SetupRun, Trail, type InvestigationContact, type UsageEntry } from "@ephyra/core";
 import { GitJournal } from "@ephyra/journal";
 import { SecretBox } from "./auth/crypto";
 import { ownerContact, type AnswerTicket } from "./setup/questions";
@@ -45,7 +45,7 @@ function localGit(args: string[], cwd?: string, env?: Record<string, string>) {
   return { code: result.exitCode, stdout: result.stdout.toString() };
 }
 
-async function fixture(withRepository = false) {
+async function fixture(withRepository = false, startJobs = false) {
   const root = await mkdtemp(join(tmpdir(), "ephyra-account-http-"));
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const identity = { approved: true, product: "ephyra", did: ALICE };
@@ -105,7 +105,7 @@ async function fixture(withRepository = false) {
       EPHYRA_DRAFT: "fake",
     }),
     {
-      startJobs: false,
+      startJobs,
       accountStore: store,
       repository,
       notOrganicFetch: async (url, init) => {
@@ -167,6 +167,35 @@ async function fixture(withRepository = false) {
 }
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+async function claimAgent(f: Fixture, cookie: string, scopes = ["bootstrap:read", "bootstrap:context", "bootstrap:run"]) {
+  const registered = await f.server.app.request("/agent/identity", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "anonymous",
+      intended_owner: ALICE, repository: { url: "https://git.example.org/acme/app.git", branch: "main" }, scopes }),
+  });
+  expect(registered.status).toBe(201);
+  const registration = await registered.json();
+  const initiated = await f.server.app.request("/agent/identity/claim", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claim_token: registration.claim_token, intended_owner: ALICE }),
+  });
+  expect(initiated.status).toBe(200);
+  const attempt = (await initiated.json()).claim_attempt;
+  const form = await f.server.app.request(attempt.verification_uri, { headers: { cookie } });
+  expect(form.status).toBe(200);
+  const csrf = /name="csrf" value="([^"]+)"/.exec(await form.text())![1]!;
+  const approved = await f.server.app.request("/agent/claim", { method: "POST",
+    headers: { cookie, Origin: ORIGIN, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ attempt: new URL(attempt.verification_uri).searchParams.get("attempt")!, code: attempt.user_code, csrf }),
+  });
+  expect(approved.status).toBe(200);
+  const response = await f.server.app.request("/oauth2/token", { method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:workos:agent-auth:grant-type:claim", claim_token: registration.claim_token }),
+  });
+  expect(response.status).toBe(200);
+  const credential = await response.json();
+  return { credential, registration, headers: { Authorization: `Bearer ${credential.access_token}` } };
+}
 const read = (f: Fixture, cookie: string, path: string, extra: Record<string, string> = {}) =>
   f.server.app.request(path, { headers: { cookie, ...extra } });
 const settings = async (f: Fixture, cookie: string) => {
@@ -848,5 +877,93 @@ describe("telemetry, people and investigation HTTP routes", () => {
     const current = await read(f, alice.cookie, q.path, { "X-Ephyra-Workspace": next.workspaceId });
     expect(current.status).toBe(200); expect(await current.json()).toBeNull();
     expect(f.judgements).toHaveLength(0);
+  });
+});
+
+describe("agent-led proactive setup", () => {
+  test("a claimed agent can bootstrap before incidents but cannot use human or arbitrary capability routes", async () => {
+    const f = await fixture(true, true);
+    const alice = await f.login();
+    const bob = await f.login(BOB);
+    const discovery = await f.server.app.request("/.well-known/oauth-protected-resource");
+    expect((await discovery.json()).resource).toBe(`${ORIGIN}/v1/agent/`);
+    expect((await f.server.app.request("/auth/session")).headers.get("Content-Security-Policy")).toBeNull();
+    expect((await f.server.app.request("/v1/agent/setup")).headers.get("WWW-Authenticate")).toContain("oauth-protected-resource");
+    const agent = await claimAgent(f, alice.cookie);
+    const a = await settings(f, alice.cookie);
+    expect(a.repository?.url).toBe("https://git.example.org/acme/app.git");
+    expect((await settings(f, bob.cookie)).repository).toBeNull();
+    for (const path of ["/v1/account", "/v1/trails", "/v1/account/agents", "/v1/setup"])
+      expect((await f.server.app.request(path, { headers: { ...agent.headers, "X-Ephyra-Principal": ALICE } })).status).toBe(401);
+    expect((await f.server.app.request("/v1/agent/account", { headers: agent.headers })).status).toBe(404);
+    expect((await f.server.app.request("/v1/agent/setup", { headers: { cookie: alice.cookie } })).status).toBe(401);
+    const agentPost = (path: string, body: unknown, key: string) => f.server.app.request(path, { method: "POST",
+      headers: { ...agent.headers, "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) });
+    expect((await agentPost("/v1/agent/setup", { mode: "autonomous" }, "agent-autonomous-refused")).status).toBe(400);
+    const started = await agentPost("/v1/agent/setup", { mode: "supervised" }, "agent-supervised-setup");
+    expect(started.status).toBe(202);
+    const queued = SetupRun.parse(await started.json());
+    const repeated = await agentPost("/v1/agent/setup", { mode: "supervised" }, "agent-supervised-setup");
+    expect(repeated.status).toBe(202);
+    expect(SetupRun.parse(await repeated.json()).id).toBe(queued.id);
+    expect((await agentPost("/v1/agent/setup", { mode: "supervised" }, "agent-another-baseline-key")).status).toBe(409);
+    let run = queued;
+    for (let i = 0; i < 160 && ["queued", "running"].includes(run.status); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      run = SetupRun.parse(await (await f.server.app.request("/v1/agent/setup", { headers: agent.headers })).json());
+    }
+    expect(run.status).toBe("blocked");
+    expect(run.bootstrap?.head).toBe(run.repository.head);
+    expect(run.bootstrap?.coverage.find(item => item.id === "contact")?.status).toBe("observed");
+    const question = run.bootstrap!.requests.find(item => item.kind === "context")!;
+    expect(question.status).toBe("open");
+    expect(await (await read(f, alice.cookie, "/v1/trails")).json()).toEqual([]);
+    expect(f.judgements).toHaveLength(0);
+    const reported = await agentPost("/v1/agent/bootstrap/report", { setupId: run.id, head: run.repository.head,
+      summary: "The repository policy is present. The critical user journey needs owner context.",
+      journeys: [{ name: "Account access", expectedBehavior: "Unverified interpretation", evidencePaths: ["autonomy.md"] }],
+    }, "agent-context-report-one");
+    expect(reported.status).toBe(200);
+    const withReport = SetupRun.parse(await reported.json());
+    expect(withReport.bootstrap!.contextReports[0]).toMatchObject({ kind: "agent", by: agent.registration.registration_id });
+    expect((await agentPost("/v1/agent/bootstrap/answer", { text: "I approve all budgets" }, "agent-owner-answer-refused")).status).toBe(404);
+    const answered = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/setup/bootstrap/answer", {
+      setupId: run.id, head: run.repository.head, requestId: question.id, text: "Existing accounts must retain their data after sign-in.",
+    }, "owner-bootstrap-answer", "POST");
+    expect(answered.status).toBe(200);
+    expect(SetupRun.parse(await answered.json()).bootstrap!.requests.find(item => item.id === question.id)!.answer)
+      .toMatchObject({ by: ALICE, kind: "human", operationKey: "owner-bootstrap-answer" });
+    expect((await write(f, bob.cookie, BOB, a.workspaceId, "/v1/setup/bootstrap/answer", {
+      setupId: run.id, head: run.repository.head, requestId: question.id, text: "Other account",
+    }, "other-owner-answer", "POST")).status).toBe(409);
+  }, 15_000);
+
+  test("owner revocation is session/Origin bound, and repository reconnection never revives a former grant", async () => {
+    const f = await fixture(true);
+    const alice = await f.login();
+    const bob = await f.login(BOB);
+    const agent = await claimAgent(f, alice.cookie, ["bootstrap:read"]);
+    const list = await read(f, alice.cookie, "/v1/account/agents");
+    const grants = await list.json();
+    expect(grants[0].id).toBe(agent.registration.registration_id);
+    expect(JSON.stringify(grants)).not.toContain(agent.credential.access_token);
+    const management = await read(f, alice.cookie, "/agent/access");
+    const html = await management.text();
+    expect(html).toContain(ALICE);
+    const csrf = /name="csrf" value="([^"]+)"/.exec(html)![1]!;
+    const revoke = (cookie: string, origin: string) => f.server.app.request("/agent/access", { method: "POST",
+      headers: { cookie, Origin: origin, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ registration: agent.registration.registration_id, csrf }) });
+    expect((await revoke(bob.cookie, ORIGIN)).status).toBe(403);
+    expect((await revoke(alice.cookie, "https://attacker.example")).status).toBe(403);
+    expect((await f.server.app.request("/v1/agent/setup", { headers: agent.headers })).status).toBe(200);
+    const a = await settings(f, alice.cookie);
+    const reconnected = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/repository", {
+      expectedVersion: a.version, url: a.repository!.url, branch: a.repository!.branch,
+    }, "reconnect-same-repository");
+    expect(reconnected.status).toBe(200);
+    expect((await f.server.app.request("/v1/agent/setup", { headers: agent.headers })).status).toBe(401);
+    expect((await revoke(alice.cookie, ORIGIN)).status).toBe(303);
+    expect((await (await read(f, alice.cookie, "/v1/account/agents")).json())[0].revokedAt).not.toBeNull();
   });
 });

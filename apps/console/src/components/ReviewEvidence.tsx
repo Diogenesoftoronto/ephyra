@@ -46,11 +46,13 @@ export function ReviewEvidence({
         <Card
           tone="quiet"
           title="Recorded proof"
-          meta={<Badge tone={proof.passed ? "ok" : "bad"}>{proof.passed ? "Passed" : "Failed"}</Badge>}
+          meta={<Badge tone={proof.awaitingHumanC ? "warn" : proof.passed ? "ok" : "bad"}>
+            {proof.awaitingHumanC ? "Awaiting human approval" : proof.passed ? "Passed" : "Failed"}</Badge>}
         >
           <p>
             Revision {proof.rev} · <Hash value={proof.head} /> · {proof.env.runner}
           </p>
+          {proof.awaitingHumanC && <p>Automated checks passed. A named human must review and approve checkpoint C.</p>}
           <ReadAloudButton label="recorded proof summary" text={`Recorded proof for revision ${proof.rev}. Result: ${proof.passed ? "passed" : "failed"}. ` +
             (proof.missing.length ? `Missing: ${proof.missing.join(", ")}. ` : "") + proof.items.map(item => item.kind === "tests"
               ? `Tests: ${item.passed} passed, ${item.failed} failed, ${item.newFailures} new failures.`

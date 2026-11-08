@@ -11,6 +11,8 @@ import type { AgentRunOptions } from "@ephyra/agent";
 import { compose, type Composed } from "./compose.ts";
 import { readConfig } from "./config.ts";
 import { NotOrganicEvidence } from "./setup/knowledge-evidence.ts";
+import { PlainGitAdapter } from "@ephyra/forge";
+import { measureWatchBaseline } from "./wiring/landing.ts";
 
 const TOKEN = "t".repeat(32);
 const auth = { Authorization: `Bearer ${TOKEN}`, "X-Ephyra-Principal": "kmannoel", "content-type": "application/json" };
@@ -137,6 +139,21 @@ beforeAll(async () => {
   });
   server = await compose(config, {
     startJobs: false, agent, runner: new LocalRunner(join(dir, "runner"), { trusted: true }),
+    landing: async ({ ctx, ledger, probes, runProbe }) => ({
+      adapters: [new PlainGitAdapter(ctx.repo.mirrorDir, undefined, ctx.repo.id, ctx.repo.mirrorDir, ledger)],
+      watch: {
+        prepare: async trail => measureWatchBaseline(ctx, trail, (await probes.list(trail)).map(probe => probe.id)),
+        coverage: async () => ({ source: "offline-OTLP-fixture", observedAt: ctx.clock.now().toISOString(), gaps: [] }),
+        deployed: async (_trail, receipt) => ({
+          sha: await sh(ctx.repo.mirrorDir, "git", "rev-parse", receipt.target), observedAt: ctx.clock.now().toISOString(), deployedAt: receipt.at,
+          source: "offline-local-ref-fixture (not a production deployment)",
+        }),
+        runProbe: async (id, trail, key) => {
+          const probe = (await probes.list(trail)).find(probe => probe.id === id);
+          return probe ? (await runProbe(probe, trail, key)).result : "unavailable";
+        },
+      },
+    }),
     resolveEvidenceSources: async (ledger) => {
       knowledgeResolutions++;
       return [new NotOrganicEvidence({
