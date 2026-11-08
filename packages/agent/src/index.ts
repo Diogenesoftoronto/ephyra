@@ -7,3 +7,4 @@ export * from "./review";
 export * from "./redact";
 export * from "./amp";
 export * from "./run-events";
+export { visualPublisher, VISUAL_GUIDE } from "./visuals.ts";

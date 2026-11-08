@@ -3,6 +3,7 @@
 // and cut to the schema limits. A line that is not JSON, or an event type we do not know, produces nothing: nothing is invented.
 import type { AgentRunEvent } from "@ephyra/core";
 import { redact } from "./redact";
+import { visualPublisher } from "./visuals.ts";
 
 export type RunEventDraft = Omit<AgentRunEvent, "runId" | "seq" | "at"> & { at?: string };
 export type ExecutorInfo = {
@@ -45,14 +46,22 @@ function textOf(content: unknown): string {
   return content == null ? "" : stringify(content);
 }
 
-const URL_RE = /https:\/\/[^\s"'<>)\]]+/;
+const URL_RE = /https:\/\/[^\s"'<>)\]]+/g;
 /** Only a command that asks for a portal can report one. */
-const asksForPortal = (name: string, args: string) => /shell|bash|command/i.test(name) && /orb\s+portal|--portal/.test(args);
+const asksForPortal = (name: string, args: string) => /shell|bash|command/i.test(name)
+  && /orb\s+portal|orb\s+services\s+ensure|--portal/.test(args);
+function portalUrls(text: string, secrets: string[]): string[] {
+  return [...new Set(text.match(URL_RE) ?? [])].filter((url) => {
+    try { const u = new URL(url); return !u.username && !u.password && redact(url, secrets) === url; }
+    catch { return false; }
+  }).slice(0, 12);
+}
 
 /** Claude Code `--output-format stream-json` and Amp `--stream-json`. */
 export function claudeStreamNormalizer(options: Pick<AgentRunOptions,
   "onExecutor" | "secrets"> & { threadUrl?: (id: string) => string | undefined } = {}): StreamNormalizer {
   const secrets = options.secrets ?? [];
+  const publish = visualPublisher(secrets);
   const tools = new Map<string, { name: string; portal: boolean }>();
   return {
     push(line) {
@@ -68,7 +77,10 @@ export function claudeStreamNormalizer(options: Pick<AgentRunOptions,
         out.push({ type: "status", text: clip(`Session ${id ?? ""} started${mode}`.replace("  ", " "), LIMITS.text, secrets) });
       } else if (m.type === "assistant" && Array.isArray(m.message?.content)) {
         for (const block of m.message.content as Json[]) {
-          if (block.type === "text" && String(block.text ?? "").trim()) out.push({ type: "message", text: clip(String(block.text), LIMITS.text, secrets) });
+          if (block.type === "text" && String(block.text ?? "").trim()) {
+            const shared = publish(String(block.text), "assistant");
+            out.push({ type: "message", text: clip(shared.text, LIMITS.text, secrets) }, ...shared.events);
+          }
           else if (block.type === "thinking" && String(block.thinking ?? block.text ?? "").trim()) {
             out.push({ type: "reasoning", text: clip(String(block.thinking ?? block.text), LIMITS.text, secrets) });
           } else if (block.type === "tool_use") {
@@ -86,12 +98,16 @@ export function claudeStreamNormalizer(options: Pick<AgentRunOptions,
           const callId = String(block.tool_use_id ?? "");
           const known = tools.get(callId);
           const raw = textOf(block.content);
+          const shared = known && !block.is_error && /shell|bash|command/i.test(known.name)
+            ? publish(raw, "tool") : { text: raw, events: [] };
           out.push({
             type: "tool_result",
-            tool: { callId, name: known?.name ?? "tool", result: clip(raw, LIMITS.result, secrets), ...(block.is_error ? { isError: true } : {}) },
-          });
-          const url = known?.portal && !block.is_error ? URL_RE.exec(raw)?.[0] : undefined;
-          if (url) { options.onExecutor?.({ portalUrl: url }); out.push({ type: "portal", portalUrl: url, text: "Live preview available" }); }
+            tool: { callId, name: known?.name ?? "tool", result: clip(shared.text, LIMITS.result, secrets),
+              ...(block.is_error ? { isError: true } : {}) },
+          }, ...shared.events);
+          const urls = known?.portal && !block.is_error ? portalUrls(raw, secrets) : [];
+          if (urls[0]) options.onExecutor?.({ portalUrl: urls[0] });
+          for (const url of urls) out.push({ type: "portal", portalUrl: url, text: "App preview shared" });
         }
       } else if (m.type === "result") {
         const failed = m.is_error === true;
@@ -107,6 +123,7 @@ export function claudeStreamNormalizer(options: Pick<AgentRunOptions,
 /** Codex `exec --json` events (thread/turn/item). */
 export function codexNormalizer(options: Pick<AgentRunOptions, "secrets"> = {}): StreamNormalizer {
   const secrets = options.secrets ?? [];
+  const publish = visualPublisher(secrets);
   const started = new Set<string>();
   const call = (item: Json): RunEventDraft | null => {
     const callId = String(item.id ?? "");
@@ -156,13 +173,24 @@ export function codexNormalizer(options: Pick<AgentRunOptions, "secrets"> = {}):
         }
         case "item.completed": {
           if (!item) return [];
-          if (item.type === "agent_message" && String(item.text ?? "").trim()) return [{ type: "message", text: clip(String(item.text), LIMITS.text,
-            secrets) }];
+          if (item.type === "agent_message" && String(item.text ?? "").trim()) {
+            const shared = publish(String(item.text), "assistant");
+            return [{ type: "message", text: clip(shared.text, LIMITS.text, secrets) }, ...shared.events];
+          }
           if (item.type === "reasoning" && String(item.text ?? "").trim()) return [{ type: "reasoning", text: clip(String(item.text), LIMITS.text, secrets) }];
           const out: RunEventDraft[] = [];
           if (!started.has(String(item.id))) { const c = call(item); if (c) out.push(c); }
           const r = result(item);
           if (r) out.push(r);
+          if (item.type === "command_execution" && r && !r.tool?.isError) {
+            const raw = String(item.aggregated_output ?? "");
+            const shared = publish(raw, "tool");
+            if (r.tool) r.tool.result = clip(shared.text, LIMITS.result, secrets);
+            out.push(...shared.events);
+            if (asksForPortal("shell", String(item.command ?? ""))) {
+              for (const url of portalUrls(raw, secrets)) out.push({ type: "portal", portalUrl: url, text: "App preview shared" });
+            }
+          }
           return out;
         }
         case "turn.completed": return [{ type: "status", text: "Turn completed" }];

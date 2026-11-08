@@ -17,3 +17,36 @@ observed instability, not every possible flake, and does not rerun the entire te
 Agents report events through an optional fourth argument to `run` (`AgentRunOptions`: `onEvent`, `onExecutor`, `secrets`); `CodingAgent` and `AgentResult` in core are unchanged, and an agent run without options behaves as before (Claude Code then still uses `--output-format json`). `AmpAgent.executor()` says where turns run (`orb` with project, `runner` with its id, or `local`) and reports the thread URL (`https://ampcode.com/threads/<id>`) through `onExecutor` once the stream names the thread. `runAgent` and `executorOf` are the helpers the server uses.
 
 Verified offline: the real `amp-error-reauth.jsonl` capture, plus hand-written `amp-success-stream.jsonl` and `codex-events.jsonl` fixtures, chunk-split feeding, truncation and redaction properties, and Amp, Claude Code and Codex agents over a fake runner. **Unverified:** the success-path stream fixtures follow the documented Claude Code and Codex event shapes but are not captures from a live run; Claude Code's `stream-json --verbose` flags and Codex's `item.*` event details, the portal URL appearing in an `amp orb portal` tool result, and the Ephyra plugin's policy decisions (see the server README) have not been seen live.
+
+## Sharing a visual during a run
+
+The prompt now explains a portable publication envelope, usable through ordinary shell tools in local CLIs or remote orbs.
+An agent writes a self-contained HTML file and prints a single line from a successful command:
+
+```python
+import json
+from pathlib import Path
+print('EPHYRA_VISUAL ' + json.dumps(dict(
+    id='review', title='Inspect the change', html=Path('review.html').read_text(), height=420,
+)))
+```
+
+An assistant may instead include the same JSON in an `ephyra-visual` fenced block, except in a JSON-only review response.
+This is a stream protocol, not an installed MCP tool. Amp/Claude and Codex normalizers validate and redact the content
+before emitting an event with `visual`. It is captured before ordinary tool-log truncation. Failed/unpaired tool outputs,
+user messages, malformed envelopes, and oversized content cannot publish a visual. HTML is limited to 240,000 characters,
+serialized presentations to 256,000, and accepted source envelopes to two million characters per normalizer instance.
+The stable ID identifies revisions; the console keeps the opened version until the viewer loads an update.
+
+Pages can use inline scripts/styles and data-URI images or animation. External resource requests and host APIs are blocked
+by the console's isolated frame. The prompt asks for available browser verification; the envelope itself never asserts that
+a browser check or proof ran. Saved pages remain in run history after the execution environment ends.
+
+Portal detection also recognizes `amp orb services ensure` and preserves multiple returned links. Links with embedded
+credentials or supplied secret values are discarded. These are recorded addresses, not health checks; failed command output
+does not advertise a working preview. Amp URLs must come from actual command output, per the
+[portal contract](https://ampcode.com/docs/orbs/portals).
+
+Verified: synthetic stream chunks through the real recorder, authenticated HTTP/SSE and Chromium, including live arrival,
+interaction, revision/reload behavior and host isolation. Unverified: a live model choosing the protocol, live Amp orb access,
+portal authentication/lifetime and deployed Convex storage. No provider calls are made by these checks.

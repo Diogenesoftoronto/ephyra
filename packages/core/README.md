@@ -91,6 +91,11 @@ and provider availability remain Unverified.
 
 ## Verification
 
+`RunVisual` is an additive, bounded presentation schema (stable ID, title, HTML, initial height), exported from `src/index.ts`.
+`AgentRunEvent.visual` is a new optional field; existing event variants are unchanged. A presentation is agent-authored
+content and grants no proof, execution, authentication, or approval capability. Schema/property tests cover bounds and
+exact round trips; runtime/browser isolation belongs to the console.
+
 The offline tests exercise the lifecycle table, triage creation, checkpoints, rollback,
 handoff, and randomized replay invariants. They verify pure decisions and schema
 validity only. Actual agents, proof runs, forge writes, rollback, watch, inbox delivery,

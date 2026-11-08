@@ -1,6 +1,7 @@
 // Console contracts: the shapes the web console (apps/console) reads from the server (apps/server).
 // New export (additive); nothing here changes an existing core shape. design/05-console.md explains them.
 import { z } from "zod";
+import { RunVisual } from "./run-visual.ts";
 import { IsoTime } from "./schemas.ts";
 
 // ───────────────────────── Personas ─────────────────────────
@@ -236,6 +237,8 @@ export const AgentRunEvent = z.object({
   /** A harness plugin decision on a tool call (Ephyra's policy inside the agent loop). */
   policy: z.object({ decision: z.enum(["allow", "reject", "modify"]), rule: z.string(), reason: z.string().max(500) }).optional(),
   portalUrl: z.string().url().optional(),
+  /** Optional saved presentation. Existing events and event types retain their meaning. */
+  visual: RunVisual.optional(),
 });
 export type AgentRunEvent = z.infer<typeof AgentRunEvent>;
 
