@@ -18,7 +18,10 @@ export default defineRailway(() => {
     replicas: { [region]: 1 },
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
     volumeMounts: { "/data": journal },
-    networking: { serviceDomains: { ephyra: { port: 3000 } } },
+    networking: {
+      serviceDomains: { "server-production-932f.up.railway.app": { port: 3000 } },
+      customDomains: { "app.ephrya.app": { port: 3000 } },
+    },
     env: {
       PORT: "3000",
       EPHYRA_DATA_DIR: "/data",
@@ -27,7 +30,7 @@ export default defineRailway(() => {
       EPHYRA_API_TOKEN: preserve(),
       // Sign in with Not Organic. The origin is registered in Not Organic's gateway
       // PUBLIC_CLIENT_PRODUCT_CATALOG (product "notorganic").
-      EPHYRA_PUBLIC_ORIGIN: "https://server-production-932f.up.railway.app",
+      EPHYRA_PUBLIC_ORIGIN: "https://app.ephrya.app",
       EPHYRA_SESSION_KEY: preserve(),
       NOTORGANIC_PRODUCT: "notorganic",
       // dio.pds.notorganic.info and interleave.love (the owner's identities in Not Organic's admin list).
@@ -42,15 +45,19 @@ export default defineRailway(() => {
     healthcheckTimeout: 30,
     replicas: { [region]: 1 },
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
-    networking: { serviceDomains: { web: { port: 3000 } } },
+    networking: {
+      serviceDomains: { "ephyra-site.up.railway.app": { port: 3000 } },
+      customDomains: { "ephrya.app": { port: 3000 }, "www.ephrya.app": { port: 3000 } },
+    },
     env: {
       PORT: "3000",
-      // Renamed from the generated web-production-a088f domain. The journal's publication record must name this origin.
-      EPHYRA_SITE_ORIGIN: "https://ephyra-site.up.railway.app",
+      // The journal publication record names this canonical origin too.
+      EPHYRA_SITE_ORIGIN: "https://ephrya.app",
+      EPHYRA_SITE_REDIRECT_ORIGINS: "https://www.ephrya.app,https://ephyra-site.up.railway.app",
       EPHYRA_HOME_CUT: "e",
       // Standard.site publication on the Ephyra PDS identity (ephyra.pds.notorganic.info).
       EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
-      EPHYRA_API_ORIGIN: "https://server-production-932f.up.railway.app",
+      EPHYRA_API_ORIGIN: "https://app.ephrya.app",
     },
   });
 

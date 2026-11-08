@@ -8,6 +8,7 @@ const home = (process.env.EPHYRA_HOME_CUT || "e") as HomeCut;
 if (!HOME_CUTS.includes(home)) throw new Error(`EPHYRA_HOME_CUT must be one of ${HOME_CUTS.join(", ")}`);
 const handler = createSite({
   origin, home, root: process.env.EPHYRA_SITE_ROOT ?? join(import.meta.dir, "../../../site"),
+  redirectOrigins: (process.env.EPHYRA_SITE_REDIRECT_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean),
   ...(process.env.EPHYRA_BLOG_PUBLICATION_URI ? { publicationUri: process.env.EPHYRA_BLOG_PUBLICATION_URI } : {}),
   ...(process.env.EPHYRA_API_ORIGIN ? { apiOrigin: process.env.EPHYRA_API_ORIGIN } : {}),
 });
