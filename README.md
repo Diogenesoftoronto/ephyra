@@ -2,7 +2,7 @@
 
 *Working name. An ephyra is the juvenile, free-swimming stage of a jellyfish, the first step toward jellyware.*
 
-Ephyra is a design for an open-source system that keeps a running application healthy by itself. It turns production errors, failed intent probes, regressions and its own bug-hunting into **trails**: durable units of work that go from evidence to repro to patch to proof to landing. Each trail is stored in git, needs no pull request, and can live on any forge. The system runs on Railway or entirely on your own Nix hardware. Its cheap always-on triage uses System One models (Clairic, Jev, Clef). LLM agents run only where code has to be written. Humans approve work from a keyboard-driven inbox at HumanLayer-style checkpoints.
+Ephyra is a design for an open-source system that keeps a running application healthy by itself. It turns production errors, failed intent probes, regressions and its own bug-hunting into **trails**: durable units of work that go from evidence to repro to patch to proof to landing. Each trail is stored in git, needs no pull request, and can live on any forge. The system runs on Railway or entirely on your own Nix hardware. Its cheap always-on triage uses System One models (Clairic, Jev, Clef). LLM agents run only where code has to be written. Autonomous operation is the default product direction. Models evaluate recorded checkpoints; human review is an optional policy choice, and targeted requests ask for information or authority that can unblock progress.
 
 | Doc | Owner | What's in it |
 |---|---|---|
@@ -11,6 +11,14 @@ Ephyra is a design for an open-source system that keeps a running application he
 | [design/02-platform.md](design/02-platform.md) | Astra (Codex) | Forge adapters (Radicle / Tangled / plain git), git ref layout, DBOS durable execution, telemetry, sandboxes, model/account registry, Railway + self-host service maps, security |
 
 ## Implemented application
+
+Onboarding now starts automatic setup after an HTTPS repository connection and discovers the remote default branch.
+Setup records its progress and autonomy, verification, evidence, intent and recovery documents in git. The default is
+self-driving; supervised review is selectable. Runtime capability gaps remain explicit blockers, not successful setup.
+Advisory checkpoints now have durable model-evaluation jobs with evidence checks, exact model identities and bounded
+reevaluation. Research can read scoped Traction evidence; retries carry recorded failures and change their approach.
+See [the self-driving implementation](design/07-self-driving-setup.md) for what is implemented and what still needs integration.
+
 
 The [web console](apps/console/README.md) now implements Overview, Inbox, Usage, Runs, Workspace and Personas.
 It reads recorded work and spend, follows agent transcripts, reviews checkpoint evidence, and edits policy drafts
@@ -77,7 +85,7 @@ Ephyra still uses Entire's open-source CLI. Its checkpoints are plain git refs, 
 
 ## MVP (from 01 §11, with the Radicle change)
 
-1. **MVP:** OTel errors → fingerprint → Clairic + Jev triage → trail in git → research using traces and code → repro in devenv → patch → `low`-risk proof → land as a trail ref plus live into devenv → terminal inbox → watch with auto-revert. Success means a real production error becomes a landed, watched fix and the only thing a human types is `a`.
+1. **MVP:** OTel errors → fingerprint → Clairic + Jev triage → trail in git → research using traces and code → repro in devenv → patch → `low`-risk proof → land as a trail ref plus live into devenv → terminal inbox → watch with auto-revert. The updated success criterion is a real error becoming a proved, landed and watched repair without routine human approval; the original supervised path remains optional.
 2. **M1, memory and Radicle:** closed trails become regression probes, intents and drift scoring arrive, `entire search` joins the evidence sources, and trails land as Radicle patches via a `cib` adapter.
 3. **M2, hunting and autonomy:** traffic replay, property tests and tracer-bullet hunters; `autonomy.md` evaluated by Jev; auto-land for `low` areas; Clef as the self-hosted decision backend.
 4. **M3, Tangled and multiplayer:** Tangled pull landing, multiplayer claims, agent intent probes.
