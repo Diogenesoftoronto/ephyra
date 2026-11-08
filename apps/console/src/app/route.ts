@@ -1,4 +1,4 @@
-export const PAGES = ["overview", "inbox", "runs", "usage", "workspace", "personas", "settings", "onboarding"] as const;
+export const PAGES = ["overview", "inbox", "runs", "usage", "workspace", "personas", "team", "settings", "onboarding"] as const;
 export type PageId = (typeof PAGES)[number];
 export type Route = { page: PageId; id?: string } | { page: "not-found"; path: string };
 
@@ -13,6 +13,7 @@ export function parseRoute(hash: string): Route {
       return s;
     }
   });
+  if (page === "join") return { page: "not-found", path: "invitation" };
   if (!PAGES.includes(page as PageId) || rest.length > 0)
     return { page: "not-found", path: path.slice(0, 80) };
   return id ? { page: page as PageId, id } : { page: page as PageId };

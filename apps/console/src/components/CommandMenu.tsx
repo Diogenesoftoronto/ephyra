@@ -10,6 +10,7 @@ export const COMMANDS = [
   { id: "usage", label: "View usage", key: "u", detail: "Model requests, tokens and recorded costs" },
   { id: "workspace", label: "Open workspace", key: "w", detail: "Draft autonomy and other documents" },
   { id: "personas", label: "Meet the agents", key: "p", detail: "Roles and responsibilities" },
+  { id: "team", label: "Open team", key: "t", detail: "Invite viewers and approvers to your workspace" },
   { id: "settings", label: "Open settings", key: "s", detail: "Repository, model access and account" },
 ] as const;
 

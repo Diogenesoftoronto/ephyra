@@ -11,3 +11,22 @@
   font-weight: 600;
   flex: none;
 }
+.workspace-picker { display: grid; gap: 2px; min-width: 0; max-width: 24rem; }
+.workspace-picker > span { font: 400 0.65rem / 1.5 var(--font-mono); color: var(--muted); }
+.workspace-picker select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 4px 28px 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background-color: transparent;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+.workspace-access-note { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); margin-block: var(--s3) var(--s5); }
+.workspace-access-note > span:last-child { color: var(--muted); font-size: var(--fs-small); }
+.workspace-unavailable { max-width: 40rem; margin: 10vh auto; padding: var(--s5); }
+.invitation-gate .invitation-accept { max-width: none; margin: 0; }
+@media (max-width: 500px) { .workspace-picker { max-width: calc(100vw - 130px); } }

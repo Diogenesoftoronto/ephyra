@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiProvider } from "./ApiContext.tsx";
 import { useAsync } from "./useAsync.ts";
 import type { ConsoleApi, SessionInfo } from "../api.ts";
@@ -23,6 +23,11 @@ import type { SetupApi } from "../setup-api.ts";
 import { SettingsPage } from "../pages/SettingsPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { CommandMenu } from "../components/CommandMenu.tsx";
+import type { TeamApi } from "../team-api.ts";
+import { TeamPage } from "../pages/TeamPage.tsx";
+
+export type TeamContext = { api: TeamApi; onChanged?: () => void };
+export type WorkspaceContext = { name: string; role: "owner" | "viewer" | "approver"; switcher: ReactNode };
 
 export type AccountContext = {
   automation?: SetupApi;
@@ -38,6 +43,7 @@ const LABEL: Record<PageId, string> = {
   runs: "Runs",
   workspace: "Workspace",
   personas: "Personas",
+  team: "Team",
   settings: "Settings",
   onboarding: "Setup",
 };
@@ -60,6 +66,8 @@ function Page({
   onDisconnect,
   disconnectLabel,
   alias,
+  team,
+  workspace,
 }: {
   alias?: string;
   onDisconnect?: () => void;
@@ -68,6 +76,8 @@ function Page({
   approver: boolean;
   principal?: string;
   account?: AccountContext;
+  team?: TeamContext;
+  workspace?: WorkspaceContext;
 }) {
   switch (route.page) {
     case "overview":
@@ -82,13 +92,17 @@ function Page({
       return route.id ? <DraftPage draftId={route.id} canPublish={approver} /> : <WorkspacePage canDraft={approver} />;
     case "personas":
       return <PersonasPage />;
+    case "team":
+      return team ? <TeamPage {...team} /> : <Empty title="Team access is managed by the owner"
+        body="Switch to your own workspace to invite viewers and approvers." />;
     case "settings":
     case "onboarding":
       if (!account)
         return (
           <Empty
-            title="Personal account settings"
-            body="Sign in with Not Organic to connect your repository and choose model access. Service-token connections use the deployment configuration."
+            title={workspace ? "Settings belong to the workspace owner" : "Personal account settings"}
+            body={workspace ? "Switch to your own workspace to manage its repository, model access, and account."
+              : "Sign in with Not Organic to connect your repository and choose model access. Service tokens use deployment configuration."}
           />
         );
       return route.page === "settings" ? (
@@ -129,6 +143,8 @@ export function App({
   onDisconnect,
   disconnectLabel = "Disconnect this tab",
   account,
+  team,
+  workspace,
 }: {
   api: ConsoleApi;
   approver?: boolean;
@@ -137,6 +153,8 @@ export function App({
   onDisconnect?: () => void;
   disconnectLabel?: string;
   account?: AccountContext;
+  team?: TeamContext;
+  workspace?: WorkspaceContext;
 }) {
   const route = useRoute();
   const sessionKey = useMemo(() => crypto.randomUUID(), [api, identity?.principal]);
@@ -152,6 +170,8 @@ export function App({
         onDisconnect={onDisconnect}
         disconnectLabel={disconnectLabel}
         account={account}
+        team={team}
+        workspace={workspace}
       />
     </ApiProvider>
   );
@@ -166,6 +186,8 @@ function Frame({
   onDisconnect,
   disconnectLabel,
   account,
+  team,
+  workspace,
 }: {
   identity?: SessionInfo;
   onDisconnect?: () => void;
@@ -175,6 +197,8 @@ function Frame({
   demo?: boolean;
   api: ConsoleApi;
   account?: AccountContext;
+  team?: TeamContext;
+  workspace?: WorkspaceContext;
 }) {
   const inbox = useAsync(() => api.inbox(), `nav:${route.page}`);
   const waiting =
@@ -182,13 +206,13 @@ function Frame({
       ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
       : 0;
   const nav: NavItem[] = (Object.keys(LABEL) as PageId[])
-    .filter((id) => id !== "onboarding")
+    .filter((id) => id !== "onboarding" && (id !== "team" || team))
     .map((id) => ({
       id,
       label: LABEL[id],
       icon: id,
       count: id === "inbox" ? waiting : undefined,
-      overflow: id === "workspace" || id === "personas" || id === "settings",
+      overflow: id === "workspace" || id === "personas" || id === "team" || id === "settings",
     }));
   const current = route.page === "not-found" ? "" : route.page;
   const voiceContext: VoiceContext =
@@ -223,7 +247,7 @@ function Frame({
         }}
         user={{
           name: demo ? "Demo" : (identity?.alias ?? "Your account"),
-          detail: demo ? "made-up data" : account ? "personal workspace" : approver ? "approver" : "read only",
+          detail: demo ? "made-up data" : workspace?.role ?? (account ? "personal workspace" : approver ? "approver" : "read only"),
           avatar: (
             <span className="account-mark" aria-hidden="true">
               {demo ? "D" : "U"}
@@ -232,7 +256,7 @@ function Frame({
         }}
       >
         <div className="workspace-bar">
-          <a href="#/settings" className="workspace-bar__repo" title="Repository and account settings">
+          {workspace ? workspace.switcher : <a href="#/settings" className="workspace-bar__repo" title="Repository and account settings">
             <strong>
               {account?.settings.repository?.url
                 .split("/")
@@ -241,12 +265,19 @@ function Frame({
                 ?.replace(/\.git$/, "") ?? "Your workspace"}
             </strong>
             <small>{account?.settings.repository?.branch ?? (account ? "Connect a repository" : "Deployment")}</small>
-          </a>
+          </a>}
           <div className="workspace-bar__actions">
             <ThemeToggle />
             <CommandMenu />
           </div>
         </div>
+        {workspace && workspace.role !== "owner" && (
+          <aside className="workspace-access-note">
+            <span>Shared workspace · <strong>{workspace.role === "viewer" ? "Viewer" : "Approver"}</strong></span>
+            <span>{workspace.role === "viewer" ? "You can follow work and read the evidence."
+              : "You can review checkpoints, spending requests, and document changes."}</span>
+          </aside>
+        )}
         {account &&
           account.settings.onboarding.status !== "complete" &&
           route.page !== "onboarding" &&
@@ -256,7 +287,7 @@ function Frame({
               <a href="#/onboarding">View automatic setup →</a>
             </aside>
           )}
-        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && (
+        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && route.page !== "team" && (
           <div className="voice-entry">
             <VoiceLauncher />
           </div>
@@ -268,6 +299,8 @@ function Frame({
             approver={approver}
             principal={identity?.principal}
             account={account}
+            team={team}
+            workspace={workspace}
             alias={identity?.alias}
             onDisconnect={onDisconnect}
             disconnectLabel={disconnectLabel}

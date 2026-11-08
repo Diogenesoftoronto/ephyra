@@ -137,7 +137,11 @@ try {
     await page.screenshot({ path: join(artifacts, `signin-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
     if (width === 1440) {
-      await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+      await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor().catch(async (error) => {
+        await page.screenshot({ path: join(artifacts, "entry-failure.png"), fullPage: true });
+        console.error("Entry failed:", await page.locator("body").innerText());
+        throw error;
+      });
       await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill(fixtureUrl);
       assert.equal(await page.getByRole("textbox", { name: /^Branch \(optional\)/ }).inputValue(), "");
       await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
