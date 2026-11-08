@@ -214,7 +214,7 @@ It runs the real HTTP server with a fictional Not Organic gateway; hosted accoun
 Sign-in, manual connection and expired-session states are included in Storybook.
 The offline account layout check covers 320–1440px, retained unsaved fields, section keyboard navigation,
 optional setup, dark mode and reconciliation after an uncertain save. It captures the rendered Storybook screens.
-The motion check counts real WebGL draws, verifies zero idle drawing, keyboard replay, live reduced-motion changes,
+The motion check covers the custom-art shader: real WebGL draws, zero idle drawing, keyboard replay, live reduced-motion changes,
 offscreen/hidden-tab suspension, lost/unavailable WebGL fallbacks, transparent persona motion and 320–1440px layouts.
 Hidden-tab state is simulated. Physical mobile GPU performance and Safari are not established by this Chromium check.
 
