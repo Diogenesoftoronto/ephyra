@@ -528,4 +528,37 @@ describe("personal application account routes", () => {
     expect(new URL(bobSetup.headers.get("location")!).searchParams.get("scope")).not.toContain("infer:hosted-selected");
     expect(f.calls).toHaveLength(0);
   });
+
+  test("knowledge onboarding is account-bound, optional, versioned, and requests scopes through real reauthorization", async () => {
+    const f = await fixture();
+    expect((await f.server.app.request("/v1/account/knowledge")).status).toBe(401);
+    expect((await f.server.app.request("/v1/account/knowledge", { headers: {
+      Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": ALICE,
+    } })).status).toBe(403);
+    const a = await f.login();
+    const before = await settings(f, a.cookie);
+    const path = "/v1/account/knowledge";
+    expect(await (await read(f, a.cookie, path)).json()).toMatchObject({ status: "disabled", sources: [] });
+    const input = { expectedVersion: before.version, workspaceId: before.workspaceId, enabled: true, sources: [] };
+    expect((await write(f, a.cookie, BOB, before.workspaceId, path, input)).status).toBe(409);
+    const saved = await write(f, a.cookie, ALICE, before.workspaceId, path, input, "knowledge-opt-in");
+    expect(saved.status).toBe(200);
+    const next = AccountSettings.parse(await saved.json());
+    expect(next.knowledge).toMatchObject({ enabled: true, sources: [], workspaceId: before.workspaceId });
+    expect((await write(f, a.cookie, ALICE, before.workspaceId, path, input, "knowledge-opt-in")).status).toBe(200);
+    expect(await (await read(f, a.cookie, path)).json()).toMatchObject({ status: "needs_sign_in" });
+    f.grant("judgement:evaluate knowledge:read knowledge:tools");
+    const renewed = await f.login(ALICE, a.cookie, true);
+    expect(new URL(renewed.authorize).searchParams.get("scope")?.split(" ")).toEqual(expect.arrayContaining(["knowledge:read", "knowledge:tools"]));
+    // The fictional upstream has no catalog configured: this remains unavailable rather than inventing sources.
+    expect(await (await read(f, renewed.cookie, path)).json()).toMatchObject({ status: "unavailable", sources: [] });
+    const b = await f.login(BOB);
+    const bobSetup = await f.server.app.request("/auth/login?setup=1", { headers: { cookie: b.cookie } });
+    expect(new URL(bobSetup.headers.get("location")!).searchParams.get("scope")).not.toContain("knowledge:");
+    expect(await (await read(f, b.cookie, path)).json()).toMatchObject({ status: "disabled" });
+    expect((await write(f, renewed.cookie, ALICE, next.workspaceId, path, {
+      expectedVersion: next.version, workspaceId: next.workspaceId, enabled: false, sources: [],
+    })).status).toBe(200);
+    expect(await f.server.accounts!.scopes(ALICE)).not.toContain("knowledge:read");
+  });
 });

@@ -23,7 +23,8 @@ describe("research evidence gathering", () => {
     const evidence = source();
     const original = hit();
     evidence.search = async (query) => {
-      expect(query).toEqual({ text: "investigate", fingerprint: "error-fingerprint", limit: 3 });
+      expect(query).toEqual({ text: "investigate", fingerprint: "error-fingerprint", limit: 3,
+        operationKey: expect.stringMatching(/^research:[a-f0-9]{64}$/) });
       return [original];
     };
     evidence.fetch = async (value) => { expect(value).toBe(original); return { mediaType: "application/json", content: '{"coverage":"partial"}' }; };

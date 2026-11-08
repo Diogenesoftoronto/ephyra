@@ -10,7 +10,7 @@ and Hosted, OpenAI, Anthropic-compatible Messages, or OpenAI-compatible Chat Com
 Personal configuration never inherits deployment provider credentials, policy overrides, or the trusted local runner.
 Personal execution stays unconfigured unless the host provisions workspace-scoped automation adapters; saved model access powers Velum's document drafting. Speech remains separately configured.
 
-`GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding}` requires an authenticated human,
+`GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding,knowledge}` requires an authenticated human,
 `X-Ephyra-Account` matching that DID, an `Idempotency-Key`, and `expectedVersion`. Cookie writes also require same-origin
 browser requests. Keys and repository tokens are encrypted with `EPHYRA_SESSION_KEY`; responses and operation receipts
 contain only public settings. Completed receipts are immutable, pending receipts require reconciliation, and versions
@@ -33,6 +33,41 @@ CAS/idempotent receipts, encryption and credential removal, real local Git fixtu
 and desktop/phone sign-in → optional key → draft → sign-out. Public models.dev metadata and pinned HTTPS transport have
 also been read live without credentials. Real account inference, paid settlement, private forge credentials and personal
 sandbox execution remain Unverified.
+
+## Not Organic knowledge connections
+
+`GET /v1/account/knowledge` returns the current granted source catalog and setup links. `PUT /v1/account/knowledge`
+saves `{ expectedVersion, workspaceId, enabled, sources }`; a source selects `resources` and/or an exact
+`searchTool: { name, definitionHash, queryField }`. Enabling with an empty selection is valid and starts the optional
+authorization flow. No source or tool is enabled automatically. `/auth/login?setup=1` adds `knowledge:read` and
+`knowledge:tools` to the account's selected model scopes. Existing device grants need fresh authorization to expand.
+
+The portal handoff uses the configured portal origin, exact public `app_client`, and a same-origin return link.
+Not Organic keeps connection credentials and per-app grants. Ephyra's server calls its configured gateway with that
+account's DPoP token; no upstream token or server endpoint is given to the browser, agent or runner. Catalog discovery
+does not execute tools. Setup choices follow the first repository; later repository/branch changes clear them.
+
+`NotOrganicEvidence` supplies selected sources to research and reproduction. Listed text resources are read through
+the gateway. Eligible research tools must claim read-only operation, have no destructive hint, and accept one supported
+string query (`query`, `q`, `search`, `term`, or `text`) with no other required arguments or query constraints. The owner
+must grant the tool in Not Organic and explicitly select its exact definition in Ephyra. Annotations alone are not authority.
+Changed definitions, local disabling, account/workspace changes or revoked grants block access, including receipt reuse.
+
+Each automatic tool request claims an operation key bound to account, workspace, source, tool definition and the
+trail/revision/head/query before dispatch. Completed receipts retain bounded actual text. Pending, failed or ambiguous
+operations never automatically dispatch again. Convex uses the workspace ledger; without Convex, private immutable
+claim/result files under `knowledge-operations` preserve tool receipts across restarts. Incomplete/corrupt receipts
+require reconciliation. This does not make other memory-mode account or workflow stores durable.
+
+Source content and metadata are untrusted evidence, stored with provenance and bounded before entering agent context.
+The gateway transport has an eight-second deadline and 1 MiB response bound; adapter reads are independently bounded.
+Generic resources without lexical matches may supply a few explicitly labelled fallback documents. This is context,
+not proof of causality. No arbitrary MCP action or model-selected URL/argument dispatch is exposed.
+
+Verified offline: DPoP binding, scopes, account/workspace isolation, exact definitions, revocation, interrupted-call
+receipts across local restarts, source attribution in the real composed workflow, and onboarding/Settings browser flows
+with fixture gateway sources. **Unverified:** live Not Organic knowledge enablement, Ephyra client registration and
+authenticated remote MCP behavior. The service must enable knowledge and the owner must grant the exact Ephyra app.
 
 ## How it fits together
 

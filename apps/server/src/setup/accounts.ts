@@ -6,10 +6,14 @@ import {
   type ModelUpdate,
   type RepositoryUpdate,
   type OnboardingUpdate,
+  type KnowledgeUpdate,
+  type KnowledgeCatalog,
+  type KnowledgeSelection,
 } from "@ephyra/core";
 import { redact } from "@ephyra/agent";
 import type { SecretBox, Fetch } from "../auth/crypto.ts";
 import type { NotOrganicSignIn } from "../auth/notorganic.ts";
+import { NotOrganicKnowledge, KnowledgeAccessError } from "../auth/knowledge.ts";
 import { AnthropicDraftModel, OpenAiDraftModel, NotOrganicDraftModel, type DraftModel } from "../velum.ts";
 import { canonicalJson } from "../audit.ts";
 import type { AccountRecord, AccountStore } from "./account-store.ts";
@@ -67,9 +71,11 @@ export function initialAccount(did: string): AccountRecord {
 export class Accounts {
   private readonly repository;
   private readonly fetcher;
+  readonly knowledgeGateway: NotOrganicKnowledge;
   constructor(readonly options: AccountOptions) {
     this.repository = options.repository ?? new RepositoryConnector();
     this.fetcher = options.fetcher ?? publicHttpsFetch;
+    this.knowledgeGateway = new NotOrganicKnowledge(options.signIn);
   }
   directory(id: string): string {
     if (!/^ws_[a-f0-9]{40}$/.test(id)) throw new AccountError(400, "Invalid workspace.");
@@ -94,7 +100,64 @@ export class Accounts {
   }
   async scopes(did: string): Promise<string[]> {
     const record = await this.options.store.get(did);
-    return record?.settings.model.provider === "notorganic" ? [`infer:${record.settings.model.model}`] : [];
+    return [
+      ...(record?.settings.model.provider === "notorganic" ? [`infer:${record.settings.model.model}`] : []),
+      ...(record?.settings.knowledge?.enabled ? ["knowledge:read", "knowledge:tools"] : []),
+    ];
+  }
+  async knowledge(did: string): Promise<KnowledgeCatalog> {
+    const record = await this.record(did);
+    const manage = new URL("/", this.options.signIn.config.authorizationUrl);
+    manage.searchParams.set("view", "knowledge");
+    manage.searchParams.set("app_client", this.options.signIn.config.publicOrigin);
+    manage.searchParams.set("return_to", `${this.options.signIn.config.publicOrigin}/app/#/onboarding`);
+    const links = { manageUrl: manage.href, authorizeUrl: "/auth/login?setup=1" };
+    if (!record.settings.knowledge?.enabled) return {
+      ...links, status: "disabled", sources: [], detail: "Connect the knowledge sources you want Ephyra to use during research.",
+    };
+    const allowed = await Promise.all(["knowledge:read", "knowledge:tools"].map((scope) => this.options.signIn.hasScope(did, scope)));
+    if (allowed.some((value) => !value)) return {
+      ...links, status: "needs_sign_in", sources: [], detail: "Allow Ephyra to access the connections you share from Not Organic.",
+    };
+    try {
+      return { ...links, status: "available", sources: await this.knowledgeGateway.sources(did),
+        detail: "Choose sources for automatic research. Manage their access in your Not Organic account." };
+    } catch (error) {
+      return { ...links, status: error instanceof KnowledgeAccessError && error.status === "needs_sign_in" ? "needs_sign_in" : "unavailable",
+        sources: [], detail: "Knowledge connections could not be checked. Refresh to try again, or manage access in Not Organic." };
+    }
+  }
+  async saveKnowledge(did: string, input: KnowledgeUpdate, key: string) {
+    return this.change(did, key, "knowledge", input, async (record) => {
+      if (input.workspaceId !== record.settings.workspaceId)
+        throw new AccountError(409, "Your workspace changed. Reload before choosing knowledge sources.");
+      if (!input.enabled && input.sources.length) throw new AccountError(400, "Remove sources when disconnecting knowledge.");
+      if (input.sources.length) {
+        const catalog = await this.knowledge(did);
+        if (catalog.status !== "available") throw new AccountError(422, "Allow knowledge access and refresh the available sources before saving.");
+        for (const selection of input.sources) {
+          const source = catalog.sources.find((item) => item.id === selection.id);
+          if (!source || selection.resources && !source.resourcesAllowed)
+            throw new AccountError(422, "A selected source is no longer shared with Ephyra. Refresh its access before saving.");
+          if (selection.searchTool && !source.tools.some((tool) => tool.queryField !== null
+            && tool.name === selection.searchTool!.name && tool.queryField === selection.searchTool!.queryField
+            && tool.definitionHash === selection.searchTool!.definitionHash))
+            throw new AccountError(422, "A selected research tool changed or is unavailable. Refresh and choose it again.");
+        }
+      }
+      record.settings.knowledge = {
+        enabled: input.enabled, workspaceId: record.settings.workspaceId, sources: input.sources,
+        updatedAt: new Date().toISOString(),
+      };
+      return record;
+    });
+  }
+  /** Re-read local authority before each upstream call and before returning source content. */
+  async knowledgeAllowed(did: string, workspace: string, selection: KnowledgeSelection): Promise<boolean> {
+    const record = await this.options.store.get(did);
+    const knowledge = record?.settings.knowledge;
+    return Boolean(record?.settings.workspaceId === workspace && knowledge?.workspaceId === workspace
+      && knowledge.enabled && knowledge.sources.some((item) => canonicalJson(item) === canonicalJson(selection)));
   }
   private async change(
     did: string,
@@ -167,6 +230,11 @@ export class Accounts {
         this.directory(id),
       );
       record.settings.workspaceId = id;
+      if (record.settings.knowledge && record.settings.knowledge.workspaceId !== id) {
+        // The initial onboarding choice follows the first repository. A different repository needs a new opt-in.
+        if (!previous) record.settings.knowledge.workspaceId = id;
+        else delete record.settings.knowledge;
+      }
       record.settings.repository = {
         ...verified,
         credentialConfigured: Boolean(token),

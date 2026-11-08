@@ -19,6 +19,10 @@ Advisory checkpoints now have durable model-evaluation jobs with evidence checks
 reevaluation. Research can read scoped Traction evidence; retries carry recorded failures and change their approach.
 See [the self-driving implementation](design/07-self-driving-setup.md) for what is implemented and what still needs integration.
 
+Onboarding also offers Not Organic knowledge and MCP connections. Choose shared resources and eligible search tools
+once; research uses those choices automatically, with permission rechecks and recorded evidence. Connections and app
+grants stay in Not Organic. See [account knowledge](design/08-account-knowledge.md) for the supported tool shapes and verification limits.
+
 
 The [web console](apps/console/README.md) now implements Overview, Inbox, Usage, Runs, Workspace and Personas.
 It reads recorded work and spend, follows agent transcripts, reviews checkpoint evidence, and edits policy drafts
@@ -92,7 +96,7 @@ Ephyra still uses Entire's open-source CLI. Its checkpoints are plain git refs, 
 
 ## Questions from the original design brief
 
-1. **"notorganic"** and **"voxq"**: I couldn't identify either. Both are disabled placeholder slots, one in the provider registry and one in the evidence sources. What are they?
+1. **Not Organic:** integrated for account sign-in, hosted models, and account-owned knowledge/MCP access. The Voxq evidence slot remains unverified.
 2. **Hosted Jev**: is it OK for the always-on tier to depend on hosted Jev, with Clef as the self-hosted fallback? Or must triage be fully self-hostable from day one? (Jev's weights aren't public, and Clairic's are only "promised".)
 3. **Default landing for medium-risk changes**: should it be live into your running devenv, with the forge object as a mirror, or the other way round?
 
