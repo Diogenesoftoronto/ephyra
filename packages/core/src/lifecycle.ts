@@ -1,5 +1,6 @@
 import type { Trail, Signal, TriageResult, Budget, TrailState, Decision, LandingMode } from './schemas.ts';
 import { proofDigest } from './digest.ts';
+import { accountUsage, budgetBlocker } from './budget.ts';
 import { shortId } from './ids.ts';
 import { z } from 'zod';
 import type { TrailEvent, Effect, TransitionContext, TransitionResult } from './events.ts';
@@ -84,7 +85,12 @@ class Machine {
   readonly commands: Command[] = [];
   constructor(trail: Trail, readonly ctx: TransitionContext) { this.trail = structuredClone(trail); }
   agent(step: Step, note?: string) {
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
     this.commands.push({ type: 'start_agent', step, ...(note === undefined ? {} : { note }) });
+  }
+  proof() {
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
+    this.commands.push({ type: 'run_proof' });
   }
   /** Enter `landing`, recording the modes and target so receipts have somewhere to go. */
   beginLanding(modes: LandingMode[]) {
@@ -95,6 +101,7 @@ class Machine {
     this.commands.push({ type: 'land', modes });
   }
   park(reason: string) {
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
     if (this.trail.state !== 'parked') this.trail.resumeTo = this.trail.state;
     this.trail.state = 'parked';
     this.commands.push({ type: 'notify_inbox', reason });
@@ -107,6 +114,9 @@ class Machine {
   decide(cp: Checkpoint, decision: Decision): boolean {
     const state = { A: 'hypothesised', B: 'planned', C: 'ready' } as const;
     if (this.trail.state !== state[cp]) return false;
+    if (decision.verdict === 'approve' && !decision.shadow && budgetBlocker(this.trail.budget)) return false;
+    if (cp === 'C' && decision.verdict === 'approve' && !decision.shadow
+      && ['high', 'critical'].includes(this.trail.risk) && (decision.by !== 'human' || !decision.who?.trim())) return false;
     this.trail.checkpoints[cp] = decision;
     if (decision.shadow) return true;
     if (decision.verdict === 'reject') {
@@ -135,12 +145,12 @@ class Machine {
     if (this.trail.state === 'proving' || this.trail.state === 'ready') {
       this.trail.state = 'proving';
       delete this.trail.checkpoints.C;
-      this.commands.push({ type: 'run_proof' });
+      this.proof();
     }
     if (this.trail.state === 'handed_off' && this.trail.resumeTo === 'ready') {
       delete this.trail.checkpoints.C;
       this.trail.resumeTo = 'proving';
-      this.commands.push({ type: 'run_proof' });
+      this.proof();
     }
     return true;
   }
@@ -169,7 +179,7 @@ class Machine {
     this.trail.rev = e.data.revision;
     this.trail.head = e.data.head;
     this.trail.state = 'proving';
-    this.commands.push({ type: 'run_proof' });
+    this.proof();
     return true;
   }
   proof_completed(e: EventOf<'proof_completed'>) {
@@ -179,6 +189,13 @@ class Machine {
     if (!this.trail.head || bundle.base !== this.trail.base.sha || bundle.head !== this.trail.head) return false;
     if (bundle.risk !== this.trail.risk) return false;
     if (e.data.digest !== proofDigest(bundle)) return false;
+    if (bundle.awaitingHumanC && !this.ctx.blocking.C) return false;
+    const budgetReason = budgetBlocker(this.trail.budget);
+    if (budgetReason) {
+      this.park(budgetReason);
+      this.commands.push({ type: 'stop_agent', releaseLease: true });
+      return true;
+    }
     if (bundle.passed && this.ctx.proofSufficient !== false) {
       this.trail.state = 'ready';
       this.checkpoint('C');
@@ -217,6 +234,7 @@ class Machine {
     if (!['proving', 'ready', 'landing'].includes(this.trail.state)) return false;
     delete this.trail.checkpoints.C;
     this.trail.base.sha = e.data.newSha;
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
     this.trail.state = 'patching';
     this.commands.push({ type: 'rebase', onto: e.data.newSha });
     return true;
@@ -267,7 +285,7 @@ class Machine {
     if (this.trail.head !== e.data.head) this.trail.rev++;
     this.trail.head = e.data.head;
     this.trail.resumeTo = 'proving';
-    this.commands.push({ type: 'run_proof' });
+    this.proof();
     return true;
   }
   released_by_human(e: EventOf<'released_by_human'>) {
@@ -299,7 +317,7 @@ class Machine {
       case 'researching': this.agent('research'); break;
       case 'reproducing': this.agent('repro'); break;
       case 'patching': this.agent('patch'); break;
-      case 'proving': this.commands.push({ type: 'run_proof' }); break;
+      case 'proving': this.proof(); break;
       case 'hypothesised': this.checkpoint('A'); break;
       case 'planned': this.checkpoint('B'); break;
       case 'ready': this.checkpoint('C'); break;
@@ -309,11 +327,26 @@ class Machine {
     }
   }
   killed(_e: EventOf<'killed'>) {
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
     this.trail.state = 'abandoned';
     this.commands.push({ type: 'stop_agent', releaseLease: true });
     return true;
   }
   budget_exceeded(e: EventOf<'budget_exceeded'>) { this.park(e.data.summary); return true; }
+  usage_recorded(e: EventOf<'usage_recorded'>) {
+    this.trail.budget = accountUsage(this.trail.budget, e.data);
+    const reason = budgetBlocker(this.trail.budget);
+    if (reason && this.trail.state === 'handed_off' && this.trail.resumeTo === 'proving') {
+      this.trail.state = 'proving';
+      delete this.trail.owner;
+      delete this.trail.resumeTo;
+    }
+    if (reason && !['closed', 'abandoned', 'handed_off', 'parked'].includes(this.trail.state)) {
+      this.park(reason);
+      this.commands.push({ type: 'stop_agent', releaseLease: true });
+    }
+    return true;
+  }
   spend_requested(e: EventOf<'spend_requested'>) {
     if (this.trail.pendingSpend) return false;
     this.trail.pendingSpend = e.data;
@@ -351,6 +384,31 @@ class Machine {
   }
   intent_updated(e: EventOf<'intent_updated'>) {
     this.commands.push({ type: 'run_probes', probes: [e.data.intent], reason: 'Intent updated' });
+    return true;
+  }
+  policy_updated(e: EventOf<'policy_updated'>) {
+    if (this.trail.policyCommit === e.data.commit) return true;
+    this.trail.policyCommit = e.data.commit;
+    // Already authorized landing/watch operations retain their recorded policy; future work must be reviewed again.
+    if (['landing', 'watching', 'rolled_back'].includes(this.trail.state)) return true;
+    if (e.data.risk) this.trail.risk = e.data.risk;
+    if (e.data.area) this.trail.area = e.data.area;
+    this.trail.workGeneration = (this.trail.workGeneration ?? 0) + 1;
+    delete this.trail.checkpoints.C;
+    if (this.trail.state === 'handed_off') {
+      if (this.trail.resumeTo === 'ready' || this.trail.resumeTo === 'proving') {
+        this.trail.resumeTo = 'proving';
+        this.proof();
+      }
+      return true;
+    }
+    if (this.trail.state === 'parked') {
+      if (this.trail.resumeTo === 'ready') this.trail.resumeTo = 'proving';
+      return true;
+    }
+    this.park('The active policy changed. Resume under the reviewed policy to continue.');
+    if (this.trail.resumeTo === 'ready') this.trail.resumeTo = 'proving';
+    this.commands.push({ type: 'stop_agent', releaseLease: true });
     return true;
   }
   agent_failed(e: EventOf<'agent_failed'>) {
@@ -405,15 +463,20 @@ class Machine {
 
 export function transition(trail: Trail, event: TrailEvent, ctx: TransitionContext): TransitionResult {
   if (event.trail !== trail.id) return { ok: false, error: 'Event belongs to another trail' };
-  if (trail.state === 'closed' || trail.state === 'abandoned') return { ok: false, error: 'Terminal trail' };
-  if (trail.state === 'handed_off' && ['parked', 'resumed', 'killed', 'land_requested', 'checkpoint_decided', 'spend_decided', 'agent_failed']
+  if ((trail.state === 'closed' || trail.state === 'abandoned') && event.type !== 'usage_recorded') {
+    return { ok: false, error: 'Terminal trail' };
+  }
+  const humanProofFailure = trail.state === 'handed_off' && trail.resumeTo === 'proving'
+    && event.type === 'agent_failed' && event.data.step === 'proof' && event.data.retryable === false;
+  if (trail.state === 'handed_off' && !humanProofFailure && ['parked', 'resumed', 'killed', 'land_requested',
+    'checkpoint_decided', 'spend_decided', 'agent_failed']
     .includes(event.type)) return { ok: false, error: 'Release the review before changing its workflow' };
   if (trail.state === 'handed_off' && event.actor.kind === 'human' && event.type !== 'human_comment'
     && (trail.owner?.kind !== 'human' || trail.owner.id !== event.actor.id)) {
     return { ok: false, error: 'This review belongs to another person' };
   }
   const humanProof = trail.state === 'handed_off' && trail.resumeTo === 'proving'
-    && event.type === 'proof_completed';
+    && (event.type === 'proof_completed' || humanProofFailure);
   const startingTrail = humanProof ? { ...trail, state: 'proving' as const } : trail;
   const effectiveContext = humanProof ? { ...ctx, blocking: { ...ctx.blocking, C: true } } : ctx;
   const machine = new Machine(startingTrail, effectiveContext);

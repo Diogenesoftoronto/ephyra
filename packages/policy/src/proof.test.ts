@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ProofItem, Risk } from "@ephyra/core";
-import { evaluateProof, requiredProof, autoLandAllowed } from "./index";
+import { evaluateProof, evaluateProofBeforeC, requiredProof, autoLandAllowed } from "./index";
 
 const items: ProofItem[] = [
   { kind: "repro_before", probe: "p", result: "fail", log: "log" },
@@ -78,6 +78,17 @@ const items: ProofItem[] = [
   },
 ];
 const risks: Risk[] = ["low", "medium", "high", "critical"];
+test("high-risk machine evidence reaches human C without claiming that a human already approved", () => {
+  for (const risk of ["high", "critical"] as const) {
+    const flags = { ui: true, userFacing: true };
+    expect(evaluateProof(items, risk, flags).passed).toBe(false);
+    expect(evaluateProofBeforeC(items, risk, flags)).toEqual({ passed: true, missing: [], awaitingHumanC: true });
+    const absentReplay = evaluateProofBeforeC(items.filter(item => item.kind !== "traffic_replay"), risk, flags);
+    expect(absentReplay.passed).toBe(false);
+    expect(absentReplay.missing).toContain("traffic_replay");
+    expect(evaluateProof(items, risk, { ...flags, humanApprovedC: true }).passed).toBe(true);
+  }
+});
 for (const risk of risks)
   for (const ui of [false, true])
     for (const userFacing of [false, true]) {
