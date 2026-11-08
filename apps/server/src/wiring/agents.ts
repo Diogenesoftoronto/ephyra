@@ -34,6 +34,7 @@ export type AgentDeps = {
   /** Exact secret values to scrub from run events (on top of pattern-based redaction). */
   secrets?: string[];
   evidenceSources?: import("@ephyra/core").EvidenceSource[];
+  resolveEvidenceSources?: () => Promise<import("@ephyra/core").EvidenceSource[]>;
 };
 
 type StepPayload = { trailId: string; rev: number; step: AgentStep; note?: string };
@@ -142,7 +143,9 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     return;
   }
   const evidence = ["research", "repro"].includes(payload.step)
-    ? await gatherResearchEvidence(deps.evidenceSources ?? [], trail, trail.title, { secrets: deps.secrets })
+    ? await gatherResearchEvidence([
+      ...(deps.evidenceSources ?? []), ...(await deps.resolveEvidenceSources?.() ?? []),
+    ], trail, trail.title, { secrets: deps.secrets, timeoutMs: 30_000 })
     : { untrusted: {}, files: {} };
   const task: AgentTask = {
     step: payload.step, trail, untrusted: { ...await untrustedFor(ctx, trail), ...evidence.untrusted, recovery: recovery.untrustedHistory },

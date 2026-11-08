@@ -56,7 +56,7 @@ function validHit(value: unknown, source: string): value is EvidenceHit {
 
 function reference(hit: EvidenceHit, options: ResearchEvidenceOptions): HitRecord["reference"] {
   return {
-    source: clean(hit.source, options, 200), id: clean(hit.id, options, 2000),
+    source: clean(hit.source, options, 300), id: clean(hit.id, options, 2000),
     revision: hit.revision === undefined ? null : clean(hit.revision, options, 2000),
     uri: hit.uri === undefined ? null : clean(hit.uri, options, 2000),
   };
@@ -66,7 +66,7 @@ async function collect(
   source: EvidenceSource, trail: Trail, text: string, options: ResearchEvidenceOptions,
 ): Promise<{ record: SourceRecord; timedOut: boolean }> {
   const record: SourceRecord = {
-    source: clean(source.name, options, 200), status: "unavailable", requestedAt: timestamp(options), completedAt: timestamp(options),
+    source: clean(source.name, options, 300), status: "unavailable", requestedAt: timestamp(options), completedAt: timestamp(options),
     query: { text, ...(trail.signalFingerprint ? { fingerprint: clean(trail.signalFingerprint, options) } : {}), limit: MAX_HITS },
     scope: { trail: trail.id, repo: clean(trail.repo, options, 200), rev: trail.rev,
       head: trail.head ?? trail.base.sha, sourceBinding: "server_configured" },
@@ -78,7 +78,8 @@ async function collect(
     timer = setTimeout(() => { expired = true; reject(new EvidenceTimeout()); }, options.timeoutMs ?? 10_000);
   });
   const work = async () => {
-    const found = await source.search({ ...record.query });
+    const operationKey = `research:${hash(JSON.stringify([trail.id, trail.repo, trail.rev, trail.head ?? trail.base.sha, text]))}`;
+    const found = await source.search({ ...record.query, operationKey });
     if (expired) return;
     if (!Array.isArray(found) || found.length > 1000 || found.some((hit) => !validHit(hit, source.name))) {
       throw new Unverified("The evidence source returned unsupported search records.");

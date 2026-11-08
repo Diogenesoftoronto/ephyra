@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
-import { RepositoryUpdate, ModelUpdate, OnboardingUpdate } from "@ephyra/core";
+import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, KnowledgeUpdate } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
 import { readConfig, type Config } from "./config.ts";
 import { auth, type AuthEnv } from "./http/auth.ts";
@@ -16,6 +16,8 @@ import {
   type AccountStore,
 } from "./setup/account-store.ts";
 import { RepositoryConnector } from "./setup/repository.ts";
+import { NotOrganicEvidence } from "./setup/knowledge-evidence.ts";
+import { KnowledgeOperationLedger } from "./setup/knowledge-ledger.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
@@ -103,6 +105,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           EPHYRA_CONSOLE_DIR: config.EPHYRA_CONSOLE_DIR,
         });
         const automation = await opts.workspaceAutomation?.({ did, workspaceId, directory });
+        const knowledgeLedger = config.CONVEX_URL ? undefined : new KnowledgeOperationLedger(join(directory, "knowledge-operations"));
         if (automation?.agent && !automation.runner)
           throw new AccountError(503, "The workspace coding agent needs its own isolated runner.");
         return compose(personal, {
@@ -112,6 +115,16 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           signIn,
           workspacePrepared: true,
           resolveDraftModel: () => account.modelFor(did, workspaceId),
+          resolveEvidenceSources: async (ledger) => {
+            const current = await account.record(did);
+            const knowledge = current.settings.knowledge;
+            if (current.settings.workspaceId !== workspaceId || !knowledge?.enabled || knowledge.workspaceId !== workspaceId)
+              return [];
+            return knowledge.sources.map((selection) => new NotOrganicEvidence({
+              gateway: account.knowledgeGateway, scope: { did, workspaceId }, selection, ledger: knowledgeLedger ?? ledger,
+              authorize: () => account.knowledgeAllowed(did, workspaceId, selection),
+            }));
+          },
         });
       })().catch((error) => {
         runtimes.delete(workspaceId);
@@ -148,6 +161,12 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     await next();
   });
   app.get("/v1/account", async (c) => c.json(await account.settings(c.get("principal"))));
+  app.get("/v1/account/knowledge", async (c) => c.json(await account.knowledge(c.get("principal"))));
+  app.put("/v1/account/knowledge", async (c) => {
+    const value = KnowledgeUpdate.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Check the selected knowledge sources and tools." }, 400);
+    return c.json(await account.saveKnowledge(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
   app.put("/v1/account/repository", async (c) => {
     const value = RepositoryUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the repository URL, branch and credentials." }, 400);

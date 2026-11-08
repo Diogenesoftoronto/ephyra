@@ -248,6 +248,8 @@ export type ComposeOverrides = {
   /** Operator-provided, workspace-scoped capabilities verified by the hosting integration. Never inferred from a URL. */
   automationReadiness?: Partial<Record<"telemetry" | "verification" | "landing" | "watch", boolean>>;
   evidenceSources?: import("@ephyra/core").EvidenceSource[];
+  /** Current account choices are resolved for each research attempt, using this workspace's durable ledger. */
+  resolveEvidenceSources?: (ledger: import("@ephyra/core").OperationLedger) => Promise<import("@ephyra/core").EvidenceSource[]>;
 };
 
 export async function compose(config: Config, opts: ComposeOverrides = {}): Promise<Composed> {
@@ -343,7 +345,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     humanHandlers(ctx),
     checkpointHandlers(ctx, { decide, ledger, secrets: knownSecrets(config) }),
     agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
-      usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources }),
+      usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources,
+      resolveEvidenceSources: opts.resolveEvidenceSources ? () => opts.resolveEvidenceSources!(ledger) : undefined }),
     landingHandlers(ctx, {
       adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
