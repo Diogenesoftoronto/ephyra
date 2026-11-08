@@ -1,0 +1,5 @@
+.run-access { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.run-access__hint { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); }
+.run-access--compact { position: relative; z-index: 1; font-size: var(--fs-small); }
+.run-access--compact a { padding: 8px 0; }
+@media (pointer: coarse), (max-width: 760px) { .run-access--compact a { min-height: 44px; display: inline-flex; align-items: center; } }

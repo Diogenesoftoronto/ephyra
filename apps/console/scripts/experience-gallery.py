@@ -14,6 +14,7 @@ screens = [
     ('onboarding', 'Set up', 'A focused repository form with explicit automation choices.'),
     ('setup-blocked', 'Setup progress', 'Recorded steps and blockers remain visible; no invented readiness.'),
     ('runs', 'Follow agents', 'Recognizable roles, recorded activity and exact engine identities.'),
+    ('run', 'Inside a run', 'Live session access and an interactive visual shared through a real local stream with fictional agent output.'),
     ('team', 'Invite your team', 'Choose Viewer or Approver, share a single-use link and manage access.'),
     ('invitation', 'Accept an invitation', 'See the exact workspace and role before choosing to join.'),
 ]
@@ -21,7 +22,7 @@ images = {}
 for name, _, _ in screens:
     for width in [390, 1440]:
         for scheme in ['light', 'dark']:
-            source = out / f'{name}-{width}-{scheme}.png'
+            source = (out.parent / 'run-handoff' if name == 'run' else out) / f'{name}-{width}-{scheme}.png'
             image = Image.open(source).convert('RGB')
             buffer = io.BytesIO()
             image.save(buffer, 'WEBP', quality=90, method=6)
@@ -39,12 +40,12 @@ img{display:block;width:100%;height:auto;border-radius:8px;box-shadow:0 10px 40p
 figure.phone img{max-width:390px}figcaption{font-size:14px;color:#44574c;margin-bottom:16px}footer{font-size:14px;border-top:1px solid #c7cec3}
 @media(max-width:600px){header,main,footer{padding:20px}figure{padding:8px}nav{gap:6px}button{padding:9px 10px;font-size:14px}}
 </style><header><div class="label">EPHYRA / EXPERIENCE REVIEW / NOVEMBER 8</div><h1>From signing in to working together.</h1>
-<p>Textured glass, a clearer start, and a shared view of the work. These are screenshots of the implemented interface using named, fictional Storybook fixtures.</p></header>
+<p>Textured glass, a clearer start, and a shared view of the work. These are screenshots of the implemented interface using fictional local test data.</p></header>
 <main><nav aria-label="Screen"></nav><div class="controls"><label>Appearance <select id="theme" aria-label="Appearance"><option value="light">Light</option><option value="dark">Dark</option></select></label>
 <label>Screen size <select id="size" aria-label="Screen size"><option value="1440">Desktop</option><option value="390">Phone</option></select></label></div>
 <figure><figcaption id="caption"></figcaption><img id="screen" alt=""></figure></main>
 <footer><p><strong>Verified locally:</strong> sign-in and automatic setup; Viewer/Approver invitation, joining, reload and revocation; 36 responsive fixture layouts; interrupted-write recovery; keyboard and motion fallbacks.</p>
-<p>The full repository run passed 788 tests. Final changes passed scoped checks. Hosted accounts, live model work, deployed Convex and production deployment remain unverified.</p>
+<p>Run handoff checks cover streamed links, interactive visuals, expansion, revision updates, isolation and replay. Hosted accounts, live model work, deployed Convex and production deployment remain unverified.</p>
 <p>The materials reuse existing project artwork. Two new fal tiling results failed visual inspection and were not shipped. This gallery is a visual record; the application code and tests are on <code>ui/jakub-console-polish</code>.</p></footer>
 <script>
 const screens=SCREENS, images=IMAGES;let selected='signin';

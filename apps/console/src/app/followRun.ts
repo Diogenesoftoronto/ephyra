@@ -49,9 +49,14 @@ export async function followRun(
           const before = seen.size;
           merge(batch);
           if (seen.size > before) retries = 0;
-          show("live");
+          show(run.status === "running" ? "live" : "ended");
         },
         signal,
+        (snapshot) => {
+          if (signal.aborted || snapshot.id !== id) return;
+          run = snapshot;
+          show(run.status === "running" ? "live" : "ended");
+        },
       );
       if (signal.aborted) return;
       run = await api.run(id);

@@ -66,7 +66,7 @@ export function CommandMenu({
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.repeat) return;
       if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
-        if (document.querySelector("dialog[open]") && !open) return;
+        if (document.querySelector("dialog:modal") && !open) return;
         event.preventDefault();
         open ? close() : show();
         return;
@@ -77,7 +77,7 @@ export function CommandMenu({
         event.ctrlKey ||
         event.altKey ||
         typingTarget(event.target) ||
-        document.querySelector("dialog[open]")
+        document.querySelector("dialog:modal")
       ) {
         prefix.current = 0;
         return;

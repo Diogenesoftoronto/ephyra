@@ -67,3 +67,33 @@ private team record; credentials and redeemable invitation secrets never enter p
 Hosted sign-in, deployed Convex behavior, real provider work, actual billing, distributed load, email delivery,
 Safari/iOS and native screen readers remain unverified. Workspace discovery currently scans account records.
 No push or deployment was performed. The work is committed on `ui/jakub-console-polish`.
+
+## Live runner access and agent presentations — November 8
+
+Agent rows now use local Amp, Codex and Claude marks, with exact engine and runner details available on hover,
+keyboard focus and touch. Real recorded Amp thread and portal links appear while a run is still active.
+Remote executor identity is retained instead of being overwritten by the local launcher process.
+
+Following T3 Code's persisted HTML presentation and isolated-frame pattern, agents can publish a self-contained
+HTML visual through a successful tool result or an explicit assistant envelope. It arrives over the existing run
+stream, is saved with the run and survives reload. The viewer supports theme changes, expansion without resetting
+interaction, and deliberate loading of a newer revision. External app previews remain separate links. These are
+presentations, not proof items. This does not add T3's headless preview or MCP tools.
+
+### Verification
+
+- All package typechecks pass after correcting two test-only callback signatures in agent and server tests.
+- The single repository run returned 803 passing and two failing tests out of 805. Both failures were caused by
+  this change: a core test was in the source-only directory, and the idle-stream test had not consumed the new
+  initial state frame. Both were corrected; all 60 focused regression checks across nine files then passed.
+- Six real local HTTP/normalizer/store/SSE/browser flows cover both themes at 320/390/1440px: live metadata,
+  visual interaction, isolated storage/DOM/network, theme propagation, modal shortcuts, Escape, update selection,
+  persistence after completion and reload, and bounds. Provider stream contents are explicit test fixtures.
+- Eight badge interaction/fallback groups, six Runs layouts, the Runs interaction flow, and all 26 earlier
+  interface checks pass. Production app and Storybook builds pass with the existing chunk-size warning.
+
+### Core changes
+
+New additive `RunVisual` schema export and optional `AgentRunEvent.visual` field. Existing required contracts,
+event kinds and proof authority are unchanged. Live Amp/provider execution, deployed Convex persistence,
+cross-device access, Safari/iOS and production deployment remain unverified.

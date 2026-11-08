@@ -94,8 +94,14 @@ needs a signed-in approver whenever approvers are configured**. Every response i
 | `PUT /v1/drafts/:id/content` `{content, baseDigest}`, `PUT /v1/drafts/:id/sketches` `{sketches, baseDigest}` | Manual edit / edit of the application map (rendered through `sketchToArea` → `renderAutonomy`) |
 | `POST /v1/drafts/:id/apply` `{messageId}`, `…/publish`, `…/discard` | See below |
 | `GET /v1/runs?trail&status&limit`, `GET /v1/runs/:id` | `AgentRun[]` (running first) / `AgentRun` |
-| `GET /v1/runs/:id/events?after=<seq>` | `AgentRunEvent[]`; with `Accept: text/event-stream` a live SSE stream (`id:` is the seq, `Last-Event-ID` resumes, a final `event: end` carries the status) |
+| `GET /v1/runs/:id/events?after=<seq>` | `AgentRunEvent[]`; SSE includes sequenced `run_event`, changed `run_state` snapshots, and final `end`; `Last-Event-ID` resumes events |
 | `POST /v1/runs/:id/policy` | Ingestion for the Amp harness plugin's `tool.call` decisions (service token allowed even with sign-in on) |
+
+Run-state snapshots carry session/portal links while execution is still active, without requiring the reader to reconnect.
+Optional saved `AgentRunEvent.visual` presentations use the same authorized storage, replay and membership boundary as the
+transcript. Convex appends batch by encoded byte size as well as event count. The console never fetches an arbitrary runner
+file or proxies a portal through the authenticated API. The local launcher handle is recorded only for the runner executing
+the work; an Amp orb or remote runner keeps its own reported identity. A missing orb ID remains unreported.
 
 **Documents.** `autonomy.md`, `thresholds.yaml` and `intents/<name>.md`. Source order for each: the configured file
 (`EPHYRA_AUTONOMY_FILE`, `EPHYRA_THRESHOLDS_FILE`), then the deployment repository at `EPHYRA_BASE_REF`, then the shipped template

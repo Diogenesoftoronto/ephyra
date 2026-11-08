@@ -1,6 +1,7 @@
 // Fictional agent runs and their event streams (fixtures for the Runs list and Run view).
 // Tool arguments and results are short, already-redacted text, as the server would store them.
 import type { AgentRun, AgentRunEvent, PersonaId, Trail } from "@ephyra/core";
+import { demoRunVisual } from "./run-visual.ts";
 
 const MIN = 60_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -160,7 +161,8 @@ export function makeRuns(trails: Trail[], now: number): RunBundle[] {
       type: "portal",
       portalUrl: "https://orb-7qm2x.portal.example/",
       text: "Preview is live",
-    });
+    })
+    .add({ dt: 72_000, type: "message", text: "Fictional demo: an interactive explanation of the rounding change.", visual: demoRunVisual });
   // The live tail continues the same sequence numbers.
   const tailScript = new Script(RUN_IDS.orb, orbStart, orb.events.length);
   tailScript

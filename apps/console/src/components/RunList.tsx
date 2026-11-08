@@ -3,6 +3,7 @@ import { Empty, Row, Rows, Status } from "../kit.ts";
 import { Elapsed } from "./Elapsed.tsx";
 import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
+import { RunAccess } from "./RunAccess.tsx";
 import "./RunList.css";
 
 export const RUN_STATE = {
@@ -40,7 +41,7 @@ export function RunRow({ run }: { run: AgentRun }) {
       meta={
         <span className="run-row__meta">
           <EngineBadge engine={run.engine} executor={run.executor} />
-          {run.executor.portalUrl && <span>Preview available</span>}
+          <RunAccess run={run} compact />
           {run.error && <span>{run.error}</span>}
         </span>
       }

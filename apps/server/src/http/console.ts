@@ -207,11 +207,18 @@ function sse(port: ConsolePort, runId: string, after: number | undefined, signal
     async start(controller) {
       const send = (text: string) => controller.enqueue(enc.encode(text));
       let sentAt = Date.now();
+      let lastRun = "";
       try {
         send("retry: 2000\n\n");
         while (!signal.aborted) {
           // Read the run's state first: if it had already closed, one more read of the events cannot miss anything.
-          const closed = (await port.runs.get(runId))?.status !== "running";
+          const run = await port.runs.get(runId);
+          const closed = run?.status !== "running";
+          const snapshot = run ? JSON.stringify(AgentRun.parse(run)) : "";
+          if (snapshot && snapshot !== lastRun) {
+            send(`event: run_state\ndata: ${snapshot}\n\n`);
+            lastRun = snapshot;
+          }
           const events = await port.runs.events(runId, last, PAGE);
           for (const e of events) {
             send(`id: ${e.seq}\nevent: run_event\ndata: ${JSON.stringify(AgentRunEvent.parse(e))}\n\n`);
