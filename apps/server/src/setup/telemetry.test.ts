@@ -3,13 +3,18 @@ import fc from "fast-check";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Signal, type Journal, type OperationLedger } from "@ephyra/core";
-import { PostHogEvidence, type PostHogExceptionBatch } from "@ephyra/evidence";
+import { Signal, type Journal, type OperationLedger, type Trail } from "@ephyra/core";
+import { PostHogEvidence, WatchCollector, type PostHogExceptionBatch } from "@ephyra/evidence";
 import { MemorySignalStore } from "@ephyra/ingest";
+import { evaluateWatch, parseAutonomy } from "@ephyra/policy";
 import { FakeContext, type ServerContext } from "../wiring/context.ts";
 import { MemoryOperationLedger } from "../orchestrator/effects.ts";
 import { KnowledgeOperationLedger } from "./knowledge-ledger.ts";
 import { postHogSignal, registerPostHogPolling } from "./telemetry.ts";
+import { personalLanding } from "./personal-landing.ts";
+import type { Accounts } from "./accounts.ts";
+import type { GitProbeCatalog } from "../wiring/probes.ts";
+import { telemetryCoverage } from "./bootstrap-coverage.ts";
 
 const NOW = "2026-11-08T12:00:00.000Z";
 const AT = "2026-11-08T11:30:00.123456Z";
@@ -60,7 +65,56 @@ function fixture(count = 1) {
     response: (value: Record<string, unknown>) => { extra = value; }, advance: (ms: number) => { now = new Date(now.getTime() + ms); } };
 }
 
+async function personalWatch(f: ReturnType<typeof fixture>) {
+  f.ctx.policy.autonomy = parseAutonomy("# Test policy\n## defaults\nwatch: 1m\n## area: application\npaths: **\nrisk: medium\n");
+  const repository = { url: "https://git.example.org/application.git", branch: "main" };
+  const accounts = { record: async () => ({ settings: { workspaceId: "workspace-one", repository,
+    telemetry: { enabled: true, workspaceId: "workspace-one", deploymentUrl: "https://deploy.example.org/receipt" } } }) } as unknown as Accounts;
+  const factory = personalLanding({ accounts, did: "did:alice", workspace: "workspace-one" });
+  const landing = await factory({ ctx: f.ctx, ledger: f.ledger, probes: {} as GitProbeCatalog,
+    runProbe: async () => { throw new Error("No probe is dispatched by this coverage-only fixture"); }, telemetry: f.polling });
+  return landing.watch!;
+}
+
 describe("PostHog signal polling", () => {
+  test("bootstrap distinguishes connection from an observed empty window and rechecks freshness and authority", async () => {
+    const f = fixture(0);
+    expect(await f.polling.latest()).toBeNull();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    const result = await f.polling.poll();
+    expect(result.coverage?.complete).toBe(true);
+    const observed = await telemetryCoverage(f.polling, f.deps.resolve);
+    expect(observed.status).toBe("observed");
+    expect(observed.summary).toContain("0 exception events");
+    expect(observed.summary).toContain("does not establish");
+    const snapshot = await f.polling.latest();
+    snapshot!.result.status = "unavailable";
+    expect((await f.polling.latest())!.result.status).toBe("complete");
+    f.advance(5 * 60_000 + 1);
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    await f.polling.poll();
+    f.revoke();
+    expect(await f.polling.latest()).toBeNull();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    f.disconnect();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("missing");
+  });
+
+  test("observation callbacks receive actual receipts and cannot make ingestion fail", async () => {
+    const f = fixture();
+    const observed: string[] = [];
+    const polling = registerPostHogPolling({ ...f.deps, onObservation: async (observation) => {
+      observed.push(observation.result.status);
+      observation.result.status = "unavailable";
+      throw new Error("context refresh is unavailable");
+    } });
+    expect((await polling.poll()).status).toBe("complete");
+    expect(observed).toEqual(["complete"]);
+    expect((await polling.latest())!.result.status).toBe("complete");
+    polling.stop();
+    expect(await polling.latest()).toBeNull();
+  });
+
   test("maps recorded event attribution with stable scoped IDs and conservative unknown fields", async () => {
     const f = fixture();
     const batch = await f.source.exceptions();
@@ -227,6 +281,62 @@ describe("PostHog signal polling", () => {
     const result = await empty.polling.poll();
     expect(result).toMatchObject({ status: "complete", observed: 0, ingested: 0 });
     expect(JSON.stringify(result)).not.toContain("healthy"); expect(empty.sent).toHaveLength(0);
+  });
+
+  test("a cached query computed before a short watch cannot be relabelled fresh on retrieval or close the watch", async () => {
+    const f = fixture(0);
+    const since = "2026-11-08T11:59:00.000Z";
+    f.response({ is_cached: true, last_refresh: "2026-11-08T11:56:00.000Z" });
+    // Four minutes is accepted for research freshness; it does not cover this one-minute production-watch window.
+    expect((await f.source.exceptions(since)).freshness.state).toBe("fresh");
+    const watch = await personalWatch(f);
+    const trail = { state: "watching", area: "application" } as Trail;
+    const coverage = await watch.coverage(trail, since);
+    expect(coverage.observedAt).toBe("2026-11-08T11:56:00.000Z");
+    expect(coverage.gaps).toContain("PostHog computation has not covered the required watch end.");
+    const config = { windowS: 60, fingerprints: ["fixture-original-fingerprint"], touchedFiles: [], routes: [], areaProbes: [],
+      baseline: { errorRate: 0 }, startedAt: since };
+    const { observations } = await new WatchCollector().collect(config, { signals: f.signals, clock: f.ctx.clock,
+      runProbe: async () => "unavailable" });
+    observations.coverageGaps.push(...coverage.gaps);
+    expect(evaluateWatch(config, observations, "medium")).toMatchObject({ rollback: false, canClose: false });
+    f.response({ is_cached: false, last_refresh: NOW });
+    const fresh = await watch.coverage(trail, since);
+    expect(fresh.gaps).toEqual([]); expect(fresh.observedAt).toBe(NOW);
+    observations.coverageGaps = fresh.gaps;
+    expect(evaluateWatch(config, observations, "medium")).toMatchObject({ rollback: false, canClose: true });
+  });
+
+  test("recent cached computation still cannot close a watch until it covers the full required end", async () => {
+    const f = fixture(0);
+    const since = "2026-11-08T11:59:00.000Z";
+    const watch = await personalWatch(f);
+    const trail = { state: "watching", area: "application" } as Trail;
+    for (const refresh of ["2026-11-08T11:59:01.000Z", "2026-11-08T11:59:59.500Z"]) {
+      f.response({ is_cached: true, last_refresh: refresh });
+      const coverage = await watch.coverage(trail, since);
+      expect(coverage.observedAt).toBe(refresh);
+      expect(coverage.gaps).toContain("PostHog computation has not covered the required watch end.");
+    }
+  });
+
+  test("terminal truncation and history clamping remain coverage gaps even after all query pages were ingested", async () => {
+    const truncated = fixture(1);
+    const original = row(1);
+    original[3] = [{ type: "TypeError", value: "Cart unavailable", stacktrace: { frames:
+      Array.from({ length: 21 }, () => ({ filename: "src/cart.ts", in_app: true })) } }] as never;
+    truncated.response({ results: [original] });
+    const result = await truncated.polling.poll({ since: "2026-11-08T11:00:00.000Z" });
+    expect(result.status).toBe("complete"); // Delivery/pagination finished; coverage is a separate contract.
+    expect(result.coverage?.complete).toBe(false);
+    expect(result.coverage?.gaps).toContain("Exception evidence was truncated.");
+    const clamped = fixture(0);
+    const old = await clamped.polling.poll({ since: "2026-10-01T00:00:00.000Z" });
+    expect(old.status).toBe("complete"); expect(old.coverage?.complete).toBe(false);
+    expect(old.coverage?.gaps).toContain("Requested query history was clamped.");
+    const uncached = fixture(0); uncached.response({ is_cached: false, last_refresh: null });
+    expect((await uncached.polling.poll()).coverage).toMatchObject({ complete: true,
+      computedThrough: NOW.replace(".000Z", ".000000Z"), computation: "uncached_query_window" });
   });
 
   test("revocation after storage blocks triage and conservatively marks the event ambiguous", async () => {

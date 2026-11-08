@@ -121,7 +121,7 @@ function DraftBody({
     <>
       <PageHeader
         title={<span className="mono">{draft.path}</span>}
-        lede="A draft. Nothing changes in production until you publish and it lands."
+        lede="Review the draft, publish its version, then activate it for this workspace."
         actions={
           <><VoiceLauncher compact disabled={!open || !canPublish || dirty || s.pending !== undefined} />
           <Badge tone={draft.status === "open" ? "info" : draft.status === "published" ? "ok" : "neutral"}>
@@ -171,6 +171,7 @@ function DraftBody({
             onPublish={s.publish}
             onDiscard={s.discard}
             onStartOver={() => void startOver()}
+            activation={s.activation}
           />
         </div>
         {wide && (

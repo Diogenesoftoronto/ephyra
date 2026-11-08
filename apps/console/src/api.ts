@@ -15,6 +15,7 @@ import {
   type VoiceAudioInput, type VoiceReplyInput,
   type Persona,
   InvestigationQuestion, type InvestigationAnswer,
+  PolicyActivationReceipt,
 } from "@ephyra/core";
 import { z } from "zod";
 
@@ -92,6 +93,7 @@ export type TrailAction = "comment" | "claim" | "release" | "park" | "resume";
 export type SharedTrailAction = Extract<TrailAction, "comment" | "claim" | "release">;
 export const TrailOperation = z.object({ status: z.enum(["recorded", "not_found"]) });
 export type TrailOperation = z.infer<typeof TrailOperation>;
+export type ActivatePolicyInput = { expectedCommit: string; expectedDigest: string; expectedActive: string | null };
 
 /**
  * Everything the console needs from the server. `ConsoleClient` speaks HTTP; `FakeApi` (src/fake) is the
@@ -167,6 +169,8 @@ export interface ConsoleApi {
   updateSketches(id: string, sketches: AreaSketch[], baseDigest: string, op: string): Promise<DraftView>;
   applyProposal(id: string, messageId: string, op: string): Promise<DraftView>;
   publish(id: string, op: string): Promise<DraftView>;
+  activePolicy?(): Promise<PolicyActivationReceipt | null>;
+  activatePolicy?(id: string, input: ActivatePolicyInput, op: string): Promise<PolicyActivationReceipt>;
   discard(id: string, op: string): Promise<DraftView>;
 }
 
@@ -510,6 +514,14 @@ export class ConsoleClient implements ConsoleApi {
       method: "POST",
       body: {},
       operationKey,
+    });
+  }
+  activePolicy() {
+    return this.request("/v1/policy/active", PolicyActivationReceipt.nullable());
+  }
+  activatePolicy(id: string, input: ActivatePolicyInput, operationKey: string) {
+    return this.request(`/v1/drafts/${encodeURIComponent(id)}/activate`, PolicyActivationReceipt, {
+      method: "POST", body: input, operationKey,
     });
   }
   discard(id: string, operationKey: string) {

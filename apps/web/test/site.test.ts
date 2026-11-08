@@ -56,6 +56,45 @@ test("Open app reaches the configured console from the homepage and secondary pa
   expect(() => createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "javascript:alert(1)" })).toThrow();
 });
 
+test("agent discovery redirects read requests to the configured control plane without proxying or forwarding queries", async () => {
+  let calls = 0;
+  const h = createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "https://control.example/ignored?private=discard",
+    fetcher: async () => { calls++; throw new Error("must not proxy"); } });
+  for (const path of ["/auth.md", "/agent/access"]) {
+    for (const method of ["GET", "HEAD"]) {
+      const res = await h(new Request(`${ORIGIN}${path}?next=https://attacker.test&token=discard`, { method }));
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe(`https://control.example${path}`);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(res.headers.get("x-robots-tag")).toBe("noindex");
+      expect(res.headers.get("set-cookie")).toBeNull();
+      expect(await res.text()).toBe("");
+    }
+    for (const method of ["POST", "PUT", "DELETE"]) {
+      const res = await h(new Request(`${ORIGIN}${path}`, { method, headers: { authorization: "Bearer not-a-public-site-token" } }));
+      expect(res.status).toBe(405);
+      expect(res.headers.get("allow")).toBe("GET, HEAD");
+      expect(res.headers.get("location")).toBeNull();
+    }
+  }
+  expect(calls).toBe(0);
+});
+
+test("unconfigured agent discovery explains the missing server and keeps HEAD responses empty", async () => {
+  const h = createSite({ origin: ORIGIN, root: ROOT });
+  for (const path of ["/auth.md", "/agent/access"]) {
+    const response = await get(h, path);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toContain("EPHYRA_API_ORIGIN");
+    const head = await h(new Request(ORIGIN + path, { method: "HEAD" }));
+    expect(head.status).toBe(503);
+    expect(await head.text()).toBe("");
+  }
+});
+
 test("domain migration preserves article paths and queries without redirecting health checks or trusting forwarded hosts", async () => {
   const alias = "https://www.ephyra.example";
   const h = createSite({ origin: ORIGIN, root: ROOT, redirectOrigins: [alias, ORIGIN] });
@@ -184,6 +223,25 @@ describe("static site", () => {
     expect(walkthrough.steps.map((step) => step.id)).toEqual([
       "triaged", "hypothesis", "explain", "revise", "plan", "proof", "watching", "set", "rollback",
     ]);
+  });
+
+  test("landing uses its isolated local app build and revalidates all entry points", async () => {
+    const h = createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "https://control.example/ignored?private=discard" });
+    const response = await get(h, "/?apiOrigin=https://attacker.test&demo=0");
+    const html = await response.text();
+    expect(html).toContain('data-product-tour');
+    expect(html).not.toContain('data-console-app=');
+    expect(html).not.toContain("attacker.test");
+    expect(html).not.toContain("private=discard");
+    expect(html).toContain('src="tour.js?v=20261108-quests"');
+    expect(html).toContain('href="tour.css?v=20261108-quests"');
+    expect(html).toContain('href="product-tour.css?v=20261108-quests"');
+    expect(response.headers.get("cache-control")).toBe("no-cache");
+    const secondary = await get(h, "/a/");
+    expect(secondary.headers.get("cache-control")).toBe("no-cache");
+    const head = await h(new Request(ORIGIN + "/", { method: "HEAD" }));
+    expect(head.headers.get("cache-control")).toBe("no-cache");
+    expect(await head.text()).toBe("");
   });
 
   test("cut E is the home page by default; the other cuts stay reachable; dotfiles and traversal are refused", async () => {

@@ -8,6 +8,7 @@ import {
 import { api } from "../../convex/_generated/api";
 import type { AuditEvent, AuditInput } from "../audit.ts";
 import type { ActiveJob, JobRow, RuntimeStore, StoredInboxItem } from "../wiring/store.ts";
+import { RuntimeWorkerLease, WorkerOwnershipLost, type WorkerClaim, type WorkerLeaseCallbacks } from "../wiring/worker-lease.ts";
 
 export type ConvexConfig = { url: string; secret: string };
 
@@ -84,7 +85,20 @@ export class ConvexSignalStore implements SignalStore {
 }
 
 export class ConvexRuntimeStore implements RuntimeStore {
-  constructor(private readonly client: ConvexHttpClient, private readonly secret: string) {}
+  private readonly lease: RuntimeWorkerLease;
+  private readonly claims = new Map<string, WorkerClaim & { claimId: string }>();
+  constructor(private readonly client: ConvexHttpClient, private readonly secret: string) {
+    this.lease = new RuntimeWorkerLease({
+      register: (ownerId, ttlMs) => client.mutation(api.runtime.registerWorker, { secret, ownerId, ttlMs }),
+      heartbeat: (owner, ttlMs) => client.mutation(api.runtime.heartbeatWorker, { secret, ...owner, ttlMs }),
+      release: (owner) => client.mutation(api.runtime.releaseWorker, { secret, ...owner }),
+    });
+  }
+  startOwner(callbacks: WorkerLeaseCallbacks) { return this.lease.start(callbacks); }
+  stopOwner() { return this.lease.stop(); }
+  ownerClaim(): WorkerClaim { return this.lease.ownerClaim(); }
+  assertOwner(): void { this.lease.assertActive(); }
+  withOwner<T>(work: () => Promise<T>): Promise<T> { return this.lease.withOwner(work); }
 
   async getTrail(id: string) {
     const json = await this.client.query(api.runtime.getTrail, { secret: this.secret, trailId: id });
@@ -93,7 +107,7 @@ export class ConvexRuntimeStore implements RuntimeStore {
   async putTrail(trail: Trail) {
     const valid = Trail.parse(trail);
     await this.client.mutation(api.runtime.putTrail, {
-      secret: this.secret, trailId: valid.id, state: valid.state, json: JSON.stringify(valid),
+      secret: this.secret, ...this.ownerClaim(), trailId: valid.id, state: valid.state, json: JSON.stringify(valid),
     });
   }
   async listTrails(states?: Trail["state"][]) {
@@ -103,7 +117,7 @@ export class ConvexRuntimeStore implements RuntimeStore {
   async recordEvent(event: TrailEvent) {
     const valid = TrailEvent.parse(event);
     return this.client.mutation(api.runtime.recordEvent, {
-      secret: this.secret, eventId: valid.id, trailId: valid.trail, json: JSON.stringify(valid),
+      secret: this.secret, ...this.ownerClaim(), eventId: valid.id, trailId: valid.trail, json: JSON.stringify(valid),
     });
   }
   async events(trailId: string) {
@@ -112,10 +126,10 @@ export class ConvexRuntimeStore implements RuntimeStore {
   }
   async inboxPut(item: StoredInboxItem) {
     await this.client.mutation(api.runtime.inboxPut, {
-      secret: this.secret, itemId: item.id, trailId: item.trailId, json: JSON.stringify(item),
+      secret: this.secret, ...this.ownerClaim(), itemId: item.id, trailId: item.trailId, json: JSON.stringify(item),
     });
   }
-  async inboxRemove(id: string) { await this.client.mutation(api.runtime.inboxRemove, { secret: this.secret, itemId: id }); }
+  async inboxRemove(id: string) { await this.client.mutation(api.runtime.inboxRemove, { secret: this.secret, ...this.ownerClaim(), itemId: id }); }
   async inboxGet(id: string) {
     const json = await this.client.query(api.runtime.inboxGet, { secret: this.secret, itemId: id });
     return json ? (JSON.parse(json) as StoredInboxItem) : null;
@@ -130,12 +144,27 @@ export class ConvexRuntimeStore implements RuntimeStore {
     });
   }
   async claim(now: Date, n: number) {
-    const rows = await this.client.mutation(api.runtime.claim, { secret: this.secret, nowMs: now.getTime(), limit: n });
+    const owner = this.ownerClaim();
+    const rows = await this.client.mutation(api.runtime.claim, { secret: this.secret, ...owner, nowMs: now.getTime(), limit: n });
+    const active = this.ownerClaim();
+    if (active.fence !== owner.fence) throw new WorkerOwnershipLost();
+    for (const row of rows) this.claims.set(row.key, { ...owner, claimId: row.claimId });
     return rows.map((r) => ({ key: r.key, kind: r.kind, payload: JSON.parse(r.payload), runAt: new Date(r.runAtMs), attempts: r.attempts }));
   }
-  async finish(key: string) { await this.client.mutation(api.runtime.finish, { secret: this.secret, key }); }
+  private jobClaim(key: string) {
+    const owner = this.ownerClaim(), claim = this.claims.get(key);
+    if (!claim || claim.fence !== owner.fence) throw new WorkerOwnershipLost();
+    return claim;
+  }
+  async finish(key: string) {
+    if (!await this.client.mutation(api.runtime.finish, { secret: this.secret, ...this.jobClaim(key), key })) throw new WorkerOwnershipLost();
+    this.claims.delete(key);
+  }
   async fail(key: string, error: string, runAt: Date, dead: boolean) {
-    await this.client.mutation(api.runtime.fail, { secret: this.secret, key, error, runAtMs: runAt.getTime(), dead });
+    if (!await this.client.mutation(api.runtime.fail, {
+      secret: this.secret, ...this.jobClaim(key), key, error, runAtMs: runAt.getTime(), dead,
+    })) throw new WorkerOwnershipLost();
+    this.claims.delete(key);
   }
   async deadJobs() { return this.client.query(api.runtime.deadJobs, { secret: this.secret }); }
   async activeJobs(): Promise<ActiveJob[]> {
@@ -145,7 +174,7 @@ export class ConvexRuntimeStore implements RuntimeStore {
       ...(r.startedMs != null && r.status === "running" ? { startedAt: new Date(r.startedMs) } : {}),
     }));
   }
-  async recoverRunning() { return this.client.mutation(api.runtime.recoverRunning, { secret: this.secret }); }
+  async recoverRunning() { return this.client.mutation(api.runtime.recoverRunning, { secret: this.secret, ...this.ownerClaim() }); }
 }
 
 export class ConvexOperationLedger implements OperationLedger {

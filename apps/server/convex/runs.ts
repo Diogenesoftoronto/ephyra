@@ -5,34 +5,39 @@ import { AgentRun, AgentRunEvent } from "@ephyra/core";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireSecret } from "./lib";
+import { ownsWorker, requireWorker } from "./worker_owner";
 
 const MAX_BATCH = 100;
 const MAX_PAGE = 500;
 
 /** Idempotent by run id: creating a run twice keeps the first. */
 export const create = mutation({
-  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), json: v.string() },
-  handler: async (ctx, { workspace, secret, runId, json }) => {
-    requireSecret(secret);
+  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), json: v.string(),
+    ownerId: v.optional(v.string()), fence: v.optional(v.number()) },
+  handler: async (ctx, { workspace, secret, runId, json, ownerId, fence }) => {
+    requireSecret(secret); await requireWorker(ctx, workspace, { ownerId, fence });
     const run = AgentRun.parse(JSON.parse(json));
     if (run.id !== runId) throw new Error("run id mismatch");
     const existing = await ctx.db.query("runs")
       .withIndex("by_workspace_run_id", (q) => q.eq("workspace", workspace).eq("runId", runId)).unique();
     if (existing) return false;
-    await ctx.db.insert("runs", { workspace, runId, ...(run.trailId ? { trailId: run.trailId } : {}), status: run.status, startedMs: Date.parse(run.startedAt), json });
+    await ctx.db.insert("runs", { workspace, runId, ownerId, ownerFence: fence,
+      ...(run.trailId ? { trailId: run.trailId } : {}), status: run.status, startedMs: Date.parse(run.startedAt), json });
     return true;
   },
 });
 
 export const update = mutation({
-  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), json: v.string() },
-  handler: async (ctx, { workspace, secret, runId, json }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), json: v.string(),
+    ownerId: v.optional(v.string()), fence: v.optional(v.number()) },
+  handler: async (ctx, { workspace, secret, runId, json, ownerId, fence }) => {
     requireSecret(secret);
+    if (!await ownsWorker(ctx, workspace, { ownerId, fence })) return false;
     const run = AgentRun.parse(JSON.parse(json));
     if (run.id !== runId) throw new Error("run id mismatch");
     const row = await ctx.db.query("runs")
       .withIndex("by_workspace_run_id", (q) => q.eq("workspace", workspace).eq("runId", runId)).unique();
-    if (!row) return false;
+    if (!row || row.ownerId !== ownerId || row.ownerFence !== fence) return false;
     await ctx.db.patch(row._id, { status: run.status, json });
     return true;
   },
@@ -65,13 +70,15 @@ export const list = query({
 
 /** Appends events (without seq) in order and returns the first seq used. */
 export const appendEvents = mutation({
-  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), events: v.array(v.string()) },
-  handler: async (ctx, { workspace, secret, runId, events }) => {
-    requireSecret(secret);
+  args: { workspace: v.optional(v.string()), secret: v.string(), runId: v.string(), events: v.array(v.string()),
+    ownerId: v.optional(v.string()), fence: v.optional(v.number()) },
+  handler: async (ctx, { workspace, secret, runId, events, ownerId, fence }) => {
+    requireSecret(secret); await requireWorker(ctx, workspace, { ownerId, fence });
     if (events.length > MAX_BATCH) throw new Error("too many events in one batch");
     const run = await ctx.db.query("runs")
       .withIndex("by_workspace_run_id", (q) => q.eq("workspace", workspace).eq("runId", runId)).unique();
     if (!run) throw new Error("unknown run");
+    if (run.ownerId !== ownerId || run.ownerFence !== fence) throw new Error("Run belongs to a previous worker; reconcile it before continuing");
     const last = await ctx.db.query("runEvents")
       .withIndex("by_workspace_run_seq", (q) => q.eq("workspace", workspace).eq("runId", runId)).order("desc").first();
     let seq = last ? last.seq + 1 : 0;
@@ -100,13 +107,16 @@ export const events = query({
   },
 });
 
-/** Marks runs left running by a crashed server as failed. Returns how many. */
+/** Only the current workspace owner may close transcripts abandoned by a previous owner. */
 export const closeRunning = mutation({
-  args: { workspace: v.optional(v.string()), secret: v.string(), reason: v.string(), endedAt: v.string() },
-  handler: async (ctx, { workspace, secret, reason, endedAt }) => {
+  args: { workspace: v.optional(v.string()), secret: v.string(), reason: v.string(), endedAt: v.string(),
+    ownerId: v.optional(v.string()), fence: v.optional(v.number()) },
+  handler: async (ctx, { workspace, secret, reason, endedAt, ownerId, fence }) => {
     requireSecret(secret);
+    if (!await ownsWorker(ctx, workspace, { ownerId, fence })) return 0;
     const rows = await ctx.db.query("runs")
-      .withIndex("by_workspace_status_started", (q) => q.eq("workspace", workspace).eq("status", "running")).take(500);
+      .withIndex("by_workspace_status_started", (q) => q.eq("workspace", workspace).eq("status", "running"))
+      .filter((q) => q.or(q.neq(q.field("ownerId"), ownerId), q.neq(q.field("ownerFence"), fence))).collect();
     for (const row of rows) {
       const run = AgentRun.parse(JSON.parse(row.json));
       await ctx.db.patch(row._id, { status: "failed", json: JSON.stringify({ ...run, status: "failed", endedAt, error: reason.slice(0, 500) }) });

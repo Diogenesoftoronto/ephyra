@@ -1,4 +1,4 @@
-import type { AgentStep, Trail, TrailEvent } from "@ephyra/core";
+import { budgetBlocker, type AgentStep, type Trail, type TrailEvent } from "@ephyra/core";
 import { redact } from "@ephyra/agent";
 import { untrustedJson } from "@ephyra/policy";
 
@@ -51,8 +51,7 @@ export function buildRecovery(trail: Trail, events: TrailEvent[], step: AgentSte
   const unsafe = safety === "ambiguous_external" || (previousAttempts > 0 && safety === "unknown")
     || failures.some((event) => event.type === "agent_failed" && !event.data.retryable
       && (!newEvidence || /ReconciliationRequired|uncertain|ambiguous|credential|permission|authenticat/i.test(event.data.reason)));
-  const budgetExhausted = trail.budget.tokensUsed >= trail.budget.tokensMax
-    || trail.budget.spendMicrousdUsed > trail.budget.spendMicrousdMax;
+  const budgetExhausted = budgetBlocker(trail.budget) !== null;
   const exhausted = unsafe || budgetExhausted || attempt > limit;
   const strategy: RecoveryStrategy = attempt === 1 ? "initial" : attempt === 2 ? "alternate_hypothesis"
     : options.canResetContext === true ? "fresh_context" : "additional_evidence";

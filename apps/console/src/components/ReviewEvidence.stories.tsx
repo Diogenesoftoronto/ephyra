@@ -8,6 +8,9 @@ export default meta;
 export const Proof: StoryObj = {
   render: () => <ReviewEvidence proof={fixtureProof(trailByShort("c2d018"), NOW)} />,
 };
+export const AwaitingHumanApproval: StoryObj = {
+  render: () => <ReviewEvidence proof={{ ...fixtureProof(trailByShort("c2d018"), NOW), awaitingHumanC: true }} />,
+};
 export const Unavailable: StoryObj = {
   render: () => <ReviewEvidence artefacts={[{ path: "hypothesis.md", content: null }]} />,
 };

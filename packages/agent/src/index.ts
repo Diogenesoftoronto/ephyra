@@ -6,5 +6,6 @@ export * from "./proof";
 export * from "./review";
 export * from "./redact";
 export * from "./amp";
+export * from "./amp-report";
 export * from "./run-events";
 export { visualPublisher, VISUAL_GUIDE } from "./visuals.ts";

@@ -19,3 +19,8 @@ Pure rules for autonomy, backend thresholds, triage, proof, and post-landing wat
 Reading an area back, `areaToSketch` picks the closest level for its effective settings (own values, then the defaults): auto_land landing with C advisory is Auto-land, `shadow` is Watch, otherwise the first blocking checkpoint among A and B decides Research or Propose, and the rest is Patch.
 
 Limits worth knowing: a **critical** area never auto-lands (`autoLandAllowed`), so an Auto-land sketch on a critical area is applied as Patch and `sketchIssues` says so. The intent becomes the area's prose; a line that starts like a setting (`risk: …`, `paths matter`) has its first letter capitalised and a `## ` heading loses a `#`, so prose can never change the policy. Paths containing commas or newlines are refused. Property tests check that level, risk, paths, intent and user-facing survive sketch → area → markdown → parse → sketch. The levels are a mapping onto the parser's settings: whether a deployment really stops a trail at a level also depends on the callers enforcing the checkpoints and `autoLandAllowed`, which is Unverified here.
+
+
+`evaluateProofBeforeC` checks automated evidence while retaining `awaitingHumanC` for the human-only high/critical
+requirements. It never makes an absent replay, intent, UI result, study or visual approval pass. Final
+`evaluateProof(..., {humanApprovedC:true})` is valid only after the caller has the actual named-human C decision.

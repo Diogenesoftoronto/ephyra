@@ -24,6 +24,20 @@ policy evaluation; successful bundles retain redacted output and exit status for
 Repeats share their revision's worktree, so probes must tolerate repeated execution. Repetition catches
 observed instability, not every possible flake, and does not rerun the entire test suite.
 
+`ProofOptions.collectEvidence(context)` runs after the core proof observations and before policy evaluation,
+while both exact, prepared worktrees still exist. It receives `baseCwd`, `headCwd`, the observed core items,
+and a shared `remainingMs()` deadline. Additional items must pass the core schema, remain bounded and cannot
+replace repro, test or diff observations. An absent collector contributes no evidence. An unavailable
+collector stops proof and still cleans up both worktrees; no missing integration becomes a passing item.
+
+The server's verification collector executes selected intent and registered regression probes, invokes a
+configured real reviewer, and runs configured UI/replay report commands at the prepared head. A new repair's
+actual repro script is executed again to seed regression coverage when there are no closed trails yet.
+External persona, respondent and approval evidence requires a host-authorized source receipt bound to the
+exact trail, revision, base and head. Merely returning an evidence-shaped model answer is insufficient.
+Offline tests exercise these boundaries and actual local Git registry persistence; live provider studies,
+browser report integrations and hosted execution remain Unverified until those integrations run.
+
 ## Live run events (`run-events.ts`)
 
 `claudeStreamNormalizer` (Amp `--stream-json` and Claude Code `--output-format stream-json --verbose`, which share a format) and `codexNormalizer` (`codex exec --json`) turn an engine's output, line by line, into the console's `AgentRunEvent` (without `runId`, `seq` and `at`, which the server stamps): `message`, `reasoning`, paired `tool_call` / `tool_result`, `status` and `portal`. Everything is redacted (`redact.ts`, which now also covers JSON-quoted keys and well-known token shapes) and cut to the schema limits. A line that is not JSON, or an event type the normalizer does not know, yields nothing; the user turn that carries the prompt is never echoed (it holds quoted signal text). A `portal` event is emitted only when a command that asks for a portal (`amp orb portal …`, `--portal`) printed an `https://` URL.

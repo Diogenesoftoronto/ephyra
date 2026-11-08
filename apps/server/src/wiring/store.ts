@@ -9,6 +9,10 @@ export type JobRow = { kind: string; key: string; payload: unknown; runAt: Date;
 export type ActiveJob = { kind: string; key: string; payload: unknown; status: "queued" | "running"; runAt: Date; startedAt?: Date };
 
 export interface RuntimeStore {
+  /** Durable stores may fence execution to the active namespace owner. Memory fixtures omit this guard. */
+  assertOwner?(): void;
+  /** Preserve the owner fence across awaits, including lease expiry followed by a different acquisition. */
+  withOwner?<T>(work: () => Promise<T>): Promise<T>;
   getTrail(id: string): Promise<Trail | null>;
   /** Insert or replace the projection. */
   putTrail(trail: Trail): Promise<void>;

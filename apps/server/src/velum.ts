@@ -13,7 +13,10 @@ import { inspectDoc, renderSketches, sketchesFor, MAX_DOC_BYTES } from "./docs.t
 import { safeNote, type BilledTo, type UsageRecorder } from "./usage.ts";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
-export type DraftRequest = { system: string; messages: ChatMessage[]; idempotencyKey: string; signal?: AbortSignal };
+export type DraftRequest = {
+  system: string; messages: ChatMessage[]; idempotencyKey: string; signal?: AbortSignal;
+  maxCostMicrousd?: number; maxTokens?: number;
+};
 export type DraftCompletion = { text: string; engine: string; tokens: number | null; costMicrousd: number | null };
 
 /** The model behind Velum. Adapters throw `Unverified` when the backend cannot be reached or its answer cannot be read. */
@@ -68,7 +71,7 @@ function readChat(label: string, raw: unknown): DraftCompletion {
   return { text, engine: parsed.data.model, tokens: tokens || null, costMicrousd: u?.cost_microusd ?? null };
 }
 const chatBody = (model: string, req: DraftRequest) => ({
-  model, max_tokens: MAX_TOKENS, messages: [{ role: "system", content: req.system }, ...req.messages],
+  model, max_tokens: Math.min(MAX_TOKENS, req.maxTokens ?? MAX_TOKENS), messages: [{ role: "system", content: req.system }, ...req.messages],
 });
 
 /** Not Organic's OpenAI-compatible chat endpoint, paid from the billing account (DPoP-bound token, like the hosted judgement client). */
@@ -88,7 +91,8 @@ export class NotOrganicDraftModel implements DraftModel {
     const url = new URL("/v1/chat/completions", this.signIn.config.issuer).href;
     const raw = await postJson(this.signIn.fetch, "Not Organic chat", url, {
       authorization: `DPoP ${creds.token}`, dpop: await dpopProof(url, creds.token, creds.keys),
-      "idempotency-key": req.idempotencyKey, "x-notorganic-max-cost-microusd": String(this.maxCostMicrousd),
+      "idempotency-key": req.idempotencyKey,
+      "x-notorganic-max-cost-microusd": String(Math.min(this.maxCostMicrousd, req.maxCostMicrousd ?? this.maxCostMicrousd)),
     }, chatBody(this.model, req), req.signal);
     return readChat("Not Organic chat", raw);
   }

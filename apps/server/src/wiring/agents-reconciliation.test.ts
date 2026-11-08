@@ -27,9 +27,10 @@ test("an uncertain proof allocation parks with its operation receipt instead of 
       limits: { cpu: 1, memoryMb: 1000, diskMb: 0, timeoutS: 60 } }, buildProof: async () => { throw new Error("must not run proof"); } });
   await ctx.jobRunners.get("proof")!({ trailId: id, rev: 2, operationKey: "proof-fixture" }, { key: "proof-fixture", attempt: 1 });
   expect(allocated).toBe(1);
-  expect(ctx.emitted).toHaveLength(1);
-  expect(ctx.emitted[0]).toMatchObject({ type: "agent_failed", data: { step: "proof", retryable: false } });
-  expect(JSON.parse(String(ctx.emitted[0]!.files!["proof/error.json"]))).toMatchObject({
+  const failure = ctx.emitted.find(event => event.type === "agent_failed");
+  expect(failure).toMatchObject({ type: "agent_failed", data: { step: "proof", retryable: false } });
+  expect(ctx.emitted.some(event => event.type === "usage_recorded" && event.data.wallMs >= 0)).toBe(true);
+  expect(JSON.parse(String(failure!.files!["proof/error.json"]))).toMatchObject({
     operationKey: "proof-fixture", reconciliationRequired: true,
   });
 });

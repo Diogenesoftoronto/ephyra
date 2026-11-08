@@ -30,7 +30,7 @@ export async function hostedAutomation(config: Config, scope: { did: string; wor
   let jobs: ServerContext["jobs"] | undefined;
   const runner = new RailwaySandboxRunner(new ArtifactStore(join(scope.directory, "artifacts")), client, {
     ledger, leaseStore: leases, scope: `${scope.did}:${scope.workspaceId}`,
-    repositoryBundle: ({ commit }) => repositoryBundle(join(scope.directory, "workspace.git"), commit),
+    repositoryBundle: ({ commit, base }) => repositoryBundle(join(scope.directory, "workspace.git"), commit, base && base !== commit ? [base] : []),
     onLease: async (handle) => jobs?.enqueue("hosted_cleanup", `hosted-cleanup:${handle.id}`, { handleId: handle.id, followup: 0 },
       { runAt: new Date(handle.leaseExpiresAt) }),
   });

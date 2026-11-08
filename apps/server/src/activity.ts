@@ -106,8 +106,9 @@ export async function activity(deps: ActivityDeps, limit: number): Promise<Activ
   }
 
   const recent = [...trails].sort((a, b) => Number(TERMINAL_STATES.includes(a.state)) - Number(TERMINAL_STATES.includes(b.state))).slice(0, TRAILS_SCANNED);
-  const events = await Promise.all(recent.map(async (t) => ({ t, events: (await store.events(t.id)).slice(-EVENTS_PER_TRAIL) })));
-  for (const { t, events: list } of events) for (const e of list) { const item = fromEvent(t, e); if (item) items.push(item); }
+  const events = await Promise.all(recent.map(async (t) => (await store.events(t.id)).map(event => fromEvent(t, event))
+    .filter((item): item is Item => item !== null).slice(-EVENTS_PER_TRAIL)));
+  items.push(...events.flat());
 
   const rank = (i: Item) => (i.status === "running" ? 0 : 1);
   return items.sort((a, b) => rank(a) - rank(b) || b.at.localeCompare(a.at)).slice(0, limit);

@@ -4,6 +4,7 @@ Ephyra's public site. One Bun handler serves:
 
 - the landing page: cut E ("Immortal", `site/e/`) is the main site, served at `/`; earlier cuts stay at `/a/`, `/b/` and `/c/`, marked noindex and left out of the sitemap;
 - the journal: a Standard.site blog on AT Protocol;
+- the public product guide at `/docs`, with local search, section links, copyable examples and a plain-text export;
 - pricing, legal and security pages;
 - everything crawlers and LLMs read.
 
@@ -26,6 +27,7 @@ Settings:
 | `/blog/`, `/blog/posts/<slug>`, `/blog/feed.xml` | Journal, read from the publication's PDS (`site.standard.publication` / `site.standard.document`) |
 | `/.well-known/site.standard.publication` | Publication URI, for verification |
 | `/pricing` | Rendered from `src/pricing.ts`; the hosted plan is marked proposed |
+| `/docs`, `/docs.txt` | Source-backed product guide and its readable text export; `/docs/` redirects to `/docs` |
 | `/legal/`, `/legal/{terms,privacy,acceptable-use,providers}`, `/security` | Bodies in `content/legal/*.html`, operator details from `OPERATOR` in `src/legal.ts` |
 | `/.well-known/security.txt` | RFC 9116 contact |
 | `/terms`, `/privacy`, trailing slashes | 308 to the canonical path |
@@ -42,6 +44,7 @@ Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/ra
 https://console.ephyra.quest/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
 The older console domain remains attached for existing links. The public site builds the actual React app components
 into a separate, explicitly fictional walkthrough at `/e/app/walkthrough.html`; its adapters and CSP prevent live writes.
+Read current Railway variables before applying local IaC, which may retain an earlier domain configuration.
 The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
 The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
 Record-derived `/posts/<slug>` links redirect to `/blog/posts/<slug>`; document record identities and paths stay unchanged.
@@ -80,6 +83,27 @@ EPHYRA_BLOG_APP_PASSWORD="$(skate get ephyra-blog-app-password@secrets)" … --w
 ## Look
 
 The journal, pricing, legal and security pages share cut E's tokens and type (Anybody, Atkinson Hyperlegible Next): water at the top of the page where production is, the seabed under the footer. The share card `site/assets/og/og.png` is rendered from `site/_sources/og/og.html` (gitignored with the other sources).
+
+## Public documentation
+
+`src/docs.ts` holds the ten guide sections and generates both server-rendered HTML and the text export. The guide covers
+account setup, quests, connections, policy activation, proof, study receipt transports, landing/watch, budgets, local
+development and API availability. Keep it aligned with executable contracts; original design proposals are not current
+capabilities. No account IDs, credentials, incident data or private deployment inventory belong in the public guide.
+
+The complete content and native anchor navigation work without JavaScript. `content/docs/client.js` progressively adds
+local body search, `/` keyboard focus, current-section tracking, light/dark/system preferences and copy feedback with an
+honest selection fallback when clipboard access is denied. Mobile navigation uses a native disclosure. The stylesheet
+supports reduced motion, readable code overflow and printing. Both assets are copied by the existing web image.
+
+The homepage and shared navigation link the guide. Its canonical URL, TechArticle metadata, sitemap and LLM exports
+are served independently of the journal/PDS. `/llms-full.txt` includes the complete guide, even when the journal is down.
+`bun test apps/web` checks routes, assets, deep links, source claims, text export, crawler discovery and query injection.
+Evaluate `apps/web/scripts/check-docs.js` in the served guide to check browser interactions; clipboard success and denial
+use explicitly stubbed APIs and do not prove an operating-system clipboard write or authenticated repair.
+Local browser checks passed at 1440×900, 390×844 dark and 320×568 light, including section navigation, body search,
+no-results and literal query handling, copy success/denial, and theme selection. Actual keyboard events checked `/`
+focus and Escape clearing. Measured reading/control text roles met 4.5:1 in both themes (lowest checked role: 4.80:1).
 
 ## Landing walkthrough
 

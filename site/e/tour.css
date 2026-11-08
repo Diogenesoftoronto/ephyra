@@ -213,7 +213,7 @@ body:has(.screen-dialog[open]) { overflow: hidden; }
 }
 /* Narrower: the terminal pinned at the top, a window onto it that pans to what each step is about. */
 @media (max-width: 69.99rem) {
-  .tour.live .term-col { position: sticky; top: var(--head-h); z-index: 3; padding: .5rem 0 .75rem; background: linear-gradient(var(--bg) 85%, transparent); }
+  .tour.live .term-col { position: sticky; top: var(--head-h); z-index: 3; padding: .5rem 0 .75rem; background: var(--bg); }
   .tour.live .steps { padding-bottom: 36svh; }
   .tour.live .step { min-height: 46svh; padding-top: 10svh; }
   .tour.live .step:first-child { padding-top: 2svh; }

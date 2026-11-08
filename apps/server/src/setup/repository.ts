@@ -220,6 +220,53 @@ export class RepositoryConnector {
   private readonly chains = new Map<string, Promise<unknown>>();
   constructor(private readonly options: RepositoryConnectorOptions = {}) {}
 
+  /** Fixed-purpose landing transport. Credentials and freshly pinned DNS never enter a plan or runner. */
+  async command(raw: RepositoryInput, directory: string, argv: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+    const input = normalizeRepositoryInput(raw);
+    if (argv[0] !== "git" || argv.length < 2 || argv.length > 100 || argv.some(arg => arg.includes("\0")))
+      throw new ConnectionError("repository_command", "Invalid repository operation.");
+    const args = argv.slice(1);
+    const verb = args[0];
+    const objectId = (value: string | undefined) => value !== undefined && /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(value);
+    if (verb === "push" || verb === "ls-remote") {
+      const delimiter = args.indexOf("--");
+      if (delimiter < 1 || args[delimiter + 1] !== input.url || args.length !== delimiter + 3)
+        throw new ConnectionError("repository_command", "The operation must use the connected repository.");
+      const target = verb === "push" ? args[delimiter + 2]!.split(":").at(-1)! : args[delimiter + 2]!;
+      if (target !== `refs/heads/${input.branch}` && !/^refs\/heads\/ephyra\/[a-f0-9-]{36}$/.test(target))
+        throw new ConnectionError("repository_command", "The operation targets another branch.");
+      if (verb === "ls-remote" && (args.length !== 6 || args[1] !== "--refs" || args[2] !== "--exit-code" || delimiter !== 3))
+        throw new ConnectionError("repository_command", "Unsupported remote reference read options.");
+      if (verb === "push") {
+        const lease = args[3]?.slice(`--force-with-lease=${target}:`.length);
+        const source = args[6]?.slice(0, -(target.length + 1));
+        if (args.length !== 7 || args[1] !== "--porcelain" || args[2] !== "--no-verify" || delimiter !== 4
+          || !args[3]?.startsWith(`--force-with-lease=${target}:`) || (lease !== "" && !objectId(lease))
+          || (source !== "" && !objectId(source)) || source === "" && !objectId(lease)
+          || source === "" && !target.startsWith("refs/heads/ephyra/")
+          || source && lease && source.length !== lease.length)
+          throw new ConnectionError("repository_command", "Remote writes require an exact conditional ref update without extra options.");
+      }
+    } else if (!(verb === "show" && args.length === 4 && args[1] === "-s" && args[2] === "--format=%B" && objectId(args[3]))
+      && !(verb === "rev-parse" && args.length === 2 && /^([a-f0-9]{40}(?:[a-f0-9]{24})?)\^\{tree\}$/.test(args[1]!))
+      && !(args.length === 10 && args[0] === "-c" && args[1] === "user.name=ephyra" && args[2] === "-c"
+        && args[3] === "user.email=ephyra@localhost" && args[4] === "commit-tree" && objectId(args[5])
+        && args[6] === "-p" && objectId(args[7]) && args[8] === "-m"
+        && args[9] === `Revert landing ${args[7]}\n\nEphyra-Revert-Of: ${args[7]}`)) {
+      throw new ConnectionError("repository_command", "Unsupported repository operation.");
+    }
+    const target = await resolvePublicHttps(input.url, this.options.lookup);
+    const mirror = join(resolve(directory), "workspace.git");
+    const info = await lstat(mirror);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new ConnectionError("repository_path", "Repository workspace unavailable.");
+    const result = await (this.options.execute ?? executeGit)({
+      args: ["--git-dir", mirror, ...args], env: gitEnvironment(target, input), directory: mirror,
+      timeoutMs: this.options.timeoutMs ?? 60_000, maxOutputBytes: this.options.maxOutputBytes ?? 256_000,
+      maxRepositoryBytes: this.options.maxRepositoryBytes ?? 512_000_000,
+    });
+    return { ...result, stderr: "" };
+  }
+
   /** Query the advertised HEAD using the same constrained transport as fetch. No host-specific API is required. */
   async discover(input: Omit<RepositoryInput, "branch">): Promise<string> {
     const normalized = normalizeRepositoryInput({ ...input, branch: "main" });

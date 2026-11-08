@@ -112,7 +112,9 @@ export interface Runner {
   readonly capabilities: { checkpoint: "none" | "disk" | "memory"; network: ServiceProfile["network"][]; shell: boolean; browser: boolean };
   allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile;
     leaseS?: number; operationKey?: string }): Promise<RunnerHandle>;
-  exec(handle: RunnerHandle, command: string[], opts: { cwd?: string; env?: Record<string, string>; deadlineMs: number }): AsyncIterable<ExecOutput>;
+  exec(handle: RunnerHandle, command: string[], opts: {
+    cwd?: string; env?: Record<string, string>; deadlineMs: number; signal?: AbortSignal;
+  }): AsyncIterable<ExecOutput>;
   writeFile(handle: RunnerHandle, path: string, content: string | Uint8Array): Promise<void>;
   readFile(handle: RunnerHandle, path: string): Promise<Uint8Array | null>;
   checkpoint(handle: RunnerHandle): Promise<{ snapshotId: string; kind: "disk" | "memory" }>;
@@ -130,7 +132,7 @@ export type AgentTask = {
   untrusted: Record<string, string>;
   /** Trusted constraints: policy text, human notes from checkpoints, prior artefacts. */
   context: Record<string, string>;
-  budget: { tokens: number; wallclockS: number };
+  budget: { tokens: number; wallclockS: number; spendMicrousd?: number };
 };
 export type AgentResult = {
   ok: boolean;

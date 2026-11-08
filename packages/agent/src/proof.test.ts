@@ -108,6 +108,39 @@ test("test command identity preserves argv boundaries between revisions", async 
   expect(f.evaluations).toBe(0); expect(f.removed).toHaveLength(2);
 });
 
+test("additional collectors receive both prepared revisions and their observations enter policy evaluation", async () => {
+  const f = fixture([[1, 1, 1], [0, 0, 0]]);
+  let collected = false;
+  const result = await f.build(undefined, {
+    prepareRevision: async () => ({ testCommand: ["bun", "test"] }),
+    collectEvidence: async context => {
+      expect(context.base).toBe(base); expect(context.head).toBe(head);
+      expect(context.baseCwd).toEndWith("-0"); expect(context.headCwd).toEndWith("-1");
+      expect(f.removed).toHaveLength(0);
+      expect(context.items.map(item => item.kind)).toEqual(["repro_before", "repro_after", "tests", "diff_scope"]);
+      expect(context.remainingMs()).toBeGreaterThan(0);
+      collected = true;
+      return [{ kind: "bug_review", reviewer: "fixture/reviewer", findings: [] }];
+    },
+    evaluate: items => {
+      expect(collected).toBe(true);
+      return { passed: items.some(item => item.kind === "bug_review"), missing: [] };
+    },
+  });
+  expect(result.passed).toBe(true); expect(f.removed).toHaveLength(2);
+});
+
+test("unavailable collectors and replacement core observations cannot become passing proof", async () => {
+  for (const replace of [false, true]) {
+    const f = fixture([[1, 1, 1], [0, 0, 0]]);
+    await expect(f.build(undefined, { collectEvidence: async () => {
+      if (!replace) throw new Unverified("external evidence unavailable");
+      return [{ kind: "tests", suite: "invented", passed: 5, failed: 0, newFailures: 0, log: "" }];
+    } })).rejects.toBeInstanceOf(Unverified);
+    expect(f.evaluations).toBe(0); expect(f.removed).toHaveLength(2);
+  }
+});
+
 test("parser retains Bun and Cargo counts and their actual failure identities", () => {
   expect(parseTestOutput("(fail) old bug [1.20ms]\n2 pass\n1 fail\n", 1)).toMatchObject({ passed: 2, failed: 1, failures: ["old bug"] });
   expect(parseTestOutput("test module::broken ... FAILED\ntest result: FAILED. 2 passed; 1 failed; 0 ignored;\n", 1))

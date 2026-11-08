@@ -150,8 +150,8 @@ prefix and block publishing; other warnings do not. A draft of a new intent star
 **Publishing.** Refused (409) when the draft isn't open, has errors, or the document's digest moved since `baseDigest`. Otherwise it
 writes a commit (the base ref's tree with the new file, or a root commit when the base ref doesn't exist) to
 `refs/ephyra/policy/<draft-id>` with `Ephyra-Draft:` and `Ephyra-Approver:` trailers, creating the ref with compare-and-swap, appends the
-audit entry `policy.publish`, and marks the draft published. A replay after a crash finds the identical commit and reuses it. The live
-policy is never changed; it changes only when that commit lands on the base ref through the usual landing.
+audit entry `policy.publish`, and marks the draft published. A replay after a crash finds the identical commit and reuses it.
+Publication does not change the active policy. The separate reviewed activation flow below applies control-plane policy.
 
 **Velum.** The `DraftModel` port has four adapters: Not Organic (`POST /v1/chat/completions` on `NOTORGANIC_ISSUER`, DPoP-bound with the
 billing account's sign-in session, with a cost ceiling header), Anthropic and OpenAI (bring your own key), and a deterministic fake.
@@ -218,12 +218,12 @@ and close, the plugin policy route, Convex functions (convex-test), and static s
   scope Velum needs is requested at sign-in only when `EPHYRA_DRAFT=notorganic`, and the gateway/client catalog must allow it.
 - The success path of the Amp, Claude Code and Codex stream normalizers on live runs (fixtures follow the documented formats; only the
   Amp reauthentication failure is a real capture), and the portal URL appearing in an `amp orb portal` result.
-- **Live plugin reporting.** `POST /v1/runs/:id/policy` is the ingestion path for the Ephyra harness plugin
-  (`.amp/plugins/ephyra.ts`, design/03), but that plugin is not built, so no policy event has come from a real Amp run. Policy events
-  exist only when a caller posts them; none are ever synthesised.
+- **Live plugin reporting.** `.amp/plugins/ephyra.ts` now implements the documented plugin API and fixed artifact reporting.
+  Its authenticated channel has offline receiving tests; no policy event has been observed from a live Amp run.
+  See `.amp/README.md` for the required executor identity verifier. Policy events are never synthesized.
 - Landing the published policy commit on Radicle or Tangled (the commit only lands through the forge adapters that are verified), and
   the Convex `drafts`, `runs` and `runEvents` functions against a live deployment.
-- Orb and runner Amp steps other than research, plan and review still need the plugin's `ephyra_report` tool (unchanged).
+- Orb and runner repro/patch steps need the installed `ephyra_report` plugin and the configured authenticated report inbox.
 
 ## Deploying
 
@@ -498,3 +498,201 @@ Hosted proof prepares both base and head worktrees from the observed package-man
 locked dependencies with operation receipts, and uses the selected recorded test script. Bun, Cargo, TAP/node:test,
 Jest and Vitest reports require consistent actual counts and failure identities; unsupported or ambiguous reports
 remain Unverified. A proof integration failure parks the trail instead of allocating another sandbox blindly.
+
+
+## Completing the repair loop
+
+Personal HTTPS Git workspaces now use `RemoteGitAdapter` through the same constrained connector as onboarding.
+Every read/write rechecks account and workspace ownership, pins fresh public DNS, disables ambient Git credentials
+and hooks, and binds credentials to the connected host. Only the selected branch or the trail's own branch may be
+written; writes require an exact lease. The selected production branch cannot be deleted. A successful remote readback
+is required for a landing receipt. Lost writes require reconciliation and never automatically push again.
+Native proposal adapters require explicit account-scoped signing/RPC hooks; see `packages/forge/README.md`.
+Withdrawing a proposal is distinct from reverting code which has already deployed.
+
+The optional PostHog connection now accepts `deploymentUrl`. Its public HTTPS JSON endpoint must return:
+
+```json
+{
+  "schema": 1,
+  "repository": "https://git.example.org/team/application.git",
+  "branch": "main",
+  "commit": "<full 40- or 64-character Git object ID>",
+  "deployedAt": "2026-11-08T12:00:00.000Z"
+}
+```
+
+Repository and branch must exactly match the saved connection. The URL has no embedded credentials, query or
+fragment; only this explicitly selected source is read. A different commit means the deployment is still pending.
+The endpoint is an operator-owned observation, not an Ephyra deployment mechanism or independent attestation.
+
+Before a write, watch preparation measures attributable route error rates and records configured probes. No-route
+error rates are explicitly inapplicable, not a guessed baseline. Every watch sample rechecks fresh scoped telemetry
+coverage, exact deployed code and probe results. Missing attribution or partial/stale telemetry is a recorded gap and
+cannot close a trail. The window begins at the recorded deployment time, or the first attributable observation when
+a custom deployment adapter has no activation timestamp. Persistent missing coverage parks the watch.
+`ComposeOverrides.landing` supplies equivalent scoped ports for other hosting integrations.
+
+`ProofOptions.collectEvidence` runs inside both prepared revision worktrees. The composed server executes the current
+repro again as seed regression coverage, applicable historical regression scripts, accepted intent scripts and an
+actual review turn. Closed trails register the original, proof-bound repro script in immutable Git refs. Intent
+definitions come from the accepted base or an explicitly activated policy, so a patch cannot weaken its own intent.
+A script intent uses the design's YAML frontmatter, for example:
+
+```yaml
+---
+id: checkout-total
+area: application
+paths: ["src/cart/**"]
+probes:
+  - id: preserves-total
+    kind: script
+    command: ["bun", "run", "probe:checkout-total"]
+---
+Checkout preserves the recorded item total.
+```
+
+Accepted `.ephyra/proof.json` configuration can select actual UI/replay reporter commands:
+
+```json
+{"schema":1,"commands":[{"id":"stories","command":["bun","run","proof:stories"],"protectedPaths":["package.json","bun.lock","proof/**"],"kinds":["story_render","story_interaction"]}]}
+```
+
+The command receives `EPHYRA_PROOF_TRAIL`, `EPHYRA_PROOF_REV`, `EPHYRA_PROOF_BASE` and `EPHYRA_PROOF_HEAD`.
+It must exit normally and return JSON `{schema:1,trailId,rev,base,head,items}` with exact bindings and only its declared
+evidence kinds. Declare the complete verifier harness/dependency closure in accepted-base `protectedPaths` (also
+supported on script intents). Candidate changes to that closure, including worktree changes made by tests, invalidate
+the verifier. Mutable external harness commands without a declaration fail closed. Application paths under test
+must stay separate from the trusted harness; an empty or incomplete declaration does not establish trustworthy proof.
+Persona studies, real respondent studies and visual approvals come through host-authorized
+`verification.sources` with exact revision/provider-operation receipts. They cannot be manufactured by reporter output.
+`respondents` is the separately spend-approved provider hook. Missing evidence parks explicitly instead of repeatedly
+repatching; an empty catalog, generated intent prose or a successful connection is never passing proof. Script intents
+are supported; other declared intent probe kinds require an execution adapter and fail closed.
+
+High/critical automated evidence can reach checkpoint C with `awaitingHumanC: true`. This records an outstanding
+named-human decision instead of pretending one already happened. High/critical C cannot be approved by policy;
+critical changes cannot use automatic or live landing. Final evaluation still requires the actual human decision.
+
+### Runtime controls and budgets
+
+`usage_recorded` events charge actual reported inference usage to the Git-backed trail, keyed by stable operation IDs.
+Account models report each completion before interpreting its products, including failed steps. Unknown costs/tokens
+remain explicit counters; personal workspaces stop when a required cost is unknown. Executed wall time accumulates
+across agent, proof and standalone probe runs; waiting at checkpoints does not consume execution time.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `EPHYRA_TRAIL_TOKENS` | 2000000 | Cumulative reported token allowance |
+| `EPHYRA_TRAIL_WALLCLOCK_S` | 14400 | Cumulative execution-time allowance |
+| `EPHYRA_TRAIL_SPEND_MICROUSD` | 0 | Explicit metered inference allowance; zero grants no paid account turn |
+| `EPHYRA_REQUIRE_KNOWN_COST` | false | Require reconciled costs in deployment workspaces; personal workspaces always require them |
+
+The hosted account request passes its remaining monetary ceiling to Not Organic's existing reservation header.
+CLI providers cannot enforce hard token or monetary limits which their interfaces do not expose; returned usage is
+charged after execution. Unknown settlement blocks the personal workflow rather than being treated as free.
+These inference counters do not establish Railway billing or cap external resource spend. Host resource grants,
+leases and cleanup receipts remain separate controls.
+
+Killing aborts active control-plane calls and tears down actual runner handles. Late allocations are destroyed before
+work can begin. Stop receipts distinguish confirmed destruction, pending allocation and uncertain cleanup. Queued jobs
+and returned outputs check state, code, policy and work generation; parked/resumed work cannot accept an old result.
+A moved base schedules a real patch/rebase attempt, and bundles include exactly the old head and new base histories.
+
+### Explicit policy activation
+
+`GET /v1/policy/active` returns the validated active receipt or null.
+`POST /v1/drafts/:id/activate` requires an approver, an `Idempotency-Key` and:
+
+```json
+{"expectedCommit":"<published commit>","expectedDigest":"<content SHA-256>","expectedActive":null}
+```
+
+After the first activation, `expectedActive` is the current activation commit. The service atomically creates the
+operation receipt and advances `refs/ephyra/policy/active`, validates all effective documents, audits the approver and
+reloads policy. Replay never rolls back a later activation. Restart/setup recovery reloads the durable active override.
+New policy invalidates unfinished work and old C approval, recomputes affected area/risk, and requires resuming under
+the reviewed policy. Already authorized landing/watch operations retain their recorded policy. The console exposes
+a separate activation confirmation and preserves an uncertain operation key for read-only reconciliation.
+
+Offline integration tests cover a real medium-risk local repair, actual commands/review, explicitly labelled study
+fixtures, conditional bare-Git remote writes, deployment/telemetry gates, regression registration/reuse and rollback.
+These offline tests do not exercise a live paid provider, native forge, Railway allocation or production repair.
+Actual intent, study receipts, executor identity verification and deployment observations remain required inputs.
+
+### Configured external study evidence
+
+The shipped executable supports two receipt transports. Set both `EPHYRA_PROOF_RECEIPTS_DIR` and
+`EPHYRA_PROOF_TRUST_FILE` to absolute operator-owned paths outside all candidate worktrees. The trust file is rechecked
+on every receipt read, including after restart. Repository policy and account settings cannot add source grants.
+
+```json
+{"schema":1,"grants":[{"sourceId":"study-service","workspaces":["<exact workspace ID>"],
+"kinds":["persona_study","voxq_study","visual_approval"],"transport":"signed",
+"publicKey":"<Ed25519 SPKI PEM public key>"}]}
+```
+
+Choose `transport: "directory"` and omit `publicKey` to import an operator-verified export, or choose `signed` for
+provider automation. Directory receipts cannot be submitted over HTTP. Signed providers POST to `/callbacks/proof`:
+
+```json
+{"receipt":{"schema":1,"sourceId":"study-service","workspaceId":"<exact workspace ID>",
+"trailId":"<UUID>","rev":1,"base":"<full SHA>","head":"<full SHA>","operationKey":"<actual provider operation>",
+"observedAt":"<ISO time>","expiresAt":"<ISO time>","items":["<actual ProofItem objects>"]},
+"signature":"<base64url Ed25519 signature of UTF-8 canonicalJson(receipt)>"}
+```
+
+Use exported `proofReceiptPath(directory, receipt)` to place a directory envelope (`{"receipt": ...}` without signature).
+Receipts are immutable by source, operation and exact revision. Conflicting responses, symlinks, revoked grants, expired
+observations, unauthorized evidence kinds, missing run IDs and empty reports are rejected. A synthetic persona stays
+synthetic; human studies need actual respondents and actual spending. These transports import completed evidence;
+they do not dispatch studies or grant paid execution. Missing required source grants appear in setup's blockers;
+configured grants still require a completed receipt for each patch. Offline tests use labelled fixtures and real
+Ed25519 signatures, not live study results.
+
+### Worker ownership and recovery
+
+Convex workspaces have one active worker lease with a fencing generation and heartbeats. A second process can serve
+reads and enqueue work, but cannot claim jobs, mutate trail projections, write transcripts or apply trail actions.
+Lease loss stops jobs, polling and active runner handles. Jobs from an expired or unknown owner are dead-lettered for
+reconciliation; startup never repeats an uncertain VM allocation, provider call or remote write.
+
+Every new journal transition atomically stores its pending effects in `outbox/pending.json`. After acquisition the
+worker repairs projections from all Git journals, reloads reviewed policy, and delivers only current, never-started
+effects. The durable operation ledger preserves completed and ambiguous outcomes. Old journals without an outbox do
+not acquire invented historical actions. A running operation that lost its owner still requires reconciliation.
+
+### Release scope and decisions that remain external
+
+| Integration | Usable option | Alternative | Still required |
+|---|---|---|---|
+| Study evidence | Operator-verified directory export | Signed Ed25519 provider callback | Actual completed studies and explicit workspace/source grants |
+| Execution | Account-model agent with granted Railway sandbox | Self-hosted CLI agent in an operator-provided image | Named accounts, credentials, resource allowance and explicit inference budget |
+| Remote landing | Account-scoped conditional HTTPS Git | Native Radicle/Tangled adapters through a custom host | Native signing/service-auth ports and a verified deployment observer |
+| Amp | Local CLI installed in the runner image | Remote executor plus the authenticated report plugin/inbox | Documented issuer/audience/thread claims and a configured verifier; stock main does not guess them |
+
+Native proposal adapters and remote Amp reports are library integrations. Stock hosted startup does not advertise them
+as available. Non-script intent probe kinds still fail `Unverified` until an execution adapter is supplied. Automatic
+study dispatch needs a host `respondents` port plus a named, bounded spend approval. No provider account, spend limit or
+hosted runner grant is chosen by deployment. An unconfigured deployment remains available for sign-in and setup with
+explicit blockers. Configured presence alone does not prove a live repair, payment, cleanup or native write.
+
+Before a release, compare the working branch with the currently deployed revision and the other active product branches.
+Merge the console/landing work and runtime work into one history; a healthy server built from a divergent branch can still
+remove the interface, invitations, presentation, or newer runtime capabilities. Keep the shared source branch fast-forwarded
+to that combined history. Preserve unrelated local files. The 2026-11-08 recovery combines `ui/jakub-console-polish`
+and `feat/self-driving-setup`; neither older branch tip is a complete release on its own.
+
+To prepare a release, commit the intended source, then run `bun infra/docker/prepare-server-release.ts`.
+It exports exactly `HEAD` into a temporary directory, excludes all dirty/untracked files, writes a credential-free
+release manifest, and stamps `ephyra-release.json` in that export. Upload its reported `source` directory with the pinned
+Railway CLI to the existing server service and production environment. `/healthz` returns the exact exported revision
+with `Cache-Control: no-store`; a development checkout returns null. Both the original Git archive and the exact
+deployable payload (including its revision marker) have SHA-256 checksums. These and the previous Railway
+deployment ID are the release/rollback evidence. Deploy additive Convex functions/schema before the matching server.
+Use the currently configured `EPHYRA_PUBLIC_ORIGIN` for verification; local IaC may lag a separately authorized domain
+change. A healthy deployment verifies startup and HTTP routes, not an account's paid repair or browser workflow.
+Release the web service from the same export with `infra/docker/Dockerfile.web`. Check `/docs`, `/auth.md`,
+`/e/presentation/`, the nine quest moments and six workspace views. The public walkthrough uses the separately built
+same-origin console at `/e/app/walkthrough.html`; its inline frame leaves scrolling to the page and its details dialog
+provides interaction. `apps/console/scripts/landing-scroll.probe.js` and `landing-workspace.probe.js` cover those boundaries.
