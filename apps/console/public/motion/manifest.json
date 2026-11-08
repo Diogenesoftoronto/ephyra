@@ -1,0 +1,43 @@
+{
+  "generated": "2026-11-07",
+  "mode": "built-in image_gen",
+  "intent": "generate using existing material references",
+  "source": "design/brand/sources/ephyra-specimen-v1.png",
+  "references": [
+    "site/assets/img/hero-ephyra-cutout.webp",
+    "apps/console/public/personas/sheet.webp"
+  ],
+  "prompt": "Use case: stylized-concept.\nAsset type: a single production-quality transparent specimen illustration for Ephyra, a self-hostable software console. This is a small tactile UI illustration, not a logo or a whole interface.\nInput reference 1 is style and material reference only: honey amber gelatin, precise glossy light, a tiny marine specimen; do not reproduce the dessert mould or rectangular surrounding scene. Input reference 2 is style reference only for the existing translucent persona family; no contact sheet, labels or other characters in the output.\nPrimary subject: one beautiful juvenile ephyra seen almost directly from above, suspended freely. Eight short radial arms, each ending in two softly notched rounded lappets; a rounded transparent bell at the centre. An unmistakable soft living specimen, not a sharp star, flower, cog, sun icon or sea monster. Thick clear honey-amber jelly with a few minute internal bubbles, very fine luminous internal canals and a small pale sea-glass central core. Slightly irregular organic symmetry.\nMaterial: polished translucent gelatin, bright rim caustics and restrained white specular highlights, warm amber internal refraction; sophisticated detailed scientific specimen photography crossed with an exquisite 3D gelatin object. Match the richness of the references. No neon, purple, holographic effects, eyes, face, limbs, container or text.\nComposition: one isolated centred object taking about 74 percent of a square canvas, full silhouette with generous transparent breathing room on all sides. No crop. No external glow, floor, drop shadow, backdrop, frame, chart or checkerboard. Real alpha transparency around the object. Edges should be clean and readable on both warm ivory and deep navy.\nLighting: soft studio key from upper left, small controlled highlight, luminous but not overexposed. Shape must remain legible at 80 px. Generate one still asset; animation is added in code afterwards.",
+  "runtime": {
+    "poster": "ephyra-specimen-v1.webp",
+    "width": 512,
+    "height": 512,
+    "alpha": true,
+    "animation": "interactive WebGL texture refraction"
+  },
+  "exports": [
+    {
+      "id": "ephyra-specimen-v1",
+      "source": "ephyra-specimen-v1.webp"
+    },
+    {
+      "id": "velum-refraction-v1",
+      "source": "../personas/velum.webp",
+      "note": "Existing artwork; not newly generated"
+    }
+  ],
+  "exportFormat": {
+    "width": 256,
+    "height": 256,
+    "frames": 42,
+    "fps": 20,
+    "durationSeconds": 2.1,
+    "alpha": true,
+    "formats": [
+      "gif",
+      "animated webp"
+    ]
+  },
+  "reproduction": "rtk proxy env -u LD_LIBRARY_PATH bun apps/console/scripts/export-jelly.ts",
+  "note": "Image generation created the still. Code renders animation. No agent activity is inferred from these illustrations."
+}

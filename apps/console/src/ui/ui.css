@@ -1,3 +1,5 @@
+@import "./motion.css";
+
 /* Ephyra console primitives. Direction: a specimen lab bench, not a SaaS dashboard.
    - Decisions and exceptions lead; history follows. One strong frame per page (the tray); everything else is ruled lists.
    - Warm paper and deep sea, hairline rules. Colour is meaning: amber = act here, mint = alive, cherry = undo/failure.
@@ -642,7 +644,7 @@ button.ui-row {
     border-color 0.15s;
 }
 .ui-button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(1.015, 0.985);
   transition-duration: 0.08s;
 }
 .ui-button:disabled {
@@ -735,7 +737,7 @@ button.ui-row {
   object-fit: contain;
 }
 .ui-avatar--breathe img {
-  animation: ui-breathe 3.6s ease-in-out infinite;
+  animation: ui-breathe 2.1s ease-in-out infinite;
   transform-origin: 50% 70%;
 }
 @keyframes ui-breathe {
@@ -743,11 +745,14 @@ button.ui-row {
   100% {
     transform: scale(1, 1);
   }
-  40% {
-    transform: scale(0.96, 1.04);
+  17% {
+    transform: scale(1.055, 0.948);
+  }
+  48% {
+    transform: scale(0.988, 1.012);
   }
   70% {
-    transform: scale(1.02, 0.98);
+    transform: none;
   }
 }
 

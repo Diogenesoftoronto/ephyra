@@ -1,11 +1,10 @@
 import { PERSONAS, type PersonaId } from "@ephyra/core";
 import { Avatar } from "../kit.ts";
-import { useDarkSurface } from "../lib/hooks.ts";
+import "./PersonaAvatar.css";
 
 /**
- * Persona art lives at /app/personas: `<id>-64.webp` for avatars up to 48px, `<id>.webp` above that, and the loops
- * `<id>.webm` / `<id>.mp4`. The loops are opaque on dark (#070f18), so they play only on dark surfaces and at 48px or more;
- * everywhere else the transparent still breathes instead. A missing file falls back to the initial on the persona colour.
+ * Transparent art works on every surface. CSS supplies the bell pulse only for recorded running work.
+ * The original video exports remain available, but their opaque backgrounds aren't used in the console.
  */
 export const personaMedia = (id: PersonaId, size: number, base = "/app/personas") => ({
   still: `${base}/${id}${size <= 48 ? "-64" : ""}.webp`,
@@ -24,7 +23,6 @@ export function PersonaAvatar({
   live?: boolean;
   base?: string;
 }) {
-  const dark = useDarkSurface();
   const p = PERSONAS.find((x) => x.id === persona)!;
   const media = personaMedia(persona, size, base);
   return (
@@ -35,8 +33,8 @@ export function PersonaAvatar({
       tint={`var(${p.color}-tint)`}
       size={size}
       label={p.name}
-      video={live && dark && size >= 48 ? { webm: media.webm, mp4: media.mp4 } : undefined}
       breathe={live}
+      className="persona-avatar"
     />
   );
 }

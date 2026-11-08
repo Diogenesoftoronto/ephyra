@@ -8,6 +8,7 @@ import {
   type AccountPageProps,
 } from "../components/AccountForms.tsx";
 import { useAccountWrite } from "../components/useAccountWrite.ts";
+import { JellySpecimen } from "../components/JellySpecimen.tsx";
 import "./OnboardingPage.css";
 
 const steps = ["Repository", "Model access", "Review"];
@@ -35,13 +36,21 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
   }
   return (
     <div className="account-page onboarding-page">
-      <header className="ui-page-header">
-        <h1 ref={heading} tabIndex={-1}>
-          {titles[step]}
-        </h1>
-        <Button variant="ghost" disabled={locked} onClick={() => void finish("skip")} data-account-action="skip-setup">
-          Explore first
-        </Button>
+      <header className="ui-page-header onboarding-heading">
+        <div className="onboarding-heading__text">
+          <h1 ref={heading} tabIndex={-1}>
+            {titles[step]}
+          </h1>
+          <Button
+            variant="ghost"
+            disabled={locked}
+            onClick={() => void finish("skip")}
+            data-account-action="skip-setup"
+          >
+            Explore first
+          </Button>
+        </div>
+        <JellySpecimen size={96} />
       </header>
       <nav aria-label="Setup progress">
         <ol className="onboarding-steps">

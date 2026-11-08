@@ -1,0 +1,30 @@
+/* Small material responses, without moving page content or suggesting background work. */
+.ui-nav svg,
+.command-trigger > span:first-child,
+.ui-brand img {
+  transition: transform 220ms var(--ease-out);
+  transform-origin: center;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .ui-nav button:is(:hover, :focus-visible) > svg {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+  .command-trigger:is(:hover, :focus-visible) > span:first-child {
+    transform: rotate(-12deg) scale(1.08);
+  }
+  .ui-brand:is(:hover, :focus-visible) img {
+    transform: rotate(12deg) scale(1.08);
+  }
+  .ui-button--primary:is(:hover, :focus-visible):not(:disabled) {
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 45%, transparent),
+      inset 0 -2px 0 color-mix(in oklab, var(--jelly-deep) 30%, transparent),
+      0 3px 8px color-mix(in oklab, var(--jelly) 18%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html .ui-button:active:not(:disabled),
+  html .onboarding-steps button:active:not(:disabled) .onboarding-step-number {
+    transform: none;
+  }
+}

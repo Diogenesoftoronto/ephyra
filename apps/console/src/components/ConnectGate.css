@@ -1,0 +1,41 @@
+.gate {
+  max-width: 34rem;
+  margin: var(--s7) auto;
+  padding: 0 var(--s4);
+  display: grid;
+  gap: var(--s4);
+}
+.connect-intro {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.connect-intro .ui-page-header {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+}
+.connect-account {
+  padding-bottom: var(--s3);
+}
+.connect-token {
+  padding-block: var(--s4);
+  border-block: 1px solid var(--line);
+}
+.connect-token > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.connect-token[open] > summary {
+  margin-bottom: var(--s4);
+}
+@media (max-width: 450px) {
+  .connect-intro {
+    align-items: flex-start;
+  }
+  .connect-intro .jelly-specimen {
+    width: 80px;
+    height: 80px;
+  }
+}

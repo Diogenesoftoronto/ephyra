@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { PersonaId } from "@ephyra/core";
 import { Icon, type IconName } from "./icons.tsx";
+import { useMotionAllowed } from "../lib/motion.ts";
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 const personaStyle = (p: PersonaId): CSSProperties => ({
@@ -285,25 +286,24 @@ export function Avatar({
   color: string;
   tint?: string;
   size?: 24 | 32 | 48 | 96;
-  /** Breathe the transparent still (works on any surface; the video loops are opaque, dark-surface only). */
+  /** Breathe the transparent still while visible, unless the user requests reduced motion. */
   breathe?: boolean;
   label?: string;
   className?: string;
 }) {
   const [broken, setBroken] = useState(false);
+  const element = useRef<HTMLSpanElement>(null);
+  const motionAllowed = useMotionAllowed(element, Boolean(breathe || video));
   const style = {
     ["--size" as string]: `${size}px`,
     ["--persona-color" as string]: color,
     ...(tint ? { ["--persona-tint" as string]: tint } : {}),
   } as CSSProperties;
-  const motion =
-    video &&
-    size >= 48 &&
-    typeof matchMedia === "function" &&
-    !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motion = video && size >= 48 && motionAllowed;
   return (
     <span
-      className={cx("ui-avatar", breathe && "ui-avatar--breathe", className)}
+      ref={element}
+      className={cx("ui-avatar", breathe && motionAllowed && "ui-avatar--breathe", className)}
       style={style}
       role={label ? "img" : undefined}
       aria-label={label}

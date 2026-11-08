@@ -1,0 +1,24 @@
+.persona-avatar:has(img) {
+  background: transparent;
+  overflow: visible;
+}
+.persona-avatar img {
+  transform-origin: 50% 55%;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .persona-directory-entry:is(:hover, :focus-visible) .persona-avatar img {
+    animation: persona-greet 650ms var(--ease-out) both;
+  }
+}
+@keyframes persona-greet {
+  0%,
+  100% {
+    transform: none;
+  }
+  28% {
+    transform: translateY(-2px) scale(1.06, 0.945) rotate(-5deg);
+  }
+  58% {
+    transform: translateY(-1px) scale(0.98, 1.02) rotate(2deg);
+  }
+}
