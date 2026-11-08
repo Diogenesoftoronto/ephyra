@@ -28,9 +28,30 @@ export function personalLanding(options: {
     };
     const coverage = async (_trail: Parameters<typeof measureWatchBaseline>[1], since: string) => {
       await authorize();
+      const requestedAt = ctx.clock.now().getTime();
       const result = await telemetry?.poll({ since });
-      return { source: result?.source ?? "posthog:unavailable", observedAt: ctx.clock.now().toISOString(),
-        gaps: result?.status === "complete" ? [] : [`PostHog coverage ${result?.status ?? "unavailable"}`] };
+      const measured = result?.coverage;
+      const gaps = [...measured?.gaps ?? []];
+      if (result?.status !== "complete" || measured?.complete !== true) gaps.push(`PostHog coverage ${result?.status ?? "unavailable"}`);
+      const through = measured?.computedThrough ? Date.parse(measured.computedThrough) : NaN;
+      if (!Number.isFinite(through) || through < Date.parse(since) || through < requestedAt - 1000) {
+        gaps.push("PostHog computation has not covered the current watch observation window.");
+      }
+      if (!measured?.windowSince || Date.parse(measured.windowSince) > Date.parse(since)) {
+        gaps.push("PostHog query did not cover the complete requested watch history.");
+      }
+      if (_trail.state === "watching") {
+        const autonomy = ctx.policy.autonomy;
+        const window = autonomy?.areas.find(area => area.name === _trail.area)?.watch ?? autonomy?.defaults.watch;
+        const duration = /^(\d+)\s*(m|h|d)$/.exec(window?.trim() ?? "");
+        const windowMs = duration ? Number(duration[1]) * { m: 60_000, h: 3600_000, d: 86400_000 }[duration[2] as "m" | "h" | "d"] : NaN;
+        const requiredEnd = Date.parse(since) + windowMs;
+        if (!Number.isFinite(requiredEnd) || requestedAt >= requiredEnd && through < requiredEnd) {
+          gaps.push("PostHog computation has not covered the required watch end.");
+        }
+      }
+      return { source: result?.source ?? "posthog:unavailable", observedAt: measured?.computedThrough ?? "",
+        gaps: [...new Set(gaps)] };
     };
     const adapter = new RemoteGitAdapter(ctx.repo.mirrorDir, { remote, scope: `${did}:${workspace}`, ledger, authorize,
       run: (argv) => accounts.repositoryCommand(did, workspace, argv) });
