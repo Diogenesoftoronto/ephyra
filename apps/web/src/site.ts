@@ -47,7 +47,8 @@ const excerpt = (p: DocumentRecord) => p.value.description || p.value.textConten
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".gif": "image/gif",
-  ".mp4": "video/mp4", ".webm": "video/webm", ".woff2": "font/woff2", ".json": "application/json", ".ico": "image/x-icon",
+  ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg",
+  ".woff2": "font/woff2", ".json": "application/json", ".ico": "image/x-icon",
 };
 
 /** Static pages listed in the sitemap and llms.txt. */
@@ -374,6 +375,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
         "text/plain", { "cache-control": "no-store", "x-robots-tag": "noindex" }, 503);
     }
     if (path === "/healthz") return Response.json({ ok: true, blog: Boolean(config.publicationUri) }, { headers: { "x-robots-tag": "noindex" } });
+    // The actual app components share their public asset paths with the isolated walkthrough build.
+    if (path.startsWith("/app/")) return (await staticFile(`e/app/${path.slice(5)}`)) ?? notFound();
     if (path === "/robots.txt") return text(robots(), "text/plain");
     if (path === "/sitemap.xml") return text(await sitemap(), "application/xml");
     if (path === "/llms.txt") return text(await llms(false), "text/plain");

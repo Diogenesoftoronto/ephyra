@@ -15,7 +15,8 @@
     "voice-interactions": "env -u LD_LIBRARY_PATH bun scripts/voice-interactions.ts",
     "tutor-interactions": "env -u LD_LIBRARY_PATH bun scripts/tutor-interactions.ts",
     "multiplayer": "env -u LD_LIBRARY_PATH bun scripts/multiplayer.ts",
-    "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts"
+    "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts",
+    "build:walkthrough": "vite build --config vite.walkthrough.config.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.32",

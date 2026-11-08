@@ -1,5 +1,6 @@
 import { renderConsole, setupConsoleSelector } from "./console.js";
 import { createDemoRoom } from "./multiplayer.js";
+import { showProductScreen } from "./product-tour.js";
 
 // Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
 // The screens come from walkthrough.json, which apps/cli/scripts/walkthrough.ts renders with the inbox's own view,
@@ -71,26 +72,7 @@ import { createDemoRoom } from "./multiplayer.js";
   }
 
   function renderGui(id, preserve = false) {
-    rememberDraft();
-    const field = guiPanel.querySelector("[data-room-draft]");
-    const focused = field && document.activeElement === field;
-    const selection = focused ? [field.selectionStart, field.selectionEnd, field.selectionDirection] : null;
-    const fieldScroll = field?.scrollTop ?? 0;
-    const scroll = guiPanel.querySelector(".g-scroll")?.scrollTop ?? 0;
-    const same = guiPanel.querySelector(".g-workspace")?.dataset.guiMoment === id;
-    const focusedTool = document.activeElement?.closest("[data-console-tool]");
-    guiPanel.innerHTML = renderConsole(id, data, guiOptions(id));
-    if (preserve && same) {
-      guiPanel.querySelector(".g-scroll").scrollTop = scroll;
-      const replacement = guiPanel.querySelector("[data-room-draft]");
-      if (focused && replacement?.dataset.roomDraft === field.dataset.roomDraft) {
-        replacement.focus({ preventScroll: true });
-        replacement.setSelectionRange(...selection);
-        replacement.scrollTop = fieldScroll;
-      } else if (focusedTool && guiPanel.contains(focusedTool) === false) {
-        guiPanel.querySelector(`[data-console-tool="${focusedTool.dataset.consoleTool}"]`)?.focus({ preventScroll: true });
-      }
-    }
+    showProductScreen(guiPanel, id);
   }
 
   // Remote updates replace only discussion output. Keep the live form node, draft, selection, and caret intact.
@@ -314,7 +296,7 @@ import { createDemoRoom } from "./multiplayer.js";
     const guiReader = reader.querySelector(".gui-reader");
     guiReader.hidden = !graphical;
     if (graphical) {
-      guiReader.innerHTML = renderConsole(step.id, data, guiOptions(step.id, { reader: true }));
+      showProductScreen(guiReader, step.id);
       if (!reader.open) reader.showModal();
       readerContent.scrollTop = 0;
       return;

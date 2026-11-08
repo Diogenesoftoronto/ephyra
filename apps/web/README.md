@@ -37,9 +37,11 @@ Every HTML page gets these at serve time:
 
 ## Live
 
-Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephrya.app.
-`www.ephrya.app` and the original `ephyra-site.up.railway.app` redirect to that origin. The application is
-https://console.ephrya.app/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
+Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephyra.quest.
+`ephrya.app`, `www.ephrya.app` and the original `ephyra-site.up.railway.app` redirect to that origin. The application is
+https://console.ephyra.quest/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
+The older console domain remains attached for existing links. The public site builds the actual React app components
+into a separate, explicitly fictional walkthrough at `/e/app/walkthrough.html`; its adapters and CSP prevent live writes.
 The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
 The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
 Record-derived `/posts/<slug>` links redirect to `/blog/posts/<slug>`; document record identities and paths stay unchanged.
