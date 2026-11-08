@@ -37,6 +37,12 @@
   min-height: 18rem; overflow: hidden; color: var(--ink);
 }
 .gui-screen:focus-visible { outline-offset: -3px; }
+.gui-screen, .gui-reader { position: relative; }
+.console-app-frame { display: block; width: 100%; height: 100%; min-width: 0; border: 0; background: var(--g-bg); }
+.console-app-status, .console-unavailable { margin: 0; padding: 1rem; color: var(--muted); font: 400 .9rem/1.5 var(--font-body); }
+.console-app-status { position: absolute; inset: 0 0 auto; z-index: 1; background: var(--g-bg); }
+.console-app-status[hidden] { display: none; }
+.console-unavailable a, .console-app-status a { color: var(--ink); text-underline-offset: .2em; }
 .g-workspace { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--g-bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
 .g-workspace code { font: 400 .83em/1.5 var(--mono); overflow-wrap: anywhere; }
 .g-trail-head { padding: 1rem 1.25rem .9rem; }
@@ -143,9 +149,10 @@
 .g-activity pre { padding: .8rem; background: var(--g-soft); font: 400 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .g-activity blockquote { margin: .6rem 0; font-size: .9rem; }
 .gui-example-note { font-size: .72rem; color: var(--muted); padding: .55rem 1rem; border-top: 1px solid var(--tour-line); }
-.screen-dialog.gui-reading { background: var(--g-bg); color: var(--ink); width: min(96vw, 55rem); }
+.screen-dialog.gui-reading { background: var(--g-bg); color: var(--ink); width: min(96vw, 80rem); height: 90svh; }
 .gui-reading .screen-heading p, .gui-reading .screen-close { color: var(--muted); }
-.gui-reading .screen-content { padding: 0; border-color: var(--tour-line); }
+.gui-reading .screen-content { flex: 1; min-height: 0; padding: 0; border-color: var(--tour-line); overflow: hidden; }
+.gui-reading .gui-reader { height: 100%; min-height: 0; }
 .gui-reading .screen-content:focus-visible, .gui-reading .screen-close:focus-visible { outline-color: var(--ink); }
 .g-workspace-reader { height: auto; display: block; }
 .g-workspace-reader .g-stage { display: block; }
