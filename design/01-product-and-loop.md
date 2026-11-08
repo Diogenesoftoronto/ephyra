@@ -1,5 +1,10 @@
 # Ephyra — 01: Product and the self-driving loop
 
+**Direction update:** self-driving operation and automatic repository setup are the primary experience; supervised
+checkpoints are optional. See [07: implementation and remaining gates](07-self-driving-setup.md) for the current
+automatic setup, machine checkpoint, evidence and recovery work. The original milestones below are historical;
+their human-review emphasis is not the default product direction. Existing runtime proof constraints remain explicit.
+
 Companion to `02-platform.md` (forge adapters, git ref layout, Railway topology, workflow engine, sandboxes, provider registry, security). This document owns *what the loop does*; wherever it says "ref layout", "sandbox" or "forge object", the platform doc is authoritative for the mechanism.
 
 ## 1. Thesis

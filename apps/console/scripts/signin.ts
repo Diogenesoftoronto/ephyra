@@ -1,5 +1,5 @@
-// Offline browser regression: real server, PKCE callback, protected cookies and policy-draft writes.
-// Only Not Organic is a named fixture. This does not prove a hosted account or provider integration.
+// Offline browser regression: real server, PKCE callback, setup queue/Git records, cookies and policy drafts.
+// Not Organic, repository transport and model provider use explicit fixtures; no hosted integration is claimed.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -19,6 +19,26 @@ const did = "did:plc:approver123";
 const account = { approved: true, product: "ephyra", did };
 const provider = fakeNotOrganic(account);
 const modelCalls: { authorization: string | null; model: string }[] = [];
+const fixtureRepo = join(dir, "fixture-repository");
+const fixtureUrl = "https://git.example.org/team/offline-application.git";
+let fixtureHead = "";
+let repositoryConnections = 0;
+let setupId: string | undefined;
+async function fixtureGit(args: string[], cwd: string) {
+  const process = Bun.spawn(["git", ...args], {
+    cwd, stdout: "pipe", stderr: "pipe",
+    env: {
+      PATH: Bun.env.PATH, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_AUTHOR_NAME: "Offline fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+      GIT_COMMITTER_NAME: "Offline fixture", GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+    },
+  });
+  const [output, error, code] = await Promise.all([
+    new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited,
+  ]);
+  assert.equal(code, 0, `offline fixture git ${args[0]} failed: ${error}`);
+  return output.trim();
+}
 let app: Composed | undefined;
 let browser: Browser | undefined;
 const http = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("starting", { status: 503 }) });
@@ -27,6 +47,15 @@ const site = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Respon
 
 try {
   await mkdir(artifacts, { recursive: true });
+  await mkdir(fixtureRepo);
+  await fixtureGit(["init", "--quiet", "--initial-branch=fixture-default"], fixtureRepo);
+  await writeFile(join(fixtureRepo, "package.json"), JSON.stringify({
+    name: "offline-browser-fixture", scripts: { test: "bun test", typecheck: "tsc --noEmit" },
+  }));
+  await writeFile(join(fixtureRepo, "README.md"), "# Offline browser fixture\nNo repository script is executed by setup.\n");
+  await fixtureGit(["add", "package.json", "README.md"], fixtureRepo);
+  await fixtureGit(["commit", "--quiet", "-m", "Offline fixture baseline"], fixtureRepo);
+  fixtureHead = await fixtureGit(["rev-parse", "HEAD"], fixtureRepo);
   app = await composeApplication(
     readConfig({
       EPHYRA_API_TOKEN: "offline-browser-service-token",
@@ -40,7 +69,21 @@ try {
       EPHYRA_CONSOLE_DIR: join(root, "dist"),
     }),
     {
-      startJobs: false,
+      startJobs: true,
+      repository: {
+        discover: async (input) => {
+          assert.equal(input.url, fixtureUrl);
+          return "fixture-default";
+        },
+        prepare: async (input, directory) => {
+          assert.equal(input.url, fixtureUrl);
+          assert.equal(input.branch, "fixture-default");
+          await mkdir(directory, { recursive: true });
+          await fixtureGit(["clone", "--bare", "--quiet", fixtureRepo, join(directory, "workspace.git")], fixtureRepo);
+          repositoryConnections++;
+          return { url: input.url, branch: input.branch, head: fixtureHead, verifiedAt: new Date().toISOString() };
+        },
+      },
       notOrganicFetch: provider.fetcher,
       providerFetch: async (url, init) => {
         if (url.endsWith("/models")) return Response.json({ data: [{ id: "fixture-chat" }] });
@@ -94,16 +137,39 @@ try {
     await page.screenshot({ path: join(artifacts, `signin-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
     if (width === 1440) {
-      await page.getByRole("heading", { name: "Connect your repository", exact: true }).waitFor();
-      await page.getByRole("button", { name: "Skip repository", exact: true }).click();
+      await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+      await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill(fixtureUrl);
+      assert.equal(await page.getByRole("textbox", { name: /^Branch \(optional\)/ }).inputValue(), "");
+      await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
+      await page.getByRole("heading", { name: "Setup needs a connection", exact: true }).waitFor({ timeout: 12_000 }).catch(async (error) => {
+        await page.screenshot({ path: join(artifacts, "automatic-setup-failure.png"), fullPage: true });
+        console.error("Offline setup feedback:", await page.locator(".account-feedback").allTextContents());
+        throw error;
+      });
+      const setup = await page.evaluate(async () => (await fetch("/v1/setup")).json());
+      assert.equal(setup.mode, "autonomous");
+      assert.equal(setup.status, "blocked");
+      assert.equal(setup.repository.head, fixtureHead);
+      assert.equal(setup.repository.branch, "fixture-default");
+      assert.ok(setup.artifacts.some((artifact: { path: string }) => artifact.path === "autonomy.md"));
+      const verification = setup.artifacts.find((artifact: { path: string }) => artifact.path === "ephyra/verification.json");
+      assert.equal(JSON.parse(verification.content).status, "not_run", "discovery never invents executed checks");
+      assert.ok(setup.blockers.some((blocker: { id: string }) => blocker.id === "runner"));
+      setupId = setup.id;
+      await page.getByText("Inspect setup documents (6)", { exact: true }).click();
+      await page.screenshot({ path: join(artifacts, "automatic-setup-recorded.png"), fullPage: true });
+      await page.getByRole("button", { name: "Open workspace", exact: true }).click();
+      await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+      await page.goto(`${origin}/app/#/settings`);
+      await page.getByRole("tab", { name: "Model access", exact: true }).click();
       await page.locator('[data-provider="openai"]').click();
       await page.getByRole("combobox", { name: "Model ID", exact: true }).fill("fixture-chat");
       await page.getByRole("combobox", { name: "Model ID", exact: true }).press("Enter");
       await page.getByLabel("API key", { exact: true }).fill("offline-browser-provider-key");
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page.getByRole("heading", { name: "Review your setup", exact: true }).waitFor();
-      await page.screenshot({ path: join(artifacts, "setup-review.png"), fullPage: true });
-      await page.getByRole("button", { name: "Open workspace", exact: true }).click();
+      await page.getByRole("button", { name: "Save model access", exact: true }).click();
+      await page.getByLabel("Replace API key", { exact: true }).waitFor();
+      await page.screenshot({ path: join(artifacts, "model-access-saved.png"), fullPage: true });
+      await page.goto(`${origin}/app/#/overview`);
     }
     await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, "/app/");
@@ -134,6 +200,8 @@ try {
     await page.goto(`${origin}/app/#/workspace`);
     await page.getByRole("button", { name: "Edit the map", exact: true }).click();
     await page.waitForURL(/#\/workspace\/.+/);
+    const savedSetup = await page.evaluate(async () => (await fetch("/v1/setup")).json());
+    assert.equal(savedSetup.id, setupId, "the durable setup run survives browser reload and sign-in");
     const identity = await page.evaluate(async () => (await fetch("/v1/me")).json());
     assert.equal(identity.principal, did);
     const drafts = await page.evaluate(async () => (await fetch("/v1/drafts")).json());
@@ -157,6 +225,8 @@ try {
     assert.equal(reply.status, 200);
     assert.ok(JSON.stringify(reply.body).includes("Fixture reply from the saved provider."));
     await page.screenshot({ path: join(artifacts, `workspace-${width}.png`), fullPage: true });
+    await page.goto(`${origin}/app/#/settings`);
+    await page.getByRole("tab", { name: "Account", exact: true }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).waitFor();
     assert.ok(!(await context.cookies()).some((cookie) => cookie.name === "ephyra_session"));
@@ -164,7 +234,7 @@ try {
     assert.equal(replay.status, 401, "sign-out revokes the saved session server-side");
     assert.deepEqual(errors, [], "no browser runtime errors");
     await context.close();
-    console.log(`PASS public entry → PKCE callback → real console → draft → sign-out (${width}px)`);
+    console.log(`PASS public entry → PKCE → persisted setup → real console → draft → account sign-out (${width}px)`);
   }
 
   account.did = "did:plc:reader123";
@@ -172,7 +242,7 @@ try {
   const page = await reader.newPage();
   await page.goto(`${origin}/app/`);
   await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
-  await page.getByRole("heading", { name: "Connect your repository", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
   await page.getByRole("button", { name: "Explore first", exact: true }).click();
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
   await page.goto(`${origin}/app/#/workspace`);
@@ -207,7 +277,11 @@ try {
           "public app entry",
           "PKCE browser callback",
           "HttpOnly session",
-          "optional BYOK onboarding",
+          "automatic onboarding with a local repository connector fixture",
+          "real setup queue and Git-backed document receipts",
+          "readiness blockers without invented execution",
+          "saved BYOK model settings",
+          "account-settings signout",
           "reload",
           "settings",
           "shortcuts",
@@ -217,12 +291,13 @@ try {
           "revocation",
           "account isolation",
         ],
-        unverified: ["hosted account login", "live providers"],
+        unverified: ["hosted account login", "remote git transport", "live providers", "production execution"],
       },
       null,
       2,
     ),
   );
+  assert.equal(repositoryConnections, 1);
   assert.equal(modelCalls.length, 2);
   assert.ok(
     modelCalls.every(
