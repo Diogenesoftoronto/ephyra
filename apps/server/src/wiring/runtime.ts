@@ -12,6 +12,8 @@ import { canonicalJson } from "../audit.ts";
 import type { EffectHandlers } from "../orchestrator.ts";
 import type { EmitInput, JobRunner, ServerContext } from "./context.ts";
 import type { RuntimeStore } from "./store.ts";
+import { appendEffects, EFFECT_OUTBOX_PATH, effectIsCurrent, effectOutbox, readEffectOutbox, type PendingEffect } from "./effect-outbox.ts";
+import { WorkerOwnershipLost } from "./worker-lease.ts";
 
 export type ContextFn = (trail: Trail, event: TrailEvent) => Promise<TransitionContext>;
 
@@ -19,6 +21,9 @@ export class Engine {
   private chains = new Map<string, Promise<unknown>>();
   private handlers: EffectHandlers | null = null;
   private executor: EffectExecutor | null = null;
+  private ownershipGuard: (() => void | Promise<void>) | undefined;
+  private inFlightEffects = new Set<string>();
+  private completedEffects = new Set<string>();
   readonly reconciliations: { key: string; note: string; at: string }[] = [];
 
   constructor(
@@ -32,12 +37,32 @@ export class Engine {
 
   setHandlers(handlers: EffectHandlers): void {
     this.handlers = handlers;
-    this.executor = new EffectExecutor(this.ledger, handlers, {
+    const guarded = new Proxy(handlers, { get: (target, property) => {
+      const value = Reflect.get(target, property);
+      return typeof value === "function" ? async (...args: unknown[]) => {
+        await this.assertOwned();
+        return Reflect.apply(value, target, args);
+      } : value;
+    } });
+    this.executor = new EffectExecutor(this.ledger, guarded, {
       record: async (key, note) => {
         this.reconciliations.push({ key, note, at: new Date().toISOString() });
         this.log("effect needs reconciliation", { key, note });
       },
     });
+  }
+
+  setOwnershipGuard(guard: () => void | Promise<void>): void { this.ownershipGuard = guard; }
+  private async assertOwned(): Promise<void> { await this.ownershipGuard?.(); }
+
+  private async project(trail: Trail, events: TrailEvent[]): Promise<void> {
+    await this.assertOwned();
+    await this.store.putTrail(trail);
+    for (const event of events) { await this.assertOwned(); await this.store.recordEvent(event); }
+  }
+
+  private async pending(trailId: string): Promise<PendingEffect[]> {
+    return (await readEffectOutbox(this.journal, trailId)).filter(entry => !this.completedEffects.has(entry.effect.key));
   }
 
   /** Serialize all work on one trail. */
@@ -51,12 +76,29 @@ export class Engine {
   /** Create a new trail: journal it, project it, then dispatch the initial effects. */
   async start(trail: Trail, initial: TrailEvent, effects: Effect[] = []): Promise<void> {
     await this.serial(trail.id, async () => {
+      await this.assertOwned();
       const existing = await this.journal.read(trail.id);
-      if (!existing) await this.journal.create(trail, initial);
-      await this.store.putTrail(trail);
-      await this.store.recordEvent(initial);
+      const recorded = existing?.events.find(event => event.id === initial.id);
+      if (existing && recorded) {
+        if (canonicalJson({ actor: recorded.actor, type: recorded.type, data: recorded.data })
+          !== canonicalJson({ actor: initial.actor, type: initial.type, data: initial.data })) {
+          throw new InvalidTransition("The trail start key was used for different content");
+        }
+        await this.project(existing.trail, existing.events);
+        return;
+      }
+      const entries = appendEffects(existing ? await this.pending(trail.id) : [], initial.id, trail, effects);
+      await this.assertOwned();
+      if (!existing) await this.journal.create(trail, initial, { [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+      else {
+        if (existing.trail.state !== "closed" || trail.state !== "researching" || trail.rev !== existing.trail.rev + 1) {
+          throw new InvalidTransition("An existing trail requires its recorded start or a new closed-trail regression revision");
+        }
+        await this.journal.append(trail.id, existing.head, trail, [initial], { [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+      }
+      await this.project(trail, [initial]);
     });
-    await this.dispatch(effects, trail);
+    await this.deliverPending(trail.id);
   }
 
   /** Apply one event. Returns the resulting trail, or throws when the state machine rejects it. */
@@ -66,7 +108,9 @@ export class Engine {
     if (eventId && (files || !usageReceipt && !['human_comment', 'claimed_by_human', 'released_by_human'].includes(body.type))) {
       throw new InvalidTransition('Stable event IDs are limited to collaboration requests');
     }
-    const { trail, effects } = await this.serial(trailId, async () => {
+    if (Object.keys(files ?? {}).some(path => path.startsWith("outbox/"))) throw new InvalidTransition("The effect outbox is reserved");
+    const trail = await this.serial(trailId, async () => {
+      await this.assertOwned();
       const current = await this.journal.read(trailId);
       if (!current) throw new Error(`unknown trail ${trailId}`);
       if (expectedJournalHead !== undefined && current.head !== expectedJournalHead)
@@ -78,9 +122,8 @@ export class Engine {
         if (canonicalJson(intent) !== canonicalJson(previous)) throw new InvalidTransition('Operation key was used for different content');
         // A journal append can succeed before projection fails. Repair from the latest durable state,
         // rather than rolling back to the state that happened to follow this older operation.
-        await this.store.putTrail(current.trail);
-        for (const event of current.events) await this.store.recordEvent(event);
-        return { trail: current.trail, effects: [] as Effect[] };
+        await this.project(current.trail, current.events);
+        return current.trail;
       }
       if (expectedWork && (current.trail.rev !== expectedWork.rev || current.trail.head !== expectedWork.head
         || current.trail.base.sha !== expectedWork.base || current.trail.state !== expectedWork.state
@@ -101,24 +144,73 @@ export class Engine {
       const result = transition(current.trail, event, await this.contextFor(current.trail, event));
       if (!result.ok) throw new InvalidTransition(result.error);
       // CAS append: a concurrent writer outside this process makes this throw rather than overwrite.
-      await this.journal.append(trailId, current.head, result.trail, [event], files ?? {});
-      await this.store.putTrail(result.trail);
-      await this.store.recordEvent(event);
-      return result;
+      const entries = appendEffects(await this.pending(trailId), event.id, result.trail, result.effects);
+      await this.assertOwned();
+      await this.journal.append(trailId, current.head, result.trail, [event], { ...files, [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+      await this.project(result.trail, [event]);
+      return result.trail;
     });
-    await this.dispatch(effects, trail);
+    await this.deliverPending(trailId);
     return trail;
   }
 
-  private async dispatch(effects: Effect[], trail: Trail): Promise<void> {
+  /** Repair every durable projection before policy reload or any pending effect is delivered. */
+  async recoverProjections(trailId?: string): Promise<void> {
+    await this.assertOwned();
+    for (const id of trailId ? [trailId] : await this.journal.list()) {
+      await this.serial(id, async () => {
+        const current = await this.journal.read(id);
+        if (current) await this.project(current.trail, current.events);
+      });
+    }
+  }
+
+  /** After owner acquisition, restore projections/policy first; direct callers also get projection repair by default. */
+  async recoverEffects(trailId?: string, options: { project?: boolean } = {}): Promise<void> {
+    await this.assertOwned();
+    if (options.project !== false) await this.recoverProjections(trailId);
+    for (const id of trailId ? [trailId] : await this.journal.list()) await this.deliverPending(id);
+  }
+
+  private async superseded(entry: PendingEffect): Promise<void> {
+    await this.serial(entry.trail.id, async () => {
+      const current = await this.journal.read(entry.trail.id);
+      if (!current) return;
+      const pending = (await this.pending(entry.trail.id)).filter(value => value.effect.key !== entry.effect.key);
+      await this.assertOwned();
+      await this.journal.append(entry.trail.id, current.head, current.trail, [], {
+        [EFFECT_OUTBOX_PATH]: effectOutbox(pending),
+      });
+      this.completedEffects.add(entry.effect.key);
+    });
+  }
+
+  private async deliverPending(trailId: string): Promise<void> {
     if (!this.executor) throw new Error("effect handlers not set");
-    for (const effect of effects) {
+    for (const entry of await this.pending(trailId)) {
+      const effect = entry.effect;
+      if (this.inFlightEffects.has(effect.key)) continue;
+      await this.assertOwned();
+      this.inFlightEffects.add(effect.key);
       try {
-        await this.executor.execute(effect, trail);
+        const previous = await this.ledger.get(effect.key);
+        if (previous?.status === "done") { this.completedEffects.add(effect.key); continue; }
+        if (previous) {
+          if (!this.reconciliations.some(value => value.key === effect.key)) {
+            this.reconciliations.push({ key: effect.key, note: `operation is ${previous.status}; reconcile before delivery`, at: previous.at });
+          }
+          continue; // An external request may already have happened. Never dispatch it automatically again.
+        }
+        const current = await this.journal.read(trailId);
+        if (!current || !current.events.some(event => event.id === entry.eventId)) throw new Error("effect has no durable source event");
+        if (!effectIsCurrent(entry, current.trail)) { await this.superseded(entry); continue; }
+        await this.assertOwned();
+        await this.executor.execute(structuredClone(effect), structuredClone(entry.trail));
+        this.completedEffects.add(effect.key);
       } catch (error) {
         // Already recorded by the executor's reconciliation sink; keep dispatching the rest.
         this.log("effect failed", { key: effect.key, type: effect.type, error: String(error) });
-      }
+      } finally { this.inFlightEffects.delete(effect.key); }
     }
   }
 }
@@ -128,7 +220,7 @@ export class JobLoop {
   private runners = new Map<string, JobRunner>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running = 0;
-  private stopped = false;
+  private stopped = true;
   private started = false;
 
   constructor(
@@ -148,24 +240,42 @@ export class JobLoop {
   stop(): void { this.started = false; this.stopped = true; if (this.timer) clearTimeout(this.timer); }
 
   private kick(): void {
+    this.schedule(0);
+  }
+
+  private schedule(delay: number): void {
     if (this.stopped) return;
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.tick(), 0);
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.tick().catch(error => {
+        this.log("job polling failed", { error: error instanceof Error ? error.name : "UnknownError" });
+        this.schedule(this.opts.pollMs);
+      });
+    }, delay);
+  }
+
+  private ownsWork(): boolean {
+    try { this.store.assertOwner?.(); return true; }
+    catch { return false; }
   }
 
   /** Run every due job once (exposed for tests). */
   async tick(): Promise<number> {
-    const free = this.opts.concurrency - this.running;
-    let ran = 0;
-    if (free > 0) {
-      const jobs = await this.store.claim(new Date(), free);
-      ran = jobs.length;
-      await Promise.all(jobs.map((job) => this.runOne(job)));
-    }
-    if (!this.stopped) {
-      if (this.timer) clearTimeout(this.timer);
-      this.timer = setTimeout(() => void this.tick(), ran ? 0 : this.opts.pollMs);
-    }
+    const work = async () => {
+      const free = this.opts.concurrency - this.running;
+      let ran = 0;
+      if (free > 0 && this.ownsWork()) {
+        const jobs = await this.store.claim(new Date(), free);
+        ran = jobs.length;
+        await Promise.all(jobs.map((job) => this.runOne(job)));
+      }
+      return ran;
+    };
+    // Poll timers may inherit a retired job's async context. Bind the physical owner once at this entry,
+    // then preserve that captured fence throughout claim, execution and completion.
+    const ran = this.store.withOwner ? await this.store.withOwner(work) : await work();
+    this.schedule(ran ? 0 : this.opts.pollMs);
     return ran;
   }
 
@@ -176,16 +286,26 @@ export class JobLoop {
   }
 
   private async runOne(job: { kind: string; key: string; payload: unknown; attempts: number }): Promise<void> {
+    const ownershipLost = () => this.log("job ownership lost; reconciliation required", { key: job.key, kind: job.kind });
+    if (!this.ownsWork()) { ownershipLost(); return; }
     const runner = this.runners.get(job.kind);
     this.running += 1;
     try {
       if (!runner) throw new Error(`no runner for job kind ${job.kind}`);
       await runner(job.payload, { key: job.key, attempt: job.attempts });
+      if (!this.ownsWork()) { ownershipLost(); return; }
       await this.store.finish(job.key);
     } catch (error) {
+      // The provider may have completed. Keep this claim running for lease takeover quarantine;
+      // requeueing it could repeat an external side effect.
+      if (error instanceof WorkerOwnershipLost || !this.ownsWork()) { ownershipLost(); return; }
       const dead = job.attempts >= this.opts.maxAttempts;
       const backoff = 2 ** job.attempts * 5_000;
-      await this.store.fail(job.key, String(error), new Date(Date.now() + backoff), dead);
+      try { await this.store.fail(job.key, String(error), new Date(Date.now() + backoff), dead); }
+      catch (failure) {
+        if (failure instanceof WorkerOwnershipLost || !this.ownsWork()) { ownershipLost(); return; }
+        throw failure;
+      }
       this.log(dead ? "job dead-lettered" : "job failed, will retry", { key: job.key, kind: job.kind, error: String(error) });
     } finally {
       this.running -= 1;
