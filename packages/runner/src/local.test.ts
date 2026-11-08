@@ -70,3 +70,15 @@ test("deadline kills a process group including grandchildren", async () => {
   expect(await Bun.file(marker).exists()).toBe(false);
   await runner.destroy(h);
 });
+
+test("destroy cancels an active process and concurrent cleanup shares the receipt", async () => {
+  const runner = new LocalRunner(join(root, "cancel"), { trusted: true });
+  const h = await runner.allocate({ trail, attempt: 1, repoUrl: repo, commit, profile });
+  const stream = runner.exec(h, ["sh", "-c", "echo ready; sleep 30"], { deadlineMs: 30_000 })[Symbol.asyncIterator]();
+  const ready = await stream.next();
+  expect(ready.value).toMatchObject({ stream: "stdout", chunk: "ready\n" });
+  const receipts = await Promise.all([runner.destroy(h), runner.destroy(h)]);
+  expect(receipts[0]).toEqual(receipts[1]);
+  await stream.return?.();
+  await expect(runner.readFile(h, "file")).rejects.toThrow("unknown handle");
+});

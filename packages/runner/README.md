@@ -37,3 +37,10 @@ Verified against the [official sandbox contract](https://docs.railway.com/sandbo
 Repository bundles may include `shallow` boundary OIDs. Only boundaries reachable from the selected code commit are
 exported; the receiver validates their count/object format and installs them before fetch. Native Git bundles alone
 do not preserve shallow history. Actual local SHA-1/SHA-256 shallow checkout and patch return paths are tested.
+
+
+Cancellation now kills and joins active local process groups before removing their worktrees; concurrent destruction
+shares one receipt. Railway bundle requests may include an additional exact `base` tip. Hosted transport includes
+only the selected head and refreshed base histories, retaining reachable shallow boundaries for both; this permits
+a real isolated divergent rebase without exporting private journal history. Offline SHA-1/SHA-256 tests exercise both
+tips and prove unrelated journal objects are excluded. Provider billing and live teardown remain Unverified.

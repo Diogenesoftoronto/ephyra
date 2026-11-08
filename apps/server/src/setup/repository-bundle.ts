@@ -12,15 +12,21 @@ const oid = (value: string) => {
 };
 
 /** Export only the requested code history; journals, account keys, remotes and unrelated refs never leave the host. */
-export async function repositoryBundle(mirror: string, commit: string) {
+export async function repositoryBundle(mirror: string, commit: string, additionalCommits: string[] = []) {
   oid(commit);
+  if (additionalCommits.length > 1) throw new Unverified("bounded code bundle tips");
+  const commits = [...new Set([commit, ...additionalCommits.map(oid)])];
+  if (commits.some(value => value.length !== commit.length)) throw new Unverified("code bundle object format");
   const git = setupGit(mirror);
   const directory = await mkdtemp(join(tmpdir(), "ephyra-bundle-"));
   const path = join(directory, "source.bundle");
   const ref = `refs/ephyra/exports/${randomUUID()}`;
+  const refs = commits.map((_, index) => index === 0 ? ref : `${ref}-base`);
   try {
-    const verified = (await git(["rev-parse", `${commit}^{commit}`])).trim();
-    if (verified !== commit) throw new Unverified("repository bundle commit");
+    for (const value of commits) {
+      const verified = (await git(["rev-parse", `${value}^{commit}`])).trim();
+      if (verified !== value) throw new Unverified("repository bundle commit");
+    }
     // Git bundles preserve objects but not a shallow repository's missing-parent boundaries.
     // Carry only boundaries reachable from this code commit, never an unrelated journal's boundary.
     let shallow: string[] = [];
@@ -31,15 +37,15 @@ export async function repositoryBundle(mirror: string, commit: string) {
       if (boundaries.length > 4096 || boundaries.some((value) => value.length !== commit.length || oid(value) !== value)) {
         throw new Unverified("repository shallow metadata");
       }
-      const reachable = new Set((await git(["rev-list", commit])).trim().split("\n"));
+      const reachable = new Set((await git(["rev-list", ...commits])).trim().split("\n"));
       shallow = [...new Set(boundaries.filter((value) => reachable.has(value)))].sort();
     }
-    await git(["update-ref", ref, commit]);
-    await git(["bundle", "create", path, ref]);
+    for (const [index, value] of commits.entries()) await git(["update-ref", refs[index]!, value]);
+    await git(["bundle", "create", path, ...refs]);
     if ((await stat(path)).size > limit) throw new Unverified("repository bundle exceeds the transfer limit");
     return { bytes: new Uint8Array(await readFile(path)), ref, ...(shallow.length ? { shallow } : {}) };
   } finally {
-    await git(["update-ref", "-d", ref]).catch(() => undefined);
+    for (const temporary of refs) await git(["update-ref", "-d", temporary]).catch(() => undefined);
     await rm(directory, { recursive: true, force: true });
   }
 }

@@ -61,8 +61,9 @@ export class Engine {
 
   /** Apply one event. Returns the resulting trail, or throws when the state machine rejects it. */
   async emit(input: EmitInput): Promise<Trail> {
-    const { trail: trailId, actor, files, eventId, expectedBound, expectedJournalHead, ...body } = input;
-    if (eventId && (files || !['human_comment', 'claimed_by_human', 'released_by_human'].includes(body.type))) {
+    const { trail: trailId, actor, files, eventId, expectedBound, expectedJournalHead, expectedWork, ...body } = input;
+    const usageReceipt = body.type === 'usage_recorded' && actor.kind === 'system';
+    if (eventId && (files || !usageReceipt && !['human_comment', 'claimed_by_human', 'released_by_human'].includes(body.type))) {
       throw new InvalidTransition('Stable event IDs are limited to collaboration requests');
     }
     const { trail, effects } = await this.serial(trailId, async () => {
@@ -80,6 +81,11 @@ export class Engine {
         await this.store.putTrail(current.trail);
         for (const event of current.events) await this.store.recordEvent(event);
         return { trail: current.trail, effects: [] as Effect[] };
+      }
+      if (expectedWork && (current.trail.rev !== expectedWork.rev || current.trail.head !== expectedWork.head
+        || current.trail.base.sha !== expectedWork.base || current.trail.state !== expectedWork.state
+        || current.trail.policyCommit !== expectedWork.policyCommit || current.trail.workGeneration !== expectedWork.generation)) {
+        throw new StaleApproval('The code or workflow changed while the agent was running');
       }
       if (expectedBound) {
         const proof = [...current.events].reverse().find((e) => e.type === 'proof_completed' && e.data.bundle.rev === current.trail.rev);
