@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { ProofItem, Unverified, sha256Hex, type ProofItem as Item } from "@ephyra/core";
+import { ProofItem, Unverified, sha256Hex, type Journal, type ProofItem as Item } from "@ephyra/core";
 import { redact, type ProofEvidenceCollector, type ProofEvidenceContext } from "@ephyra/agent";
-import { executeProbe, type GitProbeCatalog, type ProbeDefinition, type ProbeReceipt } from "./probes.ts";
+import { assertRuntimeHarness, assertHarnessUnchanged, executeProbe, recordedRespondentEvidence,
+  type GitProbeCatalog, type ProbeDefinition, type ProbeReceipt } from "./probes.ts";
 import type { Git } from "./landing.ts";
 
 export type BoundProofEvidence = {
@@ -11,12 +12,16 @@ export type BoundProofEvidence = {
 };
 export type VerificationCommand = {
   id: string; command: string[];
+  /** Accepted verifier dependency closure; literal argv scripts and the configuration source are protected automatically. */
+  protectedPaths?: string[];
+  sourcePath?: string;
   /** Command collectors can produce UI/replay reports. Human/persona provenance needs the host-authorized sources port. */
   kinds: Array<"story_render" | "story_interaction" | "story_visual_diff" | "traffic_replay"
     | "recording" | "terminal_recording">;
 };
 export type VerificationOptions = {
   catalog: Pick<GitProbeCatalog, "list">;
+  journal?: Journal;
   review?: (context: ProofEvidenceContext) => Promise<Extract<Item, { kind: "bug_review" }>>;
   commands?: VerificationCommand[] | ((context: ProofEvidenceContext) => Promise<VerificationCommand[]>);
   /** The hosting integration checks grants/current authority before returning any external study or approval. */
@@ -36,11 +41,20 @@ export async function repositoryVerificationCommands(git: Git, trail: import("@e
   if (!listed.trim()) return [];
   const text = await git(["show", `${trail.base.sha}:${path}`]);
   if (Buffer.byteLength(text) > 128_000) throw new Unverified("proof reporter configuration size");
-  const command = z.object({ id: z.string(), command: z.array(z.string()), kinds: z.array(z.enum([
+  const command = z.object({ id: z.string(), command: z.array(z.string()),
+    protectedPaths: z.array(z.string()).min(1).max(200), kinds: z.array(z.enum([
     "story_render", "story_interaction", "story_visual_diff", "traffic_replay", "recording", "terminal_recording",
   ])) }).strict();
-  try { return z.object({ schema: z.literal(1), commands: z.array(command).max(30) }).strict().parse(JSON.parse(text)).commands; }
-  catch { throw new Unverified("proof reporter configuration"); }
+  try {
+    const commands = z.object({ schema: z.literal(1), commands: z.array(command).max(30) }).strict().parse(JSON.parse(text)).commands;
+    const changed = trail.head ? (await git(["diff", "--name-only", "-z", trail.base.sha, trail.head])).split("\0").filter(Boolean) : [];
+    for (const reporter of commands) assertHarnessUnchanged({ ...reporter, sourcePath: path }, changed, true);
+    return commands.map(reporter => ({ ...reporter, sourcePath: path }));
+  }
+  catch (error) {
+    if (error instanceof Unverified) throw error;
+    throw new Unverified("proof reporter configuration");
+  }
 }
 
 async function currentRegression(context: ProofEvidenceContext): Promise<ProbeDefinition | null> {
@@ -77,6 +91,8 @@ export async function runVerificationCommand(context: ProofEvidenceContext, comm
     || !command.kinds.length || command.kinds.some(kind => ![
       "story_render", "story_interaction", "story_visual_diff", "traffic_replay", "recording", "terminal_recording",
     ].includes(kind))) throw new Unverified("verification command configuration");
+  await assertRuntimeHarness({ runner: context.runner, handle: context.handle, cwd: context.headCwd,
+    remainingMs: context.remainingMs }, context.base, command, true);
   let stdout = "", stderr = "", exit: number | undefined;
   for await (const part of context.runner.exec(context.handle, command.command, {
     cwd: context.headCwd, deadlineMs: context.remainingMs(),
@@ -141,7 +157,8 @@ export function createVerificationCollector(options: VerificationOptions): Proof
       receipts.push(receipt);
       items.push(...receipt.items.map(item => safeItem(item, options.secrets)));
     }
-    const sources = await options.sources?.(context) ?? [];
+    const sources = [...(options.journal ? await recordedRespondentEvidence(options.journal, context) : []),
+      ...(await options.sources?.(context) ?? [])];
     if (sources.length > 30) throw new Unverified("external proof source bound");
     for (const source of sources) {
       assertBound(source, context);

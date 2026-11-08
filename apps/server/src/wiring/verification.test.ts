@@ -10,12 +10,18 @@ const trail = { id: "00000000-0000-4000-8000-000000000001", rev: 2, area: "appli
 const handle = { id: "fixture", workdir: "/workspace" } as RunnerHandle;
 const source = { commit: head, path: "intents/application.md", digest: `sha256:${"c".repeat(64)}` };
 const probe = (kind: "intent" | "regression", command: string[]): ProbeDefinition => ({
-  id: `${kind}:example`, kind, command, paths: [], source,
+  id: `${kind}:example`, kind, command, paths: [], source: { ...source, harnessCommit: base },
+  protectedPaths: ["intents/application.md"],
 });
 function fixture(exit = 0, output = "observed fixture") {
   const calls: Array<{ command: string[]; cwd?: string }> = [];
   const runner = { name: "fixture", readFile: async () => null, writeFile: async () => {},
     async *exec(_handle: RunnerHandle, command: string[], opts: { cwd?: string }) {
+      if (command[0] === "git") {
+        yield { stream: "stdout" as const, chunk: command[1] === "ls-tree" ? "package.json\0intents/application.md\0" : "" };
+        yield { exit: 0, durationMs: 1, timedOut: false };
+        return;
+      }
       calls.push({ command, cwd: opts.cwd });
       yield { stream: "stdout" as const, chunk: output };
       yield { exit, durationMs: 1, timedOut: false };
@@ -85,7 +91,8 @@ test("UI/replay collectors must run, return an exact report and cannot claim hum
   const report = { schema: 1, trailId: trail.id, rev: trail.rev, base, head,
     items: [{ kind: "story_render" as const, surface: "web" as const, stories: ["Checkout"], failed: [], uncovered: [] }] };
   const f = fixture(0, JSON.stringify(report));
-  const command = { id: "story-render", command: ["bun", "run", "proof:stories"], kinds: ["story_render" as const] };
+  const command = { id: "story-render", command: ["bun", "run", "proof:stories"],
+    protectedPaths: ["package.json"], kinds: ["story_render" as const] };
   const receipt = await runVerificationCommand(f.context, command);
   expect(receipt.items).toEqual(report.items);
   expect(f.calls).toEqual([{ command: command.command, cwd: ".proof-head" }]);

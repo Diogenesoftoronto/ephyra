@@ -93,7 +93,7 @@ async function fixture(stalePersona = false) {
   await writeFile(join(source, "scripts/check-intent.ts"), "const {total}=require('../cart.js');\n"
     + "if(total([])!==0 || total([2,4])!==3) process.exit(1);\nconsole.log('Offline product intent passed');\n");
   await writeFile(join(source, "intents/checkout.md"), "---\nid: checkout\narea: shop\npaths: [cart.js]\nprobes:\n"
-    + "  - kind: script\n    id: empty-cart\n    command: [bun, scripts/check-intent.ts]\n---\n"
+    + "  - kind: script\n    id: empty-cart\n    command: [bun, scripts/check-intent.ts]\n    protectedPaths: [scripts/check-intent.ts]\n---\n"
     + "An empty cart has a finite zero total; nonempty-cart averages remain unchanged.\n");
   await writeFile(join(source, "fixtures/traffic.json"), JSON.stringify([{ items: [2, 4], expected: 3 }, { items: [], expected: 0 }]));
   await writeFile(join(source, "scripts/replay.ts"), "import {readFileSync} from 'node:fs'; const {total}=require('../cart.js');\n"
@@ -121,7 +121,8 @@ async function fixture(stalePersona = false) {
     startJobs: false, agent, runner: new LocalRunner(join(directory, "runner"), { trusted: true }),
     verification: {
       commands: async context => [{ id: "offline-traffic", command: ["bun", "scripts/replay.ts", context.trail.id,
-        String(context.trail.rev), context.base, context.head], kinds: ["traffic_replay"] }],
+        String(context.trail.rev), context.base, context.head], kinds: ["traffic_replay"],
+        protectedPaths: ["scripts/replay.ts", "fixtures/traffic.json"] }],
       sources: async context => [{ trailId: context.trail.id, rev: context.trail.rev, base: context.base,
         head: stalePersona ? context.base : context.head, operationKey: `offline-persona-fixture:${context.trail.id}:${context.trail.rev}`,
         source: "offline-persona-service-fixture", items: [{ kind: "persona_study", study: "offline-persona-study",
