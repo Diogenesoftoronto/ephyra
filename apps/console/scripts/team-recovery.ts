@@ -23,6 +23,18 @@ try {
   await page.getByRole("button", { name: "Copy link", exact: true }).click();
   await page.getByText("Clipboard access is unavailable.", { exact: false }).waitFor();
   assert.equal(await page.locator(":focus").getAttribute("name"), "invitationLink");
+  await page.getByRole("button", { name: "Revoke invitation for Sam · release review", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Revoke invitation", exact: true }).click();
+  await page.getByRole("heading", { name: "This invitation is no longer open", exact: true }).waitFor();
+  assert.equal(await page.locator(".invitation-code").count(), 0, "revoked QR is removed");
+  await page.clock.install({ time: new Date("2026-11-08T12:00:00.000Z") });
+  await page.goto(`${server.url}/iframe.html?id=account-team--live-expiry&viewMode=story`);
+  await page.locator(".invitation-code").waitFor();
+  await page.clock.setSystemTime(new Date("2026-11-16T12:00:00.000Z"));
+  await page.clock.runFor(1100);
+  await page.getByRole("heading", { name: "This invitation is no longer open", exact: true }).waitFor();
+  assert.equal(await page.locator(".invitation-code").count(), 0, "expired QR disappears without refreshing");
+  await page.clock.setSystemTime(new Date("2026-11-08T12:00:00.000Z"));
   await page.goto(`${server.url}/iframe.html?id=account-accept-invitation--uncertain&viewMode=story`);
   await page.getByRole("button", { name: "Check saved access", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Retry same operation" }).count(), 0);
@@ -36,5 +48,5 @@ try {
   await page.getByRole("button", { name: "Check invitation again", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Join workspace", exact: true }).count(), 0);
   assert.deepEqual(errors, []);
-  console.log("PASS invitation/acceptance recovery, no duplicate invitation, manual clipboard fallback, expired-link guard");
+  console.log("PASS invitation recovery, clipboard fallback, revoked/expired QR removal and acceptance guards");
 } finally { await browser.close(); server.stop(); }

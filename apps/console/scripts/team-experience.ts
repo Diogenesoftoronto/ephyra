@@ -1,6 +1,8 @@
 // Real local account authority + built console. OAuth identity is an offline fixture; no email/provider calls.
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import jsQR from "jsqr";
+import { PNG } from "pngjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
@@ -29,6 +31,10 @@ http.reload({ fetch: (request) => new URL(request.url).pathname === "/fixture/au
 const browser = await launch();
 const errors: string[] = [];
 const checks: string[] = [];
+function decodeQr(bytes: Buffer) {
+  const image = PNG.sync.read(bytes);
+  return jsQR(new Uint8ClampedArray(image.data), image.width, image.height)?.data;
+}
 async function tab(width: number) {
   const context = await browser.newContext({ viewport: { width, height: 950 }, reducedMotion: "reduce" });
   await context.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
@@ -55,8 +61,23 @@ try {
     await owner.getByRole("radio", { name: new RegExp(role === "viewer" ? "Viewer" : "Approver") }).check();
     await owner.getByRole("button", { name: "Create invitation link", exact: true }).click();
     const link = await owner.getByRole("textbox", { name: "Invitation link", exact: true }).inputValue();
+    const qr = owner.getByRole("img", { name: `Scan to open this ${role === "viewer" ? "Viewer" : "Approver"} invitation` });
+    for (const scheme of ["light", "dark"]) for (const scanWidth of [320, 390, 1440]) {
+      await owner.setViewportSize({ width: scanWidth, height: 950 });
+      await owner.evaluate((theme) => { document.documentElement.dataset.theme = theme; }, scheme);
+      assert.equal(decodeQr(await qr.screenshot()), link, `${role}: actual QR pixels decode at ${scanWidth}px in ${scheme}`);
+      assert.ok(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "invitation fits viewport");
+      if (scanWidth !== 320) await owner.locator(".team-share").screenshot({ path: join(output, `qr-${role}-${scanWidth}-${scheme}.png`) });
+    }
+    const downloadEvent = owner.waitForEvent("download");
+    await owner.getByRole("button", { name: "Save QR image", exact: true }).click();
+    const download = await downloadEvent;
+    assert.equal(download.suggestedFilename(), `ephyra-${role}-invitation.png`);
+    const decoded = decodeQr(await readFile((await download.path())!));
+    assert.equal(decoded, link, "downloaded PNG decodes to the same exact invitation");
+    checks.push(`${role}: six QR pixel decodes across sizes/themes plus downloadable PNG decode`);
     const guest = await tab(width);
-    await login(guest, `did:plc:offline-${role}`, link);
+    await login(guest, `did:plc:offline-${role}`, decoded);
     await guest.getByRole("button", { name: "Join workspace", exact: true }).waitFor();
     assert.ok(await guest.locator(".invitation-access-note").getByText(role === "viewer" ? "Viewer" : "Approver", { exact: true }).isVisible());
     const before = await guest.evaluate(async () => (await fetch("/v1/account/workspaces")).json());
@@ -83,6 +104,9 @@ try {
     await guest.getByRole("heading", { name: "Runs", exact: true }).waitFor();
     await guest.screenshot({ path: join(output, `shared-${role}-${width}.png`), fullPage: true });
     checks.push(`${role}: OAuth handoff, preview, explicit acceptance, shared selection, server and UI authority`);
+    await owner.getByRole("button", { name: "Refresh", exact: true }).click();
+    await owner.getByRole("heading", { name: "This invitation is no longer open", exact: true }).waitFor();
+    assert.equal(await qr.count(), 0, "accepted invitation stops displaying its QR when refreshed");
     await owner.goto(`${origin}/app/#/team`);
     await owner.reload();
     const member = owner.locator("li.team-person").filter({ hasText: `Offline ${role}` });

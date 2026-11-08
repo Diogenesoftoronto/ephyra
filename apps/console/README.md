@@ -295,3 +295,13 @@ pauses while the page is hidden. The workflow continues on the server after leav
 Verified locally: setup HTTP contract, default/supervised startup, duplicate-mount protection, exact lost-write
 reconciliation, output escaping, console tests/typecheck/build. Storybook and demo setup data are marked fictional.
 Live repository authentication, provider execution, forge landing and hosted Traction remain separate integration checks.
+### QR invitations
+
+The freshly created Viewer or Approver invitation includes an SVG QR and a downloadable PNG. Both encode the
+exact single-use link locally with `qrcode.react`; no QR service receives the redeemable token. The normal
+sign-in, role preview and deliberate acceptance flow applies. The QR disappears on expiry, or when refreshed
+team state reports acceptance or revocation. The ordinary link remains available for clipboard/manual use.
+
+`scripts/team-experience.ts` decodes actual rendered pixels at 320/390/1440px in both themes, decodes both PNG
+downloads, and uses the decoded URLs through real local authority with a fake OAuth issuer. The recovery script
+checks revoked and time-expired QR removal. Camera hardware, public-host reachability and Safari/iOS are unverified.

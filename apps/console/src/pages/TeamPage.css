@@ -53,6 +53,7 @@
   padding-inline-start: var(--s3);
 }
 .team-share h2 { margin: 0; }
+.team-share-layout { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: var(--s5); align-items: start; }
 .team-share-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); }
 .team-share-controls > .ui-field { flex: 1 1 16rem; min-width: 0; }
 .team-share-controls input { width: 100%; min-width: 0; }
@@ -94,6 +95,7 @@
 .team-confirm-label { font-weight: 600; }
 .team-confirm .team-actions { margin-top: var(--s5); }
 @media (max-width: 850px) {
+  .team-share-layout { grid-template-columns: minmax(0, 1fr); }
   .team-invite-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
   .team-guide { padding: var(--s3) 0; }
 }
