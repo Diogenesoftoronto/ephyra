@@ -1,0 +1,43 @@
+.investigation-questions,
+.question-record,
+.question-answer {
+  display: grid;
+  gap: var(--s3);
+  min-width: 0;
+}
+.investigation-questions {
+  padding-block: var(--s4);
+  border-block: 1px solid var(--line);
+}
+.question-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.question-heading h2,
+.question-record h3,
+.question-record p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.question-heading h2 { font-size: var(--fs-h3); }
+.question-record h3 { font-size: var(--fs-body); }
+.question-record {
+  padding-block: var(--s4);
+  border-top: 1px solid var(--line);
+}
+.question-record textarea { width: 100%; min-width: 0; resize: vertical; }
+.question-answer { border-left: 3px solid var(--line); padding-left: var(--s4); }
+.question-debug summary { min-height: 44px; padding-block: var(--s2); cursor: pointer; }
+.question-debug dl { display: grid; gap: var(--s3); }
+.question-debug dt { color: var(--muted); }
+.question-debug dd { margin: 0; overflow-wrap: anywhere; }
+.question-debug pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-small);
+  padding: var(--s3);
+  background: var(--surface-recessed);
+}

@@ -165,7 +165,7 @@ try {
       const knowledge = await page.evaluate(async () => (await fetch("/v1/account")).json());
       assert.equal(knowledge.knowledge.sources[0].searchTool.name, "search_notes");
       await page.screenshot({ path: join(artifacts, "knowledge-onboarding.png"), fullPage: true });
-      await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill(fixtureUrl);
+      await page.getByRole("textbox", { name: "Repository address", exact: true }).fill(fixtureUrl);
       assert.equal(await page.getByRole("textbox", { name: /^Branch \(optional\)/ }).inputValue(), "");
       await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
       await page.getByRole("heading", { name: "Setup needs a connection", exact: true }).waitFor({ timeout: 12_000 }).catch(async (error) => {
@@ -211,13 +211,13 @@ try {
     await page.getByRole("combobox", { name: "Find a page or command" }).fill("settings");
     await page.getByRole("combobox", { name: "Find a page or command" }).press("Enter");
     await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
-    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    await page.getByRole("tab", { name: "Connections", exact: true }).click();
     if (width === 390) {
       // Signing out revoked the previous device session. Reauthorize the saved knowledge choice for this new session.
       await page.getByRole("link", { name: "Continue with Not Organic", exact: true }).click();
       await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
       await page.goto(`${origin}/app/#/settings`);
-      await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+      await page.getByRole("tab", { name: "Connections", exact: true }).click();
     }
     await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).waitFor();
     assert.equal(await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).isChecked(), true);

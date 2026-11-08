@@ -23,3 +23,10 @@ test("supervised mode is an explicit selectable alternative to autonomous setup"
   expect(html).toContain("Supervised");
   expect(html.match(/checked=""/g)).toHaveLength(1);
 });
+
+test("active investigations remain distinct from ready landing or watch capability", () => {
+  const html = renderToStaticMarkup(createElement(SetupProgress, { run: { ...SETUP_FIXTURE, investigationActive: true } }));
+  expect(html).toContain("Investigation active · landing needs a connection");
+  expect(html).toContain("What can unblock this");
+  expect(html).not.toContain("Setup ready");
+});

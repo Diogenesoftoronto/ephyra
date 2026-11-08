@@ -137,7 +137,7 @@ try {
       await repositoryTab.focus();
       await page.keyboard.press("ArrowRight");
       await page.keyboard.press("ArrowRight");
-      const knowledgeTab = page.getByRole("tab", { name: "Knowledge", exact: true });
+      const knowledgeTab = page.getByRole("tab", { name: "Connections", exact: true });
       assert.equal(await knowledgeTab.getAttribute("aria-selected"), "true");
       assert.equal(await knowledgeTab.evaluate((element) => element === document.activeElement), true, "keyboard tabs move focus with selection");
       await page.getByRole("button", { name: "Connect knowledge", exact: true }).click();
@@ -216,7 +216,7 @@ try {
     const { page, state, writes } = f;
     state.catalog = structuredClone(KNOWLEDGE_CATALOG_FIXTURE);
     await page.goto(`${app.url}/app/#/settings`);
-    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    await page.getByRole("tab", { name: "Connections", exact: true }).click();
     const resource = page.getByRole("group", { name: "Product documentation", exact: true }).getByRole("checkbox");
     await resource.check();
     state.rejectSave = true;
@@ -248,17 +248,17 @@ try {
     const { page, state } = isolation;
     state.catalog = structuredClone(KNOWLEDGE_CATALOG_FIXTURE);
     await page.goto(`${app.url}/app/#/settings`);
-    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    await page.getByRole("tab", { name: "Connections", exact: true }).click();
     await page.getByRole("group", { name: "Product documentation", exact: true }).getByRole("checkbox").check();
     state.holdReadDid = state.account.did;
     const oldRead = page.waitForRequest((request) => new URL(request.url()).pathname === "/v1/account/knowledge" && request.method() === "GET");
     await page.getByRole("button", { name: "Refresh connections", exact: true }).click();
     await oldRead;
     await page.getByRole("tab", { name: "Repository", exact: true }).click();
-    await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill("https://git.example.org/fixture/new-workspace.git");
+    await page.getByRole("textbox", { name: "Repository address", exact: true }).fill("https://git.example.org/fixture/new-workspace.git");
     await page.getByRole("button", { name: "Save repository", exact: true }).click();
     // Workspace changes mount fresh identity/context. Release old catalog responses only after the new form appears.
-    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    await page.getByRole("tab", { name: "Connections", exact: true }).click();
     await page.getByRole("button", { name: "Connect knowledge", exact: true }).waitFor();
     state.holdReadDid = "";
     isolation.release();
@@ -274,7 +274,7 @@ try {
     await oldWrite;
     state.account = { ...structuredClone(ACCOUNT_FIXTURE), did: "did:plc:second-knowledge-account", workspaceId: "fixture-second-account", onboarding: { ...ACCOUNT_FIXTURE.onboarding, status: "skipped" } };
     await page.evaluate(() => dispatchEvent(new Event("focus")));
-    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    await page.getByRole("tab", { name: "Connections", exact: true }).click();
     await page.getByRole("button", { name: "Connect knowledge", exact: true }).waitFor();
     isolation.release();
     state.holdSave = false;

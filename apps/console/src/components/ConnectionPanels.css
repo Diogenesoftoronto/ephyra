@@ -1,0 +1,42 @@
+.connection-panels,
+.connection-contact {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+.connection-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  align-items: center;
+  min-width: 0;
+}
+.connection-status p {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+.connection-contact {
+  margin: 0;
+  padding: var(--s3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+.connection-contact legend {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.connection-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.connection-panels summary .ui-tag {
+  margin-left: var(--s2);
+}
+.connection-contact > .ui-button,
+.connection-panels .account-fields > .ui-button {
+  justify-self: start;
+}

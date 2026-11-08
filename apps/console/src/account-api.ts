@@ -1,5 +1,6 @@
 import {
   AccountSettings, KnowledgeCatalog, type KnowledgeUpdate, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate,
+  type TelemetryUpdate, type PeopleUpdate,
 } from "@ephyra/core";
 import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
@@ -8,6 +9,8 @@ export interface AccountApi {
   settings(): Promise<AccountSettings>;
   knowledge(): Promise<KnowledgeCatalog>;
   saveKnowledge(input: KnowledgeUpdate, operationKey: string): Promise<AccountSettings>;
+  saveTelemetry(input: TelemetryUpdate, operationKey: string): Promise<AccountSettings>;
+  savePeople(input: PeopleUpdate, operationKey: string): Promise<AccountSettings>;
   saveRepository(input: RepositoryUpdate, operationKey: string): Promise<AccountSettings>;
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
   onboarding(input: OnboardingUpdate, operationKey: string): Promise<AccountSettings>;
@@ -61,6 +64,12 @@ export class AccountClient implements AccountApi {
   }
   saveKnowledge(input: KnowledgeUpdate, key: string) {
     return this.request("/knowledge", AccountSettings, input, key);
+  }
+  saveTelemetry(input: TelemetryUpdate, key: string) {
+    return this.request("/telemetry", AccountSettings, input, key);
+  }
+  savePeople(input: PeopleUpdate, key: string) {
+    return this.request("/people", AccountSettings, input, key);
   }
   saveRepository(input: RepositoryUpdate, key: string) {
     return this.request("/repository", AccountSettings, input, key);
