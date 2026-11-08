@@ -56,6 +56,22 @@ test("Open app reaches the configured console from the homepage and secondary pa
   expect(() => createSite({ origin: ORIGIN, root: ROOT, apiOrigin: "javascript:alert(1)" })).toThrow();
 });
 
+test("domain migration preserves article paths and queries without redirecting health checks or trusting forwarded hosts", async () => {
+  const alias = "https://www.ephyra.example";
+  const h = createSite({ origin: ORIGIN, root: ROOT, redirectOrigins: [alias, ORIGIN] });
+  for (const method of ["GET", "HEAD"]) {
+    const res = await h(new Request(`${alias}/blog/posts/one?from=feed`, { method }));
+    expect(res.status).toBe(308);
+    expect(res.headers.get("location")).toBe(`${ORIGIN}/blog/posts/one?from=feed`);
+  }
+  expect((await h(new Request(`${alias}/healthz`))).status).toBe(200);
+  expect((await h(new Request(`${ORIGIN}/`, { headers: { "x-forwarded-host": new URL(alias).host } }))).status).toBe(200);
+  expect((await h(new Request(`${alias}/`, { method: "POST" }))).status).toBe(405);
+  const unusual = await h(new Request(`${alias}//attacker.test/path`));
+  expect(new URL(unusual.headers.get("location")!).origin).toBe(ORIGIN);
+  expect(() => createSite({ origin: ORIGIN, root: ROOT, redirectOrigins: ["https://user:password@alias.example"] })).toThrow();
+});
+
 describe("SEO files", () => {
   test("robots.txt allows crawling and points at the sitemap and llms.txt", async () => {
     const body = await (await get(site(), "/robots.txt")).text();
