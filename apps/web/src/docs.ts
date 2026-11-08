@@ -1,7 +1,7 @@
 /** Public product documentation, grounded in the executable rather than the original platform proposal. */
 export type DocsSection = { id: string; group: string; title: string; summary: string; body: string };
 export const DOCS_UPDATED = "2026-11-08";
-export const DOCS_DESCRIPTION = "Connect a repository, configure Ephyra's repair loop, and understand policy, proof, deployment watch and self-hosting.";
+export const DOCS_DESCRIPTION = "Set up Ephyra with an agent, establish repository coverage, and configure policy, proof, deployment watch and self-hosting.";
 const escape = (value: string) => value.replace(/[&<>"']/g, character => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[character]!));
@@ -38,6 +38,60 @@ verified checks, applicable proof sources, and landing and watch integrations. S
 <code>intents/application.md</code> and verification, evidence and recovery configuration. Generated prose and discovered commands still need
 actual verification.</p>
 <p class="docs-next"><a href="#connections">Configure workspace connections <span aria-hidden="true">→</span></a></p>`,
+  },
+  {
+    id: "agent-setup", group: "Start here", title: "Set up with an agent",
+    summary: "Give an agent scoped setup access and establish useful observation before the first incident.",
+    body: `<p>Give your coding agent <a href="/auth.md">Ephyra's <code>auth.md</code> instructions</a>. They describe registration,
+owner approval, credential renewal and the bootstrap API on the connected control plane. Use your own server's <code>/auth.md</code> when
+self-hosting.</p>
+${code("Ask your coding agent", "text", `Read https://ephyra.quest/auth.md and help me set up Ephyra for this repository.
+Inspect the pinned repository, identify its important user journeys, and establish what Ephyra can observe and verify.
+Ask me for missing expected behavior or connections. Report only checks and observations that actually happened.`)}
+<h3>Approve the exact repository and scopes</h3>
+<ol class="docs-steps">
+<li><strong>Identify the owner and repository.</strong> Give the agent your Not Organic DID, HTTPS Git URL and branch.
+Keep repository credentials in Ephyra's settings or your credential store.</li>
+<li><strong>Review the claim.</strong> The agent gives you an approval link and a six-digit code. Sign in with the intended Not Organic
+account, inspect the repository and requested scopes, then enter the code.</li>
+<li><strong>Let the agent establish context.</strong> Its separate credential can read setup, submit attributed findings and start supervised
+setup within your existing grants. Each claim permits one setup run. Approval can connect the proposed repository when none is saved;
+it cannot replace another connected repository.</li>
+</ol>
+<p>The agent's scopes do not permit human checkpoint decisions, provider settings, spending grants, landing or arbitrary external messages.
+Private repository credentials still need an owner-configured connection. <a href="/agent/access">Review or revoke agent access</a> at any time.
+Changing the connected repository or workspace invalidates the old access.</p>
+<div class="docs-note"><strong>An explicit DID-bound profile.</strong><p>Inspired by <a href="https://github.com/workos/auth.md">WorkOS
+<code>auth.md</code></a>, Ephyra supports anonymous registration followed by a claim bound to your Not Organic DID. It has no private pre-claim
+capabilities. Email-based <code>service_auth</code> and external provider ID-JAG identity assertions are unsupported. Follow the metadata and
+instructions published by your server.</p></div>
+<h3>Establish eyes, ears and a way to ask</h3>
+<p>Bootstrap inspects bounded documentation, manifests, CI, telemetry and deployment configuration at the pinned commit. It records source paths
+and digests, proposes context to confirm, and assesses repository checks, telemetry, deployed revision, product context and contact coverage.</p>
+${table("Observation coverage", ["Status", "Meaning"], [
+  ["Observed", "The assessment records an actual observation for this part of the setup."],
+  ["Configured", "A connection is present; the corresponding observation is still missing."],
+  ["Missing", "A required connection or capability is absent."],
+  ["Unknown", "The available evidence cannot establish this coverage."],
+])}
+<p>Open your owner <a href="/app/#/inbox">Inbox</a> for setup requests before an incident exists. Ephyra asks about expected behavior and missing
+connections, retains attributed answers, and reassesses when settings change and on scheduled checks. Those reassessments do not allocate a new
+sandbox or call a paid model. Configuration requests resolve when their corresponding capability or observation is established.</p>
+<p>If you explicitly enable an authenticated People bridge, Ephyra can also send a bundled notice to your configured owner contact.
+Unchanged requests do not repeat the notice. A bridge acknowledgement records transport acceptance, not proof that a person read it.</p>
+<p>A saved telemetry connection does not prove ingestion. A queried window with no exceptions does not prove that every user journey is
+instrumented. Repository text, agent findings and owner answers are context; they cannot grant permissions or become passing proof.</p>
+<details><summary>Agent bootstrap API</summary>
+<p>Use the control-plane origin from <code>/auth.md</code>, an agent bearer credential and a stable <code>Idempotency-Key</code> for writes.
+Reports must name the exact setup ID and repository head returned by the server.</p>
+${table("Scoped agent setup endpoints", ["Endpoint", "Purpose"], [
+  ["GET /v1/agent/setup", "Read the recorded setup, coverage and open owner requests."],
+  ["POST /v1/agent/setup", "Start supervised setup under existing workspace grants."],
+  ["POST /v1/agent/bootstrap/report", "Submit bounded, attributed findings and proposed user journeys."],
+  ["POST /v1/agent/bootstrap/reassess", "Refresh coverage without repeating provisioning."],
+])}
+<p>Keep ceremony tokens in memory and access credentials in a credential store. Never put them in repository files, journals, model prompts or
+chat messages. Poll at the advertised interval, stop on an invalid grant, and obtain a new owner claim when needed.</p></details>`,
   },
   {
     id: "trails", group: "Start here", title: "How a trail moves",

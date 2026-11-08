@@ -14,7 +14,8 @@
   const setSearch = value => { search.value = value; search.dispatchEvent(new Event('input', { bubbles: true })); };
   const previousQuery = search.value;
   const previousHash = location.hash;
-  check('all ten topics are rendered', sections.length === 10 && sections.every(section => section.getBoundingClientRect().height > 0));
+  check('all eleven topics are rendered', sections.length === 11 && sections.some(section => section.id === 'agent-setup')
+    && sections.every(section => section.getBoundingClientRect().height > 0));
   check('one document heading', document.querySelectorAll('h1').length === 1);
   check('all local anchors resolve', [...document.querySelectorAll('a[href^="#"]')]
     .every(link => document.getElementById(link.getAttribute('href').slice(1))));
