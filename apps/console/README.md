@@ -58,7 +58,7 @@ First sign-in opens automatic repository setup. Choose Self-driving or Supervise
 recorded preparation steps and blockers. **Explore first** saves setup for later; model access remains available in Settings.
 Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
-Settings groups Repository, Model access and Account into a text tab row at every screen size.
+Settings groups Repository, Model access, Connections and Account into a text tab row at every screen size.
 Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
 leaving Settings, reloading, or accepting updated saved settings resets them. Setup pairs a focused form with an illustrated
 explanation on wide screens. Settings keeps one reading column. Saved model connection details expand from their status row.
@@ -289,12 +289,15 @@ documents Not Organic account routing, direct Humans& keys, limits and what rema
 ### Automatic repository setup
 
 Onboarding starts automatic setup after connecting a repository. Leaving the branch field blank asks the server for
-its default branch. The HTTPS connector accepts clone URLs from GitHub, GitLab, Forgejo, Tangled and other Git hosts;
-Radicle needs an HTTPS gateway for this connector. Native Radicle transport is not claimed by this screen.
+its default branch. The address field accepts HTTPS clone/browser URLs from GitHub, GitLab, Forgejo and other Git hosts,
+native Radicle IDs/app links, and Tangled browser links or exact AT URIs. The server resolves and verifies the identity;
+native transport availability is reported by that server. Private access can bind a credential to the resolved HTTPS
+host; private Radicle uses a server-managed account identity. Saved source identity and clone metadata are inspectable.
 
 Self-driving is the default preference; supervised checkpoints are selectable before connecting. Setup progress comes
 from the authenticated workspace's `/v1/setup` record. The page shows each stage, generated documents and digests,
-readiness blockers with their responsible role, and links to agent runs and requests for help. A saved repository is
+readiness blockers with their responsible role, and links to agent runs and requests for help. Active investigations
+are distinguished from remaining landing/watch blockers. Actual hosted execution configuration appears separately; a saved repository is
 never presented as proof that execution is available. Model/provider configuration remains available in the secondary
 settings section, and an explicit recheck records a new setup run after a missing capability is connected.
 
@@ -315,3 +318,55 @@ team state reports acceptance or revocation. The ordinary link remains available
 `scripts/team-experience.ts` decodes actual rendered pixels at 320/390/1440px in both themes, decodes both PNG
 downloads, and uses the decoded URLs through real local authority with a fake OAuth issuer. The recovery script
 checks revoked and time-expired QR removal. Camera hardware, public-host reachability and Safari/iOS are unverified.
+
+### Knowledge and MCP connections
+
+The optional knowledge panel appears during onboarding and in **Settings → Connections**. **Connect knowledge** saves
+the workspace's opt-in with no selected sources. When needed, the server-provided Not Organic sign-in link requests
+access; **Manage connections in Not Organic** opens that application's connection grant and return location. Credentials
+remain in Not Organic. **Explore first** still works without enabling knowledge.
+
+Users choose shared resources and an eligible search tool once for autonomous research. The selection saves the exact
+source ID, tool definition hash and query field; nothing is preselected. Changed tools and revoked sources remain visible
+until explicitly replaced or removed. Unsupported tools can be inspected but cannot be selected. **Disconnect knowledge**
+clears Ephyra's workspace opt-in and selections; Not Organic's portal manages its application grant separately.
+
+Catalogs refresh on an explicit refresh or return to the page. Account/workspace changes discard loaded and pending form
+state, and late reads/saves cannot update another scope. Interrupted saves lock further changes until a read-only refresh
+of saved settings; revision conflicts similarly require review. Source names and descriptions render as text, and links
+allow HTTPS, same-app paths, or credential-free HTTP loopback addresses for local development.
+
+Verified locally: account API binding and response validation, exact tool selection, source revocation, escaping,
+unknown-save recovery, keyboard tab focus, desktop/390px layouts, optional onboarding skip, and account/workspace
+isolation. Run `bun run --filter @ephyra/console build`, then
+`env -u LD_LIBRARY_PATH bun apps/console/scripts/knowledge.ts` for four browser scenarios using offline HTTP fixtures.
+`Account/Knowledge connections` and `Screens/SettingsPage` provide fictional state and phone stories. Hosted Not Organic
+authorization, upstream MCP connectors and live autonomous research remain separate integration checks.
+
+### Production signals and routed questions
+
+Onboarding and **Settings → Connections** include collapsed, optional PostHog and contact-routing controls. PostHog
+uses an HTTPS instance origin, numeric project ID and write-only personal API key. Including recording context is an
+explicit choice. The console shows the server's actual access-check status and timestamp; saved settings are not proof
+that a project was contacted. Disabling PostHog removes its saved key. Endpoint/project changes do not reuse a prior key.
+
+The workspace owner receives factual questions in Inbox without additional configuration. Additional contacts have a
+stable delivery ID, alias, roles and relevant areas; an authenticated webhook delivers their question and private answer
+link. The delivery token is write-only. These choices permit autonomous investigation; answers supply evidence and do
+not approve code or grant capabilities. Contact routing can be disabled without introducing an approval checkpoint.
+
+Inbox shows question/answer checks with exact model identities and request/response evidence, delivery state and the
+bound trail revision. Only the addressed account gets an answer form. Historical `questions/latest.json` records also
+render in trail evidence. An interrupted answer stores only a credential-free question/operation reference in session
+storage, scoped to the account and workspace. Reload reads the exact saved record even if the resumed trail disappeared
+from the active question list; it never repeats the POST. Missing records remain explicitly unconfirmed.
+
+Connection saves use account/version/workspace bindings and operation keys. Conflicts and uncertain saves require a
+read-only refresh before another change. Account/workspace switches discard draft keys and ignore late saved results.
+Aliases and sign-out remain in Account settings. New connection/question stories use visibly fictional data.
+
+After building, run `env -u LD_LIBRARY_PATH bun apps/console/scripts/connections.ts` for offline browser checks at
+1440px and 390px: optional setup, native address submission, automatic start, PostHog/contact choices, keyboard tabs,
+escaped question evidence, addressed replies, lost-answer reload recovery, settings conflict/reconciliation and account
+isolation. Screenshots and a verification manifest are written under ignored `artifacts/connections`. These checks do
+not establish live forge access, PostHog credentials, webhook delivery or model checking.

@@ -110,7 +110,8 @@ export type ArtifactRef = { path: string; digest: string; bytes: number; mediaTy
 export interface Runner {
   readonly name: string;
   readonly capabilities: { checkpoint: "none" | "disk" | "memory"; network: ServiceProfile["network"][]; shell: boolean; browser: boolean };
-  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile; leaseS?: number }): Promise<RunnerHandle>;
+  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile;
+    leaseS?: number; operationKey?: string }): Promise<RunnerHandle>;
   exec(handle: RunnerHandle, command: string[], opts: { cwd?: string; env?: Record<string, string>; deadlineMs: number }): AsyncIterable<ExecOutput>;
   writeFile(handle: RunnerHandle, path: string, content: string | Uint8Array): Promise<void>;
   readFile(handle: RunnerHandle, path: string): Promise<Uint8Array | null>;
@@ -151,7 +152,7 @@ export interface CodingAgent {
 export type EvidenceHit = { source: string; id: string; title: string; snippet: string; revision?: string; score: number; uri?: string };
 export interface EvidenceSource {
   readonly name: string; // "git", "entire", "otel", "trails", "voxq"
-  search(query: { text: string; files?: string[]; fingerprint?: string; since?: string; limit: number }): Promise<EvidenceHit[]>;
+  search(query: { text: string; files?: string[]; fingerprint?: string; since?: string; limit: number; operationKey?: string }): Promise<EvidenceHit[]>;
   fetch(hit: EvidenceHit): Promise<{ mediaType: string; content: string }>;
 }
 

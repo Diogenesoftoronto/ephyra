@@ -1,8 +1,16 @@
-import { AccountSettings, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate } from "@ephyra/core";
+import {
+  AccountSettings, KnowledgeCatalog, type KnowledgeUpdate, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate,
+  type TelemetryUpdate, type PeopleUpdate,
+} from "@ephyra/core";
+import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
 
 export interface AccountApi {
   settings(): Promise<AccountSettings>;
+  knowledge(): Promise<KnowledgeCatalog>;
+  saveKnowledge(input: KnowledgeUpdate, operationKey: string): Promise<AccountSettings>;
+  saveTelemetry(input: TelemetryUpdate, operationKey: string): Promise<AccountSettings>;
+  savePeople(input: PeopleUpdate, operationKey: string): Promise<AccountSettings>;
   saveRepository(input: RepositoryUpdate, operationKey: string): Promise<AccountSettings>;
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
   onboarding(input: OnboardingUpdate, operationKey: string): Promise<AccountSettings>;
@@ -15,7 +23,9 @@ export class AccountClient implements AccountApi {
     private readonly fetcher: typeof fetch = fetch,
     private readonly did?: string,
   ) {}
-  private async request(path: string, input?: unknown, operationKey?: string): Promise<AccountSettings> {
+  private async request<T>(
+    path: string, schema: z.ZodType<T>, input?: unknown, operationKey?: string,
+  ): Promise<T> {
     const fetcher = this.fetcher;
     let response: Response;
     try {
@@ -40,22 +50,34 @@ export class AccountClient implements AccountApi {
       throw new ApiError(response.status, typeof body?.error === "string" ? body.error : undefined);
     }
     try {
-      return AccountSettings.parse(await response.json());
+      return schema.parse(await response.json());
     } catch {
       if (operationKey) throw new UnknownWriteOutcome(operationKey);
       throw new Error("Account settings could not be read.");
     }
   }
   settings() {
-    return this.request("");
+    return this.request("", AccountSettings);
+  }
+  knowledge() {
+    return this.request("/knowledge", KnowledgeCatalog);
+  }
+  saveKnowledge(input: KnowledgeUpdate, key: string) {
+    return this.request("/knowledge", AccountSettings, input, key);
+  }
+  saveTelemetry(input: TelemetryUpdate, key: string) {
+    return this.request("/telemetry", AccountSettings, input, key);
+  }
+  savePeople(input: PeopleUpdate, key: string) {
+    return this.request("/people", AccountSettings, input, key);
   }
   saveRepository(input: RepositoryUpdate, key: string) {
-    return this.request("/repository", input, key);
+    return this.request("/repository", AccountSettings, input, key);
   }
   saveModel(input: ModelUpdate, key: string) {
-    return this.request("/model", input, key);
+    return this.request("/model", AccountSettings, input, key);
   }
   onboarding(input: OnboardingUpdate, key: string) {
-    return this.request("/onboarding", input, key);
+    return this.request("/onboarding", AccountSettings, input, key);
   }
 }

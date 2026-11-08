@@ -34,7 +34,7 @@ try {
     };
 
     await story("screens-settingspage--connected");
-    const urlBox = await page.getByLabel("Repository clone URL").boundingBox();
+    const urlBox = await page.getByLabel("Repository address").boundingBox();
     const branchBox = await page.getByLabel("Branch", { exact: true }).boundingBox();
     assert.ok(urlBox && branchBox);
     assert.ok(Math.abs(urlBox.height - branchBox.height) < 1, "repository fields keep the same control height");

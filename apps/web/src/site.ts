@@ -1,13 +1,17 @@
 // Ephyra's public site: the landing page, the Standard.site blog, and everything crawlers and LLMs read.
 // One Bun handler; static files come from site/ (the landing cuts and shared assets).
 import { join, normalize } from "node:path";
-import { articlePath, publicationIdentity, readPublication, type DocumentRecord, type Fetcher, type Publication } from "./standard.ts";
+import {
+  articlePath, publicationIdentity, publicOrigin, readPublication, type DocumentRecord, type Fetcher, type Publication,
+} from "./standard.ts";
 import { LEGAL_DOCS, OPERATOR, legalBody, legalIndex, securityTxt, type Operator } from "./legal.ts";
 import { pricingBody, pricingSummary } from "./pricing.ts";
 
 export type SiteConfig = {
   /** Canonical origin of the public site, e.g. https://ephyra.dev */
   origin: string;
+  /** Previous origins and aliases that permanently redirect to the canonical origin. Health checks stay local. */
+  redirectOrigins?: string[];
   /** Directory holding the landing cuts (a/, b/, c/, e/) and the shared assets/. */
   root: string;
   /** Which landing cut is the home page at "/". Defaults to "e", the main site. The others stay reachable at /a/, /b/, /c/. */
@@ -57,6 +61,9 @@ const PAGES = [
 
 export function createSite(config: SiteConfig) {
   const origin = new URL(config.origin).origin;
+  const canonicalHost = new URL(origin).host;
+  const redirectHosts = new Set((config.redirectOrigins ?? []).map((value) => new URL(publicOrigin(value)).host));
+  redirectHosts.delete(canonicalHost);
   const apiOrigin = config.apiOrigin ? new URL(config.apiOrigin) : null;
   if (apiOrigin && (!["https:", "http:"].includes(apiOrigin.protocol) || apiOrigin.username || apiOrigin.password)) {
     throw new Error("apiOrigin must be an HTTP(S) origin without credentials");
@@ -356,6 +363,9 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     const url = new URL(req.url);
     const path = url.pathname;
+    if (path !== "/healthz" && redirectHosts.has(url.host)) {
+      return Response.redirect(`${origin}${path}${url.search}`, 308);
+    }
     if (path === "/app" || path === "/app/") {
       if (apiOrigin) return new Response(null, {
         status: 302, headers: { location: `${apiOrigin.origin}/app/`, "cache-control": "no-store", "x-robots-tag": "noindex" },
@@ -375,6 +385,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path === "/.well-known/security.txt") return text(securityTxt(origin, operator), "text/plain");
     const legal = await legalRoute(path);
     if (legal) return legal;
+    // Standard.site readers join the publication origin and the stored /posts/<slug> path directly.
+    if (articlePath(url.pathname)) return Response.redirect(`${origin}/blog${path}${url.search}`, 308);
     if (path === "/blog") return Response.redirect(`${origin}/blog/`, 308);
     if (path.startsWith("/blog/")) {
       const trimmed = path.replace(/\/+$/, "");

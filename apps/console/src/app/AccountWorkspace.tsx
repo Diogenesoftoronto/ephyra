@@ -90,8 +90,8 @@ function WorkspaceSession({ identity, token, settings, accountApi, onChange, onD
   access, team, onTeamChanged, switcher }: Props & {
     access: WorkspaceAccess; team: TeamClient; onTeamChanged: () => void; switcher: React.ReactNode;
   }) {
-  const api = useMemo(() => new ConsoleClient(location.origin, token, fetch, undefined, access.workspaceId),
-    [token, access.workspaceId]);
+  const api = useMemo(() => new ConsoleClient(location.origin, token, fetch, identity.principal, access.workspaceId),
+    [token, identity.principal, access.workspaceId]);
   const automation = useMemo(() => new SetupClient(location.origin, token, access.workspaceId, identity.principal),
     [token, access.workspaceId, identity.principal]);
   const session = useAsync(() => api.identity(), `workspace:${identity.principal}:${access.workspaceId}:${access.role}`);

@@ -1,11 +1,14 @@
 import { useId, useState } from "react";
 import { PageHeader, Button } from "../kit.ts";
 import { ModelAccessForm, RepositoryForm, type AccountPageProps } from "../components/AccountForms.tsx";
+import { KnowledgeConnections } from "../components/KnowledgeConnections.tsx";
+import { AutomationStatus, ConnectionPanels } from "../components/ConnectionPanels.tsx";
 import "./SettingsPage.css";
 
 const sections = [
   { id: "repository", label: "Repository" },
   { id: "models", label: "Model access" },
+  { id: "knowledge", label: "Connections" },
   { id: "account", label: "Account" },
 ] as const;
 export type SettingsSection = (typeof sections)[number]["id"];
@@ -77,6 +80,7 @@ export function SettingsPage({
         tabIndex={0}
         className="settings-panel"
       >
+        <AutomationStatus settings={settings} />
         <RepositoryForm api={api} settings={settings} onChange={onChange} />
       </section>
       <section
@@ -88,6 +92,17 @@ export function SettingsPage({
         className="settings-panel"
       >
         <ModelAccessForm api={api} settings={settings} onChange={onChange} loadCatalog={loadCatalog} />
+      </section>
+      <section
+        role="tabpanel"
+        id={`${id}-knowledge-panel`}
+        aria-labelledby={`${id}-knowledge-tab`}
+        hidden={section !== "knowledge"}
+        tabIndex={0}
+        className="settings-panel"
+      >
+        <KnowledgeConnections api={api} settings={settings} onChange={onChange} />
+        <ConnectionPanels api={api} settings={settings} onChange={onChange} />
       </section>
       <section
         role="tabpanel"

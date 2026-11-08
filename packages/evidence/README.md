@@ -33,3 +33,54 @@ No poll, notification, direct PostHog request, paid inference or external write 
 
 Fixture tests cover isolation, partial/stale evidence, malformed/oversized responses, timeouts and credential redaction.
 These checks establish the local adapter contract, not live Traction/PostHog integration or production readiness.
+
+## PostHog
+
+`PostHogEvidence` implements direct investigation of recorded `$exception` events for one fixed PostHog project.
+Configure `{ origin, projectId, scope: { accountId, workspaceId }, credential, authorize, fetcher }` on the server.
+The credential and authorization callbacks receive the entire binding, including origin and project. They must verify
+that the current connection still belongs to that account/workspace and permits that project. Use a project-restricted
+personal API key or OAuth access token with `query:read`. The adapter never accepts model-provided SQL, URLs or projects.
+
+Inject a transport that resolves **and pins public DNS addresses**, such as the server's `publicHttpsFetch`. The adapter
+requires a public HTTPS hostname without credentials, ports, paths or IP literals, but hostname syntax alone cannot
+prevent DNS rebinding; transport enforcement is required. Custom public self-hosted origins are supported by the same contract.
+
+`search()` fetches the latest 50 recorded exceptions in a bounded window and ranks their recorded text locally.
+It includes a coverage receipt for an empty result. `fetch(hit)` only accepts receipts issued by that instance and
+returns immutable JSON; caller-provided URIs and snippets are ignored. Set `includeRecordings: true` only when the
+connection permits `session_recording:read`: fetching a hit with a recorded session ID then reads recording metadata
+and up to 20 captured console errors. Person data, arbitrary event properties, frame variables, replay contents and
+traces are excluded. Session IDs and links do not prove a recording exists; unavailable metadata, missing scopes,
+expired logs, disabled capture and additional log pages remain explicit. First fetch fixes the receipt's content;
+repeat fetches recheck authorization before disclosing cached bytes.
+
+`exceptions(since?, cursor?)` returns a `PostHogExceptionBatch` for signal ingestion, **not** synthesized core signals.
+It reads at most 50 events in ascending `(timestamp, uuid)` order, with a 51st row as a continuation sentinel. Persist
+`nextCursor` and drain it before advancing `nextSince`. Cursors bind the source, fixed window, UTC microsecond timestamp
+and event UUID, preserving events with equal timestamps. New polling windows must overlap to catch ingestion delays
+and deduplicate by recorded event ID. Retention is unknown; the default window is 24 hours and requests older than
+seven days are explicitly clamped. Research samples use descending order; they do not claim to search all history.
+
+Each operation has one total deadline (10 seconds by default, configurable up to 25 seconds), a streamed byte limit
+(1 MB by default, maximum 2 MB), no redirects, no cookies and no automatic retries. Query requests use the read-only
+`HogQLQuery` endpoint with constant columns/predicates and validated canonical timestamp/UUID literals. No free-form
+query text or fingerprint is inserted into SQL. HTTP errors throw `PostHogAccessError` (an `Unverified`) with a safe
+status, including `missing_credential`, `missing_scope`, `denied`, `rate_limited`, `timeout` or `invalid_response`.
+Authorization is rechecked before requests and before both fresh and cached evidence is released.
+`assertAuthorized()` exposes the same current grant check for the server ingestion boundary.
+
+Selected text is bounded, reflected credentials and common secret/email/phone patterns are masked, URL credentials
+and query strings are removed, and prompt snippets are escaped inside an untrusted wrapper. This is a limited
+projection and defense in depth, not a complete PII detector: configure capture-side scrubbing for sensitive data.
+The batch records query digest, retrieval time, computation freshness, window, clipping and coverage limits.
+No recorded errors is never proof that an application is healthy or a repair succeeded.
+
+The implementation follows PostHog's official [SQL/query contract](https://posthog.com/docs/sql),
+[query execution and caching](https://posthog.com/docs/api/queries),
+[exception event fields](https://posthog.com/docs/error-tracking/issues-and-exceptions),
+[session recording and console-log API](https://posthog.com/docs/api/session-recordings), and
+[API scopes](https://posthog.com/docs/api/scopes). The [browser SDK exception implementation](https://github.com/PostHog/posthog-js/blob/main/packages/browser/src/posthog-exceptions.ts)
+confirms ISO timestamps for exception steps. Fixture tests cover pagination, scope isolation, SQL injection,
+revocation, redaction, unavailable/expired data, malformed and oversized responses, and deadlines. No live project,
+credential, event, recording or provider integration was read or verified in this implementation pass.

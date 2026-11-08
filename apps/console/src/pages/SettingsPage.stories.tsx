@@ -9,6 +9,7 @@ import {
   type FakeAccountOptions,
 } from "../fake/account.ts";
 import { ApiError } from "../api.ts";
+import { KNOWLEDGE_CATALOG_FIXTURE, KNOWLEDGE_SELECTION_FIXTURE } from "../fake/knowledge.ts";
 const meta: Meta = { title: "Screens/SettingsPage" };
 export default meta;
 function SettingsStory({ options = {}, section }: { options?: FakeAccountOptions; section?: SettingsSection }) {
@@ -36,6 +37,15 @@ export const ModelAccess: StoryObj = {
 };
 export const Account: StoryObj = {
   render: () => <SettingsStory section="account" options={{ initial: CONNECTED_ACCOUNT_FIXTURE }} />,
+};
+export const Knowledge: StoryObj = {
+  render: () => <SettingsStory section="knowledge" options={{
+    initial: { ...CONNECTED_ACCOUNT_FIXTURE, knowledge: {
+      enabled: true, workspaceId: CONNECTED_ACCOUNT_FIXTURE.workspaceId,
+      sources: KNOWLEDGE_SELECTION_FIXTURE, updatedAt: "2026-11-08T12:00:00.000Z",
+    } },
+    knowledgeCatalog: KNOWLEDGE_CATALOG_FIXTURE,
+  }} />,
 };
 export const SavedKey: StoryObj = {
   render: () => (
@@ -90,4 +100,5 @@ export const Skipped: StoryObj = {
 export const Dark: StoryObj = { ...Connected, parameters: { theme: "dark" } };
 export const Phone: StoryObj = { ...SavedKey, globals: { viewport: { value: "phone" } } };
 export const PhoneRepository: StoryObj = { ...Connected, globals: { viewport: { value: "phone" } } };
+export const PhoneKnowledge: StoryObj = { ...Knowledge, globals: { viewport: { value: "phone" } } };
 export const DarkModelAccess: StoryObj = { ...SavedKey, parameters: { theme: "dark" } };

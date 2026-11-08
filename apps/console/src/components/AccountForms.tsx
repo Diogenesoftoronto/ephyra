@@ -6,6 +6,7 @@ import { Button, Field, Tag } from "../kit.ts";
 import { useAccountWrite, type AccountWriteState } from "./useAccountWrite.ts";
 import { ModelPicker } from "./ModelPicker.tsx";
 import { normalizeCatalogBaseUrl, type ModelCatalog } from "../model-catalog.ts";
+import { repositoryAddressError } from "./repository-address.ts";
 import "./AccountForms.css";
 
 export interface AccountPageProps {
@@ -65,6 +66,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
   const [branch, setBranch] = useState(repository?.branch ?? "");
   const [username, setUsername] = useState(repository?.username ?? "");
   const [token, setToken] = useState("");
+  const [credentialHost, setCredentialHost] = useState(repository?.credentialHost ?? "");
   const [clearToken, setClearToken] = useState(false);
   const [urlError, setUrlError] = useState<string>();
   const write = useAccountWrite(api, onChange);
@@ -76,6 +78,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
     setUrl(settings.repository?.url ?? "");
     setBranch(settings.repository?.branch ?? "");
     setUsername(settings.repository?.username ?? "");
+    setCredentialHost(settings.repository?.credentialHost ?? "");
     setToken("");
     setClearToken(false);
     setUrlError(undefined);
@@ -88,14 +91,8 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
       aria-label="Repository settings"
       onSubmit={async (event) => {
         event.preventDefault();
-        try {
-          const parsed = new URL(url.trim());
-          if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash)
-            throw new Error();
-        } catch {
-          setUrlError("Use an HTTPS clone URL without credentials, query parameters or fragments.");
-          return;
-        }
+        const invalid = repositoryAddressError(url);
+        if (invalid) { setUrlError(invalid); return; }
         setUrlError(undefined);
         const input: RepositoryUpdate = {
           expectedVersion: settings.version,
@@ -105,6 +102,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
           username: username.trim(),
           ...(token.trim() ? { token: token.trim() } : {}),
           ...(clearToken ? { clearToken: true } : {}),
+          ...(credentialHost.trim() ? { credentialHost: credentialHost.trim() } : {}),
         };
         const next = await write.save(
           input,
@@ -128,9 +126,9 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
       )}
       <fieldset className="account-fields" disabled={write.locked}>
         <div className="account-repository-fields">
-          <Field label="Repository clone URL" error={urlError}>
+          <Field label="Repository address" error={urlError}>
             <input
-              type="url"
+              type="text"
               required
               maxLength={2048}
               autoCapitalize="none"
@@ -141,6 +139,9 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
               onChange={(e) => {
                 setUrl(e.target.value);
                 setUrlError(undefined);
+                setToken("");
+                setCredentialHost("");
+                setClearToken(false);
               }}
             />
           </Field>
@@ -168,6 +169,11 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
+            </Field>
+            <Field label="Credential host (optional)"
+              hint="For Tangled, bind the token to its HTTPS knot host. Private Radicle access uses a server-managed account identity.">
+              <input value={credentialHost} maxLength={2048} autoCapitalize="none" spellCheck={false}
+                placeholder="https://knot.example.org" onChange={(event) => setCredentialHost(event.target.value)} />
             </Field>
             <Field
               label={sameRepository && repository?.credentialConfigured ? "Replace access token" : "Access token"}
@@ -203,9 +209,19 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
         </details>
       </fieldset>
       <p className="account-hint">
-        GitHub, GitLab, Forgejo, Tangled, or any HTTPS Git clone URL. Use an HTTPS gateway for Radicle.
+        GitHub, GitLab, Forgejo or HTTPS Git URLs; native Radicle IDs and app links; Tangled repository pages and AT URIs.
         Changing the repository or branch opens a separate workspace.
       </p>
+      {repository?.forge && <details className="account-current">
+        <summary>Repository identity</summary>
+        <div className="account-current-details">
+          <span>{repository.forge.kind}</span>
+          <code>{repository.forge.repositoryId ?? repository.url}</code>
+          <span>Source: {repository.forge.source}</span>
+          {repository.forge.cloneUrl && <span>Clone transport: {repository.forge.cloneUrl}</span>}
+          <span>Branch checked: {repository.verifiedAt}</span>
+        </div>
+      </details>}
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       <div className="account-actions">
         <Button
@@ -479,7 +495,7 @@ export function SetupReview({ settings }: { settings: AccountSettings }) {
         </div>
         <div>
           <dt>Code execution</dt>
-          <dd>Not configured</dd>
+          <dd>{settings.automation?.detail ?? "Execution availability has not been reported."}</dd>
         </div>
       </dl>
     </div>

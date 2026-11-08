@@ -138,3 +138,44 @@ test("untrusted filenames and scripts cannot inject policy grants or fake test o
     expect(artifacts.every((a) => /^[a-f0-9]{64}$/.test(a.digest))).toBe(true);
   }));
 });
+
+test("setup retains sandbox receipts and activates investigation while remote landing remains explicitly blocked", async () => {
+  const f = await fixture(); let calls = 0;
+  const service = new AutomaticSetup({ ...f.options,
+    provision: async (run) => {
+      calls++;
+      expect(run.repository.head).toBe(f.head);
+      return { provisioned: true, verification: true, detail: "Fixture checks completed and sandbox destroyed.",
+        artifacts: [{ path: "ephyra/provisioning.json", digest: "unused",
+          content: JSON.stringify({ schema: 1, head: f.head, verification: true, cleanup: { destroyed: true } }) }] };
+    },
+    capabilities: async (run) => [{ id: "verification", available: Boolean(run?.artifacts.some((a) => a.path === "ephyra/provisioning.json")),
+      summary: "No baseline", action: "Run checks" }, { id: "landing", available: false, summary: "No verified landing", action: "Verify remote" }],
+  });
+  await service.start("autonomous", "setup-provision-01");
+  await f.drain();
+  const saved = (await service.current())!;
+  expect(calls).toBe(1);
+  expect(saved).toMatchObject({ status: "blocked", investigationActive: true, blockers: [{ id: "landing" }] });
+  expect(saved.steps[2]).toMatchObject({ status: "complete", detail: "Fixture checks completed and sandbox destroyed." });
+  expect(f.activated.length).toBe(1);
+  await service.restore();
+  expect(calls).toBe(1);
+  expect(f.activated.length).toBe(2);
+});
+
+test("setup cannot provision without a model and does not activate a failed baseline", async () => {
+  const f = await fixture(); let calls = 0;
+  const service = new AutomaticSetup({ ...f.options, provision: async () => {
+    calls++; return { provisioned: true, verification: false, artifacts: [], detail: "Observed baseline failure." };
+  } });
+  f.setCapabilities([{ id: "agent", available: false, summary: "Select a model", action: "Connect model" }]);
+  await service.start("autonomous", "setup-no-model-01"); await f.drain();
+  expect(calls).toBe(0);
+  expect((await service.current())!.investigationActive).toBe(false);
+  f.setCapabilities([{ id: "verification", available: false, summary: "Failed baseline", action: "Resolve the observed check failure" }]);
+  await service.start("autonomous", "setup-failed-base-02"); await f.drain();
+  expect(calls).toBe(1);
+  expect((await service.current())!.steps[2]?.status).toBe("blocked");
+  expect(f.activated).toHaveLength(0);
+});

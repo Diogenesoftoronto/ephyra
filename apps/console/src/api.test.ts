@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ApiError, ConsoleClient, UnknownWriteOutcome, VoiceRequestError } from "./api.ts";
 import { FakeApi } from "./fake/api.ts";
+import { QUESTION_FIXTURE } from "./fake/connections.ts";
 import { RUN_IDS } from "./fake/runs.ts";
 
 test("SSE run snapshots preserve new links, ignore another run, and do not interrupt the event channel", async () => {
@@ -179,4 +180,47 @@ test("voice and Tutor requests preserve browser fetch invocation, cancellation a
     expect(errors[index]).toBeInstanceOf(VoiceRequestError);
     expect(errors[index].code).toBe("unavailable");
   }
+});
+
+test("question writes and exact-record reconciliation preserve principal, workspace and escaped record identity", async () => {
+  const records = { ...QUESTION_FIXTURE, trailId: "trail/with?delimiter" };
+  const calls: { path: string; init?: RequestInit }[] = [];
+  const client = new ConsoleClient("https://console.example", "", async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    calls.push({ path, init });
+    return Response.json(path === "/v1/questions" ? [records] : records);
+  }, records.recipient!.did, records.workspaceId);
+  expect(await client.questions()).toEqual([records]);
+  expect(await client.question(records.trailId, records.id)).toEqual(records);
+  await client.answerQuestion(records.trailId, records.id, { text: "Bound answer" }, "answer-once");
+  const exactPath = `/v1/questions/trail%2Fwith%3Fdelimiter/${records.id}`;
+  expect(calls.map((call) => call.path)).toEqual(["/v1/questions", exactPath, `${exactPath}/answer`]);
+  for (const { init } of calls) {
+    expect(init?.headers).toMatchObject({ "X-Ephyra-Principal": records.recipient!.did, "X-Ephyra-Workspace": records.workspaceId });
+    expect(init?.credentials).toBe("same-origin");
+    expect(init?.cache).toBe("no-store");
+    expect(new Headers(init?.headers).has("Authorization")).toBeFalse();
+  }
+  expect(calls[1]!.init?.method).toBe("GET");
+  expect(calls[2]!.init?.method).toBe("POST");
+  expect(new Headers(calls[2]!.init?.headers).get("Idempotency-Key")).toBe("answer-once");
+  expect(JSON.parse(String(calls[2]!.init?.body))).toEqual({ text: "Bound answer" });
+});
+
+test("question results from a different workspace or record cannot reconcile an answer", async () => {
+  for (const different of [
+    { ...QUESTION_FIXTURE, workspaceId: "other-workspace" }, { ...QUESTION_FIXTURE, id: "f".repeat(64) },
+    { ...QUESTION_FIXTURE, trailId: "other-trail" },
+  ]) {
+    const client = new ConsoleClient("https://console.example", "", async () => Response.json(different),
+      QUESTION_FIXTURE.recipient!.did, QUESTION_FIXTURE.workspaceId);
+    await expect(client.question(QUESTION_FIXTURE.trailId, QUESTION_FIXTURE.id)).rejects.toThrow("identity mismatch");
+    const error = await client.answerQuestion(QUESTION_FIXTURE.trailId, QUESTION_FIXTURE.id, { text: "Fact" }, "exact-answer")
+      .catch((error) => error);
+    expect(error).toBeInstanceOf(UnknownWriteOutcome);
+    expect(error.operationKey).toBe("exact-answer");
+  }
+  const client = new ConsoleClient("https://console.example", "", async () => Response.json([{ ...QUESTION_FIXTURE, workspaceId: "other" }]),
+    QUESTION_FIXTURE.recipient!.did, QUESTION_FIXTURE.workspaceId);
+  await expect(client.questions()).rejects.toThrow("workspace mismatch");
 });

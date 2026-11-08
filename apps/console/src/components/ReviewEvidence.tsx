@@ -1,7 +1,17 @@
-import type { ProofBundle } from "@ephyra/core";
+import { InvestigationQuestion, type ProofBundle } from "@ephyra/core";
 import { Badge, Card, Hash } from "../kit.ts";
 import type { TrailDetail } from "../api.ts";
 import { ReadAloudButton } from "../voice/Voice.tsx";
+import { QuestionRecord } from "./InvestigationQuestions.tsx";
+
+function RecordedQuestion({ content }: { content: string | null }) {
+  let value: unknown;
+  try { value = content ? JSON.parse(content) : null; } catch { value = null; }
+  const parsed = InvestigationQuestion.safeParse(value);
+  return <details className="review-proof-item"><summary>Investigation question and checks</summary>
+    {parsed.success ? <QuestionRecord question={parsed.data} /> : <pre className="review-document">{content ?? "No question record available."}</pre>}
+  </details>;
+}
 
 export function ReviewEvidence({
   artefacts,
@@ -12,7 +22,8 @@ export function ReviewEvidence({
 }) {
   return (
     <section className="stack" aria-label="Review evidence">
-      {(artefacts ?? []).map((a) => a.path.startsWith("decisions/") || a.path === "evidence/index.json" ? (
+      {(artefacts ?? []).map((a) => a.path === "questions/latest.json" ? <RecordedQuestion key={a.path} content={a.content} />
+        : a.path.startsWith("decisions/") || a.path === "evidence/index.json" ? (
         <details key={a.path} className="review-proof-item">
           <summary>
             {a.path === "evidence/index.json" ? "Research source coverage"

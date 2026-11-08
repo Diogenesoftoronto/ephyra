@@ -1,4 +1,7 @@
-import type { AccountSettings, ModelUpdate, OnboardingUpdate, RepositoryUpdate } from "@ephyra/core";
+import type {
+  AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, PeopleUpdate,
+} from "@ephyra/core";
+import { KNOWLEDGE_CATALOG_FIXTURE } from "./knowledge.ts";
 import type { AccountApi } from "../account-api.ts";
 import { ApiError, UnknownWriteOutcome } from "../api.ts";
 import { normalizeCatalogBaseUrl, type ModelCatalog } from "../model-catalog.ts";
@@ -51,13 +54,15 @@ export const CONNECTED_ACCOUNT_FIXTURE: AccountSettings = {
   onboarding: { status: "in_progress", updatedAt: "2026-11-07T12:00:00.000Z" },
 };
 
-type Method = "settings" | "saveRepository" | "saveModel" | "onboarding";
+type ReadMethod = "settings" | "knowledge";
+type Method = ReadMethod | "saveRepository" | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
 export interface FakeAccountOptions {
   initial?: AccountSettings;
+  knowledgeCatalog?: KnowledgeCatalog;
   fail?: Partial<Record<Method, Error>>;
   hang?: Method[];
   /** Simulates an interrupted response after the fixture mutation has been applied. */
-  uncertainAfterSave?: Exclude<Method, "settings">[];
+  uncertainAfterSave?: Exclude<Method, ReadMethod>[];
 }
 
 export class FakeAccountApi implements AccountApi {
@@ -76,7 +81,7 @@ export class FakeAccountApi implements AccountApi {
     return structuredClone(this.value);
   }
   private async update(
-    method: Exclude<Method, "settings">,
+    method: Exclude<Method, ReadMethod>,
     version: number,
     key: string,
     change: () => Partial<AccountSettings>,
@@ -89,6 +94,27 @@ export class FakeAccountApi implements AccountApi {
     this.completed.set(key, structuredClone(this.value));
     if (this.options.uncertainAfterSave?.includes(method)) throw new UnknownWriteOutcome(key);
     return structuredClone(this.value);
+  }
+  async knowledge(): Promise<KnowledgeCatalog> {
+    await this.before("knowledge");
+    const enabled = this.value.knowledge?.workspaceId === this.value.workspaceId && this.value.knowledge.enabled;
+    if (!enabled) return {
+      ...structuredClone(KNOWLEDGE_CATALOG_FIXTURE), status: "disabled", sources: [],
+      detail: "Choose whether Ephyra may use selected knowledge sources for this workspace.",
+    };
+    return structuredClone(this.options.knowledgeCatalog ?? {
+      ...KNOWLEDGE_CATALOG_FIXTURE, status: "needs_sign_in", sources: [],
+      detail: "Fictional fixture: sign in again to connect knowledge sources.",
+    });
+  }
+  saveKnowledge(input: KnowledgeUpdate, key: string) {
+    return this.update("saveKnowledge", input.expectedVersion, key, () => {
+      if (input.workspaceId !== this.value.workspaceId) throw new ApiError(409, "Your workspace changed.");
+      return { knowledge: {
+        workspaceId: input.workspaceId, enabled: input.enabled, sources: structuredClone(input.sources),
+        updatedAt: "2026-11-08T12:00:00.000Z",
+      } };
+    });
   }
   saveRepository(input: RepositoryUpdate, key: string) {
     return this.update("saveRepository", input.expectedVersion, key, () => {
@@ -105,9 +131,33 @@ export class FakeAccountApi implements AccountApi {
             ? false
             : Boolean(input.token || (same && this.value.repository?.credentialConfigured)),
           ...(input.username ? { username: input.username } : {}),
+          ...(input.credentialHost ? { credentialHost: input.credentialHost } : {}),
         },
         onboarding: { status: "in_progress", updatedAt: "2026-11-07T12:00:00.000Z" },
       };
+    });
+  }
+  saveTelemetry(input: TelemetryUpdate, key: string) {
+    return this.update("saveTelemetry", input.expectedVersion, key, () => {
+      if (input.workspaceId !== this.value.workspaceId) throw new ApiError(409, "Your workspace changed.");
+      const previous = this.value.telemetry;
+      const retained = previous?.workspaceId === input.workspaceId && previous.origin === input.origin && previous.projectId === input.projectId;
+      return { telemetry: {
+        enabled: input.enabled, workspaceId: input.workspaceId, provider: "posthog", origin: input.origin,
+        projectId: input.projectId, includeRecordings: input.includeRecordings,
+        keyConfigured: input.enabled && !input.clearKey && Boolean(input.apiKey || retained && previous?.keyConfigured),
+        status: "saved", checkedAt: null, detail: "Fictional fixture. No PostHog project was contacted or verified.",
+      } };
+    });
+  }
+  savePeople(input: PeopleUpdate, key: string) {
+    return this.update("savePeople", input.expectedVersion, key, () => {
+      if (input.workspaceId !== this.value.workspaceId) throw new ApiError(409, "Your workspace changed.");
+      const same = this.value.people?.workspaceId === input.workspaceId && this.value.people.webhookUrl === (input.webhookUrl || null);
+      return { people: {
+        enabled: input.enabled, workspaceId: input.workspaceId, contacts: structuredClone(input.contacts), webhookUrl: input.webhookUrl || null,
+        keyConfigured: !input.clearToken && Boolean(input.token || same && this.value.people?.keyConfigured), updatedAt: "2026-11-08T12:00:00.000Z",
+      } };
     });
   }
   saveModel(input: ModelUpdate, key: string) {

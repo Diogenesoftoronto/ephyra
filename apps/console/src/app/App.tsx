@@ -85,7 +85,7 @@ function Page({
     case "usage":
       return <UsagePage />;
     case "inbox":
-      return <InboxPage trailId={route.id} canAct={approver} principal={principal} />;
+      return <InboxPage trailId={route.id} canAct={approver} principal={principal} questionWorkspace={account?.settings.workspaceId} />;
     case "runs":
       return route.id ? <RunPage runId={route.id} /> : <RunsPage />;
     case "workspace":

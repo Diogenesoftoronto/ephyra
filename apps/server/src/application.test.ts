@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { AccountSettings, Draft, PolicyDoc, type UsageEntry } from "@ephyra/core";
+import { AccountSettings, Draft, InvestigationQuestion, PolicyDoc, Trail, type InvestigationContact, type UsageEntry } from "@ephyra/core";
+import { GitJournal } from "@ephyra/journal";
+import { SecretBox } from "./auth/crypto";
+import { ownerContact, type AnswerTicket } from "./setup/questions";
 import { AUTONOMY_TEMPLATE } from "@ephyra/policy";
 import { composeApplication } from "./application";
 import { readConfig } from "./config";
@@ -49,6 +52,7 @@ async function fixture(withRepository = false) {
   const fake = fakeNotOrganic(identity);
   let grantedScope = "judgement:evaluate";
   const calls: { url: string; method: string; headers: Headers; body: Record<string, unknown> | null }[] = [];
+  const judgements: Record<string, unknown>[] = [];
   let respond = (url: string, body: Record<string, unknown> | null): Response => {
     if (url.endsWith("/models")) return json({ data: [{ id: "chosen-model" }] });
     const text = JSON.stringify({ text: "The selected provider answered." });
@@ -77,8 +81,8 @@ async function fixture(withRepository = false) {
     expect(localGit(["commit", "--quiet", "-m", "offline fixture"], source).code).toBe(0);
     const execute: GitExecutor = async (input) => {
       const args = [...input.args];
-      if (args.includes("fetch")) {
-        fetches++;
+      if (args.includes("fetch") || args.includes("ls-remote")) {
+        if (args.includes("fetch")) fetches++;
         args[args.indexOf("--") + 1] = pathToFileURL(source).href;
       }
       return localGit(["-c", "protocol.file.allow=always", ...args], undefined, {
@@ -105,6 +109,7 @@ async function fixture(withRepository = false) {
       accountStore: store,
       repository,
       notOrganicFetch: async (url, init) => {
+        if (url.endsWith("/v1/judgement")) judgements.push(JSON.parse(String(init?.body ?? "{}")));
         const response = await fake.fetcher(url, init);
         if (url.endsWith("/v1/public/token") && response.ok)
           return json({ ...((await response.json()) as object), scope: grantedScope });
@@ -144,6 +149,7 @@ async function fixture(withRepository = false) {
     server,
     store,
     calls,
+    judgements,
     login,
     root,
     source,
@@ -527,5 +533,320 @@ describe("personal application account routes", () => {
     const bobSetup = await f.server.app.request("/auth/login?setup=1", { headers: { cookie: b.cookie } });
     expect(new URL(bobSetup.headers.get("location")!).searchParams.get("scope")).not.toContain("infer:hosted-selected");
     expect(f.calls).toHaveLength(0);
+  });
+
+  test("knowledge onboarding is account-bound, optional, versioned, and requests scopes through real reauthorization", async () => {
+    const f = await fixture();
+    expect((await f.server.app.request("/v1/account/knowledge")).status).toBe(401);
+    expect((await f.server.app.request("/v1/account/knowledge", { headers: {
+      Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": ALICE,
+    } })).status).toBe(403);
+    const a = await f.login();
+    const before = await settings(f, a.cookie);
+    const path = "/v1/account/knowledge";
+    expect(await (await read(f, a.cookie, path)).json()).toMatchObject({ status: "disabled", sources: [] });
+    const input = { expectedVersion: before.version, workspaceId: before.workspaceId, enabled: true, sources: [] };
+    expect((await write(f, a.cookie, BOB, before.workspaceId, path, input)).status).toBe(409);
+    const saved = await write(f, a.cookie, ALICE, before.workspaceId, path, input, "knowledge-opt-in");
+    expect(saved.status).toBe(200);
+    const next = AccountSettings.parse(await saved.json());
+    expect(next.knowledge).toMatchObject({ enabled: true, sources: [], workspaceId: before.workspaceId });
+    expect((await write(f, a.cookie, ALICE, before.workspaceId, path, input, "knowledge-opt-in")).status).toBe(200);
+    expect(await (await read(f, a.cookie, path)).json()).toMatchObject({ status: "needs_sign_in" });
+    f.grant("judgement:evaluate knowledge:read knowledge:tools");
+    const renewed = await f.login(ALICE, a.cookie, true);
+    expect(new URL(renewed.authorize).searchParams.get("scope")?.split(" ")).toEqual(expect.arrayContaining(["knowledge:read", "knowledge:tools"]));
+    // The fictional upstream has no catalog configured: this remains unavailable rather than inventing sources.
+    expect(await (await read(f, renewed.cookie, path)).json()).toMatchObject({ status: "unavailable", sources: [] });
+    const b = await f.login(BOB);
+    const bobSetup = await f.server.app.request("/auth/login?setup=1", { headers: { cookie: b.cookie } });
+    expect(new URL(bobSetup.headers.get("location")!).searchParams.get("scope")).not.toContain("knowledge:");
+    expect(await (await read(f, b.cookie, path)).json()).toMatchObject({ status: "disabled" });
+    expect((await write(f, renewed.cookie, ALICE, next.workspaceId, path, {
+      expectedVersion: next.version, workspaceId: next.workspaceId, enabled: false, sources: [],
+    })).status).toBe(200);
+    expect(await f.server.accounts!.scopes(ALICE)).not.toContain("knowledge:read");
+  });
+});
+
+
+/** Explicitly seeded offline question evidence; real journal/sealing/HTTP authorization are exercised. */
+async function seedQuestion(
+  f: Fixture,
+  cookie: string,
+  account: AccountSettings,
+  recipient: InvestigationContact = ownerContact(account.did),
+) {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const questionId = id.replaceAll("-", "").repeat(2);
+  // Initialize the personal runtime and mirror without starting any background job.
+  const ready = await read(f, cookie, `/v1/questions/${id}/${questionId}`, { "X-Ephyra-Workspace": account.workspaceId });
+  expect(ready.status).toBe(200);
+  expect(await ready.json()).toBeNull();
+  const journal = new GitJournal({
+    gitDir: join(f.server.accounts!.directory(account.workspaceId), "workspace.git"),
+    clock: { now: () => new Date(now) },
+  });
+  const trail = Trail.parse({
+    schema: 1, id, short: "T-http-fixture", repo: account.workspaceId, title: "Recorded fixture cart failure", rev: 1,
+    state: "parked", resumeTo: "researching", signals: [crypto.randomUUID()], area: "app", risk: "low", route: "auto_fix", severity: 2,
+    base: { ref: "main", sha: "a".repeat(40) }, head: "b".repeat(40), checkpoints: { spend: [] }, attempts: { proof: 0, maxProof: 3 },
+    budget: { tokensUsed: 0, tokensMax: 1000, wallclockMaxS: 60, spendMicrousdUsed: 0, spendMicrousdMax: 1000 },
+    createdAt: now, updatedAt: now,
+  });
+  const question = InvestigationQuestion.parse({
+    id: questionId, trailId: trail.id, workspaceId: account.workspaceId, bound: { rev: 1, head: trail.head },
+    status: "awaiting_answer", question: "Fixture: should the cart retain items after sign-in?",
+    reason: "Fixture: expected behavior is missing from the recorded report.", acceptance: "State whether cart items are retained.",
+    recipient, createdAt: now, updatedAt: now,
+    delivery: { kind: recipient.did === account.did ? "inbox" : "webhook", status: "sent", receipt: "offline-fixture" },
+    checks: [{ phase: "question", model: "offline-fixture", accepted: true, request: { fixture: true }, response: { fixture: true } }],
+  });
+  await journal.create(trail, {
+    schema: 1, id: crypto.randomUUID(), trail: trail.id, rev: 1, at: now, actor: { kind: "system", id: "offline-http-fixture" },
+    type: "trail_created", data: { signalId: trail.signals[0]!, title: trail.title, baseRef: "main", baseSha: trail.base.sha },
+  }, { [`questions/${question.id}.json`]: JSON.stringify(question), "questions/latest.json": JSON.stringify(question) });
+  const box = await SecretBox.fromBase64(Buffer.alloc(32, 9).toString("base64"));
+  const claims: AnswerTicket = { kind: "investigation-answer-v1", did: account.did, workspace: account.workspaceId,
+    trail: trail.id, question: question.id, recipient: recipient.id, expires: Date.now() + 60_000 };
+  const token = await box.seal(claims);
+  return { journal, trail, question, box, claims, token,
+    path: `/v1/questions/${trail.id}/${question.id}`, answerPath: `/v1/questions/${trail.id}/${question.id}/answer` };
+}
+
+const callback = (f: Fixture, token: string, method = "GET", text?: string, headers: Record<string, string> = {}) =>
+  f.server.app.request("/callbacks/investigation", {
+    method, headers: { Authorization: `Bearer ${token}`, ...(text === undefined ? {} : { "content-type": "application/json" }), ...headers },
+    ...(text === undefined ? {} : { body: JSON.stringify({ text }) }),
+  });
+
+const postHogEmpty = () => json({
+  columns: ["id", "timestamp", "event", "exception_list", "fingerprint", "level", "session_id", "steps"],
+  results: [], is_cached: false, last_refresh: new Date().toISOString(),
+});
+
+describe("telemetry, people and investigation HTTP routes", () => {
+  test("settings writes bind human account, current body workspace, optional workspace header and browser Origin", async () => {
+    const f = await fixture();
+    const { cookie } = await f.login();
+    for (const kind of ["telemetry", "people"] as const) {
+      const account = await settings(f, cookie);
+      const path = `/v1/account/${kind}`;
+      const input = kind === "telemetry"
+        ? { expectedVersion: account.version, workspaceId: account.workspaceId, enabled: false,
+          origin: "", projectId: "", includeRecordings: false }
+        : { expectedVersion: account.version, workspaceId: account.workspaceId, enabled: false, contacts: [ownerContact(ALICE)] };
+      expect((await f.server.app.request(path, { method: "PUT", body: JSON.stringify(input) })).status).toBe(401);
+      expect((await f.server.app.request(path, { method: "PUT", body: JSON.stringify(input), headers: {
+        Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": ALICE,
+      } })).status).toBe(403);
+      for (const origin of [undefined, "null", "https://other.example", `${ORIGIN}.attacker.example`]) {
+        const response = await f.server.app.request(path, { method: "PUT", body: JSON.stringify(input), headers: {
+          cookie, ...(origin === undefined ? {} : { Origin: origin }), "content-type": "application/json",
+          "X-Ephyra-Account": ALICE, "X-Ephyra-Workspace": account.workspaceId, "Idempotency-Key": crypto.randomUUID(),
+        } });
+        expect(response.status).toBe(403);
+      }
+      expect((await write(f, cookie, BOB, account.workspaceId, path, input)).status).toBe(409);
+      expect((await write(f, cookie, ALICE, account.workspaceId, path,
+        { ...input, workspaceId: "ws_stale" })).status).toBe(409);
+      expect((await write(f, cookie, ALICE, "ws_stale", path, input)).status).toBe(409);
+      expect((await settings(f, cookie)).version).toBe(account.version);
+      // AccountClient intentionally carries workspace in the body, so omitting its optional header is supported.
+      const saved = await f.server.app.request(path, { method: "PUT", body: JSON.stringify(input), headers: {
+        cookie, Origin: ORIGIN, "content-type": "application/json", "X-Ephyra-Account": ALICE,
+        "Idempotency-Key": crypto.randomUUID(),
+      } });
+      expect(saved.status).toBe(200);
+      expect(AccountSettings.parse(await saved.json()).version).toBe(account.version + 1);
+    }
+    expect(f.calls).toHaveLength(0); expect(f.judgements).toHaveLength(0);
+  });
+
+  test("PostHog credentials remain account-scoped, sealed and absent from settings; replays do not re-query", async () => {
+    const f = await fixture(); f.respond(() => postHogEmpty());
+    const alice = await f.login(); const bob = await f.login(BOB);
+    const a = await settings(f, alice.cookie); const b = await settings(f, bob.cookie);
+    const input = { expectedVersion: a.version, workspaceId: a.workspaceId, enabled: true,
+      origin: "https://us.posthog.com", projectId: "42", includeRecordings: false, apiKey: KEY };
+    const saved = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/telemetry", input, "telemetry-connect-one");
+    expect(saved.status).toBe(200);
+    const publicText = await saved.text();
+    expect(publicText).not.toContain(KEY);
+    const next = AccountSettings.parse(JSON.parse(publicText));
+    expect(next.telemetry).toMatchObject({ enabled: true, projectId: "42", keyConfigured: true, status: "verified" });
+    expect(f.calls).toHaveLength(1);
+    expect(f.calls[0]!.url).toBe("https://us.posthog.com/api/projects/42/query/");
+    expect(f.calls[0]!.headers.get("authorization")).toBe(`Bearer ${KEY}`);
+    expect((await f.store.get(ALICE))!.telemetryKey).not.toContain(KEY);
+    expect((await settings(f, bob.cookie)).telemetry).toBeUndefined();
+    expect(await f.server.accounts!.telemetryFor(BOB, a.workspaceId)).toBeNull();
+    expect(await f.server.accounts!.telemetryFor(ALICE, b.workspaceId)).toBeNull();
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/telemetry", input, "telemetry-connect-one")).status).toBe(200);
+    expect(f.calls).toHaveLength(1);
+    expect((await write(f, bob.cookie, BOB, b.workspaceId, "/v1/account/telemetry", { ...input, workspaceId: a.workspaceId })).status).toBe(409);
+    const disconnected = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/telemetry", {
+      ...input, expectedVersion: next.version, enabled: false, clearKey: true, apiKey: undefined,
+    });
+    expect(disconnected.status).toBe(200); expect(await f.server.accounts!.telemetryFor(ALICE, a.workspaceId)).toBeNull();
+    expect(f.calls).toHaveLength(1);
+  });
+
+  test("delivery bridge settings are isolated and neither their credential nor another account's contact appears publicly", async () => {
+    const f = await fixture(); const alice = await f.login(); const bob = await f.login(BOB);
+    const a = await settings(f, alice.cookie); const b = await settings(f, bob.cookie);
+    const contact: InvestigationContact = { id: "product-contact", alias: "Product teammate", roles: ["product"], areas: ["app"] };
+    const input = { expectedVersion: a.version, workspaceId: a.workspaceId, enabled: true, contacts: [contact],
+      webhookUrl: "https://bridge.example.com/questions", token: KEY };
+    const response = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/people", input, "people-connect-one");
+    expect(response.status).toBe(200);
+    const publicText = await response.text(); expect(publicText).not.toContain(KEY);
+    expect(AccountSettings.parse(JSON.parse(publicText)).people).toMatchObject({ contacts: [contact], keyConfigured: true });
+    expect((await f.store.get(ALICE))!.peopleToken).not.toContain(KEY);
+    expect((await settings(f, bob.cookie)).people!.contacts).toEqual([ownerContact(BOB)]);
+    expect(await f.server.accounts!.peopleFor(BOB, a.workspaceId)).toBeNull();
+    expect(await f.server.accounts!.peopleFor(ALICE, b.workspaceId)).toBeNull();
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/people", input, "people-connect-one")).status).toBe(200);
+    expect(f.calls).toHaveLength(0);
+  });
+
+  test("exact question reads and cookie answers enforce workspace, account and Origin bindings", async () => {
+    const f = await fixture(); const alice = await f.login(); const bob = await f.login(BOB);
+    const a = await settings(f, alice.cookie); const b = await settings(f, bob.cookie);
+    const q = await seedQuestion(f, alice.cookie, a);
+    expect((await f.server.app.request(q.path)).status).toBe(401);
+    expect((await f.server.app.request(q.path, { headers: {
+      Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": ALICE, "X-Ephyra-Workspace": a.workspaceId,
+    } })).status).toBe(403);
+    expect((await read(f, alice.cookie, q.path)).status).toBe(409);
+    expect((await read(f, alice.cookie, q.path, { "X-Ephyra-Workspace": b.workspaceId })).status).toBe(409);
+    const own = await read(f, alice.cookie, q.path, { "X-Ephyra-Workspace": a.workspaceId });
+    expect(own.status).toBe(200); expect(InvestigationQuestion.parse(await own.json()).id).toBe(q.question.id);
+    const other = await read(f, bob.cookie, q.path, { "X-Ephyra-Workspace": b.workspaceId });
+    expect(other.status).toBe(200); expect(await other.json()).toBeNull();
+    expect((await write(f, alice.cookie, ALICE, b.workspaceId, q.answerPath, { text: "Retain cart items" }, undefined, "POST")).status).toBe(409);
+    expect((await write(f, alice.cookie, BOB, a.workspaceId, q.answerPath, { text: "Retain cart items" }, undefined, "POST")).status).toBe(409);
+    for (const origin of [undefined, "null", "https://other.example"]) {
+      const response = await f.server.app.request(q.answerPath, { method: "POST", body: JSON.stringify({ text: "Retain cart items" }), headers: {
+        cookie: alice.cookie, ...(origin === undefined ? {} : { Origin: origin }), "content-type": "application/json",
+        "X-Ephyra-Account": ALICE, "X-Ephyra-Workspace": a.workspaceId,
+      } });
+      expect(response.status).toBe(403);
+    }
+    expect(f.judgements).toHaveLength(0);
+    const answer = await write(f, alice.cookie, ALICE, a.workspaceId, q.answerPath, { text: "Retain cart items" }, undefined, "POST");
+    expect(answer.status).toBe(200);
+    // The injected gateway returns a non-choice result: authorization succeeds but evidence acceptance fails closed.
+    expect(InvestigationQuestion.parse(await answer.json()).status).toBe("rejected");
+    expect(f.judgements).toHaveLength(1);
+  });
+
+  test("rejected service-token answers cannot create a personal account record", async () => {
+    const f = await fixture();
+    expect(await f.store.get(BOB)).toBeNull();
+    const response = await f.server.app.request(`/v1/questions/${crypto.randomUUID()}/${"a".repeat(64)}/answer`, {
+      method: "POST", body: JSON.stringify({ text: "An unauthorized service reply" }), headers: {
+        Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": BOB, "X-Ephyra-Workspace": "ws_stale",
+        "content-type": "application/json",
+      },
+    });
+    expect([403, 409]).toContain(response.status);
+    expect(await f.store.get(BOB)).toBeNull();
+    expect(f.judgements).toHaveLength(0); expect(f.calls).toHaveLength(0);
+  });
+
+  test("a person cannot answer a question addressed to another recipient, even in their own workspace", async () => {
+    const f = await fixture(); const alice = await f.login(); const bob = await f.login(BOB);
+    const a = await settings(f, alice.cookie); const b = await settings(f, bob.cookie);
+    const recipient: InvestigationContact = { id: "bob-contact", alias: "Bob teammate", roles: ["maintainer"], areas: ["app"], did: BOB };
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/people", {
+      expectedVersion: a.version, workspaceId: a.workspaceId, enabled: true, contacts: [recipient],
+      webhookUrl: "https://bridge.example.com/questions", token: KEY,
+    })).status).toBe(200);
+    const q = await seedQuestion(f, alice.cookie, a, recipient);
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, q.answerPath, { text: "Retain items" }, undefined, "POST")).status).toBe(403);
+    expect((await write(f, bob.cookie, BOB, b.workspaceId, q.answerPath, { text: "Retain items" }, undefined, "POST")).status).toBe(403);
+    expect((await write(f, bob.cookie, BOB, a.workspaceId, q.answerPath, { text: "Retain items" }, undefined, "POST")).status).toBe(409);
+    expect(f.judgements).toHaveLength(0);
+  });
+
+  test("sealed answer tickets authorize only their recorded recipient and bind GET/POST while rejecting untrusted Origins", async () => {
+    const f = await fixture(); const alice = await f.login(); const a = await settings(f, alice.cookie);
+    const q = await seedQuestion(f, alice.cookie, a);
+    expect((await f.server.app.request("/callbacks/investigation")).status).toBe(422);
+    expect((await f.server.app.request(`/callbacks/investigation?token=${q.token}`)).status).toBe(422);
+    for (const method of ["GET", "POST"]) {
+      expect((await callback(f, q.token, method, method === "POST" ? "Retain cart items" : undefined,
+        { Origin: "https://other.example" })).status).toBe(403);
+      expect((await callback(f, q.token, method, method === "POST" ? "Retain cart items" : undefined,
+        { Origin: "null" })).status).toBe(403);
+    }
+    const shown = await callback(f, q.token);
+    expect(shown.status).toBe(200);
+    expect(await shown.json()).toEqual({ question: q.question.question, reason: q.question.reason, status: "awaiting_answer" });
+    expect(f.judgements).toHaveLength(0);
+    const result = await callback(f, q.token, "POST", "Retain cart items", { Origin: ORIGIN });
+    expect(result.status).toBe(200); expect(await result.json()).toEqual({ status: "rejected" });
+    expect(f.judgements).toHaveLength(1);
+    expect((await callback(f, q.token, "POST", "Retain cart items", { Origin: ORIGIN })).status).toBe(200);
+    expect(f.judgements).toHaveLength(1);
+    expect((await callback(f, q.token, "POST", "A different answer", { Origin: ORIGIN })).status).toBe(422);
+    const wrongRecipient = await q.box.seal({ ...q.claims, recipient: "somebody-else" });
+    const wrongAccount = await q.box.seal({ ...q.claims, did: BOB });
+    expect((await callback(f, wrongRecipient)).status).toBe(403);
+    expect((await callback(f, wrongAccount)).status).toBe(409);
+    expect(f.calls).toHaveLength(0);
+  });
+
+  test("expired, tampered and incorrectly sealed tickets cannot read or answer questions", async () => {
+    const f = await fixture(); const alice = await f.login(); const a = await settings(f, alice.cookie);
+    const q = await seedQuestion(f, alice.cookie, a);
+    const expired = await q.box.seal({ ...q.claims, expires: Date.now() - 1 });
+    const otherBox = await SecretBox.fromBase64(Buffer.alloc(32, 3).toString("base64"));
+    const wrongKey = await otherBox.seal(q.claims);
+    const tampered = q.token.slice(0, 20) + (q.token[20] === "A" ? "B" : "A") + q.token.slice(21);
+    for (const token of [expired, wrongKey, tampered]) {
+      for (const method of ["GET", "POST"]) {
+        const response = await callback(f, token, method, method === "POST" ? "Retain items" : undefined, { Origin: ORIGIN });
+        expect(response.status).toBe(422);
+        const body = await response.text(); expect(body).not.toContain(q.question.question); expect(body).not.toContain(token);
+      }
+    }
+    expect(f.judgements).toHaveLength(0);
+  });
+
+  test("reassigning a configured recipient ID revokes an older ticket for both reads and answers", async () => {
+    const f = await fixture(); const alice = await f.login(); const a = await settings(f, alice.cookie);
+    const q = await seedQuestion(f, alice.cookie, a);
+    expect((await callback(f, q.token)).status).toBe(200);
+    const reassigned: InvestigationContact = { ...ownerContact(BOB), alias: "Replacement maintainer" };
+    const response = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/people", {
+      expectedVersion: a.version, workspaceId: a.workspaceId, enabled: true, contacts: [reassigned],
+      webhookUrl: "https://bridge.example.com/questions", token: KEY,
+    });
+    expect(response.status).toBe(200);
+    for (const method of ["GET", "POST"]) {
+      expect((await callback(f, q.token, method, method === "POST" ? "Retain items" : undefined, { Origin: ORIGIN })).status).toBe(403);
+    }
+    expect(f.judgements).toHaveLength(0); expect(f.calls).toHaveLength(0);
+  });
+
+  test("switching repositories invalidates old answer tickets and stale question workspace headers", async () => {
+    const f = await fixture(true); const alice = await f.login(); const a = await settings(f, alice.cookie);
+    const q = await seedQuestion(f, alice.cookie, a);
+    const switched = await write(f, alice.cookie, ALICE, a.workspaceId, "/v1/account/repository", {
+      expectedVersion: a.version, url: "https://forge.example/team/next.git", branch: "main",
+    }, "question-workspace-switch");
+    expect(switched.status).toBe(200);
+    const next = AccountSettings.parse(await switched.json());
+    expect(next.workspaceId).not.toBe(a.workspaceId);
+    expect((await callback(f, q.token)).status).toBe(409);
+    expect((await callback(f, q.token, "POST", "Retain items", { Origin: ORIGIN })).status).toBe(409);
+    expect((await read(f, alice.cookie, q.path, { "X-Ephyra-Workspace": a.workspaceId })).status).toBe(409);
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, q.answerPath, { text: "Retain items" }, undefined, "POST")).status).toBe(409);
+    const current = await read(f, alice.cookie, q.path, { "X-Ephyra-Workspace": next.workspaceId });
+    expect(current.status).toBe(200); expect(await current.json()).toBeNull();
+    expect(f.judgements).toHaveLength(0);
   });
 });

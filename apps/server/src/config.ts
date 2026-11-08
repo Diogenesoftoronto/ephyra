@@ -29,6 +29,16 @@ const Config = z.object({
   NOTORGANIC_PRODUCT: z.string().default("notorganic"),
   /** Whose wallet pays for hosted models (defaults to the first approver). */
   EPHYRA_BILLING_DID: optional,
+  // Hosted execution is granted to explicit account DIDs by the operator; model/repository keys stay account-owned.
+  EPHYRA_HOSTED_RUNNER: z.enum(["none", "railway"]).default("none"),
+  EPHYRA_HOSTED_ACCOUNTS: z.string().default(""),
+  EPHYRA_RAILWAY_TOKEN: optional,
+  EPHYRA_RAILWAY_ENVIRONMENT_ID: optional,
+  EPHYRA_RAILWAY_CHECKPOINT: optional,
+  EPHYRA_RAILWAY_REGION: optional,
+  EPHYRA_RAILWAY_CPU: z.coerce.number().positive().max(32).default(1),
+  EPHYRA_RAILWAY_MEMORY_MB: z.coerce.number().int().min(256).max(32000).default(2000),
+  EPHYRA_RAILWAY_IDLE_MINUTES: z.coerce.number().int().min(1).max(60).default(5),
 
   // Policy files (optional; shadow-mode templates otherwise).
   EPHYRA_AUTONOMY_FILE: optional,
