@@ -35,6 +35,12 @@ export function userCode(challenge: string): string {
   return `${c.slice(0, 4)}-${c.slice(4, 8)}`;
 }
 
+/** Only the known agent claim and access-management routes can resume through sign-in. */
+export function claimReturnTo(value: unknown): string | undefined {
+  return typeof value === "string" && (value === "/agent/access"
+    || /^\/agent\/claim\?attempt=[A-Za-z0-9_-]{43}$/.test(value)) ? value : undefined;
+}
+
 export class NotOrganicSignIn {
   /** Access tokens minted from a session, cached until shortly before expiry; one refresh in flight per session. */
   private cache = new Map<string, { token: string; keys: CryptoKeyPair; publicJwk: Jwk; expiresMs: number }>();
@@ -56,13 +62,16 @@ export class NotOrganicSignIn {
   expireCachedTokens(): void { this.cache.clear(); }
 
   /** Start a login. `browser` is a random value the caller sets as an HttpOnly cookie. */
-  async begin(browser: string, cliChallenge?: string, additionalScopes: string[] = []): Promise<string> {
+  async begin(browser: string, cliChallenge?: string, additionalScopes: string[] = [], returnTo?: string): Promise<string> {
     if (cliChallenge !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(cliChallenge)) throw new SignInError(400, "invalid CLI challenge");
+    if (returnTo !== undefined && (!claimReturnTo(returnTo) || cliChallenge !== undefined))
+      throw new SignInError(400, "invalid sign-in return target");
     const state = randomToken();
     const verifier = randomToken();
     await this.store.putTx({
       state, verifier, browserHash: await sha256b64url(browser), createdMs: Date.now(),
       ...(cliChallenge ? { cliChallenge } : {}),
+      ...(returnTo ? { returnTo } : {}),
     });
     const url = new URL(this.config.authorizationUrl);
     const params = {
@@ -80,7 +89,7 @@ export class NotOrganicSignIn {
    */
   async complete(
     params: URLSearchParams, browser: string | undefined,
-  ): Promise<{ token: string; principal: Principal; cli?: { challenge: string; csrf: string } }> {
+  ): Promise<{ token: string; principal: Principal; cli?: { challenge: string; csrf: string }; returnTo?: string }> {
     const state = params.get("state") ?? "";
     const tx = state ? await this.store.takeTx(state) : null;
     if (!tx || !browser || (await sha256b64url(browser)) !== tx.browserHash) throw new SignInError(400, "Sign-in could not be verified. Start again.");
@@ -116,7 +125,8 @@ export class NotOrganicSignIn {
     await this.store.putSession(record);
     this.cache.set(record.sessionHash, { token: token.access_token, keys: dpop.keys, publicJwk: dpop.publicJwk, expiresMs: now + token.expires_in * 1000 });
 
-    if (!tx.cliChallenge) return { token: sessionToken, principal };
+    if (!tx.cliChallenge) return { token: sessionToken, principal,
+      ...(claimReturnTo(tx.returnTo) ? { returnTo: tx.returnTo } : {}) };
     const csrf = randomToken();
     const grant: CliGrant = { challenge: tx.cliChallenge, sealedToken: await this.box.seal(sessionToken), csrf, approved: false, createdMs: now };
     await this.store.putGrant(grant);

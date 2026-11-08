@@ -150,6 +150,17 @@ export default defineSchema({
   cliGrants: defineTable({ challenge: v.string(), json: v.string(), approved: v.boolean(), createdMs: v.number() })
     .index("by_challenge", ["challenge"]),
 
+  /** Agent delegations are independent of human sessions and bound to one explicitly claimed repository. */
+  agentRegistrations: defineTable({
+    id: v.string(), claimHash: v.string(), attemptHash: v.optional(v.string()),
+    ownerDid: v.optional(v.string()), revision: v.number(), json: v.string(),
+  }).index("by_registration_id", ["id"]).index("by_claim", ["claimHash"])
+    .index("by_attempt", ["attemptHash"]).index("by_owner", ["ownerDid"]),
+  /** Only token hashes reach durable storage; registration version and expiry are checked on every request. */
+  agentTokens: defineTable({
+    hash: v.string(), registrationId: v.string(), version: v.number(), expiresMs: v.number(),
+  }).index("by_hash", ["hash"]).index("by_registration", ["registrationId"]),
+
   /** Account settings belong to the authenticated DID, independently of any selected project workspace. */
   accountSettings: defineTable({ did: v.string(), version: v.number(), json: v.string() })
     .index("by_did", ["did"]),

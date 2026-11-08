@@ -26,9 +26,16 @@ import { provisionSetup } from "./setup/provisioning.ts";
 import { canonicalJson } from "./audit.ts";
 import { proofToolchain } from "./setup/proof-toolchain.ts";
 import { personalLanding } from "./setup/personal-landing.ts";
+import { accountBootstrapCoverage } from "./setup/account-bootstrap.ts";
+import { createAgentAccess } from "./auth/agent-service.ts";
+import { ConvexAgentStore, MemoryAgentStore, type AgentStore } from "./auth/agent-store.ts";
+import { agentAuthRoutes } from "./auth/agent-routes.ts";
+import { agentSetupRoutes } from "./http/agent-setup.ts";
+import { agentManagementRoutes } from "./auth/agent-management.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
+  agentStore?: AgentStore;
   repository?: AccountOptions["repository"];
   providerFetch?: AccountOptions["fetcher"];
   /** The host provisions these for this account/workspace. Deployment CLI credentials are never inherited. */
@@ -69,6 +76,31 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     },
   });
   const account = accounts;
+  const agents = createAgentAccess({
+    store: opts.agentStore ?? (client ? new ConvexAgentStore(client, config.EPHYRA_CONVEX_SECRET!) : new MemoryAgentStore()),
+    origin: config.EPHYRA_PUBLIC_ORIGIN!, signingSecret: config.EPHYRA_SESSION_KEY, signIn,
+    resolveBinding: async (did, proposal, registrationId) => {
+      let record = await account.record(did);
+      if (record.settings.repository && (record.settings.repository.url !== proposal.url
+        || record.settings.repository.branch !== proposal.branch))
+        throw new AccountError(409, "The proposed repository differs from your current workspace. Select it in settings and start a new claim.");
+      if (!record.settings.repository) {
+        await account.saveRepository(did, { expectedVersion: record.settings.version, ...proposal }, `agent-claim:${registrationId}`);
+        record = await account.record(did);
+      }
+      const repository = record.settings.repository;
+      if (!repository || repository.url !== proposal.url || repository.branch !== proposal.branch)
+        throw new AccountError(409, "The repository changed during agent approval. Start a new claim.");
+      return { ownerDid: did, workspaceId: record.settings.workspaceId, repositoryRevision: repository.verifiedAt,
+        repository: { url: repository.url, branch: repository.branch } };
+    },
+    currentBinding: async (did) => {
+      const record = await store.get(did);
+      const repository = record?.settings.repository;
+      return record && repository ? { ownerDid: did, workspaceId: record.settings.workspaceId, repositoryRevision: repository.verifiedAt,
+        repository: { url: repository.url, branch: repository.branch } } : null;
+    },
+  });
 
   async function runtime(record: AccountRecord): Promise<Composed> {
     const { workspaceId, did, repository } = record.settings;
@@ -147,10 +179,13 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           } } : {}),
           resolveDraftModel: () => account.modelFor(did, workspaceId),
           resolveTelemetry: () => account.telemetryFor(did, workspaceId),
+          assessBootstrap: (run) => accountBootstrapCoverage(account, did, workspaceId, run),
           landing: automation?.landing ?? personalLanding({ accounts: account, did, workspace: workspaceId }),
           questions: { did, workspaceId, model: () => account.modelFor(did, workspaceId),
             connection: () => account.peopleFor(did, workspaceId), box, publicOrigin: config.EPHYRA_PUBLIC_ORIGIN!,
             fetcher: opts.providerFetch },
+          bootstrapContact: { did, workspaceId, connection: () => account.peopleFor(did, workspaceId),
+            publicOrigin: config.EPHYRA_PUBLIC_ORIGIN!, fetcher: opts.providerFetch },
           resolveEvidenceSources: async (ledger) => {
             const current = await account.record(did);
             const knowledge = current.settings.knowledge;
@@ -182,6 +217,13 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     // Connection/provider/DB bodies can contain credentials. Never reflect or log them here.
     return c.json({ error: "The request could not be completed. Refresh to check the saved state." }, 503);
   });
+  app.route("/", agentAuthRoutes(agents));
+  app.route("/", agentManagementRoutes(agents, box));
+  app.route("/", agentSetupRoutes({ access: agents, runtime: async (principal) => {
+    const record = await account.record(principal.ownerDid);
+    if (record.settings.workspaceId !== principal.workspaceId) throw new AccountError(409, "The agent workspace changed.");
+    return runtime(record);
+  } }));
   app.use(
     "/v1/*",
     auth(config.EPHYRA_API_TOKEN, (token) => signIn.authenticate(token), config.EPHYRA_PUBLIC_ORIGIN),
@@ -203,25 +245,36 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     await next();
   });
   app.get("/v1/account", async (c) => c.json(await account.settings(c.get("principal"))));
+  app.get("/v1/account/agents", async (c) => c.json(await agents.list(c.get("principal"))));
+  app.delete("/v1/account/agents/:id", async (c) =>
+    c.json({ revoked: await agents.revokeOwned(c.get("principal"), c.req.param("id")) }));
   app.get("/v1/account/knowledge", async (c) => c.json(await account.knowledge(c.get("principal"))));
   app.put("/v1/account/telemetry", async (c) => {
     const value = TelemetryUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the PostHog project and connection." }, 400);
     const settings = await account.saveTelemetry(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? "");
     const composed = await runtime(await account.record(c.get("principal")));
-    const setup = await composed.setup.current();
-    if (setup?.status === "ready" || setup?.investigationActive) await composed.telemetry?.start(String(settings.version));
+    await composed.withOwner(async () => {
+      await composed.telemetry?.start(String(settings.version));
+      await composed.setup.reassess();
+    });
     return c.json(settings);
   });
   app.put("/v1/account/people", async (c) => {
     const value = PeopleUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the contacts and delivery bridge." }, 400);
-    return c.json(await account.savePeople(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+    const settings = await account.savePeople(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? "");
+    const composed = await runtime(await account.record(c.get("principal")));
+    await composed.withOwner(() => composed.setup.reassess());
+    return c.json(settings);
   });
   app.put("/v1/account/knowledge", async (c) => {
     const value = KnowledgeUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the selected knowledge sources and tools." }, 400);
-    return c.json(await account.saveKnowledge(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+    const settings = await account.saveKnowledge(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? "");
+    const composed = await runtime(await account.record(c.get("principal")));
+    await composed.withOwner(() => composed.setup.reassess());
+    return c.json(settings);
   });
   app.put("/v1/account/repository", async (c) => {
     const value = RepositoryUpdate.safeParse(await c.req.json().catch(() => null));
@@ -231,7 +284,10 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   app.put("/v1/account/model", async (c) => {
     const value = ModelUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the model, provider URL and key." }, 400);
-    return c.json(await account.saveModel(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+    const settings = await account.saveModel(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? "");
+    const composed = await runtime(await account.record(c.get("principal")));
+    await composed.withOwner(() => composed.setup.reassess());
+    return c.json(settings);
   });
   app.put("/v1/account/onboarding", async (c) => {
     const value = OnboardingUpdate.safeParse(await c.req.json().catch(() => null));

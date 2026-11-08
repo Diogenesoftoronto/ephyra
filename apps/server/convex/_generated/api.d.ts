@@ -9,6 +9,7 @@
  */
 
 import type * as accounts from "../accounts.js";
+import type * as agent_auth from "../agent_auth.js";
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
 import type * as drafts from "../drafts.js";
@@ -18,6 +19,7 @@ import type * as runs from "../runs.js";
 import type * as runtime from "../runtime.js";
 import type * as signals from "../signals.js";
 import type * as usage from "../usage.js";
+import type * as worker_owner from "../worker_owner.js";
 
 import type {
   ApiFromModules,
@@ -27,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
+  agent_auth: typeof agent_auth;
   audit: typeof audit;
   auth: typeof auth;
   drafts: typeof drafts;
@@ -36,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   runtime: typeof runtime;
   signals: typeof signals;
   usage: typeof usage;
+  worker_owner: typeof worker_owner;
 }>;
 
 /**

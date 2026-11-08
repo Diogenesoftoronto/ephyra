@@ -10,6 +10,8 @@ export type LoginTx = {
   browserHash: string;
   /** Present when the login was started by `ephyra login`: SHA-256 of the CLI's secret. */
   cliChallenge?: string;
+  /** Bounded same-origin agent claim return target, never an arbitrary redirect. */
+  returnTo?: string;
   createdMs: number;
 };
 
