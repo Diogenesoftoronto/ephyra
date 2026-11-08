@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { SetupRun, type SetupMode } from "@ephyra/core";
+import { BootstrapCoverage, BootstrapReport, BootstrapResponse, SetupRun, type SetupMode } from "@ephyra/core";
 import { parseAutonomy, parseThresholds, renderAutonomy, THRESHOLDS_TEMPLATE } from "@ephyra/policy";
 import { redact } from "@ephyra/agent";
 import type { Git } from "../wiring/landing.ts";
 import type { Jobs, RepoConfig } from "../wiring/context.ts";
 import { redactModelText } from "./model-redaction.ts";
+import { assessBootstrap, bootstrapDigest, inspectBootstrapSources } from "./bootstrap.ts";
 
 const CURRENT = "refs/ephyra/setup/current";
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -17,6 +18,11 @@ export type SetupOptions = {
   git: Git; repo: RepoConfig; jobs: Jobs;
   capabilities: (run?: SetupRun) => Promise<SetupCapability[]>;
   activate: (run: SetupRun) => Promise<void>;
+  /** Observations from current workspace authority. Configuration and observed evidence remain distinct. */
+  assess?: (run: SetupRun) => Promise<BootstrapCoverage[]>;
+  /** Queue owner contact only after the assessment is durable; this hook must not send external messages. */
+  onAssessed?: (run: SetupRun) => Promise<void>;
+  reassessEveryMs?: number;
   provision?: (run: SetupRun) => Promise<{
     artifacts: SetupRun["artifacts"]; verification: boolean; provisioned: boolean; detail: string;
   }>;
@@ -110,10 +116,24 @@ export function bootstrapArtifacts(files: string[], manifest: unknown, mode: Set
 export class AutomaticSetup {
   private chain: Promise<unknown> = Promise.resolve();
   constructor(private readonly options: SetupOptions) {
+    if (options.reassessEveryMs !== undefined && (!Number.isSafeInteger(options.reassessEveryMs)
+      || options.reassessEveryMs < 10_000 || options.reassessEveryMs > 24 * 3600_000))
+      throw new Error("Invalid bootstrap reassessment interval.");
     options.jobs.register("automatic_setup", async (payload) => {
       const { id } = payload as { id: string };
       if (!/^[a-f0-9]{32}$/.test(id)) throw new Error("Invalid setup run.");
       await this.serial(() => this.execute(id));
+    });
+    options.jobs.register("bootstrap_reassess", async (payload) => {
+      const value = payload as { id?: string; head?: string; notBefore?: string };
+      if (!value.id || !value.head || !value.notBefore || !Number.isFinite(Date.parse(value.notBefore)))
+        throw new Error("Invalid bootstrap reassessment.");
+      if (Date.parse(this.time()) < Date.parse(value.notBefore)) return;
+      await this.serial(async () => {
+        const current = await this.read(CURRENT);
+        if (!current || current.run.id !== value.id || current.run.repository.head !== value.head) return;
+        await this.refresh(current);
+      });
     });
   }
   private serial<T>(work: () => Promise<T>): Promise<T> {
@@ -122,6 +142,10 @@ export class AutomaticSetup {
     return next;
   }
   private time() { return (this.options.now?.() ?? new Date()).toISOString(); }
+  private nextAssessment() {
+    const interval = this.options.reassessEveryMs ?? 5 * 60_000;
+    return new Date((Math.floor(Date.parse(this.time()) / interval) + 1) * interval).toISOString();
+  }
   private ref(id: string) { return `refs/ephyra/setup/runs/${id}`; }
   private async head(ref: string): Promise<string | null> {
     try { return (await this.options.git(["rev-parse", "--verify", "-q", `${ref}^{commit}`])).trim(); }
@@ -135,6 +159,11 @@ export class AutomaticSetup {
   async current(operationKey?: string): Promise<SetupRun | null> {
     const ref = operationKey ? this.ref(sha(operationKey).slice(0, 32)) : CURRENT;
     return (await this.read(ref))?.run ?? null;
+  }
+  /** Historical snapshots remain readable for reconciling an interrupted answer; they cannot accept new answers. */
+  async record(id: string): Promise<SetupRun | null> {
+    if (!/^[a-f0-9]{32}$/.test(id)) throw new SetupConflict("Invalid setup record.");
+    return (await this.read(this.ref(id)))?.run ?? null;
   }
   private async save(run: SetupRun, expected: string | null, currentExpected: string | null): Promise<string> {
     run.updatedAt = this.time();
@@ -195,28 +224,146 @@ export class AutomaticSetup {
     });
   }
   async restore(): Promise<void> {
+    await this.serial(async () => {
+      const current = await this.read(CURRENT);
+      if (!current) return;
+      if (["queued", "running"].includes(current.run.status))
+        await this.options.jobs.enqueue("automatic_setup", `setup:${current.run.id}:restore:${current.head}`, { id: current.run.id });
+      else await this.refresh(current, true);
+    });
+  }
+  /** Cheap coverage/settings reassessment. Never provisions a runner or invokes a model. */
+  async reassess(): Promise<SetupRun | null> {
+    return this.serial(async () => {
+      const current = await this.read(CURRENT);
+      return current ? this.refresh(current) : null;
+    });
+  }
+  private async assess(run: SetupRun, capabilities: SetupCapability[]) {
+    let extra: BootstrapCoverage[] = [];
+    try { extra = await this.options.assess?.(run) ?? []; }
+    catch { /* Failed observations remain unknown; provider errors never become context or proof. */ }
+    extra = (Array.isArray(extra) ? extra : []).flatMap((value) => {
+      const parsed = BootstrapCoverage.safeParse(value);
+      if (!parsed.success) return [];
+      const item = parsed.data;
+      return [{ ...item, summary: redact(item.summary, this.options.secrets ?? [], 2000).slice(0, 2000),
+        references: item.references.filter((reference) => redact(reference, this.options.secrets ?? [], 2048) === reference) }];
+    });
+    run.bootstrap = assessBootstrap(run, capabilities, extra, this.time(), this.nextAssessment());
+    const content = JSON.stringify(run.bootstrap, null, 2);
+    run.artifacts = run.artifacts.filter((artifact) => artifact.path !== "ephyra/bootstrap.json");
+    run.artifacts.push({ path: "ephyra/bootstrap.json", content, digest: sha(content) });
+  }
+  private async schedule(run: SetupRun) {
+    if (!run.bootstrap || !["ready", "blocked"].includes(run.status)) return;
+    const at = run.bootstrap.nextAssessmentAt;
+    const key = bootstrapDigest([run.id, run.repository.head, at]);
+    await this.options.jobs.enqueue("bootstrap_reassess", `bootstrap:${key}`, {
+      id: run.id, head: run.repository.head, notBefore: at,
+    }, { runAt: new Date(at) });
+  }
+  private async assessed(run: SetupRun) {
+    try { await this.options.onAssessed?.(structuredClone(run)); }
+    catch { /* Owner requests are already durable. A later assessment can retry scheduling, never an external delivery. */ }
+  }
+  private async readiness(run: SetupRun, capabilities: SetupCapability[]) {
+    run.blockers = capabilities.filter((cap) => !cap.available)
+      .map(({ id, summary, action }) => ({ id, summary, action, owner: "operator" }));
+    if (await this.head(this.options.repo.baseRef) !== run.repository.head)
+      run.blockers.push({ id: "base_changed", summary: "The repository changed since this setup snapshot.",
+        action: "Run setup again against the current commit.", owner: "maintainer" });
+    run.status = run.blockers.length ? "blocked" : "ready";
+    const hard = new Set(["agent", "runner", "decision", "verification", "base_changed"]);
+    run.investigationActive = !run.blockers.some((blocker) => hard.has(blocker.id));
+    run.steps[4]!.status = run.blockers.length ? "blocked" : "complete";
+    run.steps[4]!.detail = run.blockers.length
+      ? run.investigationActive ? "Investigation is active. The listed capabilities still block unattended landing."
+        : "Configuration is prepared. Resolve the listed capabilities before activating the loop."
+      : "Required capabilities are configured. This is not proof of a production repair.";
+  }
+  private async refresh(current: { head: string; run: SetupRun }, reactivate = false): Promise<SetupRun> {
+    const { run } = current;
+    if (!["ready", "blocked"].includes(run.status)) return run;
+    if (!run.bootstrap) {
+      const files = (await this.options.git(["ls-tree", "-r", "-z", "--name-only", run.repository.head])).split("\0").filter(Boolean);
+      run.bootstrap = { schema: 1, setupId: run.id, head: run.repository.head, assessedAt: this.time(),
+        nextAssessmentAt: this.nextAssessment(), sources: await inspectBootstrapSources(
+          this.options.git, run.repository.head, files, this.options.secrets), coverage: [], requests: [], contextReports: [] };
+    }
+    const wasActive = run.status === "ready" || run.investigationActive;
+    const capabilities = await this.options.capabilities(run);
+    await this.readiness(run, capabilities);
+    await this.assess(run, capabilities);
+    await this.save(run, current.head, current.head);
+    await this.schedule(run);
+    await this.assessed(run);
+    if ((run.status === "ready" || run.investigationActive) && (reactivate || !wasActive)) await this.options.activate(run);
+    return run;
+  }
+  private async bound(setupId: string, head: string) {
     const current = await this.read(CURRENT);
-    if (!current) return;
-    if (current.run.status === "ready") {
-      const missing = (await this.options.capabilities(current.run)).filter((cap) => !cap.available);
-      if (missing.length) {
-        current.run.status = "blocked";
-        current.run.blockers = missing.map(({ id, summary, action }) => ({ id, summary, action, owner: "operator" }));
-        current.run.investigationActive = !missing.some((cap) => ["agent", "runner", "decision", "verification"].includes(cap.id));
-        current.run.steps[4]!.status = "blocked";
-        current.run.steps[4]!.detail = "Execution capabilities changed since setup. Recheck before activating.";
-        current.head = await this.save(current.run, current.head, current.head);
-      } else await this.options.activate(current.run);
-    }
-    if (current.run.status === "blocked" && current.run.investigationActive) {
-      const caps = await this.options.capabilities(current.run);
-      if (caps.some((cap) => !cap.available && ["agent", "runner", "decision", "verification"].includes(cap.id))) {
-        current.run.investigationActive = false;
-        await this.save(current.run, current.head, current.head);
-      } else await this.options.activate(current.run);
-    }
-    if (["queued", "running"].includes(current.run.status))
-      await this.options.jobs.enqueue("automatic_setup", `setup:${current.run.id}:restore:${current.head}`, { id: current.run.id });
+    if (!current || !current.run.bootstrap || current.run.id !== setupId || current.run.repository.head !== head
+      || await this.head(this.options.repo.baseRef) !== head || !["ready", "blocked"].includes(current.run.status))
+      throw new SetupConflict("This setup snapshot changed. Refresh the current repository assessment.");
+    return current;
+  }
+  private actor(actor: { id: string; kind: "human" | "agent" }, operationKey: string) {
+    if (!actor.id || actor.id.length > 300 || !["human", "agent"].includes(actor.kind)) throw new SetupConflict("A verified actor is required.");
+    if (!/^[A-Za-z0-9:._-]{8,160}$/.test(operationKey)) throw new SetupConflict("A valid operation key is required.");
+  }
+  async respond(input: BootstrapResponse, actor: { id: string; kind: "human" | "agent" }, operationKey: string): Promise<SetupRun> {
+    const value = BootstrapResponse.parse(input);
+    this.actor(actor, operationKey);
+    return this.serial(async () => {
+      const current = await this.bound(value.setupId, value.head);
+      const request = current.run.bootstrap!.requests.find((item) => item.id === value.requestId);
+      if (!request || request.kind !== "context" || request.status === "resolved")
+        throw new SetupConflict("This request needs a verified configuration change, not an answer.");
+      const digest = bootstrapDigest([value, actor.id, actor.kind]);
+      if (request.answer) {
+        if (request.answer.operationKey === operationKey && request.answer.digest === digest) return current.run;
+        throw new SetupConflict("This request already has an attributed response. Refresh before continuing.");
+      }
+      if (current.run.bootstrap!.contextReports.some((report) => report.operationKey === operationKey))
+        throw new SetupConflict("This operation key belongs to another bootstrap response.");
+      if (current.run.bootstrap!.requests.some((item) => item.answer?.operationKey === operationKey))
+        throw new SetupConflict("This operation key belongs to another bootstrap response.");
+      request.answer = { text: redact(value.text, this.options.secrets ?? [], 4000).slice(0, 4000), by: actor.id, kind: actor.kind,
+        at: this.time(), operationKey, digest };
+      request.status = "answered";
+      request.updatedAt = this.time();
+      await this.assess(current.run, await this.options.capabilities(current.run));
+      await this.save(current.run, current.head, current.head);
+      await this.assessed(current.run);
+      return current.run;
+    });
+  }
+  async report(input: BootstrapReport, actor: { id: string; kind: "human" | "agent" }, operationKey: string): Promise<SetupRun> {
+    const value = BootstrapReport.parse(input);
+    this.actor(actor, operationKey);
+    return this.serial(async () => {
+      const current = await this.bound(value.setupId, value.head);
+      const assessment = current.run.bootstrap!;
+      const digest = bootstrapDigest([value, actor.id, actor.kind]);
+      const prior = assessment.contextReports.find((report) => report.operationKey === operationKey);
+      if (prior) {
+        if (prior.digest !== digest) throw new SetupConflict("This operation key belongs to a different bootstrap report.");
+        return current.run;
+      }
+      if (assessment.requests.some((request) => request.answer?.operationKey === operationKey))
+        throw new SetupConflict("This operation key belongs to another bootstrap response.");
+      if (assessment.contextReports.length >= 20) throw new SetupConflict("This assessment has reached its bounded context report limit.");
+      const clean = (text: string, max: number) => redact(text, this.options.secrets ?? [], max).slice(0, max);
+      assessment.contextReports.push({ id: bootstrapDigest([current.run.id, operationKey]), operationKey, digest,
+        by: actor.id, kind: actor.kind, at: this.time(), summary: clean(value.summary, 6000),
+        ...(value.journeys ? { journeys: value.journeys.map((journey) => ({ name: clean(journey.name, 200),
+          expectedBehavior: clean(journey.expectedBehavior, 2000), evidencePaths: journey.evidencePaths.map((path) => clean(path, 500)) })) } : {}) });
+      await this.assess(current.run, await this.options.capabilities(current.run));
+      await this.save(current.run, current.head, current.head);
+      await this.assessed(current.run);
+      return current.run;
+    });
   }
   private async execute(id: string): Promise<void> {
     let current = await this.read(CURRENT);
@@ -232,6 +379,7 @@ export class AutomaticSetup {
       await persist();
       const tree = await this.options.git(["ls-tree", "-r", "-z", "--name-only", run.repository.head]);
       const files = tree.split("\0").filter(Boolean);
+      const sources = await inspectBootstrapSources(this.options.git, run.repository.head, files, this.options.secrets);
       let manifest: unknown = null;
       if (files.includes("package.json")) {
         try { manifest = JSON.parse(await this.options.git(["show", `${run.repository.head}:package.json`])); }
@@ -243,6 +391,8 @@ export class AutomaticSetup {
         const content = redactModelText(artifact.content, this.options.secrets ?? [], 200_000);
         return { ...artifact, content, digest: sha(content) };
       });
+      run.bootstrap = { schema: 1, setupId: run.id, head: run.repository.head, assessedAt: this.time(),
+        nextAssessmentAt: this.nextAssessment(), sources, coverage: [], requests: [], contextReports: [] };
       // Preserve existing policy text. Choosing automatic setup never silently expands an existing policy's permissions.
       for (const path of ["autonomy.md", "thresholds.yaml", "intents/application.md"]) {
         const source = files.includes(path) ? path : files.includes(`ephyra/${path}`) ? `ephyra/${path}` : null;
@@ -281,20 +431,12 @@ export class AutomaticSetup {
         await persist();
       }
       const capabilities = await this.options.capabilities(run);
-      run.blockers = capabilities.filter((cap) => !cap.available).map(({ id, summary, action }) => ({ id, summary, action, owner: "operator" }));
-      if (await this.head(this.options.repo.baseRef) !== run.repository.head) {
-        run.blockers.push({ id: "base_changed", summary: "The repository changed during setup.",
-          action: "Run setup again against the current commit.", owner: "maintainer" });
-      }
-      run.status = run.blockers.length ? "blocked" : "ready";
-      run.investigationActive = !run.blockers.some((blocker) => !["telemetry", "landing", "watch"].includes(blocker.id));
-      run.steps[4]!.status = run.blockers.length ? "blocked" : "complete";
-      run.steps[4]!.detail = run.blockers.length
-        ? run.investigationActive ? "Investigation is active. The listed capabilities still block unattended landing."
-          : "Configuration is prepared. Resolve the listed capabilities before activating the loop."
-        : "Required capabilities are configured. This is not proof of a production repair.";
+      await this.readiness(run, capabilities);
+      await this.assess(run, capabilities);
       await persist();
-      if (run.status === "ready" || run.investigationActive) await this.options.activate(run);
+      await this.schedule(run);
+      await this.assessed(run);
+      if (run.investigationActive) await this.options.activate(run);
     } catch {
       // Never serialize raw Git/provider errors or repository content as an error message.
       run.status = "failed";

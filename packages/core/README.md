@@ -106,6 +106,12 @@ verification ran. The server validates these contracts against real local Git fi
 
 ## Account knowledge contracts (core changes)
 
+`BootstrapCoverage`, `BootstrapRequest`, `BootstrapAssessment`, `BootstrapResponse` and
+`BootstrapReport` are additive setup contracts. `SetupRun.bootstrap` is optional for
+older records. Coverage, pinned source provenance and attributed context are distinct;
+an answer or report never grants capability or establishes passing proof. The server's
+offline tests verify persistence and runtime bindings; these schemas perform no I/O.
+
 `knowledge.ts` adds `KnowledgeCatalog`, `KnowledgeSourceView`, `KnowledgeToolView`, `KnowledgeSearchTool`,
 `KnowledgeSelection`, `KnowledgeConnection` and `KnowledgeUpdate`. `AccountSettings.knowledge` and
 `EvidenceSource.search`'s `operationKey` are new optional fields. Existing callers and stored accounts remain valid.

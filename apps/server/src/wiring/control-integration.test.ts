@@ -142,6 +142,19 @@ test("durable usage replay after engine reconstruction charges each operation ex
   expect((await f.current())!.budget.tokensUsed).toBe(17);
 });
 
+test("lost bootstrap readiness parks queued research and proof before any runner or agent dispatch", async () => {
+  const research = await runtime({}, { canInvestigate: async () => false });
+  await research.start("research", "bootstrap-stopped-research");
+  await research.drainOne();
+  expect(research.counts()).toEqual({ allocations: 0, calls: 0, destroyed: 0 });
+  expect((await research.current())!.state).toBe("parked");
+  const proof = await runtime({ state: "proving", head: "b".repeat(40) }, { canInvestigate: async () => false });
+  await proof.jobs.get("proof")!({ trailId: proof.t.id, rev: proof.t.rev, operationKey: "bootstrap-stopped-proof" },
+    { key: "bootstrap-stopped-proof", attempt: 1 });
+  expect(proof.counts()).toEqual({ allocations: 0, calls: 0, destroyed: 0 });
+  expect((await proof.current())!.state).toBe("parked");
+});
+
 test("killing during deferred evidence prevents later allocation and model dispatch", async () => {
   const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
   const source: EvidenceSource = { name: "fixture-evidence", async search() { entered.resolve(); await release.promise; return []; },

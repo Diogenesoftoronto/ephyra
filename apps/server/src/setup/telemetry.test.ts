@@ -14,6 +14,7 @@ import { postHogSignal, registerPostHogPolling } from "./telemetry.ts";
 import { personalLanding } from "./personal-landing.ts";
 import type { Accounts } from "./accounts.ts";
 import type { GitProbeCatalog } from "../wiring/probes.ts";
+import { telemetryCoverage } from "./bootstrap-coverage.ts";
 
 const NOW = "2026-11-08T12:00:00.000Z";
 const AT = "2026-11-08T11:30:00.123456Z";
@@ -76,6 +77,44 @@ async function personalWatch(f: ReturnType<typeof fixture>) {
 }
 
 describe("PostHog signal polling", () => {
+  test("bootstrap distinguishes connection from an observed empty window and rechecks freshness and authority", async () => {
+    const f = fixture(0);
+    expect(await f.polling.latest()).toBeNull();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    const result = await f.polling.poll();
+    expect(result.coverage?.complete).toBe(true);
+    const observed = await telemetryCoverage(f.polling, f.deps.resolve);
+    expect(observed.status).toBe("observed");
+    expect(observed.summary).toContain("0 exception events");
+    expect(observed.summary).toContain("does not establish");
+    const snapshot = await f.polling.latest();
+    snapshot!.result.status = "unavailable";
+    expect((await f.polling.latest())!.result.status).toBe("complete");
+    f.advance(5 * 60_000 + 1);
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    await f.polling.poll();
+    f.revoke();
+    expect(await f.polling.latest()).toBeNull();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("configured");
+    f.disconnect();
+    expect((await telemetryCoverage(f.polling, f.deps.resolve)).status).toBe("missing");
+  });
+
+  test("observation callbacks receive actual receipts and cannot make ingestion fail", async () => {
+    const f = fixture();
+    const observed: string[] = [];
+    const polling = registerPostHogPolling({ ...f.deps, onObservation: async (observation) => {
+      observed.push(observation.result.status);
+      observation.result.status = "unavailable";
+      throw new Error("context refresh is unavailable");
+    } });
+    expect((await polling.poll()).status).toBe("complete");
+    expect(observed).toEqual(["complete"]);
+    expect((await polling.latest())!.result.status).toBe("complete");
+    polling.stop();
+    expect(await polling.latest()).toBeNull();
+  });
+
   test("maps recorded event attribution with stable scoped IDs and conservative unknown fields", async () => {
     const f = fixture();
     const batch = await f.source.exceptions();

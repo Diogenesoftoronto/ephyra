@@ -14,6 +14,8 @@ export type IntakeDeps = {
   /** Resolve the current base commit of the repo (e.g. `git rev-parse` in the mirror). */
   baseSha(): Promise<string>;
   budget: Budget;
+  /** Bootstrap may observe signals before paid investigation is ready. */
+  canInvestigate?: () => Promise<boolean>;
 };
 
 const OPEN: Trail["state"][] = [
@@ -42,11 +44,15 @@ function humanTriage(area: string, risk: TriageResult["risk"], why: string): Tri
 export async function triageSignal(ctx: ServerContext, deps: IntakeDeps, signal: Signal, jobKey: string): Promise<void> {
   const files = signal.frames.filter((f) => f.inApp).map((f) => f.file);
   const area = areaFor(ctx.policy.autonomy, files);
+  let ready = await deps.canInvestigate?.() ?? true;
   let extraction: ExtractionResponse = { model: "none", answers: {} };
-  if (deps.extract) extraction = await deps.extract.extract(buildExtractionRequest(signal), { idempotencyKey: `${jobKey}:extract` });
+  if (ready && deps.extract) extraction = await deps.extract.extract(buildExtractionRequest(signal), { idempotencyKey: `${jobKey}:extract` });
+  ready = ready && (await deps.canInvestigate?.() ?? true);
 
   let triage: TriageResult;
-  if (!deps.decide) {
+  if (!ready) {
+    triage = humanTriage(area.name, area.risk, "workspace setup is not ready for autonomous investigation");
+  } else if (!deps.decide) {
     triage = humanTriage(area.name, area.risk, "no decide backend configured");
   } else {
     const cands = await candidates(ctx);
@@ -56,6 +62,8 @@ export async function triageSignal(ctx: ServerContext, deps: IntakeDeps, signal:
     triage = applyTriage(judgement, extraction, ctx.policy.thresholds, area, cands, signal.kind);
     if (extraction.model !== "none") triage.backends.extract = extraction.model;
   }
+  if (ready && deps.canInvestigate && !await deps.canInvestigate())
+    triage = humanTriage(area.name, area.risk, "workspace readiness changed during triage");
 
   const id = ctx.ids.uuidv7();
   const now = ctx.clock.now().toISOString();

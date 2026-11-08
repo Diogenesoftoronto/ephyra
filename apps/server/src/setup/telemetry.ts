@@ -26,6 +26,7 @@ export type PostHogPollResult = {
   reason?: string;
   coverage?: PostHogPollCoverage;
 };
+export type PostHogObservation = { at: string; result: PostHogPollResult };
 export type PostHogPollingOptions = {
   ctx: ServerContext;
   resolve: () => Promise<PostHogEvidence | null>;
@@ -35,12 +36,16 @@ export type PostHogPollingOptions = {
   intervalMs?: number;
   overlapMs?: number;
   maxPages?: number;
+  /** Receives a real bounded pass, never an inferred healthy state. */
+  onObservation?: (observation: PostHogObservation) => Promise<void>;
 };
 export type PostHogPolling = {
   /** Pass the saved connection revision on settings changes to restart promptly within the current time bucket. */
   start: (revision?: string) => Promise<void>;
   /** One bounded ingestion pass. Returned continuation can be persisted or supplied to the next manual pass. */
   poll: (input?: PostHogPollInput) => Promise<PostHogPollResult>;
+  /** In-memory observation, reauthorized and freshness checked; a restart needs a new pass. */
+  latest: () => Promise<PostHogObservation | null>;
   /** Prevents further work by this registration, including queued jobs. Does not delete durable receipts. */
   stop: () => void;
 };
@@ -109,6 +114,7 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
     || !Number.isSafeInteger(overlapMs) || overlapMs < intervalMs || overlapMs > 24 * 60 * 60_000
     || !Number.isSafeInteger(maxPages) || maxPages < 1 || maxPages > 5) throw new Error("Invalid PostHog polling bounds");
   let stopped = false;
+  let observation: PostHogObservation | null = null;
 
   const current = async (expected?: string): Promise<PostHogEvidence | null> => {
     if (stopped) return null;
@@ -125,6 +131,13 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
     ingested: result.ingested, duplicates: result.duplicates, reconciliationRequired: result.reconciliationRequired,
     ...(result.reason ? { reason: result.reason } : {}), hasContinuation: result.nextCursor !== null,
   });
+  const finish = async (result: PostHogPollResult) => {
+    note(result);
+    observation = { at: ctx.clock.now().toISOString(), result: structuredClone(result) };
+    try { await options.onObservation?.(structuredClone(observation)); }
+    catch { ctx.log("Bootstrap observation update unavailable"); }
+    return result;
+  };
 
   const poll = async (input: PostHogPollInput = {}): Promise<PostHogPollResult> => {
     const result = empty();
@@ -135,7 +148,7 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
     result.nextSince = since ?? null; result.nextCursor = cursor ?? null;
     try {
       let source = await current(input.source ?? cursor?.source);
-      if (!source) { note(result); return result; }
+      if (!source) return finish(result);
       result.source = source.name;
       for (let page = 0; page < maxPages; page++) {
         const batch = await source.exceptions(since, cursor);
@@ -164,11 +177,11 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
         if (batch.events.some(event => event.truncated)) coverage.gaps.push("Exception evidence was truncated.");
         if (batch.coverage === "partial" && !batch.nextCursor) coverage.gaps.push("The terminal query page has partial coverage.");
         if (batch.freshness.state !== "fresh") {
-          result.status = "unavailable"; result.reason = "stale_or_unknown_computation"; note(result); return result;
+          result.status = "unavailable"; result.reason = "stale_or_unknown_computation"; return finish(result);
         }
         for (const event of batch.events) {
           source = await current(result.source);
-          if (!source) { result.status = "inactive"; note(result); return result; }
+          if (!source) { result.status = "inactive"; return finish(result); }
           result.observed++;
           const signal = postHogSignal(ctx.repo.id, batch, event);
           const key = `posthog-event:${digest([ctx.repo.id, batch.source, event.id])}`;
@@ -213,7 +226,7 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
       result.status = result.reconciliationRequired ? "reconciliation_required" : result.nextCursor ? "partial" : "complete";
       result.coverage!.gaps = [...new Set(result.coverage!.gaps)];
       result.coverage!.complete = result.status === "complete" && result.coverage!.computedThrough !== null && !result.coverage!.gaps.length;
-      note(result); return result;
+      return finish(result);
     } catch (error) {
       if (error instanceof PostHogAccessError) {
         result.reason = error.status;
@@ -221,7 +234,7 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
       } else {
         result.status = "unavailable"; result.reason = "polling_failed";
       }
-      note(result); return result;
+      return finish(result);
     }
   };
 
@@ -251,7 +264,17 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
 
   return {
     poll,
-    stop: () => { stopped = true; },
+    latest: async () => {
+      if (!observation || stopped) return null;
+      const age = ctx.clock.now().getTime() - Date.parse(observation.at);
+      if (age < 0 || age > Math.max(intervalMs * 3, 5 * 60_000)) return null;
+      try {
+        const source = await current(observation.result.source ?? undefined);
+        if (!source || source.name !== observation.result.source) return null;
+        return structuredClone(observation);
+      } catch { return null; }
+    },
+    stop: () => { stopped = true; observation = null; },
     start: async (revision = "") => {
       if (typeof revision !== "string" || revision.length > 256) throw new Error("Invalid PostHog connection revision");
       stopped = false;
