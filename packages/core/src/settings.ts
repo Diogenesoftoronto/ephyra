@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { KnowledgeConnection } from "./knowledge.ts";
+import { ForgeRepositorySource, PeopleConnection, TelemetryConnection } from "./connections.ts";
 
 /** Public account setup contracts. Saved credentials are never part of a response. */
 export const ModelProvider = z.enum(["none", "notorganic", "openai", "anthropic", "compatible"]);
@@ -11,6 +12,8 @@ export const RepositoryConnection = z.object({
   verifiedAt: z.string(),
   credentialConfigured: z.boolean(),
   username: z.string().optional(),
+  credentialHost: z.string().optional(),
+  forge: ForgeRepositorySource.optional(),
 });
 export type RepositoryConnection = z.infer<typeof RepositoryConnection>;
 export const ModelConnection = z.object({
@@ -32,6 +35,9 @@ export const AccountSettings = z.object({
   onboarding: z.object({ status: z.enum(["new", "in_progress", "skipped", "complete"]), updatedAt: z.string() }),
   execution: z.literal("not_configured"),
   knowledge: KnowledgeConnection.optional(),
+  telemetry: TelemetryConnection.optional(),
+  people: PeopleConnection.optional(),
+  automation: z.object({ provider: z.enum(["none", "railway", "custom"]), configured: z.boolean(), detail: z.string() }).optional(),
 });
 export type AccountSettings = z.infer<typeof AccountSettings>;
 
@@ -49,6 +55,7 @@ export const RepositoryUpdate = z
     branch: z.string().trim().min(1).max(200),
     discoverDefaultBranch: z.boolean().optional(),
     username: z.string().trim().max(200).optional(),
+    credentialHost: z.string().trim().max(2048).optional(),
     token: secret.optional(),
     clearToken: z.boolean().optional(),
   })
