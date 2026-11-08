@@ -20,5 +20,10 @@ await command(["mkdir", "-p", source]);
 await command(["tar", "-xf", archive, "-C", source]);
 await writeFile(join(source, "ephyra-release.json"), JSON.stringify({ schema: 1, revision }) + "\n");
 const archiveSha256 = createHash("sha256").update(Buffer.from(await Bun.file(archive).arrayBuffer())).digest("hex");
-await writeFile(join(directory, "release.json"), JSON.stringify({ schema: 1, revision, archiveSha256, source }, null, 2) + "\n");
-console.log(JSON.stringify({ revision, archiveSha256, source, manifest: join(directory, "release.json") }));
+const payload = join(directory, "payload.tar");
+await command(["tar", "--sort=name", "--format=gnu", "--mtime=@0", "--owner=0", "--group=0", "--numeric-owner",
+  "-cf", payload, "-C", source, "."]);
+const payloadSha256 = createHash("sha256").update(Buffer.from(await Bun.file(payload).arrayBuffer())).digest("hex");
+const manifest = { schema: 1, revision, archiveSha256, payloadSha256, source, payload };
+await writeFile(join(directory, "release.json"), JSON.stringify(manifest, null, 2) + "\n");
+console.log(JSON.stringify({ ...manifest, manifest: join(directory, "release.json") }));
