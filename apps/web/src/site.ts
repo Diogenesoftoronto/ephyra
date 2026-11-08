@@ -19,7 +19,7 @@ export type SiteConfig = {
   home?: HomeCut;
   /** at://did/site.standard.publication/rkey; the blog shows a setup notice without it. */
   publicationUri?: string;
-  /** The control-plane origin; /app/ sends people to its console. Also linked from llms.txt. */
+  /** The control-plane origin for the console, agent instructions and owner access management. */
   apiOrigin?: string;
   fetcher?: Fetcher;
   /** Seconds to cache the publication read. */
@@ -187,6 +187,13 @@ export function createSite(config: SiteConfig) {
       "Setup defaults to autonomous operation, with supervised checkpoints available. High and critical changes require named-human review.",
       "Personal HTTPS landing, isolated execution, model access, study sources and telemetry each need explicit configuration.",
       "Native forge proposal transports, remote Amp verification and respondent dispatch require host integrations.", "",
+      "## Agent setup",
+      "An agent can discover scoped setup access through auth.md and establish repository context before an incident.",
+      "Owner claims use the intended Not Organic DID, exact repository and explicit bootstrap scopes.",
+      "Email service_auth and external provider ID-JAG assertions are unsupported by this DID-bound profile.",
+      `- [Agent setup instructions](${origin}/auth.md): Authoritative control-plane registration, claim, token and bootstrap instructions.`,
+      `- [Owner agent access](${origin}/agent/access): Review and revoke agent registrations after signing in.`,
+      `- [Agent setup guide](${origin}/docs#agent-setup): Observation coverage and proactive owner questions.`, "",
       "## Pages",
       ...PAGES.map((p) => `- [${p.title}](${origin}${p.path}): ${p.summary}`), "",
       "## Pricing",
@@ -368,6 +375,12 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     const path = url.pathname;
     if (path !== "/healthz" && redirectHosts.has(url.host)) {
       return Response.redirect(`${origin}${path}${url.search}`, 308);
+    }
+    if (path === "/auth.md" || path === "/agent/access") {
+      const headers = { "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" };
+      if (apiOrigin) return new Response(null, { status: 307, headers: { ...headers, location: `${apiOrigin.origin}${path}` } });
+      return text("Agent setup is unavailable until the operator connects this site to an Ephyra server with EPHYRA_API_ORIGIN.",
+        "text/plain", headers, 503);
     }
     if (path === "/app" || path === "/app/") {
       if (apiOrigin) return new Response(null, {

@@ -4,12 +4,14 @@ import { Button, Card, Empty, PageHeader, Skeleton } from "../kit.ts";
 import { InboxList } from "../components/InboxList.tsx";
 import { Load } from "../components/Load.tsx";
 import { InvestigationQuestions } from "../components/InvestigationQuestions.tsx";
+import { BootstrapSetup } from "../components/BootstrapSetup.tsx";
+import type { SetupApi } from "../setup-api.ts";
 import { TrailPanel } from "./TrailPanel.tsx";
 import "./InboxPage.css";
 
 /** The terminal inbox in a browser: what waits on a person, and the trail you have open beside it. */
-export function InboxPage({ trailId, canAct = true, principal, questionWorkspace }: {
-  trailId?: string; canAct?: boolean; principal?: string; questionWorkspace?: string;
+export function InboxPage({ trailId, canAct = true, principal, questionWorkspace, setupApi }: {
+  trailId?: string; canAct?: boolean; principal?: string; questionWorkspace?: string; setupApi?: SetupApi;
 }) {
   const api = useApi();
   const inbox = useAsync(() => api.inbox(), "inbox");
@@ -21,13 +23,14 @@ export function InboxPage({ trailId, canAct = true, principal, questionWorkspace
     <div className="page">
       <PageHeader
         title="Inbox"
-        lede="Questions that can unblock Ephyra, checkpoint reviews and spend requests."
+        lede="Application setup, questions from Ephyra, checkpoint reviews and spend requests."
         actions={
           <Button size="sm" onClick={inbox.reload}>
             Refresh
           </Button>
         }
       />
+      {!trailId && setupApi && principal && questionWorkspace && <BootstrapSetup api={setupApi} principal={principal} workspace={questionWorkspace} />}
       {principal && questionWorkspace && <InvestigationQuestions api={api} principal={principal} workspace={questionWorkspace} trailId={trailId} />}
       <div className="inbox-split" data-detail={trailId ? "true" : "false"}>
         <section className="inbox-list-pane" aria-label="Waiting items">

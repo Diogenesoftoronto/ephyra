@@ -77,6 +77,29 @@ test("homepage and shared navigation expose the guide without a dead-end link", 
   }
 });
 
+test("agent setup documentation exposes discoverable scoped access and proactive owner coverage honestly", async () => {
+  const html = await (await get("/docs")).text();
+  expect(html).toContain('href="#agent-setup" data-doc-link="agent-setup"');
+  expect(html).toContain('href="/auth.md"');
+  expect(html).toContain('href="/agent/access"');
+  const plain = docsPlainText().replace(/\s+/g, " ");
+  expect(plain).toContain("## Set up with an agent");
+  expect(plain).toContain("claim bound to your Not Organic DID");
+  expect(plain).toContain("Email-based service_auth and external provider ID-JAG identity assertions are unsupported");
+  expect(plain).toContain("POST /v1/agent/setup");
+  expect(plain).toContain("POST /v1/agent/bootstrap/report");
+  expect(plain).toContain("POST /v1/agent/bootstrap/reassess");
+  expect(plain).toContain("before an incident exists");
+  expect(plain).toContain("A saved telemetry connection does not prove ingestion");
+  expect(plain).toContain("do not allocate a new sandbox or call a paid model");
+  for (const path of ["/llms.txt", "/llms-full.txt"]) {
+    const exported = await (await get(path)).text();
+    expect(exported).toContain(`[Agent setup instructions](${origin}/auth.md)`);
+    expect(exported).toContain(`[Owner agent access](${origin}/agent/access)`);
+    expect(exported).toContain("Email service_auth and external provider ID-JAG assertions are unsupported");
+  }
+});
+
 test("arbitrary search queries cannot inject markup or change the canonical guide", async () => {
   const expected = await (await get("/docs")).text();
   await fc.assert(fc.asyncProperty(fc.string({ maxLength: 300 }), async query => {
