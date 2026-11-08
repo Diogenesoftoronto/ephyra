@@ -30,6 +30,7 @@ import {
   type TrailDetail,
   type UsageQuery,
   type Verdict,
+  TrailDetailSchema,
 } from "../api.ts";
 import { filterEntries, summarize } from "../lib/usage.ts";
 import { hasBlocking } from "../lib/warnings.ts";
@@ -117,6 +118,7 @@ export class FakeApi implements ConsoleApi {
   private trails: Trail[];
   private inboxItems: InboxEntry[];
   private events = new Map<string, TrailEvent[]>();
+  private artefacts = new Map<string, TrailDetail["artefacts"]>();
   private usageRows: UsageEntry[];
   private docList: PolicyDocView[];
   private draftMap = new Map<string, Draft>();
@@ -150,6 +152,31 @@ export class FakeApi implements ConsoleApi {
         t.head = fakeDigest(`moved-${id}`).slice(0, 40);
       }
     }
+  }
+
+  /** Install an explicitly fictional landing snapshot into this in-memory workspace. No live client is involved. */
+  installWalkthrough(value: TrailDetail): void {
+    const detail = TrailDetailSchema.parse(structuredClone(value));
+    const trail = detail.trail;
+    this.trails = [trail, ...this.trails.filter(item => item.id !== trail.id)];
+    this.events.set(trail.id, detail.events);
+    this.artefacts.set(trail.id, detail.artefacts);
+    const checkpoint = ({ hypothesised: "A", planned: "B", ready: "C" } as const)[
+      trail.state as "hypothesised" | "planned" | "ready"
+    ];
+    const proof = [...detail.events].reverse().find(event => event.type === "proof_completed" && event.data.bundle.rev === trail.rev);
+    const item: InboxEntry = {
+      trailId: trail.id, short: trail.short, title: trail.title, area: trail.area, risk: trail.risk,
+      severity: trail.severity, state: trail.state, createdAt: trail.updatedAt,
+      kind: checkpoint ? "checkpoint" : trail.state === "parked" ? "parked" : "notice", blocking: Boolean(checkpoint),
+      bound: { rev: trail.rev, ...(trail.head ? { head: trail.head } : {}),
+        ...(proof?.type === "proof_completed" ? { proofDigest: proof.data.digest } : {}) },
+      ...(checkpoint ? { checkpoint } : {}),
+      artefact: { path: checkpoint === "B" ? "plan.md" : checkpoint === "C" ? "proof.json" : "hypothesis.md",
+        summary: "Fictional sample trail from the landing walkthrough." },
+      ...(detail.artefacts?.some(artifact => artifact.path === "evidence/index.json") ? { evidenceIndex: "evidence/index.json" } : {}),
+    };
+    this.inboxItems = [item, ...this.inboxItems.filter(entry => entry.trailId !== trail.id)];
   }
 
   async identity() {
@@ -353,7 +380,8 @@ export class FakeApi implements ConsoleApi {
     await this.gate("trail");
     const trail = this.trails.find((t) => t.id === id);
     if (!trail) throw new ApiError(404, "not found");
-    return structuredClone({ trail, events: this.events.get(id) ?? [] });
+    return structuredClone({ trail, events: this.events.get(id) ?? [],
+      ...(this.artefacts.has(id) ? { artefacts: this.artefacts.get(id) } : {}) });
   }
 
   private trailOpKey(id: string, action: TrailAction, op: string): string {

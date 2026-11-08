@@ -12,6 +12,8 @@ import { ErrorState, Load } from "./components/Load.tsx";
 import { FakeApi } from "./fake/api.ts";
 import { ME } from "./fake/fixtures.ts";
 import { FakeAccountApi } from "./fake/account.ts";
+import { LandingWalkthrough } from "./components/LandingWalkthrough.tsx";
+import { walkthroughParentOrigin, walkthroughRequested } from "./lib/landing-walkthrough.ts";
 import "./theme.css";
 import "./layout.css";
 
@@ -68,6 +70,11 @@ function Connected({ credentials, disconnect }: { credentials: Credentials; disc
 }
 
 function Root() {
+  if (walkthroughRequested(location.search)) return <LandingWalkthrough parentOrigin={walkthroughParentOrigin(location.search)} />;
+  return <WorkspaceRoot />;
+}
+
+function WorkspaceRoot() {
   const demo = new URLSearchParams(location.search).has("demo");
   const [credentials, setCredentials] = useState<Credentials | null>(readCredentials);
   const fake = useMemo(() => (demo ? new FakeApi({ now: Date.now() }) : null), [demo]);
