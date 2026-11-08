@@ -12,7 +12,7 @@ import {
   type PublicDestination,
 } from "./network.ts";
 
-export type RepositoryInput = { url: string; branch: string; username?: string; token?: string };
+export type RepositoryInput = { url: string; branch: string; username?: string; token?: string; credentialHost?: string };
 export type RepositoryConnection = { url: string; branch: string; head: string; verifiedAt: string };
 export type GitInvocation = {
   args: string[];
@@ -63,7 +63,15 @@ export function normalizeRepositoryInput(input: RepositoryInput): RepositoryInpu
   ) {
     throw new ConnectionError("invalid_credential", "The repository access token is invalid.");
   }
-  return { ...input, url: url.href, branch };
+  let credentialHost = input.credentialHost;
+  if (credentialHost !== undefined) {
+    const host = parsePublicHttps(credentialHost.includes("://") ? credentialHost : `https://${credentialHost}`);
+    if (host.pathname !== "/" || host.search || host.origin !== url.origin) {
+      throw new ConnectionError("repository_credential_host", "Repository credentials must match the exact HTTPS clone host.");
+    }
+    credentialHost = host.origin;
+  }
+  return { ...input, url: url.href, branch, ...(credentialHost ? { credentialHost } : {}) };
 }
 
 /** An allowlist, deliberately excluding server credentials, proxy variables and the operator's Git/SSH environment. */
@@ -291,7 +299,17 @@ export class RepositoryConnector {
         throw new ConnectionError("invalid_branch", "The branch name is not valid.");
       }
       if (!existing) {
-        if ((await run(["init", "--bare", "--quiet", "--template=", path])).code !== 0) {
+        // Git cannot fetch SHA-256 objects into a SHA-1 repository. The selected ref's advertised OID
+        // identifies its object format before initialization; the subsequent fetch verifies the objects.
+        const advertised = await run(["ls-remote", "--refs", "--", input.url, ref]);
+        const heads = advertised.stdout.trim().split("\n").map((line) => line.split("\t"))
+          .filter((parts) => parts.length === 2 && parts[1] === ref);
+        const oid = heads[0]?.[0];
+        if (advertised.code !== 0 || heads.length !== 1 || !oid || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(oid)) {
+          throw new ConnectionError("repository_fetch", "The selected repository branch could not be verified before fetching.");
+        }
+        const format = oid.length === 64 ? "sha256" : "sha1";
+        if ((await run(["init", "--bare", "--quiet", "--template=", `--object-format=${format}`, path])).code !== 0) {
           throw new ConnectionError("repository_init", "The repository workspace could not be created.");
         }
         if ((await git(["remote", "add", "origin", input.url])).code !== 0) {
