@@ -1,6 +1,6 @@
 { pkgs, ... }:
 {
-  packages = [ pkgs.git pkgs.bun pkgs.jq ];
+  packages = [ pkgs.git pkgs.bun pkgs.jq pkgs.radicle-node ];
 
   # Postgres for DBOS workflows and projections (apps/server).
   services.postgres = {
