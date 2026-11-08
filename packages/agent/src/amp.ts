@@ -6,6 +6,7 @@ import { renderPrompt } from "./prompts";
 import { execute } from "./execute";
 import { collectSessions } from "./sessions";
 import { LineFeed, claudeStreamNormalizer, type AgentRunOptions, type ExecutorInfo } from "./run-events";
+import { validateAmpReport, type AmpReport, type AmpReportChannel, type AmpReportRequest } from "./amp-report";
 
 export type AmpExecutor =
   | { kind: "local" }
@@ -22,6 +23,8 @@ export type AmpOptions = {
   visibility?: "private" | "unlisted" | "workspace" | "group";
   /** Where to remember each trail's thread id (the server keeps it in the journal). */
   threads: AmpThreadStore;
+  /** Authenticated, durable executor reports for remote file-producing steps. */
+  reports?: AmpReportChannel;
 };
 
 export interface AmpThreadStore {
@@ -39,7 +42,7 @@ export class MemoryAmpThreads implements AmpThreadStore {
 const THREAD_ID = /^T-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
 /** CLI arguments for one turn; mirrors @ampcode/sdk buildCliArgs for the options Ephyra uses. */
-export function ampArgs(task: AgentTask, options: AmpOptions, threadId: string | null): string[] {
+export function ampArgs(task: AgentTask, options: AmpOptions, threadId: string | null, report?: AmpReportRequest): string[] {
   const args = ["amp"];
   if (threadId) {
     if (!THREAD_ID.test(threadId)) throw new Error(`invalid Amp thread id: ${threadId}`);
@@ -63,7 +66,8 @@ export function ampArgs(task: AgentTask, options: AmpOptions, threadId: string |
     args.push("--label", "ephyra", "--label", `trail-${task.trail.short.toLowerCase()}`);
   }
   args.push("--label", `step-${task.step}`);
-  args.push(renderPrompt(task));
+  if (report) args.push("--plugin-ready-timeout", "15");
+  args.push(renderPrompt(task) + (report ? `\n\n<ephyra_report_request>${JSON.stringify(report)}</ephyra_report_request>` : ""));
   return args;
 }
 
@@ -94,9 +98,11 @@ export function parseAmpStream(stdout: string): AmpTurn {
     }
   }
   const system = messages.find((m) => m.type === "system" && m.subtype === "init");
-  const result = messages.find((m) => m.type === "result");
+  const results = messages.filter((m) => m.type === "result");
+  const result = results.length === 1 ? results[0] : undefined;
   const threadId = result?.session_id ?? system?.session_id;
-  if (!result || typeof threadId !== "string") throw new Unverified("Amp turn produced no result");
+  if (!result || typeof threadId !== "string" || !THREAD_ID.test(threadId)
+    || system?.session_id && system.session_id !== threadId) throw new Unverified("Amp turn produced no unique thread-bound result");
   const toolUses = messages
     .filter((m) => m.type === "assistant")
     .flatMap((m) => (m.message?.content ?? []) as { type: string; name?: string }[])
@@ -136,20 +142,27 @@ export class AmpAgent implements CodingAgent {
       return ms;
     };
     // Locally the agent edits the sandbox's checkout, so Ephyra can read commits and files back.
-    // Orb and runner turns edit their own checkout; their outputs arrive through the transcript (and, later,
-    // the ephyra_report plugin tool), so file-producing steps need the local executor today.
+    // Remote file-producing steps return actual bytes through a separately authenticated plugin report.
     const local = this.options.executor.kind === "local";
     const before = local ? await execute(runner, handle, ["git", "rev-parse", "HEAD"], remaining()) : null;
     if (before && before.exit !== 0) throw new Unverified("agent base commit");
 
     const threadId = await this.options.threads.get(task.trail.id);
+    const needsReport = !local && ["patch", "repro"].includes(task.step);
+    if (needsReport && !this.options.reports) throw new Unverified("authenticated ephyra_report plugin channel");
+    const reportRequest = needsReport ? await this.options.reports!.open(task, handle, threadId) : undefined;
     const feed = opts.onEvent
       ? new LineFeed(claudeStreamNormalizer({ ...(opts.onExecutor ? { onExecutor: opts.onExecutor } : {}), ...(opts.secrets ? { secrets: opts.secrets } : {}),
         threadUrl: ampThreadUrl }), opts.onEvent)
       : null;
-    const run = await execute(runner, handle, ampArgs(task, this.options, threadId), remaining(), undefined, feed ? (c) => feed.write(c) : undefined);
+    const run = await execute(runner, handle, ampArgs(task, this.options, threadId, reportRequest), remaining(), undefined,
+      feed ? (c) => feed.write(c) : undefined);
     await feed?.finish();
     const turn = parseAmpStream(run.stdout);
+    await opts.onUsage?.({ key: `amp:${handle.id}:${task.step}`, tokens: turn.tokens, costMicrousd: null,
+      model: `amp/${this.options.mode ?? "medium"}` });
+    if (threadId && turn.threadId !== threadId) throw new Unverified("Amp continued thread identity changed");
+    if (run.exit !== 0 && turn.ok) throw new Unverified("Amp success result disagrees with its process exit");
     if (!threadId) await this.options.threads.set(task.trail.id, turn.threadId);
     const transcript = `artefacts/amp/${task.step}.json`;
     const artefacts: Record<string, string> = {
@@ -162,13 +175,54 @@ export class AmpAgent implements CodingAgent {
         error: `Amp turn failed (${turn.subtype}): ${turn.error}` };
     }
     if (!local) {
-      if (task.step === "patch" || task.step === "repro") {
-        throw new Unverified(`Amp ${this.options.executor.kind} executor for the ${task.step} step (needs the ephyra_report plugin)`);
+      if (reportRequest) {
+        const report = validateAmpReport(await this.options.reports!.collect(reportRequest, turn.threadId), reportRequest, turn.threadId);
+        for (const policy of report.policies) await opts.onEvent?.({ type: "policy", policy: {
+          decision: policy.decision, rule: policy.rule, reason: policy.reason,
+        }, tool: { callId: policy.callId, name: policy.tool } });
+        artefacts[`artefacts/amp/${task.step}-report.json`] = JSON.stringify({ request: report.request, threadId: report.threadId,
+          ...(report.patch ? { head: report.patch.head, bundleDigest: report.patch.digest } : {}), policies: report.policies }, null, 2);
+        if (report.probe) {
+          await runner.writeFile(handle, report.probe.path, report.probe.content);
+          return { ok: true, artefacts: { ...artefacts, [report.probe.path]: report.probe.content },
+            outputs: { ampThread: turn.threadId, probe: report.probe.path }, usage, sessions: [] };
+        }
+        const head = await this.importRemotePatch(task, runner, handle, report, remaining);
+        return { ok: true, artefacts, outputs: { ampThread: turn.threadId, head }, usage, sessions: [] };
       }
       const name = task.step === "research" ? "hypothesis.md" : task.step === "plan" ? "plan.md" : "review.json";
       return { ok: true, artefacts: { ...artefacts, [name]: turn.text }, outputs: { ampThread: turn.threadId }, usage, sessions: [] };
     }
     return this.collectLocal(task, runner, handle, before!.stdout.trim(), turn, artefacts, usage, remaining);
+  }
+
+  private async importRemotePatch(task: AgentTask, runner: Runner, handle: RunnerHandle, report: AmpReport,
+    remaining: () => number): Promise<string> {
+    const patch = report.patch;
+    if (!patch) throw new Unverified("Amp patch report");
+    const checked = async (command: string[]) => {
+      const result = await execute(runner, handle, command, remaining());
+      if (result.exit !== 0) throw new Unverified(`Amp patch transfer ${command[1]}`);
+      return result.stdout.trim();
+    };
+    if (await checked(["git", "rev-parse", "HEAD"]) !== report.request.base) throw new Unverified("Amp receiving checkout base");
+    const path = `.ephyra-amp-${report.request.nonce}.bundle`;
+    await runner.writeFile(handle, path, new Uint8Array(Buffer.from(patch.bundle, "base64")));
+    await checked(["git", "bundle", "verify", path]);
+    if (await checked(["git", "bundle", "list-heads", path]) !== `${patch.head} HEAD`)
+      throw new Unverified("Amp bundle ref/head binding");
+    await checked(["git", "-c", "core.hooksPath=/dev/null", "fetch", "--no-tags", `./${path}`, "HEAD"]);
+    if (await checked(["git", "rev-parse", "FETCH_HEAD"]) !== patch.head) throw new Unverified("Amp fetched head binding");
+    await checked(["git", "merge-base", "--is-ancestor", report.request.base, patch.head]);
+    const log = await checked(["git", "log", "--format=%H%x00%(trailers)%x00", `${report.request.base}..${patch.head}`]);
+    const parts = log.split("\0");
+    if (parts.length < 2) throw new Unverified("Amp patch has no commits");
+    for (let i = 0; i + 1 < parts.length; i += 2) {
+      if (!parts[i + 1]!.split("\n").map((line) => line.trim()).includes(`Ephyra-Trail: ${task.trail.id}`))
+        throw new Unverified("Amp patch trail trailer");
+    }
+    await checked(["git", "-c", "core.hooksPath=/dev/null", "checkout", "--detach", "--force", patch.head]);
+    return patch.head;
   }
 
   /** Read the step's products back from the local checkout, with the same contract as the CLI agents. */
