@@ -136,6 +136,10 @@ describe("Standard.site blog", () => {
 
   test("feed, publication discovery, redirects and 404s", async () => {
     const h = site([doc("one", "/posts/one", "2026-11-01T00:00:00Z")]);
+    const recordLink = await get(h, "/posts/one?from=reader");
+    expect(recordLink.status).toBe(308);
+    expect(recordLink.headers.get("location")).toBe(`${ORIGIN}/blog/posts/one?from=reader`);
+    expect((await get(h, "/blog/posts/missing")).status).toBe(404);
     const feed = await (await get(h, "/blog/feed.xml")).text();
     expect(feed).toContain(`<link>${ORIGIN}/blog/posts/one</link>`);
     expect(feed).toContain(`<guid isPermaLink="false">at://${DID}/site.standard.document/one</guid>`);

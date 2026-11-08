@@ -42,6 +42,7 @@ Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/ra
 https://console.ephrya.app/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
 The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
 The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
+Record-derived `/posts/<slug>` links redirect to `/blog/posts/<slug>`; document record identities and paths stay unchanged.
 Deploy with `railway up --service web --ci`.
 
 Porkbun DNS is managed with Sesame. The apex ALIAS points at `018v5dcu.up.railway.app`, `console` CNAME at
