@@ -64,6 +64,7 @@ export function renderSketches(kind: PolicyDocKind, current: string, sketches: A
 export type DocsConfig = {
   git: Git; baseRef: string; autonomyFile?: string; thresholdsFile?: string;
   activeContent?: (path: string) => Promise<string | null>;
+  activePaths?: () => Promise<string[]>;
 };
 
 export class PolicyDocs {
@@ -99,7 +100,9 @@ export class PolicyDocs {
     try {
       intents = (await this.config.git(["ls-tree", "--name-only", this.config.baseRef, "intents/"])).split("\n").filter((p) => INTENT_PATH.test(p));
     } catch { /* no repository yet, or no intents directory */ }
-    const docs = await Promise.all(["autonomy.md", "thresholds.yaml", ...intents.sort()].map((p) => this.get(p)));
+    const active = await this.config.activePaths?.() ?? [];
+    const paths = [...new Set(["autonomy.md", "thresholds.yaml", ...intents.sort(), ...active.filter((path) => docKind(path)).sort()])];
+    const docs = await Promise.all(paths.map((p) => this.get(p)));
     return docs.filter((d): d is NonNullable<typeof d> => d !== null);
   }
 }
