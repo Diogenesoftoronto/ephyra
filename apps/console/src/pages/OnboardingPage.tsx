@@ -7,6 +7,7 @@ import {
 import { useAccountWrite } from "../components/useAccountWrite.ts";
 import { JellySpecimen } from "../components/JellySpecimen.tsx";
 import { AutomaticSetup, SetupModeChoice } from "../components/AutomaticSetup.tsx";
+import { KnowledgeConnections } from "../components/KnowledgeConnections.tsx";
 import "./OnboardingPage.css";
 
 export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, automation }: AccountPageProps) {
@@ -70,6 +71,7 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
             />
           </>
         )}
+        <KnowledgeConnections api={api} settings={settings} onChange={onChange} />
         {settings.repository && (
           <details className="account-advanced">
             <summary>Model access and repository settings</summary>

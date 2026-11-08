@@ -16,7 +16,21 @@ const root = join(import.meta.dir, "..");
 const artifacts = join(root, "artifacts/signin");
 const dir = await mkdtemp(join(tmpdir(), "ephyra-browser-signin-"));
 const did = "did:plc:approver123";
-const account = { approved: true, product: "ephyra", did };
+const knowledgeSource = {
+  id: "project-notes", provider: "remote-mcp", label: "Offline project notes", resources_allowed: true,
+  tools: [{ name: "search_notes", description: "Search the fictional project notes.",
+    inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+    annotations: { readOnlyHint: true } }],
+};
+let knowledgeLists = 0;
+const account = {
+  approved: true, product: "ephyra", did, honorRequestedScopes: true,
+  knowledge: (path: string, _body: Record<string, unknown>, owner: string) => {
+    assert.equal(path, "/v1/knowledge/sources", "onboarding only discovers sources; it does not execute tools");
+    knowledgeLists++;
+    return Response.json({ object: "list", data: owner === did ? [knowledgeSource] : [] });
+  },
+};
 const provider = fakeNotOrganic(account);
 const modelCalls: { authorization: string | null; model: string }[] = [];
 const fixtureRepo = join(dir, "fixture-repository");
@@ -138,6 +152,19 @@ try {
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
     if (width === 1440) {
       await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+      await page.getByRole("button", { name: "Connect knowledge", exact: true }).click();
+      await page.getByRole("link", { name: "Continue with Not Organic", exact: true }).click();
+      await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).waitFor();
+      const manage = new URL((await page.getByRole("link", { name: "Manage connections in Not Organic ↗", exact: true }).getAttribute("href"))!);
+      assert.equal(manage.searchParams.get("app_client"), origin);
+      assert.equal(manage.searchParams.get("return_to"), `${origin}/app/#/onboarding`);
+      await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).check();
+      await page.getByRole("combobox", { name: "Search tool", exact: true }).selectOption({ label: "search_notes" });
+      await page.getByRole("button", { name: "Save connections", exact: true }).click();
+      await page.getByText("Knowledge preferences saved.", { exact: true }).waitFor();
+      const knowledge = await page.evaluate(async () => (await fetch("/v1/account")).json());
+      assert.equal(knowledge.knowledge.sources[0].searchTool.name, "search_notes");
+      await page.screenshot({ path: join(artifacts, "knowledge-onboarding.png"), fullPage: true });
       await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill(fixtureUrl);
       assert.equal(await page.getByRole("textbox", { name: /^Branch \(optional\)/ }).inputValue(), "");
       await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
@@ -184,6 +211,20 @@ try {
     await page.getByRole("combobox", { name: "Find a page or command" }).fill("settings");
     await page.getByRole("combobox", { name: "Find a page or command" }).press("Enter");
     await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    if (width === 390) {
+      // Signing out revoked the previous device session. Reauthorize the saved knowledge choice for this new session.
+      await page.getByRole("link", { name: "Continue with Not Organic", exact: true }).click();
+      await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+      await page.goto(`${origin}/app/#/settings`);
+      await page.getByRole("tab", { name: "Knowledge", exact: true }).click();
+    }
+    await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).waitFor();
+    assert.equal(await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).isChecked(), true);
+    const sourceOption = await page.getByRole("combobox", { name: "Search tool", exact: true }).inputValue();
+    assert.equal(JSON.parse(sourceOption)[0], "search_notes");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    await page.screenshot({ path: join(artifacts, `knowledge-settings-${width}.png`), fullPage: true });
     await page.getByRole("tab", { name: "Model access" }).click();
     assert.equal(await page.getByLabel("Replace API key", { exact: true }).inputValue(), "");
     await page.screenshot({ path: join(artifacts, `settings-${width}.png`), fullPage: true });
@@ -225,12 +266,14 @@ try {
     assert.equal(reply.status, 200);
     assert.ok(JSON.stringify(reply.body).includes("Fixture reply from the saved provider."));
     await page.screenshot({ path: join(artifacts, `workspace-${width}.png`), fullPage: true });
+    const currentSession = (await context.cookies()).find((cookie) => cookie.name === "ephyra_session");
+    assert.ok(currentSession);
     await page.goto(`${origin}/app/#/settings`);
     await page.getByRole("tab", { name: "Account", exact: true }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).waitFor();
     assert.ok(!(await context.cookies()).some((cookie) => cookie.name === "ephyra_session"));
-    const replay = await fetch(`${origin}/v1/me`, { headers: { cookie: `ephyra_session=${session!.value}` } });
+    const replay = await fetch(`${origin}/v1/me`, { headers: { cookie: `ephyra_session=${currentSession!.value}` } });
     assert.equal(replay.status, 401, "sign-out revokes the saved session server-side");
     assert.deepEqual(errors, [], "no browser runtime errors");
     await context.close();
@@ -243,6 +286,9 @@ try {
   await page.goto(`${origin}/app/`);
   await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
   await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "Connect knowledge", exact: true }).count(), 1);
+  assert.equal((await page.evaluate(async () => (await fetch("/v1/account")).json())).knowledge, undefined,
+    "a different account cannot inherit knowledge choices");
   await page.getByRole("button", { name: "Explore first", exact: true }).click();
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
   await page.goto(`${origin}/app/#/workspace`);
@@ -276,6 +322,9 @@ try {
         checks: [
           "public app entry",
           "PKCE browser callback",
+          "knowledge permission upgrade through PKCE",
+          "exact source and tool selection before repository setup",
+          "knowledge choices persisted into first repository and desktop/mobile Settings",
           "HttpOnly session",
           "automatic onboarding with a local repository connector fixture",
           "real setup queue and Git-backed document receipts",
@@ -291,13 +340,14 @@ try {
           "revocation",
           "account isolation",
         ],
-        unverified: ["hosted account login", "remote git transport", "live providers", "production execution"],
+        unverified: ["hosted account login", "remote git transport", "live providers", "live MCP connections", "production execution"],
       },
       null,
       2,
     ),
   );
   assert.equal(repositoryConnections, 1);
+  assert.ok(knowledgeLists > 0);
   assert.equal(modelCalls.length, 2);
   assert.ok(
     modelCalls.every(

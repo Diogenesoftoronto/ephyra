@@ -49,6 +49,10 @@ try {
       if (url.pathname === "/auth/session") return json({ signIn: true, identity });
       if (url.pathname === "/v1/me") return json(identity);
       if (url.pathname === "/v1/account") return json(account);
+      if (url.pathname === "/v1/account/knowledge") return json({
+        status: "disabled", sources: [], detail: "Knowledge connections are optional.",
+        manageUrl: "/fixture/connections", authorizeUrl: "/auth/login?setup=1",
+      });
       if (url.pathname === "/v1/inbox") return json([]);
       if (url.pathname === "/v1/account/repository") {
         repositorySaves++;
