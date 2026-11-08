@@ -30,7 +30,7 @@ export type AccountOptions = {
   operationSecret: string;
   dataDir: string;
   signIn: NotOrganicSignIn;
-  repository?: Pick<RepositoryConnector, "prepare">;
+  repository?: Pick<RepositoryConnector, "prepare"> & Partial<Pick<RepositoryConnector, "discover">>;
   fetcher?: Fetch;
   onWorkspaceChange?: (before: string, after: string) => void;
 };
@@ -148,7 +148,6 @@ export class Accounts {
         throw new AccountError(400, "Choose a replacement token or remove the token.");
       const url = parsePublicHttps(input.url).href;
       if (new URL(url).search) throw new AccountError(400, "Repository URLs cannot contain query parameters.");
-      const branch = input.branch.replace(/^refs\/heads\//, "");
       const previous = record.settings.repository;
       const sameRepository = previous?.url === url;
       const token =
@@ -157,6 +156,11 @@ export class Accounts {
           ? await this.options.box.open<string>(record.repoToken)
           : undefined);
       const username = input.username || (sameRepository ? previous?.username : undefined);
+      if (input.discoverDefaultBranch && !this.repository.discover)
+        throw new AccountError(422, "Default branch discovery is unavailable. Enter the branch name.");
+      const branch = input.discoverDefaultBranch
+        ? await this.repository.discover!({ url, username, token })
+        : input.branch.replace(/^refs\/heads\//, "");
       const id = workspaceId(did, url, branch);
       const verified = await this.repository.prepare(
         { url, branch, ...(username ? { username } : {}), ...(token ? { token } : {}) },

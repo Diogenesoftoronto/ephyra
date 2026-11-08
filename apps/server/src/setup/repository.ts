@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readdir, lstat, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isIP } from "node:net";
+import { tmpdir } from "node:os";
 import {
   ConnectionError,
   parsePublicHttps,
@@ -210,6 +211,29 @@ const executeGit: GitExecutor = async (input) => {
 export class RepositoryConnector {
   private readonly chains = new Map<string, Promise<unknown>>();
   constructor(private readonly options: RepositoryConnectorOptions = {}) {}
+
+  /** Query the advertised HEAD using the same constrained transport as fetch. No host-specific API is required. */
+  async discover(input: Omit<RepositoryInput, "branch">): Promise<string> {
+    const normalized = normalizeRepositoryInput({ ...input, branch: "main" });
+    const target = await resolvePublicHttps(normalized.url, this.options.lookup);
+    const directory = await mkdtemp(join(tmpdir(), "ephyra-discover-"));
+    try {
+      const result = await (this.options.execute ?? executeGit)({
+        args: ["ls-remote", "--symref", "--", normalized.url, "HEAD"],
+        env: gitEnvironment(target, normalized), directory,
+        timeoutMs: this.options.timeoutMs ?? 30_000,
+        maxOutputBytes: this.options.maxOutputBytes ?? 256_000,
+        maxRepositoryBytes: this.options.maxRepositoryBytes ?? 512_000_000,
+      });
+      const match = /^ref: refs\/heads\/([^\r\n\t]+)\tHEAD$/m.exec(result.stdout);
+      if (result.code || !match) {
+        throw new ConnectionError("repository_branch", "The default branch could not be discovered. Enter its name in advanced settings.");
+      }
+      return normalizeRepositoryInput({ ...normalized, branch: match[1]! }).branch;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
 
   prepare(input: RepositoryInput, directory: string): Promise<RepositoryConnection> {
     const key = resolve(directory);
