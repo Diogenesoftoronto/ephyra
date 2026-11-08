@@ -18,7 +18,7 @@ export type WatchPreparation = {
   /** Recorded origin/window/coverage of the measurements, never a guessed baseline. */
   evidence: string;
 };
-export type DeploymentObservation = { sha: string; observedAt: string; source: string };
+export type DeploymentObservation = { sha: string; observedAt: string; source: string; deployedAt?: string };
 export type WatchCoverage = { source: string; observedAt: string; gaps: string[] };
 export type LandingWatch = {
   prepare(trail: Trail): Promise<WatchPreparation>;
@@ -171,7 +171,9 @@ async function observe(ctx: ServerContext, deps: LandingDeps, payload: WatchPayl
     return;
   }
   if (!payload.activated) {
-    payload.config.startedAt = deployed!.observedAt;
+    const activatedAt = deployed!.deployedAt ? Date.parse(deployed!.deployedAt) : deployedAt;
+    if (!Number.isFinite(activatedAt) || activatedAt > deployedAt + 5000) throw new Unverified("deployment activation time");
+    payload.config.startedAt = new Date(Math.max(Date.parse(payload.receipt.at), activatedAt)).toISOString();
     payload.activated = true;
     await ctx.emit({ trail: trail.id, actor, type: "watch_started", data: { config: payload.config } });
   }
@@ -305,6 +307,7 @@ export function landingHandlers(ctx: ServerContext, deps: LandingDeps): HandlerS
       if (!current || current.state !== "patching" || current.rev !== trail.rev || current.base.sha !== effect.onto) return;
       await ctx.jobs.enqueue("agent_step", `${effect.key}:patch`, {
         trailId: trail.id, rev: trail.rev, step: "patch", operationKey: effect.key,
+        generation: trail.workGeneration ?? 0,
         note: `Rebase the existing patch onto exact base ${effect.onto}. Resolve conflicts within the authorized scope, `
           + "retain the original objective and produce a new commit. Previous proof and approval do not apply to this base.",
       });

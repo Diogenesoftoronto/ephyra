@@ -26,8 +26,9 @@ grants stay in Not Organic. See [account knowledge](design/08-account-knowledge.
 
 The [web console](apps/console/README.md) now implements Overview, Inbox, Usage, Runs, Workspace and Personas.
 It reads recorded work and spend, follows agent transcripts, reviews checkpoint evidence, and edits policy drafts
-with Velum and validated generated forms. Publishing writes a policy git ref for later landing. It does not apply
-the policy to production. Cut E remains the public homepage; the console is served separately at `/app/`.
+with Velum and validated generated forms. Publishing writes a policy git ref. An approver can then explicitly activate
+that exact revision in the console, with source and active-version checks. Activation reloads control-plane policy;
+it does not deploy application code. Cut E remains the public homepage; the console is served separately at `/app/`.
 The console also has voice conversations about recorded work, voice-assisted policy drafting, editable dictation
 and evidence narration. Speech uses configured Not Organic or compatible services; setup and verification limits
 are in the [voice documentation](apps/console/README.md#voice).

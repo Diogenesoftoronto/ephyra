@@ -50,6 +50,7 @@ function TelemetryForm({ api, settings, onChange }: AccountPageProps) {
   const [origin, setOrigin] = useState(saved?.origin ?? "");
   const [project, setProject] = useState(saved?.projectId ?? "");
   const [recordings, setRecordings] = useState(saved?.includeRecordings ?? false);
+  const [deployment, setDeployment] = useState(saved?.deploymentUrl ?? "");
   const [key, setKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
   const [error, setError] = useState<string>();
@@ -57,12 +58,14 @@ function TelemetryForm({ api, settings, onChange }: AccountPageProps) {
   useEffect(() => {
     setEnabled(saved?.enabled ?? false); setOrigin(saved?.origin ?? ""); setProject(saved?.projectId ?? "");
     setRecordings(saved?.includeRecordings ?? false); setKey(""); setClearKey(false); setError(undefined);
+    setDeployment(saved?.deploymentUrl ?? "");
   }, [settings]);
   const retained = saved?.keyConfigured && origin.trim().replace(/\/$/, "") === saved.origin.replace(/\/$/, "") && project.trim() === saved.projectId;
   return <form className="account-form" aria-label="PostHog connection" onSubmit={async (event) => {
     event.preventDefault();
     const input = TelemetryUpdate.safeParse({ expectedVersion: settings.version, workspaceId: settings.workspaceId, enabled,
       origin: enabled ? origin.trim() : "", projectId: enabled ? project.trim() : "", includeRecordings: recordings,
+      ...(enabled ? { deploymentUrl: deployment.trim() } : {}),
       ...(key.trim() ? { apiKey: key.trim() } : {}), ...(clearKey ? { clearKey: true } : {}),
     });
     if (!input.success) { setError("Check the PostHog origin, project ID and key."); return; }
@@ -92,6 +95,12 @@ function TelemetryForm({ api, settings, onChange }: AccountPageProps) {
         onChange={(event) => { setClearKey(event.target.checked); setKey(""); setEnabled(false); }} />Disconnect and remove saved PostHog key</label>}
       <label className="account-checkbox"><input type="checkbox" checked={recordings}
         onChange={(event) => setRecordings(event.target.checked)} />Include session recording context</label>
+      <Field label="Deployment receipt URL"
+        hint="Optional public HTTPS endpoint reporting this repository’s deployed commit. Required for automatic landing and watch.">
+        <input type="url" maxLength={2048} value={deployment} autoCapitalize="none" spellCheck={false}
+          placeholder="https://app.example.org/.well-known/ephyra/deployment.json"
+          onChange={(event) => setDeployment(event.target.value)} />
+      </Field>
     </fieldset>
     {saved && <div className="connection-status">
       <Tag>{saved.status === "verified" ? "Project access checked" : saved.status === "unavailable" ? "Unavailable" : "Saved, not verified"}</Tag>
