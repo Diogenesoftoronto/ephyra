@@ -23,8 +23,9 @@
   pointer-events: none;
 }
 .material-scene::before {
+  z-index: -2;
   background: linear-gradient(170deg, #163d3b30, #102523c9 68%, #0b1e1df2),
-    url("/app/materials/amber-glass-dark-v1.webp") center / 640px;
+    url("/app/materials/night-v2.webp") center / 640px;
   opacity: 0.7;
 }
 .material-scene::after {
@@ -36,6 +37,15 @@
   color: #d2d9cd;
   font: 400 0.66rem / 1.8 var(--font-mono);
   letter-spacing: 0.035em;
+}
+.material-scene__top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.material-scene__top > .material-scene__label { min-width: 0; }
+.material-scene__illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 12px 24px -16px #0009;
 }
 .material-scene__label span { margin-inline: var(--s2); color: #f7b866; }
 .material-scene__specimen {
@@ -68,9 +78,9 @@
 .material-scene--compact .material-scene__copy h2 { max-width: 22ch; font-size: 1.65rem; }
 .material-scene--compact .material-scene__label { font-size: 0.6rem; }
 @media (max-width: 700px) {
-  .material-scene { gap: var(--s4); min-height: 180px; border-radius: 16px; padding: var(--s5); }
+  .material-scene { gap: var(--s4); min-height: 220px; border-radius: 16px; padding: var(--s5); }
   .material-scene::after { inset: 10px; border-radius: 8px; }
-  .material-scene__specimen { position: absolute; inset-inline-end: 12px; top: 32px; opacity: 0.8; }
+  .material-scene__specimen { position: absolute; inset-inline-end: 12px; top: 74px; opacity: 0.8; }
   .material-scene__specimen .jelly-specimen { width: 112px; height: 112px; }
   .material-scene__specimen::before { display: none; }
   .material-scene__copy { position: relative; max-width: calc(100% - 104px); }

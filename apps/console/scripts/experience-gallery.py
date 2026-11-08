@@ -46,7 +46,7 @@ figure.phone img{max-width:390px}figcaption{font-size:14px;color:#44574c;margin-
 <figure><figcaption id="caption"></figcaption><img id="screen" alt=""></figure></main>
 <footer><p><strong>Verified locally:</strong> sign-in and automatic setup; Viewer/Approver invitation, joining, reload and revocation; 36 responsive fixture layouts; interrupted-write recovery; keyboard and motion fallbacks.</p>
 <p>Run handoff checks cover streamed links, interactive visuals, expansion, revision updates, isolation and replay. Hosted accounts, live model work, deployed Convex and production deployment remain unverified.</p>
-<p>The materials reuse existing project artwork. Two new fal tiling results failed visual inspection and were not shipped. This gallery is a visual record; the application code and tests are on <code>ui/jakub-console-polish</code>.</p></footer>
+<p>The application now uses selected Ideogram persona tiles, FLUX illustrations and a short Kling entrance animation. Fifteen retained tile studies and the Kling/Wan comparisons are in the material-lab galleries. This is a visual record; the application code and tests are on <code>ui/jakub-console-polish</code>.</p></footer>
 <script>
 const screens=SCREENS, images=IMAGES;let selected='signin';
 const nav=document.querySelector('nav'),theme=document.querySelector('#theme'),size=document.querySelector('#size'),picture=document.querySelector('#screen');

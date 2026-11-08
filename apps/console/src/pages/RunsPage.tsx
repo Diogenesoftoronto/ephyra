@@ -10,6 +10,7 @@ import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
 import { EngineBadge } from "../components/EngineBadge.tsx";
 import { RunAccess } from "../components/RunAccess.tsx";
 import "./RunsPage.css";
+import "../components/PersonaMaterial.css";
 
 /** Every running and recent agent run, wherever it executes: Amp orbs and runners, local processes, sandboxes. */
 export function RunsPage() {
@@ -71,7 +72,7 @@ function RunsBody({
           const own = all.filter((run) => run.persona === persona.id);
           const working = own.filter((run) => run.status === "running");
           const latest = [...own].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
-          return <div key={persona.id} className="run-roster__agent" data-selected={filters.persona === persona.id}>
+          return <div key={persona.id} className="run-roster__agent" data-persona={persona.id} data-selected={filters.persona === persona.id}>
             <button type="button" className="run-roster__filter"
               aria-pressed={filters.persona === persona.id} aria-label={`Filter runs by ${persona.name}`}
               onClick={() => setFilters({ ...filters, persona: filters.persona === persona.id ? "" : persona.id })}>

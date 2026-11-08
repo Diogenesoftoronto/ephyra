@@ -327,7 +327,9 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
           </Card>
           <aside className="team-guide">
             <span className="ui-label">A shared view</span>
-            <h2>Follow the work.<br />Choose who decides.</h2>
+            <h2>Follow the work.<br /> Choose who decides.</h2>
+            <img className="team-guide-art" src="/app/materials/experiments/flux-glass-gathering.webp" alt=""
+              width={1024} height={1024} loading="lazy" decoding="async" />
             <p>Your team can follow the same runs, evidence, and costs. Approvers can help at the checkpoints you set.</p>
             <ol>
               <li>Choose a role for this invitation.</li>

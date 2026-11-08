@@ -46,6 +46,7 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
       </header>
       <div className="onboarding-layout">
       <MaterialScene compact title="Make room for the work."
+        illustration="/app/materials/experiments/flux-glass-current.webp"
         description="One repository, a clear policy, and a record of every step.">
         <ol className="onboarding-explainer">
           <li><strong>Connect</strong><p>Choose the repository and branch Ephyra should work with.</p></li>

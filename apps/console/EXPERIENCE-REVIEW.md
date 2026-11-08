@@ -11,7 +11,7 @@ color and UI skills. It keeps the established honey-jelly identity and the autom
 - Automatic setup pairs real repository preparation progress with a clear explanation. Automation choices use
   explicit selected states. Saved blockers and artifacts remain visible; decoration never claims readiness.
 - Local light/dark glass materials add depth to the shell and team explanation; reading surfaces remain opaque.
-  Existing bounded specimen refraction provides interaction. There is no autoplay video or runtime media request.
+  Existing bounded specimen refraction provides interaction. The later media pass below adds one short entrance animation.
 - Runs show six recognizable roles, their actual recorded activity and exact engine identities. The latest 100
   runs refresh every five seconds while visible; missing activity and engines remain explicitly absent.
 - Owners choose Viewer or Approver when creating an invitation. The recipient sees the workspace, owner and role
@@ -19,9 +19,9 @@ color and UI skills. It keeps the established honey-jelly identity and the autom
 - Invitations can be revoked before or after acceptance. Server authorization checks current grants, and active
   shared streams stop after revocation. The guest UI removes cached workspace data on refresh/focus.
 
-The two fal `ideogram/v4/tiling` attempts returned unusable gray images containing text artifacts. Neither is shipped.
+In the initial pass, two fal `ideogram/v4/tiling` attempts returned unusable gray images containing text artifacts. Neither is shipped.
 The existing site materials were reused after visual inspection. Generation receipts and the rejected status are
-recorded without credentials; actual billing is unknown. No additional paid retries were made.
+recorded without credentials; actual billing is unknown. The later requested experiments below supersede that initial selection.
 
 ## Findings resolved during integration
 
@@ -109,3 +109,42 @@ The real local account/browser check passed all twelve displayed-QR decodes acro
 320/390/1440px widths, plus both PNG decodes. Both decoded URLs completed the sign-in and joining flow.
 Revocation and clock-driven expiry removal passed in the recovery fixture. Public phone reachability,
 camera hardware and Safari/iOS remain unverified. No core changes were needed for QR invitations.
+
+## Persona materials and image/video experiments — November 8
+
+The requested exploration produced sixteen distinct Ideogram v4 tile attempts. Fifteen were retained after visual
+inspection; one nearly uniform gray result was rejected and is excluded from the public gallery. The review includes
+repeat scale, intensity, light/dark surfaces, seam guides, persona filtering and the earlier materials for comparison.
+Six selected tiles identify Rho, Bell, Nema, Lappet, Turri and Velum on persona cards and the run roster. Pale vellum,
+slate and honey tiles give the shell and introductory surfaces more depth without placing texture behind body text.
+
+Two FLUX 2 Flash illustrations add a glass path to onboarding and a glass gathering to Team. The gathering contains
+seven stones despite the six-stone prompt; it is decorative and never represents the number of agents or members.
+Kling 3 Standard and Wan 2.6 were compared on the same amber source. Their initial restrained briefs were too subtle.
+A separate, stronger Kling brief produced visibly flowing glass and was selected for the introductory scenes.
+The weaker outputs remain available as comparison studies. The selected film is not a seamless loop: it plays once
+and fades to its poster, with explicit pause/replay. It stops when hidden/offscreen; reduced motion and forced colors
+request no movie. Data-saving mode waits for a user gesture. Failed playback retains the still illustration.
+
+All provider jobs were real and sequential, using the authorized skate credential only in memory. Credential-free
+submission receipts were saved before polling; ambiguous submissions stop instead of being resubmitted. Prompts,
+exact requested endpoint identities, request IDs, returned seeds and visual review notes are committed with the assets.
+Actual billing remains unknown. There are no runtime fal calls. See [material provenance](public/materials/README.md).
+
+### Verification
+
+- Console typecheck, 140 console/style tests, production build and Storybook build pass. The existing large-entry-chunk
+  warning remains. The earlier repository-wide run and its corrected failures are recorded above; it was not repeated.
+- Six ambient-motion browser groups check actual decoded frames, mute/no-loop behavior, pause/resume/end, offscreen
+  and hidden-tab suspension, reduced-motion requests, unavailable movie fallback and manual data-saving playback.
+- Twenty-four updated layout checks cover sign-in, onboarding, Team and Runs at 320/390/1440px in both themes.
+  The layout harness waits for eager artwork to decode before capture. Eight engine-badge groups, the phone persona
+  interaction flow and all 26 earlier interface checks still pass.
+- The real local sign-in flow was rerun successfully: fake OAuth issuer, protected cookies, automatic setup, saved
+  configuration, reload, draft requests, sign-out and account isolation. QR verification is recorded above.
+- Both offline galleries passed controls and bounds checks at 390/728px. The media comparison decodes and plays its
+  real videos, pauses on tab changes and displays both FLUX images and the captured application views.
+
+Generated media was inspected visually, including temporal frames for all three movies. The galleries and browser
+captures are local artifacts, not production evidence. Hosted account login, live Amp access, production deployment,
+physical phone scanning, Safari/iOS and billing remain unverified. This pass adds no core contracts.

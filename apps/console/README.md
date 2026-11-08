@@ -87,8 +87,18 @@ The [motion asset notes](../../design/brand/CONSOLE-MOTION.md) record the image-
 transparent GIF/WebP exports and reproduction commands. GIFs are shareable exports; the app loads the 46KB poster
 and runs its small shader only on interaction, rather than downloading a video or GIF for every visit.
 
-The local material layers reuse the existing site artwork; two new fal Ideogram tiling candidates were rejected after
-visual inspection and are not shipped. See `public/materials/manifest.json` and the motion asset notes.
+The shell uses new pale and slate glass tiles, and each of the six personas has a distinct generated material.
+These are decorative layers behind readable surfaces; they do not indicate activity. Onboarding adds a glass-path
+illustration, and Team uses a small glass gathering. The entrance backdrop plays one five-second light study, with
+pause/replay controls and no looping. Reduced motion and forced colors use still artwork without requesting video;
+data-saving mode waits for explicit play. Hiding the tab or moving the scene offscreen stops playback.
+
+The [material notes](public/materials/README.md) record the fifteen retained Ideogram tile studies, FLUX illustrations,
+Kling/Wan motion comparisons, selected assets, saved prompts and request receipts. They supersede the initial two
+rejected tiling attempts. All assets are local: loading the application never makes a fal generation request.
+`scripts/ambient-material.ts` checks real browser decoding, playback controls, lifecycle and still fallbacks.
+`scripts/tiling-gallery.py` and `scripts/media-gallery.py` build the offline comparisons in `artifacts/material-lab/`;
+the latter includes local application screenshots when present. `scripts/material-lab.ts` checks their controls and playback.
 
 Agent activity uses local Amp, Codex and Claude Code logo badges. Hover, keyboard focus or tap reveals the exact recorded
 engine and execution details; Escape or an outside interaction dismisses them. The host does not determine the agent
