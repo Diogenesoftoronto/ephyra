@@ -385,6 +385,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path === "/.well-known/security.txt") return text(securityTxt(origin, operator), "text/plain");
     const legal = await legalRoute(path);
     if (legal) return legal;
+    // Standard.site readers join the publication origin and the stored /posts/<slug> path directly.
+    if (articlePath(url.pathname)) return Response.redirect(`${origin}/blog${path}${url.search}`, 308);
     if (path === "/blog") return Response.redirect(`${origin}/blog/`, 308);
     if (path.startsWith("/blog/")) {
       const trimmed = path.replace(/\/+$/, "");
