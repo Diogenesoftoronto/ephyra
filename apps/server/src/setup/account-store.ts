@@ -2,9 +2,10 @@ import { AccountSettings } from "@ephyra/core";
 import type { ConvexHttpClient } from "convex/browser";
 import { z } from "zod";
 import { api } from "../../convex/_generated/api";
+import { TeamRecord } from "./team-record.ts";
 
 /** Server-only account state. Credential strings are already sealed; this store never opens them. */
-export type AccountRecord = { settings: AccountSettings; modelKey?: string; repoToken?: string };
+export type AccountRecord = { settings: AccountSettings; modelKey?: string; repoToken?: string; team?: TeamRecord };
 export type AccountBeginResult =
   | { status: "fresh" }
   | { status: "completed"; record: AccountRecord }
@@ -25,6 +26,7 @@ const accountRecord = z
     settings: AccountSettings,
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
+    team: TeamRecord.optional(),
   })
   .strict();
 const decode = (json: string): AccountRecord => accountRecord.parse(JSON.parse(json));
@@ -88,6 +90,8 @@ export class MemoryAccountStore implements AccountStore {
     if (parsed.settings.version !== operation.expectedVersion + 1) return false;
     const account = this.records.get(did);
     if (!account || account.settings.version !== operation.expectedVersion) return false;
+    // A repository switch invalidates all old invitations, even if the owner later switches back.
+    if (account.settings.workspaceId !== parsed.settings.workspaceId) delete parsed.team;
     this.records.set(did, parsed);
     operation.result = { settings: structuredClone(parsed.settings) };
     operation.status = "completed";

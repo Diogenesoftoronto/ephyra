@@ -5,12 +5,14 @@ import { v } from "convex/values";
 import { z } from "zod";
 import { mutation, query } from "./_generated/server";
 import { requireSecret } from "./lib";
+import { TeamRecord } from "../src/setup/team-record";
 
 const accountRecord = z
   .object({
     settings: AccountSettings,
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
+    team: TeamRecord.optional(),
   })
   .strict();
 
@@ -107,6 +109,8 @@ export const complete = mutation({
       .withIndex("by_did", (q) => q.eq("did", did))
       .unique();
     if (!account || account.version !== operation.expectedVersion) return false;
+    const previous = accountRecord.parse(JSON.parse(account.json));
+    if (previous.settings.workspaceId !== record.settings.workspaceId) delete record.team;
     const stored = JSON.stringify(record);
     await ctx.db.patch(account._id, { version: record.settings.version, json: stored });
     await ctx.db.patch(operation._id, { status: "completed", result: JSON.stringify({ settings: record.settings }) });

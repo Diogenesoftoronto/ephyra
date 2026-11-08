@@ -374,3 +374,25 @@ idempotent starts, restart recovery, capability blockers, supervised mode, machi
 responses, bounded recovery, source isolation and desktop/phone onboarding. No paid model, production repair, remote
 forge landing, live PostHog query or hosted provisioning was performed. Traction's public health endpoint responded,
 but authenticated coverage and end-to-end usefulness remain Unverified.
+
+
+## Shared workspace invitations
+
+The account authority stores optional, server-only membership records beside each account. Owners choose `viewer` or
+`approver`, issue a single-use seven-day invitation, and can revoke pending or accepted access. Public team responses
+contain labels, actual accepted DIDs, roles, dates and versions; only a hash of the redeemable secret is stored. Stable
+operation keys reproduce the original invitation token on replay without creating another grant or restoring revoked access.
+Concurrent settings/team changes use the existing memory/Convex version-and-receipt transaction.
+
+Endpoints: `GET /v1/account/team`, `GET /v1/account/workspaces`, and `POST /v1/account/team/{invitations,preview,accept,revoke}`.
+Preview is an authenticated read-only POST so secrets never enter request URLs. Account-changing requests require the
+signed-in account binding and same-origin guard. Invite/revoke additionally require matching workspace headers and body.
+Shared requests resolve current owner records and roles on every request. Viewers cannot mutate; Approvers can use existing
+review/draft/spend capabilities, but cannot change owner account settings, team access, or setup. New repository bindings
+permanently discard old grants. Open shared SSE streams recheck membership and cancel their producer after revocation.
+
+Verified: local memory and Convex transaction simulation, fake-issuer signed-in HTTP flows, Viewer/Approver boundaries,
+expiry, one-time use, idempotent replay, concurrent claims, changed repository bindings, secret non-disclosure, and actual
+local SSE teardown. Console browser tests also cover the complete invite/join/revoke flow and shared selection after reload.
+Unverified: deployed Convex transactions, hosted identity-provider login, distributed load, and production lifecycle.
+Workspace discovery currently scans account records; larger installations should add an indexed membership lookup.
