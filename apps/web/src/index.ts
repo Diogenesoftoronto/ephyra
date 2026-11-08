@@ -3,3 +3,4 @@ export * from "./site.ts";
 export { buildRecords, writeRecords, type Article } from "./publish.ts";
 export * from "./legal.ts";
 export * from "./pricing.ts";
+export * from "./docs.ts";
