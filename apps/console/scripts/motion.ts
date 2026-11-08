@@ -1,4 +1,4 @@
-// Offline browser proof of real shader frames, bounded work, fallbacks and responsive integration.
+// Offline browser proof for the custom-art shader. The default video gesture is checked by juice-interactions.ts.
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ try {
     assert.equal(await frames(), count, "no GPU draws while still");
   };
   const ripple = () => page.getByRole("button", { name: "Ripple the Ephyra specimen" });
-  await story("motion-jellyspecimen--light");
+  await story("motion-jellyspecimen--custom-artwork");
   await page.waitForFunction(
     () => (document.querySelector(".jelly-specimen img") as HTMLImageElement)?.naturalWidth > 0,
   );
@@ -90,7 +90,7 @@ try {
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await still();
-  await story("motion-jellyspecimen--dark");
+  await story("motion-jellyspecimen--custom-artwork-dark");
   await ripple().hover();
   await page.waitForFunction(() => (window as any).shaderFrames > 2);
   await page.screenshot({ path: join(artifacts, "specimen-dark.png") });
@@ -178,7 +178,7 @@ try {
       return args[0] === "webgl" ? null : context.apply(this, args as any);
     } as any;
   });
-  await fallback.goto(`${server.url}/iframe.html?id=motion-jellyspecimen--light&viewMode=story`);
+  await fallback.goto(`${server.url}/iframe.html?id=motion-jellyspecimen--custom-artwork&viewMode=story`);
   await fallback.getByRole("button", { name: "Ripple the Ephyra specimen" }).hover();
   await fallback.waitForTimeout(250);
   assert.equal(await fallback.locator(".jelly-specimen img").evaluate((el) => getComputedStyle(el).opacity), "1");
