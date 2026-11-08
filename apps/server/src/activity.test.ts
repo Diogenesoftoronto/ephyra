@@ -16,7 +16,7 @@ describe("activity feed", () => {
     await store.recordEvent(event("agent_failed", { step: "repro", reason: "nope", retryable: false }, "2026-11-07T09:30:00.000Z"));
     await store.recordEvent(event("proof_completed", { bundle: { passed: false }, digest: "d" }, "2026-11-07T09:40:00.000Z", { kind: "system", id: "proof" }));
     await store.recordEvent(event("human_comment", { text: "hello" }, "2026-11-07T09:50:00.000Z"));
-    await store.inboxPut({ id: `${ID}:A`, kind: "checkpoint", checkpoint: "A", trailId: ID, short: "T-07bbd0",
+    await store.inboxPut({ id: `${ID}:A`, kind: "checkpoint", checkpoint: "A", blocking: true, trailId: ID, short: "T-07bbd0",
       createdAt: "2026-11-07T08:00:00.000Z" } as unknown as StoredInboxItem);
     await store.inboxPut({ id: `${ID}:notice`, kind: "notice", trailId: ID, short: "T-07bbd0",
       createdAt: "2026-11-07T08:00:00.000Z" } as unknown as StoredInboxItem);
@@ -45,4 +45,20 @@ describe("activity feed", () => {
   test("an empty deployment has an empty feed", async () => {
     expect(await activity({ store: new MemoryStore(), now: () => new Date() }, 10)).toEqual([]);
   });
+});
+
+
+test("automatic work is visible without presenting advisory checkpoints as human tasks", async () => {
+  const store = new MemoryStore();
+  await store.putTrail(trail);
+  await store.enqueue({ kind: "automatic_setup", key: "s", payload: {}, runAt: new Date() });
+  await store.enqueue({ kind: "checkpoint_evaluation", key: "c", payload: { trailId: ID }, runAt: new Date() });
+  await store.inboxPut({ id: "advisory", kind: "checkpoint", blocking: false } as StoredInboxItem);
+  await store.recordEvent(event("checkpoint_decided", { checkpoint: "A", decision: { by: "policy", verdict: "approve" } },
+    "2026-11-07T10:00:00.000Z", { kind: "policy", id: "exact-identity" }));
+  const items = await activity({ store, now: () => new Date() }, 20);
+  expect(items.some((item) => item.summary === "Automatic repository setup is queued")).toBe(true);
+  expect(items.some((item) => item.summary === "A machine checkpoint is queued")).toBe(true);
+  expect(items.some((item) => item.summary === "Model checkpoint A: approve for T-07bbd0")).toBe(true);
+  expect(items.some((item) => item.summary.includes("Waiting for you"))).toBe(false);
 });

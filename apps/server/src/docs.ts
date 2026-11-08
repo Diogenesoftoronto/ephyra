@@ -61,7 +61,10 @@ export function renderSketches(kind: PolicyDocKind, current: string, sketches: A
   }
 }
 
-export type DocsConfig = { git: Git; baseRef: string; autonomyFile?: string; thresholdsFile?: string };
+export type DocsConfig = {
+  git: Git; baseRef: string; autonomyFile?: string; thresholdsFile?: string;
+  activeContent?: (path: string) => Promise<string | null>;
+};
 
 export class PolicyDocs {
   constructor(private readonly config: DocsConfig) {}
@@ -74,6 +77,8 @@ export class PolicyDocs {
   async content(path: string): Promise<string | null> {
     const kind = docKind(path);
     if (!kind) return null;
+    const active = await this.config.activeContent?.(path);
+    if (active !== undefined && active !== null) return active;
     const file = kind === "autonomy" ? this.config.autonomyFile : kind === "thresholds" ? this.config.thresholdsFile : undefined;
     if (file) { try { return await readFile(file, "utf8"); } catch { /* fall through to the repository */ } }
     const repo = await this.fromRepo(path);
