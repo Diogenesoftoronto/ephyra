@@ -22,6 +22,12 @@ let prior: string | undefined;
 beforeEach(() => { prior = process.env.EPHYRA_CONVEX_SECRET; process.env.EPHYRA_CONVEX_SECRET = secret; });
 afterEach(() => { if (prior === undefined) delete process.env.EPHYRA_CONVEX_SECRET; else process.env.EPHYRA_CONVEX_SECRET = prior; });
 
+const own = async (t: ReturnType<typeof convexTest>) => {
+  const ownerId = crypto.randomUUID();
+  const result = await t.mutation(api.runtime.registerWorker, { secret, ownerId, ttlMs: 30000 });
+  return { ownerId, fence: result.fence };
+};
+
 const signal = (over: Record<string, unknown> = {}) => JSON.stringify({
   id: crypto.randomUUID(), fingerprint: "v1:abc", count: 1, firstSeen: "2026-11-07T00:00:00.000Z",
   lastSeen: "2026-11-07T00:00:00.000Z", ...over,
@@ -63,23 +69,24 @@ describe("signals", () => {
 
 describe("runtime", () => {
   test("events dedupe by id and keep order", async () => {
-    const t = convexTest(schema, modules);
-    expect(await t.mutation(api.runtime.recordEvent, { secret, eventId: "e1", trailId: "t", json: "1" })).toBe(true);
-    expect(await t.mutation(api.runtime.recordEvent, { secret, eventId: "e1", trailId: "t", json: "1" })).toBe(false);
-    await t.mutation(api.runtime.recordEvent, { secret, eventId: "e2", trailId: "t", json: "2" });
+    const t = convexTest(schema, modules), owner = await own(t);
+    expect(await t.mutation(api.runtime.recordEvent, { ...owner, secret, eventId: "e1", trailId: "t", json: "1" })).toBe(true);
+    expect(await t.mutation(api.runtime.recordEvent, { ...owner, secret, eventId: "e1", trailId: "t", json: "1" })).toBe(false);
+    await t.mutation(api.runtime.recordEvent, { ...owner, secret, eventId: "e2", trailId: "t", json: "2" });
     expect(await t.query(api.runtime.events, { secret, trailId: "t" })).toEqual(["1", "2"]);
   });
   test("jobs: enqueue is idempotent, claim is exclusive, failures retry then dead-letter", async () => {
-    const t = convexTest(schema, modules);
+    const t = convexTest(schema, modules), owner = await own(t);
     expect(await t.mutation(api.runtime.enqueue, { secret, key: "k", kind: "triage", payload: "{}", runAtMs: 0 })).toBe(true);
     expect(await t.mutation(api.runtime.enqueue, { secret, key: "k", kind: "triage", payload: "{}", runAtMs: 0 })).toBe(false);
-    const first = await t.mutation(api.runtime.claim, { secret, nowMs: 10, limit: 5 });
+    const first = await t.mutation(api.runtime.claim, { ...owner, secret, nowMs: 10, limit: 5 });
     expect(first.map((j) => j.key)).toEqual(["k"]);
-    expect(await t.mutation(api.runtime.claim, { secret, nowMs: 10, limit: 5 })).toEqual([]);
-    await t.mutation(api.runtime.fail, { secret, key: "k", error: "boom", runAtMs: 20, dead: false });
-    expect(await t.mutation(api.runtime.claim, { secret, nowMs: 15, limit: 5 })).toEqual([]);
-    expect((await t.mutation(api.runtime.claim, { secret, nowMs: 25, limit: 5 }))[0]?.attempts).toBe(2);
-    await t.mutation(api.runtime.fail, { secret, key: "k", error: "boom", runAtMs: 30, dead: true });
+    expect(await t.mutation(api.runtime.claim, { ...owner, secret, nowMs: 10, limit: 5 })).toEqual([]);
+    await t.mutation(api.runtime.fail, { ...owner, secret, claimId: first[0]!.claimId, key: "k", error: "boom", runAtMs: 20, dead: false });
+    expect(await t.mutation(api.runtime.claim, { ...owner, secret, nowMs: 15, limit: 5 })).toEqual([]);
+    const second = await t.mutation(api.runtime.claim, { ...owner, secret, nowMs: 25, limit: 5 });
+    expect(second[0]?.attempts).toBe(2);
+    await t.mutation(api.runtime.fail, { ...owner, secret, claimId: second[0]!.claimId, key: "k", error: "boom", runAtMs: 30, dead: true });
     expect(await t.query(api.runtime.deadJobs, { secret })).toEqual([{ key: "k", kind: "triage", error: "boom" }]);
   });
 });
@@ -161,56 +168,58 @@ const ev = (text: string) => JSON.stringify({ at: "2026-11-07T10:00:00.000Z", ty
 
 describe("runs", () => {
   test("secret-gated; create is idempotent; update changes status; list orders and filters", async () => {
-    const t = convexTest(schema, modules);
-    await expect(t.mutation(api.runs.create, { secret: "x".repeat(40), runId: "r1", json: JSON.stringify(run()) })).rejects.toThrow("unauthorized");
-    expect(await t.mutation(api.runs.create, { secret, runId: "r1", json: JSON.stringify(run()) })).toBe(true);
-    expect(await t.mutation(api.runs.create, { secret, runId: "r1", json: JSON.stringify(run({ status: "failed" })) })).toBe(false);
-    await t.mutation(api.runs.create, { secret, runId: "r2", json: JSON.stringify(run({ id: "r2", trailId: null, short: null, startedAt: "2026-11-07T11:00:00.000Z" })) });
+    const t = convexTest(schema, modules), owner = await own(t);
+    await expect(t.mutation(api.runs.create, { ...owner, secret: "x".repeat(40), runId: "r1", json: JSON.stringify(run()) })).rejects.toThrow("unauthorized");
+    expect(await t.mutation(api.runs.create, { ...owner, secret, runId: "r1", json: JSON.stringify(run()) })).toBe(true);
+    expect(await t.mutation(api.runs.create, { ...owner, secret, runId: "r1", json: JSON.stringify(run({ status: "failed" })) })).toBe(false);
+    await t.mutation(api.runs.create, { ...owner, secret, runId: "r2", json: JSON.stringify(run({ id: "r2", trailId: null, short: null, startedAt: "2026-11-07T11:00:00.000Z" })) });
     expect((await t.query(api.runs.list, { secret, limit: 10 })).map((j) => JSON.parse(j).id)).toEqual(["r2", "r1"]);
     expect((await t.query(api.runs.list, { secret, limit: 10, trailId: "01a1b539-866f-77a3-833f-b417d7707bbd" })).map((j) => JSON.parse(j).id)).toEqual(["r1"]);
     const done = JSON.stringify(run({ status: "done", endedAt: "2026-11-07T10:05:00.000Z" }));
-    expect(await t.mutation(api.runs.update, { secret, runId: "r1", json: done })).toBe(true);
-    expect(await t.mutation(api.runs.update, { secret, runId: "zzz", json: JSON.stringify(run({ id: "zzz" })) })).toBe(false);
+    expect(await t.mutation(api.runs.update, { ...owner, secret, runId: "r1", json: done })).toBe(true);
+    expect(await t.mutation(api.runs.update, { ...owner, secret, runId: "zzz", json: JSON.stringify(run({ id: "zzz" })) })).toBe(false);
     expect(await t.query(api.runs.get, { secret, runId: "r1" })).toBe(done);
     expect((await t.query(api.runs.list, { secret, limit: 10, status: "running" })).map((j) => JSON.parse(j).id)).toEqual(["r2"]);
-    await expect(t.mutation(api.runs.create, { secret, runId: "bad", json: JSON.stringify({ id: "bad" }) })).rejects.toThrow();
+    await expect(t.mutation(api.runs.create, { ...owner, secret, runId: "bad", json: JSON.stringify({ id: "bad" }) })).rejects.toThrow();
   });
   test("events get gap-free seq per run inside the mutation; after resumes; unknown runs and oversized batches are refused", async () => {
-    const t = convexTest(schema, modules);
-    await t.mutation(api.runs.create, { secret, runId: "r1", json: JSON.stringify(run()) });
-    await t.mutation(api.runs.create, { secret, runId: "r2", json: JSON.stringify(run({ id: "r2" })) });
-    expect(await t.mutation(api.runs.appendEvents, { secret, runId: "r1", events: [ev("a"), ev("b")] })).toBe(0);
-    expect(await t.mutation(api.runs.appendEvents, { secret, runId: "r2", events: [ev("x")] })).toBe(0);
-    expect(await t.mutation(api.runs.appendEvents, { secret, runId: "r1", events: [ev("c")] })).toBe(2);
+    const t = convexTest(schema, modules), owner = await own(t);
+    await t.mutation(api.runs.create, { ...owner, secret, runId: "r1", json: JSON.stringify(run()) });
+    await t.mutation(api.runs.create, { ...owner, secret, runId: "r2", json: JSON.stringify(run({ id: "r2" })) });
+    expect(await t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "r1", events: [ev("a"), ev("b")] })).toBe(0);
+    expect(await t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "r2", events: [ev("x")] })).toBe(0);
+    expect(await t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "r1", events: [ev("c")] })).toBe(2);
     const all = (await t.query(api.runs.events, { secret, runId: "r1", limit: 100 })).map((j) => JSON.parse(j));
     expect(all.map((e) => [e.seq, e.text, e.runId])).toEqual([[0, "a", "r1"], [1, "b", "r1"], [2, "c", "r1"]]);
     expect((await t.query(api.runs.events, { secret, runId: "r1", after: 0, limit: 100 })).map((j) => JSON.parse(j).seq)).toEqual([1, 2]);
     expect((await t.query(api.runs.events, { secret, runId: "r1", after: 2, limit: 100 }))).toEqual([]);
     expect((await t.query(api.runs.events, { secret, runId: "r1", limit: 2 })).length).toBe(2);
-    await expect(t.mutation(api.runs.appendEvents, { secret, runId: "nope", events: [ev("a")] })).rejects.toThrow("unknown run");
-    await expect(t.mutation(api.runs.appendEvents, { secret, runId: "r1", events: Array.from({ length: 101 }, () => ev("x")) })).rejects.toThrow("too many");
-    await expect(t.mutation(api.runs.appendEvents, { secret, runId: "r1", events: [JSON.stringify({ type: "message", text: "x".repeat(20001), at: "2026-11-07T10:00:00.000Z" })] })).rejects.toThrow();
+    await expect(t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "nope", events: [ev("a")] })).rejects.toThrow("unknown run");
+    await expect(t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "r1", events: Array.from({ length: 101 }, () => ev("x")) })).rejects.toThrow("too many");
+    await expect(t.mutation(api.runs.appendEvents, { ...owner, secret, runId: "r1", events: [JSON.stringify({ type: "message", text: "x".repeat(20001), at: "2026-11-07T10:00:00.000Z" })] })).rejects.toThrow();
     // A rejected batch leaves no partial events behind.
     expect((await t.query(api.runs.events, { secret, runId: "r1", limit: 100 })).length).toBe(3);
   });
   test("closeRunning fails runs left running by a crashed server", async () => {
-    const t = convexTest(schema, modules);
-    await t.mutation(api.runs.create, { secret, runId: "r1", json: JSON.stringify(run()) });
-    await t.mutation(api.runs.create, { secret, runId: "r2", json: JSON.stringify(run({ id: "r2", status: "done" })) });
-    expect(await t.mutation(api.runs.closeRunning, { secret, reason: "restart", endedAt: "2026-11-07T12:00:00.000Z" })).toBe(1);
+    const t = convexTest(schema, modules), owner = await own(t);
+    await t.mutation(api.runs.create, { ...owner, secret, runId: "r1", json: JSON.stringify(run()) });
+    await t.mutation(api.runs.create, { ...owner, secret, runId: "r2", json: JSON.stringify(run({ id: "r2", status: "done" })) });
+    await t.mutation(api.runtime.releaseWorker, { ...owner, secret });
+    const successor = await own(t);
+    expect(await t.mutation(api.runs.closeRunning, { ...successor, secret, reason: "restart", endedAt: "2026-11-07T12:00:00.000Z" })).toBe(1);
     expect(JSON.parse((await t.query(api.runs.get, { secret, runId: "r1" }))!)).toMatchObject({ status: "failed", error: "restart", endedAt: "2026-11-07T12:00:00.000Z" });
     expect(JSON.parse((await t.query(api.runs.get, { secret, runId: "r2" }))!).status).toBe("done");
   });
 });
 
 test("activeJobs lists queued and running jobs with the claim time", async () => {
-  const t = convexTest(schema, modules);
+  const t = convexTest(schema, modules), owner = await own(t);
   await expect(t.query(api.runtime.activeJobs, { secret: "x".repeat(40) })).rejects.toThrow("unauthorized");
   await t.mutation(api.runtime.enqueue, { secret, key: "a", kind: "agent_step", payload: "{}", runAtMs: 0 });
   await t.mutation(api.runtime.enqueue, { secret, key: "b", kind: "proof", payload: "{}", runAtMs: 99_999 });
-  await t.mutation(api.runtime.claim, { secret, nowMs: 1234, limit: 1 });
+  const claimed = await t.mutation(api.runtime.claim, { ...owner, secret, nowMs: 1234, limit: 1 });
   const jobs = await t.query(api.runtime.activeJobs, { secret });
-  expect(jobs.map((j) => [j.key, j.status, j.startedMs])).toEqual([["a", "running", 1234], ["b", "queued", null]]);
-  await t.mutation(api.runtime.finish, { secret, key: "a" });
+  expect(jobs.map((j) => [j.key, j.status, j.startedMs])).toEqual([["a", "running", expect.any(Number)], ["b", "queued", null]]);
+  await t.mutation(api.runtime.finish, { ...owner, secret, claimId: claimed[0]!.claimId, key: "a" });
   expect((await t.query(api.runtime.activeJobs, { secret })).map((j) => j.key)).toEqual(["b"]);
 });
