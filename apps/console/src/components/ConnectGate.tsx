@@ -1,6 +1,7 @@
+import { SoundToggle } from "./SoundToggle.tsx";
 import { useState } from "react";
 import { Button, Field, PageHeader } from "../kit.ts";
-import { MaterialScene } from "./MaterialScene.tsx";
+import { JellySpecimen } from "./JellySpecimen.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import "./ConnectGate.css";
 
@@ -19,16 +20,19 @@ export function ConnectGate({
   const connect = () => onConnect(token.trim(), principal.trim() || undefined);
   return (
     <main className="entry-page">
-      <div className="entry-toolbar"><a href="/">ephyra</a><ThemeToggle /></div>
+      <div className="entry-toolbar"><a href="/">ephyra</a><span className="entry-preferences"><SoundToggle /><ThemeToggle /></span></div>
       <div className="gate">
-      <MaterialScene title="From signal to proof."
-        description="Follow the investigation. See the evidence. Decide where Ephyra can act.">
+      <div className="connect-welcome">
+        <div className="connect-companion"><JellySpecimen size={320} /></div>
+        <p className="connect-eyebrow">SELF-DRIVING SOFTWARE · HUMAN DIRECTION</p>
+        <h2>A living workspace.<br />A clearer picture.</h2>
+        <p>Follow the investigation. See the evidence. Decide where Ephyra can act.</p>
         <ol className="connect-journey" aria-label="Inside your workspace">
           <li><span>01</span> Connect your application</li>
           <li><span>02</span> Follow the work as it happens</li>
           <li><span>03</span> Bring your team into the loop</li>
         </ol>
-      </MaterialScene>
+      </div>
       <div className="connect-form-surface">
       <div className="connect-intro">
         <PageHeader
@@ -47,7 +51,7 @@ export function ConnectGate({
             <p>Sign in or create an account with Not Organic.</p>
             <div>
               <a className="ui-button ui-button--primary" href="/auth/login">
-                Sign in with Not Organic
+              <img src="/app/brand/notorganic.png" width="24" height="24" alt="" /> Sign in with Not Organic <span aria-hidden="true">→</span>
               </a>
             </div>
             <p className="muted">{invitation ? "You’ll see your invitation’s access level before joining."

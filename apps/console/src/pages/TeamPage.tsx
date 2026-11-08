@@ -1,3 +1,4 @@
+import { playFeedback } from "../lib/feedback.ts";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { TeamInvitation, TeamInviteInput, TeamRevokeInput, TeamRole, TeamState } from "@ephyra/core";
 import { ApiError, UnknownWriteOutcome } from "../api.ts";
@@ -187,6 +188,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
           url: invitationUrl(result.token, window.location.origin),
           label: operation.input.label, role: operation.input.role, invitationId: result.invitationId,
         });
+        playFeedback("invitation");
         setCopyState("idle");
         setLabel("");
       } else {
@@ -247,6 +249,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
       if (!navigator.clipboard) throw new Error("Clipboard unavailable");
       await navigator.clipboard.writeText(share.url);
       setCopyState("copied");
+      playFeedback("copy");
     } catch {
       setCopyState("manual");
       linkInput.current?.focus();

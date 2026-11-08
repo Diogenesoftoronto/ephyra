@@ -1,0 +1,112 @@
+{
+  "reviewMethod": "Five evenly spaced frames plus opening/closing frame review, visual silhouette review, and browser decoding/playback checks. Subjective design selections, not model benchmark scores.",
+  "characters": {
+    "ephyra": {
+      "experiment": "ephyra-h3-max",
+      "model": "minimax/h3-max/image-to-video",
+      "requestId": "01a1bab4-6e1a-7813-83a2-c0bec446392b",
+      "file": "characters/ephyra.webm",
+      "note": "Clear contraction and reopening; clean silhouette.",
+      "trimStartSeconds": 0.2,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0.2s removed; no speed change or generation."
+    },
+    "rho": {
+      "experiment": "rho-flux-3-max",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "requestId": "01a1bab8-0469-7633-81aa-9dcc09146d0f",
+      "file": "characters/rho.webm",
+      "note": "Preserves the green tendril and its small leaning gesture.",
+      "trimStartSeconds": 0.2,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0.2s removed; no speed change or generation."
+    },
+    "bell": {
+      "experiment": "bell-seedance-2.5",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "requestId": "01a1babc-747f-7ad3-b3f8-6bfd8ca7ce86",
+      "file": "characters/bell.webm",
+      "note": "Gentle compression stays inside the frame; the FLUX bounce clips the bell.",
+      "trimStartSeconds": 0,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0s removed; no speed change or generation."
+    },
+    "nema": {
+      "experiment": "nema-h3-max",
+      "model": "minimax/h3-max/image-to-video",
+      "requestId": "01a1babe-efc0-7330-9511-81812a6fc496",
+      "file": "characters/nema.webm",
+      "note": "An expressive turn that preserves the spiral body.",
+      "trimStartSeconds": 0,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0s removed; no speed change or generation."
+    },
+    "lappet": {
+      "experiment": "lappet-flux-3-max",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "requestId": "01a1bad3-b4ab-7a20-99b8-79a4eb7e1eaf",
+      "file": "characters/lappet.webm",
+      "note": "A readable folding gesture; less shape change than the Seedance flower-like curl.",
+      "trimStartSeconds": 0,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0s removed; no speed change or generation."
+    },
+    "turri": {
+      "experiment": "turri-flux-3-max",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "requestId": "01a1bad7-c627-7ae2-a6ba-28453ffc7f6a",
+      "file": "characters/turri.webm",
+      "note": "A visible tail stretch with the inner jelly preserved.",
+      "trimStartSeconds": 0,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0s removed; no speed change or generation."
+    },
+    "velum": {
+      "experiment": "velum-seedance-2.5",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "requestId": "01a1badb-724d-7983-8884-3ba260bc0441",
+      "file": "characters/velum.webm",
+      "note": "The translucent disc curls and settles without leaving the frame.",
+      "trimStartSeconds": 0,
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0s removed; no speed change or generation."
+    }
+  },
+  "sounds": {
+    "touch": {
+      "experiment": "sound-touch-sonilo-funded",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad2-dbf0-77d0-9b94-d26e2532959b",
+      "file": "sounds/touch.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    },
+    "copy": {
+      "experiment": "sound-copy-sonilo",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad1-2baa-7252-9924-3f8bdd5d5dd5",
+      "file": "sounds/copy.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    },
+    "connected": {
+      "experiment": "sound-connected-sonilo",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad1-479e-7191-b0fb-bc9b24cbc364",
+      "file": "sounds/connected.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    },
+    "invitation": {
+      "experiment": "sound-invitation-sonilo",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad1-8850-7180-93e1-4573632f2868",
+      "file": "sounds/invitation.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    },
+    "message": {
+      "experiment": "sound-message-sonilo",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad2-0518-7c41-8a9a-2f886c68358b",
+      "file": "sounds/message.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    },
+    "attention": {
+      "experiment": "sound-attention-sonilo",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "requestId": "01a1bad2-b32c-7f42-8db4-67276731bd69",
+      "file": "sounds/attention.mp3",
+      "derivation": "-24 LUFS, -6 dBTP, 8ms attack fade and 35ms release fade. Playback at 35% volume, opt-in."
+    }
+  }
+}

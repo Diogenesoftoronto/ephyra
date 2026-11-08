@@ -1,3 +1,4 @@
+import { SoundToggle } from "../components/SoundToggle.tsx";
 import { useEffect, useMemo, useState } from "react";
 import type { AccountSettings, WorkspaceAccess } from "@ephyra/core";
 import { ConsoleClient, type SessionInfo } from "../api.ts";
@@ -49,7 +50,7 @@ export function AccountWorkspace(props: Props) {
   };
   if (invitation.token) return (
     <main className="entry-page">
-      <div className="entry-toolbar"><span>ephyra</span><ThemeToggle /></div>
+      <div className="entry-toolbar"><span>ephyra</span><span className="entry-preferences"><SoundToggle /><ThemeToggle /></span></div>
       <div className="gate invitation-gate">
         <MaterialScene title="Follow the work together."
           description="A shared view of investigations, agent runs, and the evidence behind each change." />

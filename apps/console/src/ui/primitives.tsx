@@ -1,3 +1,4 @@
+import { playFeedback } from "../lib/feedback.ts";
 // Visual primitives. Pages compose these and add layout only; no page defines colours, radii, shadows or type sizes.
 import {
   cloneElement,
@@ -463,6 +464,7 @@ export function Hash({ value, chars = 7, className }: { value: string; chars?: n
     navigator.clipboard?.writeText(value).then(
       () => {
         setCopied(true);
+        playFeedback("copy");
         setTimeout(() => setCopied(false), 1200);
       },
       () => {},

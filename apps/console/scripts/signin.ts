@@ -151,7 +151,8 @@ try {
     await page.screenshot({ path: join(artifacts, `signin-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
     if (width === 1440) {
-      await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+      await page.getByRole("heading", { name: "Give your application a companion.", exact: true }).waitFor();
+      await page.locator("summary").filter({ hasText: "Connect knowledge and research tools" }).click();
       await page.getByRole("button", { name: "Connect knowledge", exact: true }).click();
       await page.getByRole("link", { name: "Continue with Not Organic", exact: true }).click();
       await page.getByRole("checkbox", { name: "Read shared resources", exact: true }).waitFor();
@@ -285,7 +286,8 @@ try {
   const page = await reader.newPage();
   await page.goto(`${origin}/app/`);
   await page.getByRole("link", { name: "Sign in with Not Organic", exact: true }).click();
-  await page.getByRole("heading", { name: "Let Ephyra set up your application", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Give your application a companion.", exact: true }).waitFor();
+  await page.locator("summary").filter({ hasText: "Connect knowledge and research tools" }).click();
   assert.equal(await page.getByRole("button", { name: "Connect knowledge", exact: true }).count(), 1);
   assert.equal((await page.evaluate(async () => (await fetch("/v1/account")).json())).knowledge, undefined,
     "a different account cannot inherit knowledge choices");
