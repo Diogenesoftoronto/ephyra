@@ -121,6 +121,9 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           EPHYRA_TRAIL_WALLCLOCK_S: String(config.EPHYRA_TRAIL_WALLCLOCK_S),
           EPHYRA_TRAIL_SPEND_MICROUSD: String(config.EPHYRA_TRAIL_SPEND_MICROUSD),
           EPHYRA_REQUIRE_KNOWN_COST: "true",
+          // Host grants explicitly name workspace IDs; account settings cannot choose a trust file or source.
+          EPHYRA_PROOF_RECEIPTS_DIR: config.EPHYRA_PROOF_RECEIPTS_DIR,
+          EPHYRA_PROOF_TRUST_FILE: config.EPHYRA_PROOF_TRUST_FILE,
         });
         const hosted = opts.workspaceAutomation ? null
           : await hostedAutomation(config, { did, workspaceId, directory }, () => account.modelFor(did, workspaceId));

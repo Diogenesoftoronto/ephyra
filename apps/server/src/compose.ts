@@ -64,6 +64,9 @@ import { createVerificationCollector, repositoryVerificationCommands, type Verif
 import { WorkControl } from "./wiring/control.ts";
 import { workBudget } from "./wiring/budget.ts";
 import { isolatedProbeRunner } from "./wiring/probe-runtime.ts";
+import { TrustedProofReceipts } from "./proof-receipts.ts";
+import { releaseRevision } from "./release.ts";
+import { WorkerOwnershipLost } from "./wiring/worker-lease.ts";
 import type { LandingDeps } from "./wiring/landing.ts";
 
 export const VERSION = "0.1.0-prealpha";
@@ -286,12 +289,13 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const baseClient = config.CONVEX_URL ? convexClient({ url: config.CONVEX_URL, secret: config.EPHYRA_CONVEX_SECRET! }) : null;
   const client = baseClient && opts.workspace ? scopedConvexClient(baseClient, opts.workspace) : baseClient;
   const secret = config.EPHYRA_CONVEX_SECRET ?? "";
-  const store: RuntimeStore & { recoverRunning?(): Promise<unknown> } = client ? new ConvexRuntimeStore(client, secret) : new MemoryStore();
+  const durableStore = client ? new ConvexRuntimeStore(client, secret) : null;
+  const store: RuntimeStore = durableStore ?? new MemoryStore();
   const signals: SignalStore = client ? new ConvexSignalStore(client, secret) : new MemorySignalStore();
   const ledger = opts.operationLedger ?? (client ? new ConvexOperationLedger(client, secret) : new MemoryOperationLedger());
   const usageStore: UsageStore = client ? new ConvexUsageStore(client, secret) : new MemoryUsageStore();
   const usage = new UsageRecorder(usageStore, log);
-  const runStore: RunStore = client ? new ConvexRunStore(client, secret) : new MemoryRunStore();
+  const runStore: RunStore = client ? new ConvexRunStore(client, secret, () => durableStore!.ownerClaim()) : new MemoryRunStore();
   const runBroker = new RunBroker();
   const runs = new RunRecorder(runStore, runBroker, log);
   const memoryAudit = new MemoryAudit();
@@ -307,6 +311,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const journal = new GitJournal({ gitDir: repo.mirrorDir, clock: { now: () => new Date() } });
   const jobs = new JobLoop(store, log);
   const engine = new Engine(store, journal, ledger, contextFn(autonomy), systemIds, log);
+  if (durableStore) engine.setOwnershipGuard(() => durableStore.assertOwner());
 
   const ctx: ServerContext = {
     repo, policy: { autonomy, thresholds }, journal, signals, clock: { now: () => new Date() }, ids: systemIds, log,
@@ -389,6 +394,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     const paths = (await activation!.paths()).filter(path => path.startsWith("intents/"));
     return Promise.all(paths.map(async (path) => ({ path, content: (await activation!.content(path))!, commit: current.commit })));
   } });
+  const proofReceipts = config.EPHYRA_PROOF_RECEIPTS_DIR ? new TrustedProofReceipts({
+    directory: config.EPHYRA_PROOF_RECEIPTS_DIR, trustFile: config.EPHYRA_PROOF_TRUST_FILE!,
+  }) : null;
   const runProbe = isolatedProbeRunner({ ctx, runner, profile, ledger, control, prepare: opts.prepareProof,
     timeoutS: config.EPHYRA_STEP_TIMEOUT_S, secrets: knownSecrets(config) });
   const landing = await opts.landing?.({ ctx, ledger, probes, runProbe, telemetry });
@@ -406,8 +414,10 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
       usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources,
       prepareProof: opts.prepareProof,
-      createProofCollector: (trail, observer) => createVerificationCollector({ catalog: probes, ...opts.verification,
+      createProofCollector: (trail, observer) => createVerificationCollector({ catalog: probes, journal, ...opts.verification,
         commands: opts.verification?.commands ?? (() => repositoryVerificationCommands(g, trail)),
+        sources: async evidence => [...await opts.verification?.sources?.(evidence) ?? [],
+          ...await proofReceipts?.collect(repo.id, evidence) ?? []],
         secrets: knownSecrets(config),
         review: agent && trail.risk !== "low" ? async (evidence) => {
           const ms = evidence.remainingMs();
@@ -472,6 +482,17 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
         const receipt = JSON.parse(run?.artifacts.find((a) => a.path === "ephyra/provisioning.json")?.content ?? "null");
         baseline = receipt?.verification === true && receipt.head === run?.repository.head;
       } catch { /* an invalid receipt cannot establish readiness */ }
+      const setupPolicy = run?.artifacts.find(artifact => artifact.path === "autonomy.md")?.content;
+      const proofPolicy = setupPolicy ? parseAutonomy(setupPolicy) : autonomy;
+      const proofAreas = [...proofPolicy.areas, proofPolicy.fallback];
+      const requiredSources = new Set<"persona_study" | "voxq_study" | "visual_approval">();
+      for (const area of proofAreas) {
+        if (area.user_facing && area.risk !== "low") requiredSources.add("persona_study");
+        if (area.user_facing && ["high", "critical"].includes(area.risk)) requiredSources.add("voxq_study");
+        if (area.ui.length && ["high", "critical"].includes(area.risk)) requiredSources.add("visual_approval");
+      }
+      const externalProofReady = Boolean(opts.verification?.sources) || (await Promise.all([...requiredSources]
+        .map(kind => proofReceipts?.supports(repo.id, kind).catch(() => false) ?? false))).every(Boolean);
       return [
       { id: "agent", available: Boolean(agent) && (!opts.resolveDraftModel || Boolean(await opts.resolveDraftModel().catch(() => null))),
         summary: "A coding agent is not configured for this workspace.",
@@ -487,6 +508,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       { id: "verification", available: opts.automationReadiness?.verification === true || baseline,
         summary: "Repository checks have not been baselined.",
         action: "Run the discovered checks in the sandbox and record baseline failures and intent probes." },
+      { id: "external_proof", available: externalProofReady,
+        summary: "User-facing repairs need a trusted study evidence source.",
+        action: "Configure operator receipts or signed provider receipts for this workspace; each repair still needs its own completed study." },
       { id: "landing", available: Boolean(landing?.adapters.length && landing.watch && (!landing.canLand || await landing.canLand())),
         summary: "Remote landing access is unverified.",
         action: "Verify the selected forge transport and rollback permissions for this workspace." },
@@ -505,7 +529,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       await telemetry?.start();
     },
   });
-  await setup.restore();
+  if (!durableStore) await setup.restore();
 
   // OTLP ingest, authenticated with the API token.
   const otlp = otlpRoutes({
@@ -528,6 +552,11 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   port.ops = async () => ({
     deadJobs: await store.deadJobs(),
     reconciliations: ledger instanceof ConvexOperationLedger ? await ledger.reconciliations() : engine.reconciliations,
+    worker: (() => {
+      if (!durableStore) return { mode: "memory", active: true };
+      try { return { mode: "convex", active: true, fence: durableStore.ownerClaim().fence }; }
+      catch { return { mode: "convex", active: false }; }
+    })(),
     backends: { extract: extract?.alias ?? null, decide: decide?.alias ?? null, agent: agent?.name ?? null,
       draft: (opts.resolveDraftModel ? await opts.resolveDraftModel().catch(() => null) : draftModel)?.kind ?? null },
     repo: { id: repo.id, configured: Boolean(repo.url), baseRef: repo.baseRef, forge: repo.forge },
@@ -551,6 +580,10 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     if (documents["thresholds.yaml"]) {
       for (const key of Object.keys(thresholds)) delete thresholds[key];
       Object.assign(thresholds, parseThresholds(documents["thresholds.yaml"]));
+    }
+    // Followers reload policy for reads; only the active worker may invalidate journaled work.
+    if (durableStore) {
+      try { durableStore.assertOwner(); } catch { return; }
     }
     if (appliedPolicy === receipt.commit) return;
     for (const trail of await ctx.trails.list()) {
@@ -605,29 +638,62 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     try { await store.inboxList(); return { store: "ok" as const }; } catch { return { store: "unavailable" as const }; }
   };
   const app = new Hono();
+  if (durableStore) app.use("/v1/*", async (c, next) => {
+    const readonly = ["GET", "HEAD", "OPTIONS"].includes(c.req.method);
+    try {
+      durableStore.assertOwner();
+    } catch {
+      if (readonly) return next();
+      c.header("Retry-After", "10");
+      return c.json({ error: "The workspace worker is changing ownership. Retry after refreshing." }, 503);
+    }
+    try { return await durableStore.withOwner(() => next()); }
+    catch (error) {
+      if (!(error instanceof WorkerOwnershipLost)) throw error;
+      c.header("Retry-After", "10");
+      return c.json({ error: "The workspace worker changed ownership. Refresh to check the saved outcome." }, 503);
+    }
+  });
+  if (proofReceipts && !opts.workspace) app.route("/", proofReceipts.routes());
   if (opts.ampReports) app.route("/", ampReportRoutes(opts.ampReports));
   app.get("/healthz", async (c) => {
     const h = await health();
-    return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
+    c.header("Cache-Control", "no-store");
+    return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION, revision: releaseRevision() }, h.store === "unavailable" ? 503 : 200);
   });
   if (signIn) app.route("/auth", authRoutes(signIn, approvers, opts.setupScopes));
   else app.get("/auth/session", (c) => c.json({ signIn: false, identity: null }, 200, { "Cache-Control": "no-store" }));
   if (hasConsole(config.EPHYRA_CONSOLE_DIR)) app.route("/", consoleStatic(config.EPHYRA_CONSOLE_DIR));
   app.route("/", api);
-  if (!opts.workspace && repo.url) await telemetry?.start();
-
   let startup: Promise<void> | null = null;
   let generation = 0;
   const start = (): Promise<void> => {
     if (startup) return startup;
     const version = generation;
     startup = (async () => {
-      await store.recoverRunning?.();
-      if (version !== generation) return;
-      // Only the first concurrent request may recover runs and start the workspace worker.
-      await runStore.closeRunning("the server restarted while this run was in progress", new Date())
-        .catch(() => log("closing orphaned runs failed"));
-      if (version === generation) jobs.start();
+      const acquired = async () => {
+        if (version !== generation) return;
+        await durableStore?.recoverRunning();
+        await runStore.closeRunning("the owning worker stopped before this run completed; reconcile external work before retrying", new Date());
+        await engine.recoverProjections();
+        await activation?.restore();
+        await setup.restore();
+        await engine.recoverEffects(undefined, { project: false });
+        if (!opts.workspace && repo.url) await telemetry?.start();
+        if (version === generation) { durableStore?.assertOwner(); jobs.start(); }
+      };
+      if (durableStore) await durableStore.startOwner({ onAcquired: async () => {
+        try { await acquired(); }
+        catch (error) { log("workspace worker startup recovery failed"); throw error; }
+      }, onLost: async () => {
+        telemetry?.stop(); jobs.stop();
+        const receipts = await control.stopAll();
+        if (receipts.some(receipt => ["pending_allocation", "reconciliation_required"].includes(receipt.status))) {
+          log("worker cleanup needs reconciliation", { receipts });
+          throw new Unverified("Runner cleanup must be reconciled before this worker can resume");
+        }
+      } });
+      else await acquired();
     })().catch((error) => { if (version === generation) startup = null; throw error; });
     return startup;
   };
@@ -638,5 +704,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   });
   return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel,
     engine, jobs, setup, questions, telemetry, health, start,
-    close: async () => { generation++; telemetry?.stop(); jobs.stop(); startup = null; await control.stopAll(); } };
+    close: async () => {
+      generation++; telemetry?.stop(); jobs.stop(); startup = null;
+      if (durableStore) await durableStore.stopOwner();
+      else await control.stopAll();
+    } };
 }
