@@ -529,12 +529,16 @@ Checkout preserves the recorded item total.
 Accepted `.ephyra/proof.json` configuration can select actual UI/replay reporter commands:
 
 ```json
-{"schema":1,"commands":[{"id":"stories","command":["bun","run","proof:stories"],"kinds":["story_render","story_interaction"]}]}
+{"schema":1,"commands":[{"id":"stories","command":["bun","run","proof:stories"],"protectedPaths":["package.json","bun.lock","proof/**"],"kinds":["story_render","story_interaction"]}]}
 ```
 
 The command receives `EPHYRA_PROOF_TRAIL`, `EPHYRA_PROOF_REV`, `EPHYRA_PROOF_BASE` and `EPHYRA_PROOF_HEAD`.
 It must exit normally and return JSON `{schema:1,trailId,rev,base,head,items}` with exact bindings and only its declared
-evidence kinds. Persona studies, real respondent studies and visual approvals come through host-authorized
+evidence kinds. Declare the complete verifier harness/dependency closure in accepted-base `protectedPaths` (also
+supported on script intents). Candidate changes to that closure, including worktree changes made by tests, invalidate
+the verifier. Mutable external harness commands without a declaration fail closed. Application paths under test
+must stay separate from the trusted harness; an empty or incomplete declaration does not establish trustworthy proof.
+Persona studies, real respondent studies and visual approvals come through host-authorized
 `verification.sources` with exact revision/provider-operation receipts. They cannot be manufactured by reporter output.
 `respondents` is the separately spend-approved provider hook. Missing evidence parks explicitly instead of repeatedly
 repatching; an empty catalog, generated intent prose or a successful connection is never passing proof. Script intents
@@ -587,5 +591,71 @@ a separate activation confirmation and preserves an uncertain operation key for 
 
 Offline integration tests cover a real medium-risk local repair, actual commands/review, explicitly labelled study
 fixtures, conditional bare-Git remote writes, deployment/telemetry gates, regression registration/reuse and rollback.
-No live paid provider, native forge, Railway allocation or production deployment was exercised for these changes.
+These offline tests do not exercise a live paid provider, native forge, Railway allocation or production repair.
 Actual intent, study receipts, executor identity verification and deployment observations remain required inputs.
+
+### Configured external study evidence
+
+The shipped executable supports two receipt transports. Set both `EPHYRA_PROOF_RECEIPTS_DIR` and
+`EPHYRA_PROOF_TRUST_FILE` to absolute operator-owned paths outside all candidate worktrees. The trust file is rechecked
+on every receipt read, including after restart. Repository policy and account settings cannot add source grants.
+
+```json
+{"schema":1,"grants":[{"sourceId":"study-service","workspaces":["<exact workspace ID>"],
+"kinds":["persona_study","voxq_study","visual_approval"],"transport":"signed",
+"publicKey":"<Ed25519 SPKI PEM public key>"}]}
+```
+
+Choose `transport: "directory"` and omit `publicKey` to import an operator-verified export, or choose `signed` for
+provider automation. Directory receipts cannot be submitted over HTTP. Signed providers POST to `/callbacks/proof`:
+
+```json
+{"receipt":{"schema":1,"sourceId":"study-service","workspaceId":"<exact workspace ID>",
+"trailId":"<UUID>","rev":1,"base":"<full SHA>","head":"<full SHA>","operationKey":"<actual provider operation>",
+"observedAt":"<ISO time>","expiresAt":"<ISO time>","items":["<actual ProofItem objects>"]},
+"signature":"<base64url Ed25519 signature of UTF-8 canonicalJson(receipt)>"}
+```
+
+Use exported `proofReceiptPath(directory, receipt)` to place a directory envelope (`{"receipt": ...}` without signature).
+Receipts are immutable by source, operation and exact revision. Conflicting responses, symlinks, revoked grants, expired
+observations, unauthorized evidence kinds, missing run IDs and empty reports are rejected. A synthetic persona stays
+synthetic; human studies need actual respondents and actual spending. These transports import completed evidence;
+they do not dispatch studies or grant paid execution. Missing required source grants appear in setup's blockers;
+configured grants still require a completed receipt for each patch. Offline tests use labelled fixtures and real
+Ed25519 signatures, not live study results.
+
+### Worker ownership and recovery
+
+Convex workspaces have one active worker lease with a fencing generation and heartbeats. A second process can serve
+reads and enqueue work, but cannot claim jobs, mutate trail projections, write transcripts or apply trail actions.
+Lease loss stops jobs, polling and active runner handles. Jobs from an expired or unknown owner are dead-lettered for
+reconciliation; startup never repeats an uncertain VM allocation, provider call or remote write.
+
+Every new journal transition atomically stores its pending effects in `outbox/pending.json`. After acquisition the
+worker repairs projections from all Git journals, reloads reviewed policy, and delivers only current, never-started
+effects. The durable operation ledger preserves completed and ambiguous outcomes. Old journals without an outbox do
+not acquire invented historical actions. A running operation that lost its owner still requires reconciliation.
+
+### Release scope and decisions that remain external
+
+| Integration | Usable option | Alternative | Still required |
+|---|---|---|---|
+| Study evidence | Operator-verified directory export | Signed Ed25519 provider callback | Actual completed studies and explicit workspace/source grants |
+| Execution | Account-model agent with granted Railway sandbox | Self-hosted CLI agent in an operator-provided image | Named accounts, credentials, resource allowance and explicit inference budget |
+| Remote landing | Account-scoped conditional HTTPS Git | Native Radicle/Tangled adapters through a custom host | Native signing/service-auth ports and a verified deployment observer |
+| Amp | Local CLI installed in the runner image | Remote executor plus the authenticated report plugin/inbox | Documented issuer/audience/thread claims and a configured verifier; stock main does not guess them |
+
+Native proposal adapters and remote Amp reports are library integrations. Stock hosted startup does not advertise them
+as available. Non-script intent probe kinds still fail `Unverified` until an execution adapter is supplied. Automatic
+study dispatch needs a host `respondents` port plus a named, bounded spend approval. No provider account, spend limit or
+hosted runner grant is chosen by deployment. An unconfigured deployment remains available for sign-in and setup with
+explicit blockers. Configured presence alone does not prove a live repair, payment, cleanup or native write.
+
+To prepare a server release, commit the intended source, then run `bun infra/docker/prepare-server-release.ts`.
+It exports exactly `HEAD` into a temporary directory, excludes all dirty/untracked files, writes a credential-free
+release manifest, and stamps `ephyra-release.json` in that export. Upload its reported `source` directory with the pinned
+Railway CLI to the existing server service and production environment. `/healthz` returns the exact exported revision
+with `Cache-Control: no-store`; a development checkout returns null. The archived Git tar checksum and previous Railway
+deployment ID are the release/rollback evidence. Deploy additive Convex functions/schema before the matching server.
+Use the currently configured `EPHYRA_PUBLIC_ORIGIN` for verification; local IaC may lag a separately authorized domain
+change. A healthy deployment verifies startup and HTTP routes, not an account's paid repair or browser workflow.
