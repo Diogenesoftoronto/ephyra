@@ -1,0 +1,68 @@
+{
+  "model": "ideogram/v4/tiling",
+  "assets": [
+    {
+      "file": "day-v2.webp",
+      "source": "exploration/03-pearl-vellum.webp",
+      "requestId": "01a1ba7b-63f8-7743-95c7-27384cd56892",
+      "persona": null,
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "night-v2.webp",
+      "source": "exploration/02-tidal-slate.webp",
+      "requestId": "01a1ba7a-1652-79d3-a7d9-f7d65bf1028f",
+      "persona": null,
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "honey-v2.webp",
+      "source": "exploration/01-honeyglass.webp",
+      "requestId": "01a1ba78-8b1f-7292-83bf-085ef5c053fe",
+      "persona": null,
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/rho.webp",
+      "source": "exploration/04-rho-ripples.webp",
+      "requestId": "01a1ba7c-ed4d-7a91-b08a-6c1634ac6250",
+      "persona": "rho",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/bell.webp",
+      "source": "exploration/07-bell-strata.webp",
+      "requestId": "01a1ba81-368d-78c3-a555-73e9aad629ff",
+      "persona": "bell",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/nema.webp",
+      "source": "exploration/08-nema-lattice.webp",
+      "requestId": "01a1ba82-9124-7da2-9703-ddeafffa7388",
+      "persona": "nema",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/lappet.webp",
+      "source": "exploration/10-lappet-weave.webp",
+      "requestId": "01a1ba85-2ae3-7b62-88a3-1cf02061c51f",
+      "persona": "lappet",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/turri.webp",
+      "source": "exploration/12-turri-tides.webp",
+      "requestId": "01a1ba87-c990-74d2-8fb0-8a343428bdaf",
+      "persona": "turri",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    },
+    {
+      "file": "personas/velum.webp",
+      "source": "exploration/14-velum-marbling.webp",
+      "requestId": "01a1ba8a-687d-7eb3-9f65-563d570297d3",
+      "persona": "velum",
+      "operation": "Complete tile resized to 512px and WebP encoded; no crop or recoloring."
+    }
+  ]
+}
