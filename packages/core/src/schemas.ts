@@ -183,6 +183,8 @@ export const ProofBundle = z.object({
   /** Requirements evaluated by @ephyra/policy; `missing` lists required kinds that are absent or failed. */
   passed: z.boolean(),
   missing: z.array(z.string()),
+  /** Automated evidence passed; the separately recorded named-human checkpoint C is still required. */
+  awaitingHumanC: z.boolean().optional(),
   /** Environment/lock/profile hashes the run was bound to. */
   env: z.object({ lockHash: z.string().optional(), profileDigest: z.string().optional(), runner: z.string() }),
   computedAt: IsoTime,
@@ -197,6 +199,9 @@ export const LandingReceipt = z.object({
   oldOid: z.string().nullable(),
   newOid: z.string(),
   externalId: z.string().optional(),
+  /** Exact external record version used by a conditional proposal update/revert. */
+  externalVersion: z.string().optional(),
+  externalRevision: z.string().optional(),
   authorizationId: z.string().optional(),
   proofDigest: Digest.optional(),
   /** devenv_live only: how to undo the live apply. */
@@ -224,6 +229,12 @@ export const Budget = z.object({
   wallclockMaxS: z.number().int().positive(),
   spendMicrousdUsed: z.number().int().nonnegative(),
   spendMicrousdMax: z.number().int().nonnegative(),
+  /** Observed execution time; time waiting at checkpoints is not execution time. */
+  wallclockUsedMs: z.number().int().nonnegative().optional(),
+  /** Unknown usage is counted explicitly, never folded into a zero-cost receipt. */
+  unknownCostEntries: z.number().int().nonnegative().optional(),
+  unknownTokenEntries: z.number().int().nonnegative().optional(),
+  requireKnownCost: z.boolean().optional(),
 });
 export type Budget = z.infer<typeof Budget>;
 
@@ -253,6 +264,10 @@ export const Trail = z.object({
   }),
   attempts: z.object({ proof: z.number().int().nonnegative(), maxProof: z.number().int().positive() }),
   budget: Budget,
+  /** Last explicitly applied control-plane policy revision, when recorded by this runtime. */
+  policyCommit: Sha.optional(),
+  /** Monotonic ownership epoch; same-state retries cannot accept results from superseded work. */
+  workGeneration: z.number().int().nonnegative().optional(),
   parent: z.string().uuid().optional(),
   signalFingerprint: z.string().optional(),
   waitingForParent: z.boolean().optional(),

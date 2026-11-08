@@ -8,6 +8,8 @@ export * from "./ids.ts";
 export * from "./lifecycle.ts";
 export * from "./console.ts";
 export * from "./digest.ts";
+export * from "./budget.ts";
+export * from "./policy-activation.ts";
 export * from "./voice.ts";
 export * from "./tutor.ts";
 export * from "./settings.ts";

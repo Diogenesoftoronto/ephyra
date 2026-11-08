@@ -111,3 +111,18 @@ verification ran. The server validates these contracts against real local Git fi
 `EvidenceSource.search`'s `operationKey` are new optional fields. Existing callers and stored accounts remain valid.
 Selections bind a workspace, exact source IDs and selected tool-definition hashes; schemas never grant upstream access.
 Property tests cover explicit capabilities and selection validity. Gateway grants and MCP behavior remain Unverified by core.
+
+
+## Repair-loop contracts (core changes)
+
+Additive exports `UsageDelta`, `accountUsage`, `budgetBlocker` and `PolicyActivationReceipt` support durable usage and
+reviewed policy activation. New events are `usage_recorded` and `policy_updated`. Optional budget fields retain observed
+execution time, unknown cost/token counts and the known-cost requirement; optional `Trail.policyCommit` and
+`Trail.workGeneration` bind work to the accepted policy and ownership epoch. Usage receipts remain recordable after
+kill/close without reopening a terminal trail. Exceeded limits stop active work, including an owned human-revision proof.
+
+`ProofBundle.awaitingHumanC` marks successful automated evidence with an outstanding human C decision; high/critical
+C still requires an actual named human. Optional `LandingReceipt.externalVersion`/`externalRevision` bind conditional
+external updates. `TelemetryConnection`/`TelemetryUpdate.deploymentUrl`, `Runner.exec`'s optional abort signal and
+`AgentTask.budget.spendMicrousd` are backward-compatible fields. Pure/property tests verify accounting, limits and
+state transitions; these schemas alone cannot attest provider usage, execution, deployment or remote authorization.

@@ -14,12 +14,15 @@ export const TelemetryConnection = z.object({
   enabled: z.boolean(), workspaceId: workspace, provider: z.literal("posthog"), origin: z.string(), projectId: z.string(),
   keyConfigured: z.boolean(), includeRecordings: z.boolean(),
   status: z.enum(["saved", "verified", "unavailable"]), checkedAt: z.string().nullable(), detail: z.string(),
+  /** Explicit public endpoint providing the deployed full Git object ID for this workspace. */
+  deploymentUrl: z.string().max(2048).optional(),
 });
 export type TelemetryConnection = z.infer<typeof TelemetryConnection>;
 export const TelemetryUpdate = z.object({
   expectedVersion: version, workspaceId: workspace, enabled: z.boolean(),
   origin: z.string().trim().max(2048), projectId: z.string().trim().max(100), includeRecordings: z.boolean().default(false),
   apiKey: secret.optional(), clearKey: z.boolean().optional(),
+  deploymentUrl: z.string().trim().max(2048).optional(),
 }).strict();
 export type TelemetryUpdate = z.infer<typeof TelemetryUpdate>;
 

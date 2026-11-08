@@ -114,3 +114,12 @@ export function evaluateProof(
 export function autoLandAllowed(risk: Risk): boolean {
   return risk !== "critical";
 }
+
+/** Checkpoint C cannot approve a proof which cannot yet be presented. Keep its human decision separate from machine evidence. */
+export function evaluateProofBeforeC(items: ProofItem[], risk: Risk, flags: ProofFlags) {
+  const result = evaluateProof(items, risk, flags);
+  const human = new Set<ProofRequirement>(["human_approval_c", "critical_manual_landing"]);
+  const missing = result.missing.filter(requirement => !human.has(requirement));
+  const awaitingHumanC = result.missing.some(requirement => human.has(requirement));
+  return { passed: missing.length === 0, missing, ...(awaitingHumanC ? { awaitingHumanC: true } : {}) };
+}
