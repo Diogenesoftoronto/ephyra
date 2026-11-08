@@ -29,3 +29,17 @@
   cursor: pointer;
   min-height: 32px;
 }
+
+/* The trail is one reading surface. Documents and notes use separators inside it. */
+.trail-panel > [aria-label="Review evidence"] > .ui-card,
+.trail-panel > .ui-card {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding-inline: 0;
+}
+.trail-panel > [aria-label="Checkpoints"] { padding-block: var(--s4); }
+.trail-panel .review-document { font-size: var(--fs-body); line-height: 1.65; }
+.trail-panel .trail-checkpoints { gap: var(--s3); }

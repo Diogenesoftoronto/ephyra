@@ -1,3 +1,4 @@
+import { SoundToggle } from "../components/SoundToggle.tsx";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiProvider } from "./ApiContext.tsx";
 import { useAsync } from "./useAsync.ts";
@@ -267,7 +268,7 @@ function Frame({
             <small>{account?.settings.repository?.branch ?? (account ? "Connect a repository" : "Deployment")}</small>
           </a>}
           <div className="workspace-bar__actions">
-            <ThemeToggle />
+            <span className="entry-preferences"><SoundToggle /><ThemeToggle /></span>
             <CommandMenu />
           </div>
         </div>

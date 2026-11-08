@@ -3,7 +3,7 @@ import { Card, Empty, PersonaTag, Status, Tag } from "../kit.ts";
 import { relativeTime } from "../lib/format.ts";
 import { useNow } from "../lib/clock.tsx";
 import { TotalCost } from "./Cost.tsx";
-import { PersonaAvatar } from "./PersonaAvatar.tsx";
+import { CharacterGesture } from "./CharacterGesture.tsx";
 import { EngineBadge } from "./EngineBadge.tsx";
 import "./PersonaCard.css";
 import "./PersonaMaterial.css";
@@ -23,12 +23,12 @@ export function PersonaCard({
   usageUnavailable?: boolean;
 }) {
   const now = useNow(60_000);
-  const running = recent.some((a) => a.status === "running");
   const engines = [...new Set(recent.flatMap((a) => a.engine ? [a.engine] : []))];
   return (
     <Card className="persona-card" tone="tray">
       <div className="persona-head persona-material" data-persona={persona.id}>
-        <PersonaAvatar persona={persona.id} size={96} live={running} />
+        <CharacterGesture poster={`/app/personas/${persona.id}.webp`} clip={`/app/juice/characters/${persona.id}.webm`}
+          label={`Greet ${persona.name}`} size={112} />
         <div>
           <h2 className="persona-name">
             <PersonaTag persona={persona.id} withMark={false}>

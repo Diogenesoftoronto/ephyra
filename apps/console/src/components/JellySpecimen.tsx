@@ -1,12 +1,20 @@
+import { playFeedback } from "../lib/feedback.ts";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useMotionAllowed } from "../lib/motion.ts";
 import { createJellyRenderer, type JellyRenderer } from "../lib/jelly-shader.ts";
 import "./JellySpecimen.css";
+import { CharacterGesture } from "./CharacterGesture.tsx";
 
 export const SPECIMEN_ART = "/app/motion/ephyra-specimen-v1.webp";
 
 /** A small, explicitly playful interaction. It never represents health, connection, or agent activity. */
 export function JellySpecimen({ size = 112, src = SPECIMEN_ART }: { size?: number; src?: string }) {
+  return src === SPECIMEN_ART
+    ? <CharacterGesture poster={src} clip="/app/juice/characters/ephyra.webm" label="Ripple the Ephyra specimen" size={size} />
+    : <ShaderSpecimen size={size} src={src} />;
+}
+
+function ShaderSpecimen({ size, src }: { size: number; src: string }) {
   const element = useRef<HTMLButtonElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const poster = useRef<HTMLImageElement>(null);
@@ -98,7 +106,7 @@ export function JellySpecimen({ size = 112, src = SPECIMEN_ART }: { size?: numbe
         point.current = [(event.clientX - rect.left) / rect.width, 1 - (event.clientY - rect.top) / rect.height];
       }}
       onFocus={ripple}
-      onClick={ripple}
+      onClick={() => { ripple(); playFeedback("touch"); }}
     >
       <img
         ref={poster}

@@ -1,3 +1,4 @@
+import { playFeedback } from "../lib/feedback.ts";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { AccountSettings, ModelProvider, ModelUpdate, RepositoryUpdate } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
@@ -7,6 +8,7 @@ import { useAccountWrite, type AccountWriteState } from "./useAccountWrite.ts";
 import { ModelPicker } from "./ModelPicker.tsx";
 import { normalizeCatalogBaseUrl, type ModelCatalog } from "../model-catalog.ts";
 import { repositoryAddressError } from "./repository-address.ts";
+import { RepositoryPicker } from "./RepositoryPicker.tsx";
 import "./AccountForms.css";
 
 export interface AccountPageProps {
@@ -69,6 +71,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
   const [credentialHost, setCredentialHost] = useState(repository?.credentialHost ?? "");
   const [clearToken, setClearToken] = useState(false);
   const [urlError, setUrlError] = useState<string>();
+  const [placeholder, setPlaceholder] = useState("https://github.com/team/project");
   const write = useAccountWrite(api, onChange);
   useEffect(() => {
     onBusyChange?.(write.locked);
@@ -110,6 +113,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
           "Repository verified and saved.",
         );
         if (next) {
+          playFeedback("connected");
           setToken("");
           setClearToken(false);
           onDone?.();
@@ -125,6 +129,10 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
         </div>
       )}
       <fieldset className="account-fields" disabled={write.locked}>
+        <RepositoryPicker value={url} disabled={write.locked} onSource={setPlaceholder} onSelect={choice => {
+          setUrl(choice.url); setBranch(choice.branch); setUrlError(undefined);
+          setToken(""); setCredentialHost(""); setClearToken(false);
+        }} />
         <div className="account-repository-fields">
           <Field label="Repository address" error={urlError}>
             <input
@@ -135,7 +143,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
               autoCorrect="off"
               spellCheck={false}
               value={url}
-              placeholder="https://git.example.org/team/project.git"
+              placeholder={placeholder}
               onChange={(e) => {
                 setUrl(e.target.value);
                 setUrlError(undefined);

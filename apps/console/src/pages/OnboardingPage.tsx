@@ -5,7 +5,7 @@ import {
   AccountSaveFeedback, ModelAccessForm, RepositoryForm, type AccountPageProps,
 } from "../components/AccountForms.tsx";
 import { useAccountWrite } from "../components/useAccountWrite.ts";
-import { MaterialScene } from "../components/MaterialScene.tsx";
+import { JellySpecimen } from "../components/JellySpecimen.tsx";
 import { AutomaticSetup, SetupModeChoice } from "../components/AutomaticSetup.tsx";
 import { KnowledgeConnections } from "../components/KnowledgeConnections.tsx";
 import { AutomationStatus, ConnectionPanels } from "../components/ConnectionPanels.tsx";
@@ -35,7 +35,8 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
     <div className="account-page onboarding-page">
       <header className="ui-page-header onboarding-heading">
         <div className="onboarding-heading__text">
-          <h1>{settings.repository ? "Your application’s setup" : "Let Ephyra set up your application"}</h1>
+          <p className="onboarding-eyebrow">A little help for the work ahead</p>
+          <h1>{settings.repository ? "Your application’s setup" : "Give your application a companion."}</h1>
           <p className="account-hint">
             Connect your repository. Ephyra inspects it, prepares autonomy documents, and checks what it needs to run.
           </p>
@@ -45,19 +46,16 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
             </Button>
           )}
         </div>
+        <div className="onboarding-companion"><JellySpecimen size={220} /></div>
       </header>
       <div className="onboarding-layout">
-      <MaterialScene compact title="Make room for the work."
-        illustration="/app/materials/experiments/flux-glass-current.webp"
-        description="One repository, a clear policy, and a record of every step.">
-        <ol className="onboarding-explainer">
-          <li><strong>Connect</strong><p>Choose the repository and branch Ephyra should work with.</p></li>
-          <li><strong>Prepare</strong><p>Ephyra inspects the code and records what it needs to run.</p></li>
-          <li><strong>Follow together</strong><p>See agent runs and invite teammates as viewers or approvers.</p></li>
-        </ol>
-      </MaterialScene>
+      <ol className="onboarding-explainer" aria-label="Setting up your workspace">
+        <li aria-current={!settings.repository ? "step" : undefined}><span>01</span><strong>Connect a repository</strong></li>
+        <li aria-current={settings.repository ? "step" : undefined}><span>02</span><strong>Prepare the application</strong></li>
+        <li><span>03</span><strong>Follow the work together</strong></li>
+      </ol>
       <div className="onboarding-content">
-        <AutomationStatus settings={settings} />
+        {settings.repository && <AutomationStatus settings={settings} />}
         {settings.repository ? automation ? (
           <AutomaticSetup
             key={settings.workspaceId}
@@ -82,7 +80,10 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
             />
           </>
         )}
-        <KnowledgeConnections api={api} settings={settings} onChange={onChange} />
+        <details className="onboarding-context" open={settings.repository || settings.knowledge?.enabled ? true : undefined}>
+          <summary>Connect knowledge and research tools <span className="muted">· optional</span></summary>
+          <KnowledgeConnections api={api} settings={settings} onChange={onChange} />
+        </details>
         <ConnectionPanels api={api} settings={settings} onChange={onChange} />
         {settings.repository && (
           <details className="account-advanced">

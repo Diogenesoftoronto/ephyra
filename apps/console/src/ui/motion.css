@@ -28,3 +28,12 @@
     transform: none;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-button, .repository-sources button, .sound-toggle { transition: transform 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out; }
+  .ui-button:active:not(:disabled), .repository-sources button:active:not(:disabled), .sound-toggle:active { transform: scale(.96); }
+  .team-share { animation: invitation-arrive 240ms ease-out both; }
+  .setup-progress [data-status="complete"] .setup-step-marker { animation: checkpoint-arrive 180ms ease-out both; }
+}
+@keyframes invitation-arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes checkpoint-arrive { from { opacity: .5; transform: scale(.85); } to { opacity: 1; transform: none; } }

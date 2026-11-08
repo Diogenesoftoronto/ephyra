@@ -1,0 +1,623 @@
+{
+  "researchedAt": "2026-11-08",
+  "schemaSource": "https://fal.ai/api/openapi/queue/openapi.json",
+  "experiments": [
+    {
+      "id": "ephyra-h3-max",
+      "name": "A welcoming wave",
+      "persona": "ephyra",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/motion/ephyra-specimen-v1.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The little radial jelly creature gently contracts inward by a quarter, then opens its eight soft lobes in a clearly visible welcoming wave, makes a tiny clockwise turn and eases back into its exact original pose. A quiet rounded water-drop plink accompanies the opening. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "ephyra-flux-3-max",
+      "name": "A welcoming wave",
+      "persona": "ephyra",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/motion/ephyra-specimen-v1.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The little radial jelly creature gently contracts inward by a quarter, then opens its eight soft lobes in a clearly visible welcoming wave, makes a tiny clockwise turn and eases back into its exact original pose. A quiet rounded water-drop plink accompanies the opening. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "ephyra-seedance-2.5",
+      "name": "A welcoming wave",
+      "persona": "ephyra",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/motion/ephyra-specimen-v1.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The little radial jelly creature gently contracts inward by a quarter, then opens its eight soft lobes in a clearly visible welcoming wave, makes a tiny clockwise turn and eases back into its exact original pose. A quiet rounded water-drop plink accompanies the opening. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "rho-h3-max",
+      "name": "Something caught Rho\u2019s attention",
+      "persona": "rho",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/rho.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The green translucent creature leans inquisitively forward, compresses its soft body slightly, then lifts its rounded head to inspect something just out of frame and settles into its original pose. A soft airy inquisitive two-note glass sound follows the movement. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "rho-flux-3-max",
+      "name": "Something caught Rho\u2019s attention",
+      "persona": "rho",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/rho.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The green translucent creature leans inquisitively forward, compresses its soft body slightly, then lifts its rounded head to inspect something just out of frame and settles into its original pose. A soft airy inquisitive two-note glass sound follows the movement. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "rho-seedance-2.5",
+      "name": "Something caught Rho\u2019s attention",
+      "persona": "rho",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/rho.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The green translucent creature leans inquisitively forward, compresses its soft body slightly, then lifts its rounded head to inspect something just out of frame and settles into its original pose. A soft airy inquisitive two-note glass sound follows the movement. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "bell-h3-max",
+      "name": "Bell acknowledges a choice",
+      "persona": "bell",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/bell.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The amber jellyfish compresses its bell by a quarter, its short lobes curl slightly inward, then it gives one clear buoyant upward bob and gently returns to its exact resting position. A delicate low glass chime acknowledges the bob. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      }
+    },
+    {
+      "id": "bell-flux-3-max",
+      "name": "Bell acknowledges a choice",
+      "persona": "bell",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/bell.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The amber jellyfish compresses its bell by a quarter, its short lobes curl slightly inward, then it gives one clear buoyant upward bob and gently returns to its exact resting position. A delicate low glass chime acknowledges the bob. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "bell-seedance-2.5",
+      "name": "Bell acknowledges a choice",
+      "persona": "bell",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/bell.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The amber jellyfish compresses its bell by a quarter, its short lobes curl slightly inward, then it gives one clear buoyant upward bob and gently returns to its exact resting position. A delicate low glass chime acknowledges the bob. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "nema-h3-max",
+      "name": "Nema follows a thought",
+      "persona": "nema",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/nema.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The translucent pink ribbon creature makes one smooth curious side-to-side bend, with motion following through from top to tip, then unfolds gently into its exact original silhouette. A quiet brushed-glass whoosh follows the gesture. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "nema-flux-3-max",
+      "name": "Nema follows a thought",
+      "persona": "nema",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/nema.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The translucent pink ribbon creature makes one smooth curious side-to-side bend, with motion following through from top to tip, then unfolds gently into its exact original silhouette. A quiet brushed-glass whoosh follows the gesture. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "nema-seedance-2.5",
+      "name": "Nema follows a thought",
+      "persona": "nema",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/nema.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The translucent pink ribbon creature makes one smooth curious side-to-side bend, with motion following through from top to tip, then unfolds gently into its exact original silhouette. A quiet brushed-glass whoosh follows the gesture. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "lappet-h3-max",
+      "name": "Lappet makes a connection",
+      "persona": "lappet",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/lappet.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The green translucent creature slowly curls its outer soft lobes toward its center as if gathering something, then spreads them in a small satisfied opening and settles back into its original pose. Two soft wooden-water clicks form a friendly joining sound. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "lappet-flux-3-max",
+      "name": "Lappet makes a connection",
+      "persona": "lappet",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/lappet.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The green translucent creature slowly curls its outer soft lobes toward its center as if gathering something, then spreads them in a small satisfied opening and settles back into its original pose. Two soft wooden-water clicks form a friendly joining sound. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "lappet-seedance-2.5",
+      "name": "Lappet makes a connection",
+      "persona": "lappet",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/lappet.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The green translucent creature slowly curls its outer soft lobes toward its center as if gathering something, then spreads them in a small satisfied opening and settles back into its original pose. Two soft wooden-water clicks form a friendly joining sound. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "turri-h3-max",
+      "name": "Turri checks the result",
+      "persona": "turri",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/turri.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The coral translucent creature gives a deliberate little sideways tilt, then a small clear nod with a gentle body compression and returns to its original pose. One warm clean ceramic tick accompanies the nod. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "turri-flux-3-max",
+      "name": "Turri checks the result",
+      "persona": "turri",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/turri.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The coral translucent creature gives a deliberate little sideways tilt, then a small clear nod with a gentle body compression and returns to its original pose. One warm clean ceramic tick accompanies the nod. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "turri-seedance-2.5",
+      "name": "Turri checks the result",
+      "persona": "turri",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/turri.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The coral translucent creature gives a deliberate little sideways tilt, then a small clear nod with a gentle body compression and returns to its original pose. One warm clean ceramic tick accompanies the nod. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "velum-h3-max",
+      "name": "Velum has something to share",
+      "persona": "velum",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/velum.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The pale blue translucent creature lifts the front of its soft body, makes one fluid welcoming side-to-side wave, then eases back to its exact original pose. A soft breathy glass note rises and resolves quietly. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "velum-flux-3-max",
+      "name": "Velum has something to share",
+      "persona": "velum",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/personas/velum.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The pale blue translucent creature lifts the front of its soft body, makes one fluid welcoming side-to-side wave, then eases back to its exact original pose. A soft breathy glass note rises and resolves quietly. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "velum-seedance-2.5",
+      "name": "Velum has something to share",
+      "persona": "velum",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/velum.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The pale blue translucent creature lifts the front of its soft body, makes one fluid welcoming side-to-side wave, then eases back to its exact original pose. A soft breathy glass note rises and resolves quietly. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "sound-touch-sonilo",
+      "name": "A soft tactile touch",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "One tiny rounded wooden-glass tap with a soft watery body and no sharp high-frequency click. A calm tactile interface button press; very short clean decay. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 0.6,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "sound-copy-sonilo",
+      "name": "A link is copied",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "One delicate rounded bubble plip followed by a tiny higher glass tick, a gentle interface copy acknowledgement. Subtle, dry, close and satisfying. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 0.8,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "sound-connected-sonilo",
+      "name": "A repository connects",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "Three very soft warm glass droplets gently rise in pitch and resolve on a rounded lower note, a confident connection acknowledgement. Small, intimate and calm, never triumphant. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 1.4,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "sound-invitation-sonilo",
+      "name": "An invitation is ready",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "Two quiet organic ceramic-water notes open into a gentle airy release, like making room for another person. Warm, restrained and brief. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 1.2,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "sound-message-sonilo",
+      "name": "A new message arrives",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "A single soft airy glass chime with a rounded attack and short falling tail. Friendly and discreet, like a tiny bubble arriving on a calm surface. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 0.9,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "sound-attention-sonilo",
+      "name": "A gentle request for attention",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "Two soft low hollow wood knocks separated by a short pause. Neutral and helpful, with no alarm, buzz, urgency or harsh transient. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 1.0,
+        "audio_format": "wav"
+      }
+    },
+    {
+      "id": "ephyra-flux-3-max-png",
+      "name": "A welcoming wave",
+      "persona": "ephyra",
+      "kind": "video",
+      "model": "blackforestlabs/flux-3-max/image-to-video",
+      "reference": "apps/console/public/motion/ephyra-specimen-v1.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "720p",
+        "aspect_ratio": "auto",
+        "generate_audio": true,
+        "reasoning_level": "high",
+        "seed": 23871,
+        "prompt": "The little radial jelly creature gently contracts inward by a quarter, then opens its eight soft lobes in a clearly visible welcoming wave, makes a tiny clockwise turn and eases back into its exact original pose. A quiet rounded water-drop plink accompanies the opening. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "ephyra-seedance-2.5-png",
+      "name": "A welcoming wave",
+      "persona": "ephyra",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/motion/ephyra-specimen-v1.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The little radial jelly creature gently contracts inward by a quarter, then opens its eight soft lobes in a clearly visible welcoming wave, makes a tiny clockwise turn and eases back into its exact original pose. A quiet rounded water-drop plink accompanies the opening. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "rho-h3-max-png",
+      "name": "Something caught Rho\u2019s attention",
+      "persona": "rho",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/rho.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The green translucent creature leans inquisitively forward, compresses its soft body slightly, then lifts its rounded head to inspect something just out of frame and settles into its original pose. A soft airy inquisitive two-note glass sound follows the movement. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "rho-seedance-2.5-png",
+      "name": "Something caught Rho\u2019s attention",
+      "persona": "rho",
+      "kind": "video",
+      "model": "bytedance/seedance-2.5/image-to-video",
+      "reference": "apps/console/public/personas/rho.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": "5",
+        "resolution": "720p",
+        "generate_audio": true,
+        "codec": "H264",
+        "bitrate_mode": "standard",
+        "prompt": "The green translucent creature leans inquisitively forward, compresses its soft body slightly, then lifts its rounded head to inspect something just out of frame and settles into its original pose. A soft airy inquisitive two-note glass sound follows the movement. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black"
+    },
+    {
+      "id": "sound-touch-sonilo-funded",
+      "name": "A soft tactile touch",
+      "kind": "audio",
+      "model": "sonilo/v1.1/text-to-sound-effects",
+      "input": {
+        "prompt": "One tiny rounded wooden-glass tap with a soft watery body and no sharp high-frequency click. A calm tactile interface button press; very short clean decay. Isolated UI sound effect only. No voice, speech, words, music, room noise, background hiss or reverb wash. Start promptly and fade fully to silence.",
+        "duration": 0.6,
+        "audio_format": "wav"
+      },
+      "replacesRejectedSubmission": "sound-touch-sonilo"
+    },
+    {
+      "id": "lappet-h3-max-funded",
+      "name": "Lappet makes a connection",
+      "persona": "lappet",
+      "kind": "video",
+      "model": "minimax/h3-max/image-to-video",
+      "reference": "apps/console/public/personas/lappet.webp",
+      "referenceFields": [
+        "image_url",
+        "end_image_url"
+      ],
+      "input": {
+        "duration": 5,
+        "resolution": "768P",
+        "prompt_expansion_mode": "disabled",
+        "seed": 23871,
+        "prompt": "The green translucent creature slowly curls its outer soft lobes toward its center as if gathering something, then spreads them in a small satisfied opening and settles back into its original pose. Two soft wooden-water clicks form a friendly joining sound. Animate the exact glass creature in the reference; preserve its identity, color, translucency and anatomy. No face, eyes, limbs or objects may be added. The gesture is visible, expressive and slow, not merely changing the light. Keep the full creature inside the frame. Locked camera, fixed exposure, pure uniform black background without floor, horizon, shadow or particles. Begin with a brief still moment, perform the gesture, and finish still in the starting pose. No cuts, zoom, letters, logo overlays, speech, music, ambience or continuous hum. The only audio is the one very quiet short gesture sound."
+      },
+      "referenceBackground": "black",
+      "replacesRejectedSubmission": "lappet-h3-max"
+    }
+  ]
+}

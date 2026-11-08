@@ -1,0 +1,21 @@
+.repository-picker { display: grid; gap: var(--s3); min-width: 0; }
+.repository-sources { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.repository-sources button { display: inline-flex; align-items: center; gap: var(--s2); min-height: 42px; padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-small); transition: border-color 150ms ease, background 150ms ease; }
+.repository-sources button[aria-pressed="true"] { border-color: var(--jelly-deep); background: var(--jelly-tint); box-shadow: inset 0 -2px 0 var(--jelly-deep); }
+.repository-source-mark { display: inline-block; width: 20px; height: 20px; flex: none; background: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
+.repository-platform-help { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); font-size: var(--fs-small); color: var(--muted); }
+.repository-platform-help a { color: var(--ink); font-weight: 550; }
+.repository-discovery { border-block: 1px solid var(--line); padding-block: var(--s3); }
+.repository-discovery > summary { cursor: pointer; min-height: 28px; font-weight: 550; font-size: var(--fs-small); }
+.repository-lookup { display: flex; align-items: flex-start; gap: var(--s3); margin-top: var(--s3); }
+.repository-lookup > .ui-field { flex: 1; }
+.repository-lookup > button { margin-top: 1.6rem; min-height: 42px; }
+.repository-results { max-height: 18rem; overflow: auto; list-style: none; padding: 0; margin-top: var(--s3); border-block: 1px solid var(--line); }
+.repository-results li + li { border-top: 1px solid var(--line); }
+.repository-results button { display: grid; width: 100%; text-align: start; gap: var(--s1); padding: var(--s3); border: 0; background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-small); overflow-wrap: anywhere; }
+.repository-results button > span { color: var(--muted); }
+.repository-results button[aria-pressed="true"] { background: var(--jelly-tint); }
+.repository-results .repository-selected { color: var(--jelly-deep); font-weight: 600; }
+@media (hover: hover) { .repository-results button:hover { background: var(--jelly-tint); } .repository-sources button:hover { border-color: var(--jelly-deep); } }
+@media (max-width: 450px) { .repository-lookup { flex-direction: column; align-items: stretch; } .repository-lookup > button { margin-top: 0; align-self: flex-start; } }
+@media (forced-colors: active) { .repository-source-mark { background: ButtonText; } .repository-sources button[aria-pressed="true"] { outline: 2px solid Highlight; } }
