@@ -9,3 +9,10 @@ type Story = StoryObj<typeof meta>;
 export const Waiting: Story = { args: { items: inbox } };
 export const Truncated: Story = { args: { items: inbox, limit: 2 } };
 export const Nothing: Story = { args: { items: inbox.filter((i) => i.kind === "parked") } };
+export const LongTitles: Story = {
+  args: { items: inbox.map((item) => ({
+    ...item,
+    title: "Webhook retries charge a customer twice when the payment provider times out during subscription renewal",
+    area: "subscription-payments-and-invoicing",
+  })) },
+};

@@ -8,13 +8,14 @@ export const Dark: StoryObj = { ...Default, parameters: { theme: "dark" } };
 export const Empty: StoryObj = { ...Default, parameters: { fake: { empty: true } } };
 export const Loading: StoryObj = {
   ...Default,
-  parameters: { fake: { hang: ["activity", "usage", "runs", "personas", "doc", "docs", "drafts"] } },
+  parameters: { fake: { hang: ["inbox", "activity", "usage", "runs"] } },
 };
 export const Unavailable: StoryObj = {
   ...Default,
   parameters: {
     fake: {
       fail: {
+        inbox: new ApiError(503),
         activity: new ApiError(503),
         usage: new ApiError(503),
         runs: new ApiError(503),
@@ -23,4 +24,8 @@ export const Unavailable: StoryObj = {
       },
     },
   },
+};
+export const PartialFailure: StoryObj = {
+  ...Default,
+  parameters: { fake: { fail: { usage: new ApiError(503) } } },
 };

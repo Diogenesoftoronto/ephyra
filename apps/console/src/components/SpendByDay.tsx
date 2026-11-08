@@ -35,7 +35,8 @@ export function SpendByDay({ days, partial = true }: { days: UsageSummary["byDay
           ? `${unknown} entries in this window have unknown cost and are not drawn.`
           : "Every entry in this window has a recorded cost."}
       </p>
-      <div className="sr-only">
+      <details className="ui-chart-data">
+        <summary>View daily amounts</summary>
         <DataTable label="Recorded spend by day">
           <thead>
             <tr>
@@ -54,7 +55,7 @@ export function SpendByDay({ days, partial = true }: { days: UsageSummary["byDay
             ))}
           </tbody>
         </DataTable>
-      </div>
+      </details>
     </div>
   );
 }

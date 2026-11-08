@@ -38,20 +38,80 @@ export function Shell({
   className?: string;
 }) {
   const [more, setMore] = useState(false);
+  const mainId = useId();
+  const menuId = useId();
+  const main = useRef<HTMLElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const openAtEnd = useRef(false);
+  const previousPage = useRef(current);
   const extra = nav.filter((n) => n.overflow);
+  useEffect(() => {
+    const label = nav.find((n) => n.id === current)?.label;
+    if (label) document.title = `${label} · Ephyra`;
+    if (previousPage.current !== current) {
+      previousPage.current = current;
+      setMore(false);
+      main.current?.focus();
+      window.scrollTo(0, 0);
+    }
+  }, [current, nav]);
+  useEffect(() => {
+    if (!more) return;
+    const buttons = menu.current?.querySelectorAll<HTMLButtonElement>("button");
+    (openAtEnd.current ? buttons?.item(buttons.length - 1) : buttons?.item(0))?.focus();
+    openAtEnd.current = false;
+    const dismissOutside = (event: Event) => {
+      if (event.target instanceof Node && !menu.current?.contains(event.target) && !moreButton.current?.contains(event.target)) setMore(false);
+    };
+    const desktop = matchMedia("(min-width: 761px)");
+    const onResize = () => { if (desktop.matches) setMore(false); };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("focusin", dismissOutside);
+    desktop.addEventListener("change", onResize);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("focusin", dismissOutside);
+      desktop.removeEventListener("change", onResize);
+    };
+  }, [more]);
   const go = (id: string) => {
     setMore(false);
     onNavigate(id);
+    if (id === current) main.current?.focus();
   };
   return (
     <div className={cx("ui-shell", className)}>
+      <a className="ui-skip-link" href={`#${mainId}`} onClick={(event) => {
+        event.preventDefault();
+        main.current?.focus();
+      }}>Skip to content</a>
       {more && extra.length > 0 && (
-        <div className="ui-sheet ui-nav" role="menu" aria-label="More">
+        <div ref={menu} id={menuId} className="ui-sheet ui-nav" role="menu" aria-label="More" onKeyDown={(event) => {
+          if (event.key === "Tab") {
+            setMore(false);
+            moreButton.current?.focus();
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setMore(false);
+            moreButton.current?.focus();
+            return;
+          }
+          const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
+          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+          const next = event.key === "ArrowDown" ? (index + 1) % items.length
+            : event.key === "ArrowUp" ? (index - 1 + items.length) % items.length
+            : event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : null;
+          if (next !== null) { event.preventDefault(); items[next]?.focus(); }
+        }}>
           {extra.map((n) => (
             <button
               key={n.id}
               type="button"
               role="menuitem"
+              tabIndex={-1}
               aria-current={n.id === current ? "page" : undefined}
               onClick={() => go(n.id)}
             >
@@ -88,9 +148,19 @@ export function Shell({
             <button
               type="button"
               className="ui-more"
+              ref={moreButton}
+              aria-haspopup="menu"
+              aria-controls={more ? menuId : undefined}
               aria-expanded={more}
               aria-current={extra.some((n) => n.id === current) ? "page" : undefined}
               onClick={() => setMore((m) => !m)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  openAtEnd.current = event.key === "ArrowUp";
+                  setMore(true);
+                }
+              }}
             >
               <Icon name="more" />
               <span>More</span>
@@ -107,7 +177,7 @@ export function Shell({
           </div>
         )}
       </aside>
-      <main className="ui-main">{children}</main>
+      <main ref={main} id={mainId} tabIndex={-1} className="ui-main">{children}</main>
     </div>
   );
 }
@@ -339,12 +409,14 @@ export function Meter({
   format?: (n: number) => string;
   className?: string;
 }) {
+  const labelId = useId();
+  const noteId = useId();
   const frac = max > 0 ? Math.min(1, Math.max(0, used / max)) : used > 0 ? 1 : 0;
   const percent = max > 0 ? `${Math.round((used / max) * 100)}% used` : "No spend allowed";
   return (
     <div className={cx("ui-meter", used > max && "ui-meter--over", className)}>
       <div className="row">
-        <span>{label}</span>
+        <span id={labelId}>{label}</span>
         <span className="num">
           <b>{format(used)}</b> of {format(max)}
         </span>
@@ -356,11 +428,12 @@ export function Meter({
         aria-valuemax={Math.max(1, max)}
         aria-valuenow={Math.min(used, Math.max(1, max))}
         aria-valuetext={`${format(used)} used of ${format(max)}${unknown ? "; total incomplete" : ""}`}
-        aria-label={typeof label === "string" ? label : undefined}
+        aria-labelledby={labelId}
+        aria-describedby={noteId}
       >
         <div className="fill" style={{ ["--pct" as string]: frac } as CSSProperties} />
       </div>
-      <span className="note">
+      <span className="note" id={noteId}>
         {unknown && max > 0 ? "At least " : ""}
         {percent}
         {used > max && (

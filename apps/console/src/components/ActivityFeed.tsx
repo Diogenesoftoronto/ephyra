@@ -1,9 +1,10 @@
 import type { ActivityItem } from "@ephyra/core";
-import { Empty, Row, Rows, Status, Tag } from "../kit.ts";
+import { Empty, Row, Rows, Status } from "../kit.ts";
 import { relativeTime } from "../lib/format.ts";
 import { useNow } from "../lib/clock.tsx";
 import { Elapsed } from "./Elapsed.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
+import "./ActivityFeed.css";
 
 export function ActivityRow({ item }: { item: ActivityItem }) {
   const now = useNow(30_000);
@@ -16,27 +17,23 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
       }
       title={item.summary}
       meta={
-        <>
+        <span className="activity-meta">
           {item.trailId ? (
             <a href={`#/inbox/${item.trailId}`} className="mono">
               {item.short}
             </a>
           ) : null}
-          {item.engine ? (
-            <>
-              {" "}
-              · <Tag>{item.engine}</Tag>
-            </>
-          ) : null}
-          {" · "}
-          {item.status === "running" && item.startedAt ? (
-            <>
-              for <Elapsed since={item.startedAt} />
-            </>
-          ) : (
-            relativeTime(item.at, now)
-          )}
-        </>
+          {item.engine && <span className="activity-meta__engine">{item.engine}</span>}
+          <span>
+            {item.status === "running" && item.startedAt ? (
+              <>
+                for <Elapsed since={item.startedAt} />
+              </>
+            ) : (
+              relativeTime(item.at, now)
+            )}
+          </span>
+        </span>
       }
       aside={<Status state={item.status} />}
     />

@@ -1,0 +1,10 @@
+/* Overview composition. Component type and surfaces stay in the shared kit. */
+.overview { container-type: inline-size; gap: var(--s6); }
+.overview__work { display: grid; gap: var(--s6); align-items: start; min-width: 0; }
+.overview__work > *, .overview__activity { min-width: 0; }
+.overview__activity { display: grid; gap: var(--s6); }
+.overview__usage { display: grid; gap: var(--s6); padding-block-start: var(--s5); border-block-start: 1px solid var(--rule); }
+.overview__more { align-self: start; }
+@container (min-width: 54rem) {
+  .overview__work { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+}
