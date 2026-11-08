@@ -39,13 +39,13 @@ Every HTML page gets these at serve time:
 
 Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephrya.app.
 `www.ephrya.app` and the original `ephyra-site.up.railway.app` redirect to that origin. The application is
-https://app.ephrya.app/app/ on service `server`; its origin is registered in Not Organic's public client catalog.
+https://console.ephrya.app/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
 The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
 The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
 Deploy with `railway up --service web --ci`.
 
-Porkbun DNS is managed with Sesame. The apex ALIAS points at `018v5dcu.up.railway.app`, `app` CNAME at
-`p7ljxwmz.up.railway.app`, and `www` CNAME at `xg8sire9.up.railway.app`. Each hostname also has its Railway ownership
+Porkbun DNS is managed with Sesame. The apex ALIAS points at `018v5dcu.up.railway.app`, `console` CNAME at
+`7f8y2trv.up.railway.app`, and `www` CNAME at `xg8sire9.up.railway.app`. Each hostname also has its Railway ownership
 TXT record. Read Railway's current domain status before changing these targets or replacing a domain attachment.
 
 ## Publishing the journal

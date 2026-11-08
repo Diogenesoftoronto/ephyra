@@ -20,7 +20,7 @@ export default defineRailway(() => {
     volumeMounts: { "/data": journal },
     networking: {
       serviceDomains: { "server-production-932f.up.railway.app": { port: 3000 } },
-      customDomains: { "app.ephrya.app": { port: 3000 } },
+      customDomains: { "console.ephrya.app": { port: 3000 } },
     },
     env: {
       PORT: "3000",
@@ -28,9 +28,9 @@ export default defineRailway(() => {
       CONVEX_URL: "https://loyal-bass-393.convex.cloud",
       EPHYRA_CONVEX_SECRET: preserve(),
       EPHYRA_API_TOKEN: preserve(),
-      // Sign in with Not Organic. The origin is registered in Not Organic's gateway
+      // Sign in with Not Organic. The origin is registered in Not Organic's gateway and portal
       // PUBLIC_CLIENT_PRODUCT_CATALOG (product "notorganic").
-      EPHYRA_PUBLIC_ORIGIN: "https://app.ephrya.app",
+      EPHYRA_PUBLIC_ORIGIN: "https://console.ephrya.app",
       EPHYRA_SESSION_KEY: preserve(),
       NOTORGANIC_PRODUCT: "notorganic",
       // dio.pds.notorganic.info and interleave.love (the owner's identities in Not Organic's admin list).
@@ -57,7 +57,7 @@ export default defineRailway(() => {
       EPHYRA_HOME_CUT: "e",
       // Standard.site publication on the Ephyra PDS identity (ephyra.pds.notorganic.info).
       EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
-      EPHYRA_API_ORIGIN: "https://app.ephrya.app",
+      EPHYRA_API_ORIGIN: "https://console.ephrya.app",
     },
   });
 
