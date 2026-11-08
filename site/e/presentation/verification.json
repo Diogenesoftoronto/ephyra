@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-08",
+  "method": "T3 html_preview with rendered DOM interactions",
+  "reports": [
+    {
+      "width": 320,
+      "checks": 74,
+      "failures": [],
+      "heights": [
+        610,
+        881,
+        879,
+        610,
+        1159,
+        613,
+        836,
+        610,
+        893,
+        830,
+        862,
+        613
+      ],
+      "reducedMotionSimulated": false
+    },
+    {
+      "width": 390,
+      "checks": 74,
+      "failures": [],
+      "heights": [
+        610,
+        768,
+        760,
+        610,
+        1110,
+        633,
+        818,
+        610,
+        856,
+        724,
+        843,
+        610
+      ],
+      "reducedMotionSimulated": false
+    },
+    {
+      "width": 728,
+      "checks": 74,
+      "failures": [],
+      "heights": [
+        630,
+        650,
+        650,
+        718,
+        707,
+        720,
+        857,
+        696,
+        650,
+        650,
+        650,
+        650
+      ],
+      "reducedMotionSimulated": false
+    },
+    {
+      "width": 1200,
+      "checks": 74,
+      "failures": [],
+      "heights": [
+        690,
+        650,
+        650,
+        840,
+        761,
+        823,
+        662,
+        814,
+        727,
+        650,
+        701,
+        650
+      ],
+      "reducedMotionSimulated": false
+    },
+    {
+      "width": 390,
+      "checks": 75,
+      "failures": [],
+      "heights": [
+        610,
+        768,
+        760,
+        610,
+        1110,
+        633,
+        818,
+        610,
+        856,
+        724,
+        843,
+        610
+      ],
+      "reducedMotionSimulated": true
+    }
+  ],
+  "fullWorkspace": {
+    "typecheck": "pass",
+    "tests": 1039,
+    "failures": 0
+  },
+  "staticHandler": {
+    "routes": 50,
+    "status": 200
+  },
+  "qr": {
+    "decodedUrl": "https://ephyra.quest/e/presentation/"
+  },
+  "media": {
+    "decodedVideos": [
+      "rho",
+      "bell",
+      "nema",
+      "lappet",
+      "turri",
+      "velum"
+    ],
+    "decodedSounds": [
+      "touch",
+      "connected",
+      "invitation"
+    ],
+    "browser": "T3 Chromium HTML preview",
+    "scope": "Loaded frame/audio data. Human sound quality, physical phones and Safari not established."
+  }
+}

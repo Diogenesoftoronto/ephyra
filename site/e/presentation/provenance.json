@@ -1,0 +1,112 @@
+{
+  "capturedAt": "2026-11-08T12:45:48.823638+00:00",
+  "method": "T3 html_preview of deployed application walkthrough, unmodified screenshots",
+  "sourceRevision": "dde2e12f41062266b9bdde7c1978b23827f1c41d",
+  "data": "Fictional sample accounts, runs and proof. Not a production repair.",
+  "screens": {
+    "overview": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=overview",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "onboarding": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=onboarding",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "runs": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=runs",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "workspace": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=workspace",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "personas": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=personas",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "team": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=team",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "proof": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=proof",
+      "viewport": [
+        1440,
+        850
+      ]
+    },
+    "onboarding-mobile": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=onboarding",
+      "viewport": [
+        390,
+        844
+      ]
+    },
+    "team-mobile": {
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=team",
+      "viewport": [
+        390,
+        844
+      ]
+    }
+  },
+  "signin": "Existing production entrance capture from this same UI release. No authenticated account is shown.",
+  "sourceDocs": [
+    "README.md",
+    "apps/console/README.md",
+    "design/07-self-driving-setup.md",
+    "design/08-account-knowledge.md",
+    "design/brand/PERSONAS.md"
+  ],
+  "assets": {
+    "logo.svg": "site/assets/brand/logo.svg",
+    "ephyra.webp": "apps/console/public/motion/ephyra-specimen-v1.webp",
+    "hero.webp": "site/assets/img/hero-ephyra-cutout.webp",
+    "night.webp": "apps/console/public/materials/night-v2.webp",
+    "day.webp": "apps/console/public/materials/day-v2.webp",
+    "signin-mobile.png": "apps/console/artifacts/juice/production/notorganic-entrance-390.png",
+    "rho.webp": "apps/console/public/personas/rho.webp",
+    "rho-tile.webp": "apps/console/public/materials/personas/rho.webp",
+    "rho.webm": "apps/console/public/juice/characters/rho.webm",
+    "bell.webp": "apps/console/public/personas/bell.webp",
+    "bell-tile.webp": "apps/console/public/materials/personas/bell.webp",
+    "bell.webm": "apps/console/public/juice/characters/bell.webm",
+    "nema.webp": "apps/console/public/personas/nema.webp",
+    "nema-tile.webp": "apps/console/public/materials/personas/nema.webp",
+    "nema.webm": "apps/console/public/juice/characters/nema.webm",
+    "lappet.webp": "apps/console/public/personas/lappet.webp",
+    "lappet-tile.webp": "apps/console/public/materials/personas/lappet.webp",
+    "lappet.webm": "apps/console/public/juice/characters/lappet.webm",
+    "turri.webp": "apps/console/public/personas/turri.webp",
+    "turri-tile.webp": "apps/console/public/materials/personas/turri.webp",
+    "turri.webm": "apps/console/public/juice/characters/turri.webm",
+    "velum.webp": "apps/console/public/personas/velum.webp",
+    "velum-tile.webp": "apps/console/public/materials/personas/velum.webp",
+    "velum.webm": "apps/console/public/juice/characters/velum.webm",
+    "amp.svg": "apps/console/public/engines/amp.svg",
+    "codex.svg": "apps/console/public/engines/codex.svg",
+    "claude.svg": "apps/console/public/engines/claude.svg",
+    "touch.mp3": "apps/console/public/juice/sounds/touch.mp3",
+    "connected.mp3": "apps/console/public/juice/sounds/connected.mp3",
+    "invitation.mp3": "apps/console/public/juice/sounds/invitation.mp3"
+  },
+  "fontCssSource": "https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:wght@400;600&display=swap"
+}

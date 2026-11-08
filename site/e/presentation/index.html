@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b25">
+  <title>Ephyra · A companion for your application</title>
+  <meta name="description" content="An interactive introduction to Ephyra: self-driving software, evidence-backed quests, and a workspace for people and agents.">
+  <meta property="og:title" content="Ephyra · A companion for your application">
+  <meta property="og:description" content="Explore the quest loop, the actual application, and the intent behind Ephyra.">
+  <meta property="og:image" content="https://ephyra.quest/assets/og/og.png">
+  <link rel="icon" href="media/logo.svg">
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="presentation.css">
+</head>
+<body>
+<main class="presentation" aria-label="Ephyra presentation">
+  <header class="deck-controls">
+    <a class="brand" href="https://ephyra.quest" target="_blank" rel="noopener"><img src="media/logo.svg" alt="" width="28" height="28">ephyra</a>
+    <div class="controls-right">
+      <button type="button" id="chapters-open" class="quiet" aria-haspopup="dialog">Chapters</button>
+      <button type="button" id="notes-toggle" class="quiet" aria-expanded="false" aria-controls="speaker-notes">Notes</button>
+      <a class="quiet full-link" href="https://ephyra.quest/e/presentation/" target="_blank" rel="noopener" aria-label="Open the full presentation">Open ↗</a>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <section class="slide cover" id="hello" data-title="A companion for your application" aria-labelledby="hello-title">
+      <div class="cover-copy">
+        <p class="opening-label">Self-driving software</p>
+        <h1 id="hello-title">Give your<br>application<br>a companion.</h1>
+        <p class="lead">Ephyra turns production problems into quests: investigate, repair, prove, and keep watch.</p>
+        <button type="button" class="primary" data-next>Explore Ephyra <span aria-hidden="true">→</span></button>
+        <p class="small cover-status">Self-hostable by design.<br>Pre-alpha, built in the open.</p>
+      </div>
+      <figure class="cover-art">
+        <img class="hero-art" src="media/hero.webp" width="900" height="900" alt="Ephyra's translucent amber jellyfish specimen">
+        <figcaption>A little life around the work.</figcaption>
+      </figure>
+      <div class="cover-baseline"><span>For people who build and care for software.</span><span>ephyra.quest</span></div>
+    </section>
+
+    <section class="slide" id="quest" data-title="Every fix has a memory" aria-labelledby="quest-title">
+      <header class="slide-heading"><h2 id="quest-title">Every fix has a memory.</h2><p>A quest keeps the cause, the attempts, the proof, and the outcome together in git.</p></header>
+      <div class="quest-path" role="group" aria-label="Explore the quest lifecycle">
+        <button data-quest="signal" aria-pressed="true"><span>1</span>Signal</button>
+        <button data-quest="evidence" aria-pressed="false"><span>2</span>Evidence</button>
+        <button data-quest="hypothesis" aria-pressed="false"><span>3</span>Hypothesis</button>
+        <button data-quest="repro" aria-pressed="false"><span>4</span>Repro</button>
+        <button data-quest="patch" aria-pressed="false"><span>5</span>Patch</button>
+        <button data-quest="proof" aria-pressed="false"><span>6</span>Proof</button>
+        <button data-quest="landing" aria-pressed="false"><span>7</span>Landing</button>
+        <button data-quest="watch" aria-pressed="false"><span>8</span>Watch</button>
+      </div>
+      <div class="quest-detail" aria-live="polite">
+        <div class="quest-actor"><img id="quest-persona" src="media/rho.webp" alt="Rho, the Listener" width="210" height="210"><span id="quest-owner">Rho · Listener</span></div>
+        <div><h3 id="quest-detail-title">Start with something observed.</h3><p id="quest-description">An error, regression, or failed intent probe gives the investigation a concrete starting point.</p><p class="evidence-line"><b>What stays in the record</b><span id="quest-record">The original signal, source, and triage decision.</span></p></div>
+      </div>
+      <p class="slide-foot">Explore each stage. This describes the intended loop; deployment authority and verified evidence determine how far a quest can proceed.</p>
+    </section>
+
+    <section class="slide" id="autonomy" data-title="Autonomy has a boundary" aria-labelledby="autonomy-title">
+      <header class="slide-heading"><h2 id="autonomy-title">Autonomy has a boundary.</h2><p>The default direction is self-driving. Your policy defines when Ephyra acts and when it needs you.</p></header>
+      <div class="mode-switch" role="group" aria-label="Compare operation modes">
+        <button type="button" data-mode="self-driving" aria-pressed="true">Self-driving</button><button type="button" data-mode="supervised" aria-pressed="false">Supervised</button>
+      </div>
+      <div class="autonomy-layout">
+        <div><h3 id="mode-title">Progress within the agreed policy.</h3><p id="mode-copy">Models evaluate recorded checkpoints. Ephyra asks a specific question when missing information or authority blocks progress.</p><div class="policy-example"><span>Illustrative policy boundary</span><p>Investigate a checkout error.<br>Prove the proposed change.<br>Require the configured authority before landing.</p></div></div>
+        <div class="boundary-list"><div><span class="state-dot mint"></span><h4>Evidence before approval</h4><p>Decisions bind to the revision and proof being reviewed.</p></div><div><span class="state-dot amber"></span><h4>Visible reasons to stop</h4><p>Missing tools, exhausted budgets, and uncertain writes remain explicit.</p></div><div><span class="state-dot rose"></span><h4>A bounded request for help</h4><p>An answer can inform an investigation. It cannot grant new permissions.</p></div></div>
+      </div>
+    </section>
+
+    <section class="slide screen-slide" id="workspace" data-title="One view of the work" aria-labelledby="workspace-title">
+      <header class="slide-heading"><h2 id="workspace-title">One view of the work.</h2><p>Follow quests, understand what agents are doing, and find the decisions that need attention.</p></header>
+      <div class="screen-tabs" role="group" aria-label="Application screens">
+        <button type="button" data-screen="overview" aria-pressed="true">Overview</button><button type="button" data-screen="onboarding" aria-pressed="false">Setup</button><button type="button" data-screen="runs" aria-pressed="false">Runs</button><button type="button" data-screen="workspace" aria-pressed="false">Workspace</button><button type="button" data-screen="personas" aria-pressed="false">Personas</button><button type="button" data-screen="team" aria-pressed="false">Team</button>
+      </div>
+      <figure class="product-screen"><button type="button" class="image-zoom" data-zoom-target="product-image" aria-label="Enlarge the selected application screenshot"><img id="product-image" src="media/overview.png" width="1440" height="850" alt="Actual Ephyra Overview showing waiting decisions and recorded agent activity"></button><figcaption><span class="sample-label">Actual app · fictional sample data</span><button type="button" class="text-button" data-zoom-target="product-image">Enlarge screen ↗</button></figcaption></figure>
+      <p class="screen-description" id="screen-description" aria-live="polite">Overview brings recorded activity, waiting decisions, and spend into the same workspace. Unknown costs remain unknown.</p>
+    </section>
+
+    <section class="slide" id="start" data-title="Your first few minutes" aria-labelledby="start-title">
+      <header class="slide-heading"><h2 id="start-title">Your first few minutes.</h2><p>A personal entrance, a repository, and a clear view of what Ephyra can prepare.</p></header>
+      <div class="onboarding-layout">
+        <ol class="start-steps"><li><b>Sign in with Not Organic.</b><p>An Ephyra entrance connects your account without copying tokens.</p></li><li><b>Choose your repository.</b><p>Find a public GitHub repository or provide a supported repository link. Private access uses credentials.</p></li><li><b>Choose how it should work.</b><p>Self-driving is the starting point. Supervised review is available.</p></li><li><b>Inspect preparation and blockers.</b><p>Setup prepares policy and verification documents, then records what the environment can actually run.</p></li></ol>
+        <figure class="phone-view"><div class="phone-tabs" role="group" aria-label="First-run screenshots"><button data-entrance="signin-mobile" aria-pressed="true">Sign in</button><button data-entrance="onboarding-mobile" aria-pressed="false">Connect</button></div><button class="image-zoom" data-zoom-target="entrance-image" aria-label="Enlarge the entrance screenshot"><img id="entrance-image" src="media/signin-mobile.png" alt="Ephyra's custom Not Organic sign-in screen" width="390" height="844"></button><figcaption id="entrance-caption">Actual sign-in entrance</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="slide screen-slide" id="agents" data-title="Open the work behind the agent" aria-labelledby="agents-title">
+      <header class="slide-heading"><h2 id="agents-title">Open the work behind the agent.</h2><p>Read the transcript, inspect tool calls, see saved visuals, and follow a recorded session link.</p></header>
+      <div class="engine-row" aria-label="Recorded agent identities"><span><img src="media/amp.svg" alt="Amp" title="Amp harness" width="30" height="30"></span><span><img src="media/codex.svg" alt="Codex" title="Codex harness" width="30" height="30"></span><span><img src="media/claude.svg" alt="Claude Code" title="Claude Code harness" width="30" height="30"></span><p>Recognizable marks. Exact runner details on hover, focus, or tap in the app.</p></div>
+      <figure class="product-screen compact-screen"><button class="image-zoom" data-zoom-target="runs-image" aria-label="Enlarge the Runs screenshot"><img id="runs-image" src="media/runs.png" width="1440" height="850" alt="Ephyra Runs with persona roles, agent marks, and Open Amp orb and Open app preview links"></button><figcaption><span class="sample-label">Actual app · fictional sample data</span><button class="text-button" data-zoom-target="runs-image">Enlarge screen ↗</button></figcaption></figure>
+      <div class="inline-facts"><p><b>Join the context.</b> Open an Amp orb or session when the run supplies a link.</p><p><b>See what it made.</b> Agent HTML visuals stay beside the transcript and replay after the run.</p></div>
+    </section>
+
+    <section class="slide" id="team" data-title="Follow together, choose who decides" aria-labelledby="team-title">
+      <header class="slide-heading"><h2 id="team-title">Follow together.<br>Choose who decides.</h2><p>The inviter chooses Viewer or Approver before sharing a single-use link or QR code.</p></header>
+      <div class="team-layout">
+        <div><div class="role-options" role="group" aria-label="Explore invitation roles"><button type="button" data-role="viewer" aria-pressed="true">Viewer</button><button type="button" data-role="approver" aria-pressed="false">Approver</button></div><h3 id="role-title">See the same work.</h3><p id="role-description" aria-live="polite">Read quests, follow runs, inspect evidence, and see recorded costs.</p><ul class="plain-list"><li>The teammate sees the workspace and role before joining.</li><li>Unused invitations expire after seven days.</li><li>The owner can revoke access.</li></ul><p class="small">Approvers can comment and claim a review. A review claim does not take control of a running agent.</p></div>
+        <figure class="team-screen"><button class="image-zoom" data-zoom-target="team-image" aria-label="Enlarge the Team screenshot"><img id="team-image" src="media/team.png" width="1440" height="850" alt="Actual Team screen with Viewer and Approver invitation choices"></button><figcaption class="sample-label">Actual app · fictional sample data</figcaption></figure>
+      </div>
+      <p class="slide-foot">The owner shares the link or QR. Ephyra does not send an invitation email.</p>
+    </section>
+
+    <section class="slide screen-slide" id="intent" data-title="Tell Ephyra what good means" aria-labelledby="intent-title">
+      <header class="slide-heading"><h2 id="intent-title">Tell Ephyra what good means.</h2><p>Keep product intent, autonomy, and the knowledge agents may use in view.</p></header>
+      <figure class="product-screen compact-screen"><button class="image-zoom" data-zoom-target="intent-image" aria-label="Enlarge the Workspace screenshot"><img id="intent-image" src="media/workspace.png" width="1440" height="850" alt="Actual Workspace with application map and editable intent and autonomy documents"></button><figcaption><span class="sample-label">Actual app · fictional sample data</span><button class="text-button" data-zoom-target="intent-image">Enlarge screen ↗</button></figcaption></figure>
+      <div class="intent-options" role="group" aria-label="Explore workspace capabilities"><button data-intent="draft" aria-pressed="true">Draft with Velum</button><button data-intent="knowledge" aria-pressed="false">Connect knowledge</button><button data-intent="voice" aria-pressed="false">Talk through evidence</button></div>
+      <p id="intent-description" class="screen-description" aria-live="polite">Draft intent or policy in writing or conversation. Review the changes before publishing. A published policy ref does not itself change the live policy.</p>
+    </section>
+
+    <section class="slide" id="living" data-title="A crew with a little character" aria-labelledby="living-title">
+      <header class="slide-heading"><h2 id="living-title">A crew with a little character.</h2><p>Six roles, distinct materials, and small gestures that make the workspace feel alive.</p></header>
+      <div class="persona-picker" role="group" aria-label="Meet the six personas">
+        <button data-persona="rho" aria-pressed="false"><img src="media/rho.webp" alt="" width="56" height="56">Rho</button><button data-persona="bell" aria-pressed="true"><img src="media/bell.webp" alt="" width="56" height="56">Bell</button><button data-persona="nema" aria-pressed="false"><img src="media/nema.webp" alt="" width="56" height="56">Nema</button><button data-persona="lappet" aria-pressed="false"><img src="media/lappet.webp" alt="" width="56" height="56">Lappet</button><button data-persona="turri" aria-pressed="false"><img src="media/turri.webp" alt="" width="56" height="56">Turri</button><button data-persona="velum" aria-pressed="false"><img src="media/velum.webp" alt="" width="56" height="56">Velum</button>
+      </div>
+      <div class="persona-detail" id="persona-detail">
+        <img class="material" id="persona-material" src="media/bell-tile.webp" alt="" width="512" height="512">
+        <div class="persona-art"><img id="persona-still" src="media/bell.webp" alt="Bell, a translucent amber bell" width="256" height="256"><video id="persona-video" muted playsinline preload="none" hidden aria-label="Bell greeting animation"></video></div>
+        <div class="persona-copy"><p class="persona-role" id="persona-role">Bell · Researcher</p><h3 id="persona-title">Gather the evidence.</h3><p id="persona-description">Bring traces, code, and previous work into an investigation.</p><button class="primary" id="gesture-play" type="button">Play Bell’s greeting</button><p class="small" id="gesture-status" role="status">One short gesture. Silent. No loop.</p></div>
+      </div>
+      <div class="sound-row"><span>Hear a small interaction</span><button data-sound="touch" type="button">Touch</button><button data-sound="connected" type="button">Connected</button><button data-sound="invitation" type="button">Invitation</button><button id="sound-stop" type="button" hidden>Stop sound</button></div>
+      <p class="slide-foot">Artwork and gestures are decorative. App sound is off by default; reduced motion keeps stills. <a href="https://console.ephyra.quest/app/juice/experiments/index.html" target="_blank" rel="noopener">Explore the motion studies ↗</a></p>
+    </section>
+
+    <section class="slide" id="ownership" data-title="The record belongs with your code" aria-labelledby="ownership-title">
+      <header class="slide-heading"><h2 id="ownership-title">The record belongs<br>with your code.</h2><p>Portable evidence and replaceable execution are part of the product’s foundation.</p></header>
+      <div class="architecture" aria-label="Product architecture">
+        <div class="architecture-row"><span class="architecture-index">Authority</span><div><h3>Your account and workspace</h3><p>Not Organic account access, explicit membership, and scoped connections.</p></div></div>
+        <div class="architecture-row record-row"><span class="architecture-index">Record</span><div><h3>Quests, revisions, and proof in git</h3><p>A durable account of the work, with account settings and workflow queues in Convex.</p></div></div>
+        <div class="architecture-row"><span class="architecture-index">Execution</span><div><h3>Isolated runners and forge adapters</h3><p>Execution can be replaced without replacing the account or the quest’s history.</p></div></div>
+      </div>
+      <div class="forge-strip"><b>Git at the center</b><span>Plain git</span><span>Radicle</span><span>Tangled</span><span>Self-hostable direction</span></div>
+      <p class="slide-foot">Adapter code and offline checks exist. Live provider access, remote landing, and rollback still need deployment-specific verification.</p>
+    </section>
+
+    <section class="slide" id="proof" data-title="What is built, and what comes next" aria-labelledby="proof-title">
+      <header class="slide-heading"><h2 id="proof-title">The next milestone<br>is a real repair.</h2><p>The application is here. The full autonomous outcome still has to earn its evidence.</p></header>
+      <div class="status-columns"><div><h3><span class="state-dot mint"></span>Implemented</h3><p>Console, setup, policy drafts, team roles, run transcripts, saved visuals, voice interfaces, and execution adapters.</p></div><div><h3><span class="state-dot amber"></span>Demonstrated</h3><p>Actual UI with fictional fixtures. Local account, membership, and workflow tests. Public site and app delivery.</p></div><div><h3><span class="state-dot rose"></span>Still to prove</h3><p>A production error becoming a proved, landed, watched repair through the configured live services.</p></div></div>
+      <figure class="proof-strip"><button class="image-zoom" data-zoom-target="proof-image" aria-label="Enlarge the recorded sample proof"><img id="proof-image" src="media/proof.png" width="1440" height="850" alt="Recorded sample proof with revision binding, before and after repro, tests, and intent probes"></button><figcaption><b>Evidence should be inspectable.</b><p>This is a recorded example, not a completed production repair.</p><button class="text-button" data-zoom-target="proof-image">Inspect the sample proof ↗</button></figcaption></figure>
+    </section>
+
+    <section class="slide closing" id="join" data-title="Build the loop with us" aria-labelledby="join-title">
+      <div class="closing-copy"><img class="closing-mark" src="media/logo.svg" width="68" height="68" alt="Ephyra"><h2 id="join-title">Bring your application.<br>Build the loop with us.</h2><p class="lead">Start with a repository you understand. Help make the evidence, the boundaries, and the everyday experience better.</p><div class="closing-links"><a class="primary" href="https://console.ephyra.quest/app/" target="_blank" rel="noopener">Open Ephyra ↗</a><a class="secondary" href="https://ephyra.quest/#product-tour-title" target="_blank" rel="noopener">Explore the public walkthrough ↗</a></div><p class="small">Pre-alpha. Your environment and account access determine which capabilities are available.</p></div>
+      <figure class="share-presentation"><img src="media/presentation-qr.svg" alt="QR code for this public Ephyra presentation" width="132" height="132"><figcaption>Share this presentation<br><a href="https://ephyra.quest/e/presentation/" target="_blank" rel="noopener">ephyra.quest/e/presentation</a></figcaption></figure>
+    </section>
+  </div>
+
+  <footer class="deck-navigation"><button type="button" id="previous" class="quiet" aria-label="Previous chapter">← <span>Previous</span></button><div class="position"><span id="chapter-counter">1 / 12</span><span id="chapter-label">A companion for your application</span></div><button type="button" id="next" class="next" aria-label="Next chapter"><span>Next</span> →</button></footer>
+  <div class="progress-track" role="progressbar" aria-label="Presentation progress" aria-valuemin="1" aria-valuemax="12" aria-valuenow="1"><span id="progress-fill"></span></div>
+  <aside id="speaker-notes" hidden aria-labelledby="notes-title"><h2 id="notes-title">Presenter notes</h2><p id="note-copy"></p><p class="note-source"><b>Source</b> <span id="note-source"></span></p><p class="small">Application snapshots: November 8, 2026. Fictional sample data is labelled throughout. Third-party marks identify harnesses and do not imply endorsement.</p><a class="text-button" href="https://ephyra.quest/e/presentation/provenance.json" target="_blank" rel="noopener">View asset and capture provenance ↗</a></aside>
+  <p class="keyboard-hint">Use ← / → to move between chapters. N opens notes. No automatic advance.</p>
+  <p id="announcement" class="sr-only" aria-live="polite"></p>
+</main>
+
+<dialog id="chapters-dialog" aria-labelledby="chapters-title"><div class="dialog-bar"><h2 id="chapters-title">Choose a chapter</h2><button class="quiet" data-close="chapters-dialog" aria-label="Close chapter list">Close ×</button></div><ol id="chapters-list"></ol></dialog>
+<dialog id="image-dialog" aria-labelledby="image-title"><div class="dialog-bar"><h2 id="image-title">Application screenshot</h2><button class="quiet" data-close="image-dialog" aria-label="Close enlarged screenshot">Close ×</button></div><img id="enlarged-image" alt=""><p class="small" id="image-description"></p></dialog>
+<script src="presentation.js"></script>
+</body>
+</html>

@@ -15,3 +15,7 @@ site/_sources/
 # per-lane git worktrees used during parallel builds
 .lanes/
 .railway/node_modules/
+
+# Rebuildable standalone presentation exports
+/output/ephyra-presentation.html
+/output/ephyra-presentation-preview.html
