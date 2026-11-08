@@ -31,6 +31,8 @@ export type EmitInput = {
   expectedBound?: InboxItem['bound'];
   /** Reject a result evaluated against a journal which has since changed. */
   expectedJournalHead?: string;
+  /** Agent output is accepted only while its original code and workflow still own the work. */
+  expectedWork?: { rev: number; head?: string; base: string; state: Trail["state"]; policyCommit?: string; generation?: number };
 } & TrailEventBody;
 
 export interface InboxStore {
@@ -57,6 +59,8 @@ export interface ServerContext {
   jobs: Jobs;
   clock: Clock;
   ids: IdGen;
+  /** Reload reviewed policy outside an engine transition, before starting work or accepting a decision. */
+  refreshPolicy?: () => Promise<void>;
   /** Apply an event through the orchestrator (validates via the state machine, journals, dispatches effects). */
   emit(input: EmitInput): Promise<void>;
   /** Seed a newly created trail (from core createTrail) and dispatch its initial effects. */

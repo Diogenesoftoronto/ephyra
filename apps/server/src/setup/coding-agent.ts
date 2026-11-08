@@ -30,6 +30,7 @@ export class AccountCodingAgent implements CodingAgent {
     if (!model) throw new Unverified("an account model is required for automatic coding");
     const deadline = Date.now() + task.budget.wallclockS * 1000;
     const remaining = () => {
+      options.signal?.throwIfAborted();
       const ms = deadline - Date.now();
       if (ms <= 0) throw new Unverified("account agent deadline");
       return ms;
@@ -39,7 +40,7 @@ export class AccountCodingAgent implements CodingAgent {
     const exec = async (argv: string[]) => {
       let exit: number | null = null;
       let output = "";
-      for await (const part of runner.exec(handle, argv, { deadlineMs: Math.min(remaining(), 120_000) })) {
+      for await (const part of runner.exec(handle, argv, { deadlineMs: Math.min(remaining(), 120_000), signal: options.signal })) {
         if ("exit" in part) exit = part.exit;
         else if (output.length < 64_000) output += part.chunk.slice(0, 64_000 - output.length);
       }
@@ -56,6 +57,9 @@ export class AccountCodingAgent implements CodingAgent {
       + "Research must write hypothesis.md with observed evidence and competing causes. Plan must write plan.md with specific verification. "
       + "Repro must write .ephyra/repro/probe.sh: a deterministic executable probe which fails on the bug and passes when fixed. "
       + "Patch must change code and tests; the server commits the final changes. Do not push, contact users, or claim unrun checks passed. "
+      + "Review must inspect the diff and write review.json with a findings array. Each finding needs severity and text. "
+      + "Severity is low, medium, high or critical. "
+      + "For review, do not change application source or commit anything. An empty findings array means no observed findings. "
       + "Finish after doing the assigned step. Preserve operation receipts and budgets when choosing a different approach.";
     const messages: DraftRequest["messages"] = [{ role: "user", content: untrustedJson("agent_task", {
       step: task.step, title: clean(task.trail.title), context: task.context, evidence: task.untrusted,
@@ -66,12 +70,17 @@ export class AccountCodingAgent implements CodingAgent {
     let engine = "";
     let finished = false;
     for (let turn = 0; turn < (this.options.maxTurns ?? 24); turn++) {
+      options.signal?.throwIfAborted();
       const selected = await this.options.model();
       if (!selected || selected.kind !== model.kind || selected.requestedModel !== model.requestedModel)
         throw new Unverified("the account model selection changed during this step");
       if (tokens + 4096 > task.budget.tokens) throw new Unverified("remaining account agent token budget");
+      if (task.budget.spendMicrousd !== undefined && (cost === null || cost >= task.budget.spendMicrousd))
+        throw new Unverified("remaining account agent spending budget (unknown costs require reconciliation)");
       const key = `account-agent:${hash([handle.id, task.step, turn])}`;
-      const request = { system, messages, idempotencyKey: key };
+      const request: DraftRequest = { system, messages, idempotencyKey: key,
+        maxTokens: Math.min(4096, task.budget.tokens - tokens),
+        ...(task.budget.spendMicrousd !== undefined ? { maxCostMicrousd: task.budget.spendMicrousd - (cost ?? 0) } : {}) };
       const claim = await this.options.ledger.begin(key, hash({ provider: model.kind, model: model.requestedModel ?? null, request }));
       let completion: DraftCompletion;
       if (!claim.fresh) {
@@ -79,14 +88,19 @@ export class AccountCodingAgent implements CodingAgent {
         completion = claim.record.result as DraftCompletion;
       } else {
         try {
-          const value = await selected.complete({ ...request, signal: AbortSignal.timeout(Math.min(remaining(), 90_000)) });
+          const timeout = AbortSignal.timeout(Math.min(remaining(), 90_000));
+          const value = await selected.complete({ ...request,
+            signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout });
           completion = { ...value, text: redactModelText(value.text, options.secrets ?? [], 100_000) };
           await this.options.ledger.complete(key, completion);
         } catch {
           await this.options.ledger.markAmbiguous(key, "Account model request has no durable response receipt.");
+          await options.onUsage?.({ key, tokens: null, costMicrousd: null, model: model.requestedModel ?? model.kind });
           throw new ReconciliationRequired(key, "Account model response needs reconciliation.");
         }
       }
+      await options.onUsage?.({ key, tokens: completion.tokens, costMicrousd: completion.costMicrousd, model: completion.engine });
+      options.signal?.throwIfAborted();
       if (completion.tokens === null || !Number.isSafeInteger(completion.tokens) || completion.tokens < 0)
         throw new Unverified("account model token usage");
       if (engine && engine !== completion.engine) throw new Unverified("account model identity changed during a step");
@@ -97,6 +111,16 @@ export class AccountCodingAgent implements CodingAgent {
       const parsed = action.safeParse(JSON.parse(completion.text));
       if (!parsed.success) throw new Unverified("structured account agent action");
       const call = parsed.data;
+      if (task.step === "review") {
+        if (call.action === "write" && call.path !== "review.json") throw new Unverified("review can only write its findings");
+        if (call.action === "exec") {
+          const allowed = ["diff", "show", "log", "grep", "status", "ls-files", "rev-parse", "cat-file", "blame"];
+          if (call.argv[0] !== "git" || !allowed.includes(call.argv[1] ?? "")
+            || call.argv.some(arg => /^(--ext-diff|--textconv|--output(?:=|$))/.test(arg)))
+            throw new Unverified("review commands must be read-only Git inspection");
+          call.argv.splice(1, 0, "--no-pager", "-c", "diff.external=", "-c", "core.fsmonitor=false");
+        }
+      }
       if (call.action === "finish") {
         transcript.push({ action: "finish", summary: clean(call.summary) });
         await options.onEvent?.({ type: "message", text: clean(call.summary, 4000) });
@@ -139,7 +163,7 @@ export class AccountCodingAgent implements CodingAgent {
     const artefacts: Record<string, string> = { "transcript.json": redactModelText(JSON.stringify(transcript), options.secrets ?? [], 250_000) };
     const outputs: Record<string, string> = {};
     const document = task.step === "research" ? "hypothesis.md" : task.step === "plan" ? "plan.md"
-      : task.step === "repro" ? ".ephyra/repro/probe.sh" : null;
+      : task.step === "repro" ? ".ephyra/repro/probe.sh" : task.step === "review" ? "review.json" : null;
     if (document) {
       const content = await runner.readFile(handle, document);
       if (!content?.length || content.length > 100_000) throw new Unverified(`account agent ${document}`);

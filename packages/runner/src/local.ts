@@ -11,7 +11,7 @@ export class LeaseExpired extends Error {
 let nextPort = 20000;
 
 type Allocation = { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile; leaseS?: number };
-type State = { handle: RunnerHandle; mirror: string; profile: ServiceProfile; port: number };
+type State = { handle: RunnerHandle; mirror: string; profile: ServiceProfile; port: number; processes: Map<number, Promise<number>> };
 type Snapshot = { bytes: Uint8Array; repoUrl: string; commit: string };
 
 async function command(args: string[], cwd?: string): Promise<void> {
@@ -27,6 +27,7 @@ export class LocalRunner implements Runner {
   private states = new Map<string, State>();
   private snapshots = new Map<string, Snapshot>();
   private destroyed = new Map<string, { destroyed: true; at: string }>();
+  private destroying = new Map<string, Promise<{ destroyed: true; at: string }>>();
   private readonly cas: ArtifactStore;
 
   constructor(private readonly root: string, private readonly options: { trusted: true; allowDevenv?: boolean }) {
@@ -55,7 +56,7 @@ export class LocalRunner implements Runner {
       id, runner: this.name, workdir, trailId: req.trail.id, attempt: req.attempt,
       leaseExpiresAt: new Date(Date.now() + (req.leaseS ?? req.profile.limits.timeoutS) * 1000).toISOString(),
     };
-    this.states.set(id, { handle, mirror, profile: req.profile, port: nextPort++ });
+    this.states.set(id, { handle, mirror, profile: req.profile, port: nextPort++, processes: new Map() });
     return handle;
   }
 
@@ -86,7 +87,10 @@ export class LocalRunner implements Runner {
     return target;
   }
 
-  async *exec(handle: RunnerHandle, args: string[], opts: { cwd?: string; env?: Record<string, string>; deadlineMs: number }): AsyncIterable<ExecOutput> {
+  async *exec(handle: RunnerHandle, args: string[], opts: {
+    cwd?: string; env?: Record<string, string>; deadlineMs: number; signal?: AbortSignal;
+  }): AsyncIterable<ExecOutput> {
+    opts.signal?.throwIfAborted();
     const state = this.state(handle);
     if (!args.length || opts.deadlineMs <= 0) throw new Error("invalid command or deadline");
     const cwd = await this.confined(handle, opts.cwd ?? ".");
@@ -103,8 +107,12 @@ export class LocalRunner implements Runner {
     }
     const start = Date.now();
     const proc = Bun.spawn(["setsid", ...executable], { cwd, env, stdout: "pipe", stderr: "pipe" });
+    state.processes.set(proc.pid, proc.exited);
+    const kill = () => { try { process.kill(-proc.pid, "SIGKILL"); } catch {} };
+    opts.signal?.addEventListener("abort", kill, { once: true });
+    if (opts.signal?.aborted) kill();
     let timedOut = false;
-    const timeout = setTimeout(() => { timedOut = true; try { process.kill(-proc.pid, "SIGKILL"); } catch {} }, opts.deadlineMs);
+    const timeout = setTimeout(() => { timedOut = true; kill(); }, Math.min(opts.deadlineMs, Date.parse(handle.leaseExpiresAt) - start));
     const queue: ExecOutput[] = [];
     let wake: (() => void) | undefined;
     const pump = async (stream: ReadableStream<Uint8Array>, name: "stdout" | "stderr") => {
@@ -122,6 +130,7 @@ export class LocalRunner implements Runner {
     let finished = false;
     const done = Promise.all([pump(proc.stdout, "stdout"), pump(proc.stderr, "stderr"), proc.exited]).then((results) => {
       clearTimeout(timeout);
+      state.processes.delete(proc.pid);
       queue.push({ exit: results[2], durationMs: Date.now() - start, timedOut });
       finished = true;
       wake?.();
@@ -135,7 +144,9 @@ export class LocalRunner implements Runner {
       await done;
     } finally {
       clearTimeout(timeout);
+      opts.signal?.removeEventListener("abort", kill);
       if (!finished) { try { process.kill(-proc.pid, "SIGKILL"); } catch {} await done; }
+      opts.signal?.throwIfAborted();
     }
   }
 
@@ -191,7 +202,16 @@ export class LocalRunner implements Runner {
   async destroy(handle: RunnerHandle): Promise<{ destroyed: true; at: string }> {
     const existing = this.destroyed.get(handle.id);
     if (existing) return existing;
+    const pending = this.destroying.get(handle.id);
+    if (pending) return pending;
+    const operation = this.teardown(handle);
+    this.destroying.set(handle.id, operation);
+    return operation;
+  }
+  private async teardown(handle: RunnerHandle): Promise<{ destroyed: true; at: string }> {
     const state = this.state(handle, true);
+    for (const pid of state.processes.keys()) { try { process.kill(-pid, "SIGKILL"); } catch {} }
+    await Promise.all(state.processes.values());
     await command(["git", "--git-dir", state.mirror, "worktree", "remove", "--force", handle.workdir]);
     await command(["git", "--git-dir", state.mirror, "worktree", "prune"]);
     await rm(join(this.root, "homes", handle.id), { recursive: true, force: true });

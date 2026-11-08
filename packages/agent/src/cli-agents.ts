@@ -62,6 +62,8 @@ abstract class CliAgent implements CodingAgent {
     await feed?.finish();
     if (run.exit !== 0) throw new Unverified("agent CLI failure");
     const usage = parseOutput(this.provider, run.stdout, this.model, stream);
+    await opts.onUsage?.({ key: `cli:${handle.id}:${task.step}`, tokens: usage.tokens,
+      costMicrousd: usage.costMicrousd, model: usage.model });
     const after = await execute(runner, handle, ["git", "rev-parse", "HEAD"], remaining());
     if (after.exit !== 0) throw new Unverified("agent head commit");
     const base = before.stdout.trim();

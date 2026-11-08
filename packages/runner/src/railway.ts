@@ -68,7 +68,7 @@ export type RailwayRunnerOptions = {
   leaseStore?: RailwayLeaseStore;
   /** Bind to the authenticated owner and workspace, not a display alias. */
   scope?: string;
-  repositoryBundle?: (req: { repoUrl: string; commit: string }) => Promise<RailwayRepositoryBundle>;
+  repositoryBundle?: (req: { repoUrl: string; commit: string; base?: string }) => Promise<RailwayRepositoryBundle>;
   onLease?: (handle: RunnerHandle) => Promise<void>;
   now?: () => number;
 };
@@ -186,7 +186,7 @@ export class RailwaySandboxRunner implements Runner {
     if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(req.commit)) throw new TypeError("exact Git commit required");
     const state = await this.provision(req, { repoUrl: req.repoUrl, commit: req.commit });
     const key = `railway:checkout:${state.handle.id}`;
-    const plan = railwayHash({ commit: req.commit, source: railwayHash(req.repoUrl), remoteId: state.remoteId });
+    const plan = railwayHash({ commit: req.commit, base: req.trail.base?.sha ?? null, source: railwayHash(req.repoUrl), remoteId: state.remoteId });
     const claim = await this.ledger.begin(key, plan);
     const marker = ".git/ephyra-checkout-receipt";
     if (!claim.fresh) {
@@ -199,7 +199,7 @@ export class RailwaySandboxRunner implements Runner {
       throw new ReconciliationRequired(key, "repository checkout requires reconciliation; it was not repeated");
     }
     try {
-      const bundle = await this.options.repositoryBundle({ repoUrl: req.repoUrl, commit: req.commit });
+      const bundle = await this.options.repositoryBundle({ repoUrl: req.repoUrl, commit: req.commit, base: req.trail.base?.sha });
       if (!(bundle.bytes instanceof Uint8Array) || !bundle.bytes.length || bundle.bytes.length > 256 * 1024 * 1024 ||
           !/^refs\/[a-zA-Z0-9/_-]+$/.test(bundle.ref) || bundle.ref.includes("//")) throw new TypeError("invalid prepared Git bundle");
       const shallow = bundle.shallow === undefined ? [] : bundle.shallow;
@@ -217,6 +217,10 @@ export class RailwaySandboxRunner implements Runner {
       await this.checkedExec(state, [...git, "-c", "filter.lfs.required=false", "checkout", "--detach", "--force", req.commit]);
       const head = await this.checkedExec(state, [...git, "rev-parse", "HEAD"]);
       if (head.trim() !== req.commit) throw new Unverified("sandbox checkout does not match requested commit");
+      if (req.trail.base?.sha) {
+        const base = await this.checkedExec(state, [...git, "rev-parse", `${req.trail.base.sha}^{commit}`]);
+        if (base.trim() !== req.trail.base.sha) throw new Unverified("sandbox bundle lacks the exact current base");
+      }
       await this.checkedExec(state, ["rm", "--", "/workspace/.git/ephyra-source.bundle"]);
       await this.client.writeFile(state.remoteId, marker, plan);
       await this.ledger.complete(key, { commit: req.commit });

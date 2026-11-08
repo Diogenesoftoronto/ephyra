@@ -11,6 +11,9 @@ export type ExecutorInfo = {
 };
 /** What a streaming agent is given to report progress. All optional; an agent that ignores it still returns the same AgentResult. */
 export type AgentRunOptions = {
+  signal?: AbortSignal;
+  /** Actual usage is reported before validating products, including turns whose products are unusable. */
+  onUsage?: (usage: { key: string; tokens: number | null; costMicrousd: number | null; model: string }) => void | Promise<void>;
   onEvent?: (event: RunEventDraft) => void | Promise<void>;
   /** Details of where the run executes that only become known during the run (Amp thread URL, portal URL). */
   onExecutor?: (patch: Partial<ExecutorInfo>) => void;
