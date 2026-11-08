@@ -4,17 +4,17 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Hono } from "hono";
 import {
-  systemIds, type Budget, type CodingAgent, type DecideBackend, type Effect, type ExtractBackend, type Runner,
+  ProofItem, Unverified, systemIds, type Budget, type CodingAgent, type DecideBackend, type Effect, type ExtractBackend, type Runner,
   type ServiceProfile, type SignalStore, type Trail, type TransitionContext,
 } from "@ephyra/core";
 import { MemorySignalStore, otlpRoutes } from "@ephyra/ingest";
 import { GitJournal } from "@ephyra/journal";
 import {
-  AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, checkpointMode, parseAutonomy, parseThresholds, type AutonomyPolicy,
+  AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, areaFor, checkpointMode, parseAutonomy, parseThresholds, type AutonomyPolicy,
 } from "@ephyra/policy";
 import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract, dpopProof } from "@ephyra/models";
 import { LocalRunner } from "@ephyra/runner";
-import { AmpAgent, ClaudeCodeAgent, CodexAgent, buildProof, type AmpThreadStore } from "@ephyra/agent";
+import { AmpAgent, AmpReportInbox, ClaudeCodeAgent, CodexAgent, buildProof, runAgent, type AmpThreadStore } from "@ephyra/agent";
 import { PlainGitAdapter } from "@ephyra/forge";
 import { TractionEvidence } from "@ephyra/evidence";
 import { MemoryAudit } from "./audit.ts";
@@ -57,6 +57,14 @@ import { AutomaticSetup, setupGit, type SetupOptions } from "./setup/automation.
 import { setupRoutes } from "./http/setup.ts";
 import { InvestigationQuestions, type QuestionOptions } from "./setup/questions.ts";
 import { registerPostHogPolling } from "./setup/telemetry.ts";
+import { PolicyActivation } from "./policy-activation.ts";
+import { ampReportRoutes } from "./amp-reports.ts";
+import { GitProbeCatalog, probeHandlers, type ProbeHandlerDeps } from "./wiring/probes.ts";
+import { createVerificationCollector, repositoryVerificationCommands, type VerificationOptions } from "./wiring/verification.ts";
+import { WorkControl } from "./wiring/control.ts";
+import { workBudget } from "./wiring/budget.ts";
+import { isolatedProbeRunner } from "./wiring/probe-runtime.ts";
+import type { LandingDeps } from "./wiring/landing.ts";
 
 export const VERSION = "0.1.0-prealpha";
 
@@ -130,7 +138,8 @@ async function readOptional(path: string | undefined, fallback: string): Promise
 function contextFn(autonomy: AutonomyPolicy) {
   return async (trail: Trail): Promise<TransitionContext> => {
     const area = autonomy.areas.find((a) => a.name === trail.area);
-    const blocking = (c: "A" | "B" | "C") => !area || checkpointMode(autonomy, area, c) === "blocking";
+    const blocking = (c: "A" | "B" | "C") => c === "C" && ["high", "critical"].includes(trail.risk)
+      || !area || checkpointMode(autonomy, area, c) === "blocking";
     return {
       now: new Date().toISOString(),
       blocking: { A: blocking("A"), B: blocking("B"), C: blocking("C") },
@@ -183,7 +192,7 @@ function agentBilledTo(config: Config): BilledTo {
   return config.EPHYRA_AGENT === "none" ? "unknown" : "local";
 }
 
-function agentFor(config: Config, ampThreads: AmpThreadStore): CodingAgent | null {
+function agentFor(config: Config, ampThreads: AmpThreadStore, reports?: AmpReportInbox): CodingAgent | null {
   if (config.EPHYRA_AGENT === "claude-code") return new ClaudeCodeAgent(config.EPHYRA_AGENT_MODEL ?? "claude-opus-5-5");
   if (config.EPHYRA_AGENT === "codex") return new CodexAgent(config.EPHYRA_AGENT_MODEL ?? "gpt-6.1-sol");
   if (config.EPHYRA_AGENT === "amp") {
@@ -192,7 +201,7 @@ function agentFor(config: Config, ampThreads: AmpThreadStore): CodingAgent | nul
       : config.EPHYRA_AMP_EXECUTOR === "runner"
         ? { kind: "runner" as const, runnerId: config.EPHYRA_AMP_RUNNER_ID! }
         : { kind: "local" as const };
-    return new AmpAgent({ executor, mode: config.EPHYRA_AMP_MODE, threads: ampThreads });
+    return new AmpAgent({ executor, mode: config.EPHYRA_AMP_MODE, threads: ampThreads, reports });
   }
   return null;
 }
@@ -234,6 +243,14 @@ function quota(perMinute: number) {
 }
 
 export type ComposeOverrides = {
+  ampReports?: AmpReportInbox;
+  verification?: Pick<VerificationOptions, "commands" | "sources">;
+  respondents?: ProbeHandlerDeps["respondents"];
+  landing?: (context: {
+    ctx: ServerContext; ledger: import("@ephyra/core").OperationLedger; probes: GitProbeCatalog;
+    runProbe: NonNullable<ProbeHandlerDeps["run"]>;
+    telemetry: ReturnType<typeof registerPostHogPolling> | null;
+  }) => Promise<Omit<LandingDeps, "git" | "watchEveryMs">>;
   startJobs?: boolean;
   /** Replaces the fetch used to talk to Not Organic (tests). */
   notOrganicFetch?: import("./auth/crypto.ts").Fetch;
@@ -299,14 +316,21 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
     jobs: { register: (k, r) => jobs.register(k, r), enqueue: (k, key, p, o) => jobs.enqueue(k, key, p, o) },
     emit: async (input) => { await engine.emit(input); },
-    start: (trail, initial, effects) => engine.start(trail, initial, effects ?? []),
+    start: async (trail, initial, effects) => {
+      await activation?.restore();
+      const current = await activation?.current();
+      await engine.start({ ...trail, ...(current ? { policyCommit: current.commit } : {}) }, initial, effects ?? []);
+    },
     trails: {
       get: (id) => store.getTrail(id), list: (f) => store.listTrails(f?.states), events: (id) => store.events(id),
     },
   };
 
   const g = git(repo.mirrorDir, Boolean(opts.workspace));
-  const budget: Budget = { tokensUsed: 0, tokensMax: 2_000_000, wallclockMaxS: 4 * 3600, spendMicrousdUsed: 0, spendMicrousdMax: 0 };
+  const budget: Budget = {
+    tokensUsed: 0, tokensMax: config.EPHYRA_TRAIL_TOKENS, wallclockMaxS: config.EPHYRA_TRAIL_WALLCLOCK_S,
+    spendMicrousdUsed: 0, spendMicrousdMax: config.EPHYRA_TRAIL_SPEND_MICROUSD, requireKnownCost: config.EPHYRA_REQUIRE_KNOWN_COST,
+  };
   const approvers = new Set(approverDids(config));
   let signIn: NotOrganicSignIn | null = opts.signIn ?? null;
   if (!signIn && config.EPHYRA_PUBLIC_ORIGIN && config.EPHYRA_SESSION_KEY) {
@@ -339,7 +363,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     name: "local", digest: "local", network: "egress", readOnlyProd: true, credentials: [],
     limits: { cpu: 2, memoryMb: 4096, diskMb: 8192, timeoutS: config.EPHYRA_STEP_TIMEOUT_S },
   };
-  const agent = opts.agent ?? agentFor(config, ampThreadsFrom(store));
+  const agent = opts.agent ?? agentFor(config, ampThreadsFrom(store), opts.ampReports);
   const runner: Runner | null = opts.runner
     ?? (agent ? new LocalRunner(join(config.EPHYRA_DATA_DIR, "runner"), { trusted: true, allowDevenv: false }) : null);
   const evidenceSources = opts.evidenceSources ?? (!opts.workspace && config.EPHYRA_TRACTION_ORIGIN ? [new TractionEvidence({
@@ -355,6 +379,19 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const questions = opts.questions ? new InvestigationQuestions({ ...opts.questions, ctx, decide, ledger }) : null;
   const telemetry = opts.resolveTelemetry ? registerPostHogPolling({ ctx, resolve: opts.resolveTelemetry, ledger,
     onSignal: (signal) => intakeHooks.onNewSignal(signal) }) : null;
+  const control = new WorkControl();
+  let activation: PolicyActivation | undefined;
+  let appliedPolicy: string | undefined;
+  ctx.refreshPolicy = async () => { await activation?.restore(); };
+  const probes = new GitProbeCatalog({ git: g, journal, secrets: knownSecrets(config), intentDocuments: async () => {
+    const current = await activation?.current();
+    if (!current) return [];
+    const paths = (await activation!.paths()).filter(path => path.startsWith("intents/"));
+    return Promise.all(paths.map(async (path) => ({ path, content: (await activation!.content(path))!, commit: current.commit })));
+  } });
+  const runProbe = isolatedProbeRunner({ ctx, runner, profile, ledger, control, prepare: opts.prepareProof,
+    timeoutS: config.EPHYRA_STEP_TIMEOUT_S, secrets: knownSecrets(config) });
+  const landing = await opts.landing?.({ ctx, ledger, probes, runProbe, telemetry });
   const human = humanHandlers(ctx);
   const notify = human.notify_inbox!;
   if (questions) human.notify_inbox = async (effect, trail) => {
@@ -365,15 +402,62 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     intakeHandlers(ctx),
     human,
     checkpointHandlers(ctx, { decide, ledger, secrets: knownSecrets(config) }),
-    agentHandlers(ctx, { runner, agent, profile, buildProof: buildProof as unknown as BuildProofFn, stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
+    agentHandlers(ctx, { runner, agent, profile, control, buildProof: buildProof as unknown as BuildProofFn,
+      stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
       usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources,
       prepareProof: opts.prepareProof,
+      createProofCollector: (trail, observer) => createVerificationCollector({ catalog: probes, ...opts.verification,
+        commands: opts.verification?.commands ?? (() => repositoryVerificationCommands(g, trail)),
+        secrets: knownSecrets(config),
+        review: agent && trail.risk !== "low" ? async (evidence) => {
+          const ms = evidence.remainingMs();
+          const budget = workBudget((await ctx.trails.get(trail.id)) ?? trail, ms / 1000);
+          if (budget.reason) throw new Unverified(budget.reason);
+          let diff = "", exit: number | undefined;
+          for await (const part of evidence.runner.exec(evidence.handle, ["git", "diff", "--no-ext-diff", evidence.base, evidence.head], {
+            deadlineMs: evidence.remainingMs(), signal: observer.signal,
+          })) {
+            if ("chunk" in part) { if (part.stream === "stdout") diff += part.chunk; }
+            else { if (part.timedOut) throw new Unverified("review diff timeout"); exit = part.exit; }
+            if (diff.length > 200_000) throw new Unverified("bounded review diff");
+          }
+          if (exit !== 0) throw new Unverified("observed review diff");
+          let reported = false;
+          const result = await runAgent(agent, { step: "review", trail, context: {}, untrusted: { diff },
+            budget: { tokens: budget.tokens, wallclockS: budget.wallclockS,
+              ...(budget.spendMicrousd !== undefined ? { spendMicrousd: budget.spendMicrousd } : {}) } },
+          evidence.runner, evidence.handle, { ...observer, secrets: knownSecrets(config), onUsage: async (receipt) => {
+            await observer.onUsage(receipt); reported = true;
+          } }).catch(async (error) => {
+            if (!reported) await observer.onUsage({ key: `proof-review:${trail.id}:${trail.rev}:${evidence.handle.id}:unavailable`,
+              tokens: null, costMicrousd: null, model: agent.name });
+            throw error;
+          });
+          if (!reported) await observer.onUsage({ key: `proof-review:${trail.id}:${trail.rev}:${evidence.handle.id}`, ...result.usage });
+          if (!result.ok) throw new Unverified("successful review agent result");
+          const item = ProofItem.parse({ kind: "bug_review", reviewer: result.usage.model,
+            findings: JSON.parse(result.artefacts["review.json"] ?? "null")?.findings });
+          if (item.kind !== "bug_review") throw new Unverified("review findings");
+          return item;
+        } : undefined,
+        onReceipts: async (evidence, receipts) => {
+          const current = await journal.read(trail.id);
+          if (!current || current.trail.rev !== trail.rev || current.trail.head !== trail.head
+            || current.trail.policyCommit !== trail.policyCommit || current.trail.workGeneration !== trail.workGeneration)
+            throw new Unverified("proof receipt revision");
+          await journal.append(trail.id, current.head, current.trail, [], {
+            [`proof/receipts/${evidence.trail.rev}.json`]: JSON.stringify(receipts),
+          });
+        },
+      }),
       resolveEvidenceSources: opts.resolveEvidenceSources ? () => opts.resolveEvidenceSources!(ledger) : undefined }),
     landingHandlers(ctx, {
-      adapters: [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
+      adapters: landing?.adapters ?? [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
-      canLand: opts.workspace ? async () => opts.automationReadiness?.landing === true && opts.automationReadiness?.watch === true : undefined,
+      watch: landing?.watch, refreshBase: landing?.refreshBase, canLand: landing?.canLand,
     }),
+    probeHandlers(ctx, { catalog: probes, ledger, run: runProbe, onSignal: intakeHooks.onNewSignal,
+      respondents: opts.respondents, secrets: knownSecrets(config) }),
   ];
   const handlers = Object.fromEntries(ALL_EFFECTS.map((t) => [t, notWired(t)])) as unknown as EffectHandlers;
   for (const slice of slices) Object.assign(handlers, slice);
@@ -403,9 +487,11 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       { id: "verification", available: opts.automationReadiness?.verification === true || baseline,
         summary: "Repository checks have not been baselined.",
         action: "Run the discovered checks in the sandbox and record baseline failures and intent probes." },
-      { id: "landing", available: opts.automationReadiness?.landing === true, summary: "Remote landing access is unverified.",
+      { id: "landing", available: Boolean(landing?.adapters.length && landing.watch && (!landing.canLand || await landing.canLand())),
+        summary: "Remote landing access is unverified.",
         action: "Verify the selected forge transport and rollback permissions for this workspace." },
-      { id: "watch", available: opts.automationReadiness?.watch === true, summary: "Post-landing watch coverage is unverified.",
+      { id: "watch", available: Boolean(landing?.watch && (!landing.canLand || await landing.canLand())),
+        summary: "Post-landing watch coverage is unverified.",
         action: "Verify the deployed revision, telemetry baseline and regression watch before enabling landing." },
     ]; },
     activate: async (run) => {
@@ -415,6 +501,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       Object.assign(autonomy, parseAutonomy(policy.content));
       for (const key of Object.keys(thresholds)) delete thresholds[key];
       Object.assign(thresholds, parseThresholds(calibration.content));
+      await activation?.restore();
       await telemetry?.start();
     },
   });
@@ -449,20 +536,45 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const docs = new PolicyDocs({
     git: g, baseRef: repo.baseRef,
     activeContent: async (path) => {
+      const reviewed = await activation?.content(path);
+      if (reviewed !== undefined && reviewed !== null) return reviewed;
       const run = await setup.current();
       return run?.status === "ready" || run?.investigationActive ? run.artifacts.find((a) => a.path === path)?.content ?? null : null;
     },
+    activePaths: () => activation?.paths() ?? Promise.resolve([]),
     ...(config.EPHYRA_AUTONOMY_FILE ? { autonomyFile: config.EPHYRA_AUTONOMY_FILE } : {}),
     ...(config.EPHYRA_THRESHOLDS_FILE ? { thresholdsFile: config.EPHYRA_THRESHOLDS_FILE } : {}),
   });
   const now = () => new Date();
+  activation = new PolicyActivation({ git: g, docs, audit, now, apply: async (documents, receipt) => {
+    if (documents["autonomy.md"]) Object.assign(autonomy, parseAutonomy(documents["autonomy.md"]));
+    if (documents["thresholds.yaml"]) {
+      for (const key of Object.keys(thresholds)) delete thresholds[key];
+      Object.assign(thresholds, parseThresholds(documents["thresholds.yaml"]));
+    }
+    if (appliedPolicy === receipt.commit) return;
+    for (const trail of await ctx.trails.list()) {
+      if (["closed", "abandoned"].includes(trail.state) || trail.policyCommit === receipt.commit) continue;
+      const files = trail.head ? (await g(["diff", "--name-only", trail.base.sha, trail.head])).split("\n").filter(Boolean)
+        : (await Promise.all(trail.signals.map(id => ctx.signals.get(id)))).flatMap(signal => signal?.frames.filter(frame => frame.inApp)
+          .map(frame => frame.file) ?? []);
+      const rank = { low: 0, medium: 1, high: 2, critical: 3 };
+      const area = files.length ? files.map(path => areaFor(autonomy, [path])).sort((a, b) => rank[b.risk] - rank[a.risk])[0]!
+        : autonomy.areas.find(candidate => candidate.name === trail.area) ?? autonomy.fallback;
+      await ctx.emit({ trail: trail.id, actor: { kind: "system", id: "policy-activation" }, type: "policy_updated",
+        data: { commit: receipt.commit, path: receipt.path, risk: area.risk, area: area.name } });
+    }
+    appliedPolicy = receipt.commit;
+  } });
+  await activation.restore();
   const drafts = new DraftService({
-    store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, git: g, audit, baseRef: repo.baseRef, now, id: randomUUID, log,
+    store: client ? new ConvexDraftStore(client, secret) : new MemoryDraftStore(), docs, activation, git: g, audit,
+    baseRef: repo.baseRef, now, id: randomUUID, log,
     velum: new Velum({ model: draftModel, resolveModel: opts.resolveDraftModel, usage, now, id: randomUUID, secrets: knownSecrets(config) }),
   });
   const consolePort: ConsolePort = {
     usage: usageStore, trails: () => store.listTrails(), activity: (limit) => activity({ store, now }, limit), docs, drafts, now,
-    runs: runStore, broker: runBroker,
+    runs: runStore, broker: runBroker, activation,
   };
   const speech = opts.speechProvider ?? (config.EPHYRA_VOICE === "none" ? null : new CompatibleSpeechProvider({
     kind: config.EPHYRA_VOICE, billedTo: config.EPHYRA_VOICE === "notorganic" ? "notorganic" : config.EPHYRA_VOICE_API_KEY ? "byok" : "unknown",
@@ -493,6 +605,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     try { await store.inboxList(); return { store: "ok" as const }; } catch { return { store: "unavailable" as const }; }
   };
   const app = new Hono();
+  if (opts.ampReports) app.route("/", ampReportRoutes(opts.ampReports));
   app.get("/healthz", async (c) => {
     const h = await health();
     return c.json({ ok: h.store !== "unavailable", mode, ...h, version: VERSION }, h.store === "unavailable" ? 503 : 200);
@@ -525,5 +638,5 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   });
   return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel,
     engine, jobs, setup, questions, telemetry, health, start,
-    close: async () => { generation++; telemetry?.stop(); jobs.stop(); startup = null; } };
+    close: async () => { generation++; telemetry?.stop(); jobs.stop(); startup = null; await control.stopAll(); } };
 }

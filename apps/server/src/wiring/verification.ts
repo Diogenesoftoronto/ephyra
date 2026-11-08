@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ProofItem, Unverified, sha256Hex, type ProofItem as Item } from "@ephyra/core";
 import { redact, type ProofEvidenceCollector, type ProofEvidenceContext } from "@ephyra/agent";
 import { executeProbe, type GitProbeCatalog, type ProbeDefinition, type ProbeReceipt } from "./probes.ts";
+import type { Git } from "./landing.ts";
 
 export type BoundProofEvidence = {
   trailId: string; rev: number; base: string; head: string;
@@ -27,6 +28,20 @@ const BASIC = new Set(["repro_before", "repro_after", "tests", "diff_scope"]);
 const Report = z.object({ schema: z.literal(1), trailId: z.string(), rev: z.number().int().positive(),
   base: z.string(), head: z.string(), items: z.array(ProofItem).min(1).max(100) });
 const MAX_OUTPUT = 256_000;
+
+/** Reporter commands come from accepted repository configuration, not from the candidate model. */
+export async function repositoryVerificationCommands(git: Git, trail: import("@ephyra/core").Trail): Promise<VerificationCommand[]> {
+  const path = ".ephyra/proof.json";
+  const listed = await git(["ls-tree", "--name-only", trail.base.sha, "--", path]);
+  if (!listed.trim()) return [];
+  const text = await git(["show", `${trail.base.sha}:${path}`]);
+  if (Buffer.byteLength(text) > 128_000) throw new Unverified("proof reporter configuration size");
+  const command = z.object({ id: z.string(), command: z.array(z.string()), kinds: z.array(z.enum([
+    "story_render", "story_interaction", "story_visual_diff", "traffic_replay", "recording", "terminal_recording",
+  ])) }).strict();
+  try { return z.object({ schema: z.literal(1), commands: z.array(command).max(30) }).strict().parse(JSON.parse(text)).commands; }
+  catch { throw new Unverified("proof reporter configuration"); }
+}
 
 async function currentRegression(context: ProofEvidenceContext): Promise<ProbeDefinition | null> {
   const before = context.items.find(item => item.kind === "repro_before");
@@ -65,6 +80,8 @@ export async function runVerificationCommand(context: ProofEvidenceContext, comm
   let stdout = "", stderr = "", exit: number | undefined;
   for await (const part of context.runner.exec(context.handle, command.command, {
     cwd: context.headCwd, deadlineMs: context.remainingMs(),
+    env: { EPHYRA_PROOF_TRAIL: context.trail.id, EPHYRA_PROOF_REV: String(context.trail.rev),
+      EPHYRA_PROOF_BASE: context.base, EPHYRA_PROOF_HEAD: context.head },
   })) {
     if ("chunk" in part) {
       if (part.stream === "stdout") stdout += part.chunk;

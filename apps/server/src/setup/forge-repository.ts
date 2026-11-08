@@ -28,7 +28,7 @@ export type NativeProcess = { done: Promise<NativeResult>; stop(): Promise<void>
 export type NativeCommands = { run(input: NativeInvocation): Promise<NativeResult>; start(input: NativeInvocation): Promise<NativeProcess> };
 export type NativeCleanupReceipt = { repositoryId: string; nodeStopped: boolean; stagingRemoved: boolean };
 export type ForgeRepositoryOptions = {
-  https?: Pick<RepositoryConnector, "prepare" | "discover">;
+  https?: Pick<RepositoryConnector, "prepare" | "discover"> & Partial<Pick<RepositoryConnector, "command">>;
   lookup?: PublicLookup;
   fetch?: (url: string, init?: RequestInit) => Promise<Response>;
   resolveTxt?: (name: string) => Promise<string[][]>;
@@ -154,10 +154,16 @@ function nativeEnvironment(home: string, radHome: string, passphrase?: string): 
 
 /** Native metadata resolution; all HTTPS Git transfers delegate to the constrained existing connector. */
 export class ForgeRepositoryConnector {
-  private readonly https: Pick<RepositoryConnector, "prepare" | "discover">;
+  private readonly https: Pick<RepositoryConnector, "prepare" | "discover"> & Partial<Pick<RepositoryConnector, "command">>;
   private readonly chains = new Map<string, Promise<unknown>>();
   constructor(private readonly options: ForgeRepositoryOptions = {}) {
     this.https = options.https ?? new RepositoryConnector(options);
+  }
+  async command(input: ForgeRepositoryInput, directory: string, argv: string[]) {
+    const resolved = await this.resolve(input);
+    if (resolved.forge.kind === "radicle" || !this.https.command)
+      throw new ConnectionError("repository_write_unavailable", "This repository needs a scoped native signing transport.");
+    return this.https.command(await this.transport(input, resolved), directory, argv);
   }
   async resolve(input: Pick<ForgeRepositoryInput, "url" | "username" | "token" | "credentialHost">): Promise<ForgeResolution> {
     try {

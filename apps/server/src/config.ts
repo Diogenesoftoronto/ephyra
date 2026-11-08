@@ -85,6 +85,11 @@ const Config = z.object({
   EPHYRA_AGENT_MODEL: optional,
   EPHYRA_STEP_TIMEOUT_S: z.coerce.number().int().positive().default(1800),
   EPHYRA_WATCH_EVERY_S: z.coerce.number().int().positive().default(300),
+  EPHYRA_TRAIL_TOKENS: z.coerce.number().int().positive().default(2_000_000),
+  EPHYRA_TRAIL_WALLCLOCK_S: z.coerce.number().int().positive().default(4 * 3600),
+  /** Zero grants no metered spend. A deployment must choose its allowance explicitly. */
+  EPHYRA_TRAIL_SPEND_MICROUSD: z.coerce.number().int().nonnegative().default(0),
+  EPHYRA_REQUIRE_KNOWN_COST: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   /** Optional self-hosted evidence source. Personal workspaces receive their own authorized binding. */
   EPHYRA_TRACTION_ORIGIN: optional,
   EPHYRA_TRACTION_TOKEN: optional,

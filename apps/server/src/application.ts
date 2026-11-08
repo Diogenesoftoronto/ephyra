@@ -25,6 +25,7 @@ import { hostedAutomation, hostingStatus } from "./setup/hosting.ts";
 import { provisionSetup } from "./setup/provisioning.ts";
 import { canonicalJson } from "./audit.ts";
 import { proofToolchain } from "./setup/proof-toolchain.ts";
+import { personalLanding } from "./setup/personal-landing.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
@@ -32,7 +33,8 @@ export type ApplicationOptions = ComposeOverrides & {
   providerFetch?: AccountOptions["fetcher"];
   /** The host provisions these for this account/workspace. Deployment CLI credentials are never inherited. */
   workspaceAutomation?: (scope: { did: string; workspaceId: string; directory: string }) => Promise<
-    Pick<ComposeOverrides, "agent" | "runner" | "decide" | "evidenceSources" | "automationReadiness" | "profile">
+    Pick<ComposeOverrides, "agent" | "runner" | "decide" | "evidenceSources" | "automationReadiness" | "profile"
+      | "landing" | "verification" | "respondents" | "ampReports">
   >;
 };
 
@@ -115,10 +117,14 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           NOTORGANIC_AUTHORIZATION_URL: config.NOTORGANIC_AUTHORIZATION_URL,
           NOTORGANIC_PRODUCT: config.NOTORGANIC_PRODUCT,
           EPHYRA_CONSOLE_DIR: config.EPHYRA_CONSOLE_DIR,
+          EPHYRA_TRAIL_TOKENS: String(config.EPHYRA_TRAIL_TOKENS),
+          EPHYRA_TRAIL_WALLCLOCK_S: String(config.EPHYRA_TRAIL_WALLCLOCK_S),
+          EPHYRA_TRAIL_SPEND_MICROUSD: String(config.EPHYRA_TRAIL_SPEND_MICROUSD),
+          EPHYRA_REQUIRE_KNOWN_COST: "true",
         });
         const hosted = opts.workspaceAutomation ? null
           : await hostedAutomation(config, { did, workspaceId, directory }, () => account.modelFor(did, workspaceId));
-        const automation = await opts.workspaceAutomation?.({ did, workspaceId, directory }) ?? hosted ?? undefined;
+        const automation: ComposeOverrides | undefined = await opts.workspaceAutomation?.({ did, workspaceId, directory }) ?? hosted ?? undefined;
         const knowledgeLedger = config.CONVEX_URL ? undefined : new KnowledgeOperationLedger(join(directory, "knowledge-operations"));
         if (automation?.agent && !automation.runner)
           throw new AccountError(503, "The workspace coding agent needs its own isolated runner.");
@@ -138,6 +144,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           } } : {}),
           resolveDraftModel: () => account.modelFor(did, workspaceId),
           resolveTelemetry: () => account.telemetryFor(did, workspaceId),
+          landing: automation?.landing ?? personalLanding({ accounts: account, did, workspace: workspaceId }),
           questions: { did, workspaceId, model: () => account.modelFor(did, workspaceId),
             connection: () => account.peopleFor(did, workspaceId), box, publicOrigin: config.EPHYRA_PUBLIC_ORIGIN!,
             fetcher: opts.providerFetch },

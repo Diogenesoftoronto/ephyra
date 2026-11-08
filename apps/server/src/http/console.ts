@@ -10,6 +10,8 @@ import type { PolicyDocs } from "../docs.ts";
 import type { RunBroker, RunStore } from "../runs.ts";
 import type { AuthEnv } from "./auth.ts";
 import type { ApprovalPolicy } from "./app.ts";
+import { PolicyActivationError, type PolicyActivation } from "../policy-activation.ts";
+import { PolicyActivationReceipt } from "@ephyra/core";
 
 export type ConsolePort = {
   usage: UsageStore;
@@ -20,6 +22,7 @@ export type ConsolePort = {
   runs: RunStore;
   broker: RunBroker;
   now(): Date;
+  activation?: PolicyActivation;
 };
 
 /** Responses carry the application map as an additive field next to the core shapes. */
@@ -82,6 +85,7 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
   app.onError((error, c) => {
     if (error instanceof BadQuery || error instanceof BadCursor) return c.json({ error: error.message }, 400);
     if (error instanceof DraftError) return c.json({ error: error.message }, error.status);
+    if (error instanceof PolicyActivationError) return c.json({ error: error.message }, error.status);
     throw error;
   });
 
@@ -104,6 +108,10 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
   app.get("/v1/activity", async (c) => c.json(z.array(ActivityItem).parse(await port.activity(int(c.req.query("limit"), 50, 1, 200)))));
 
   app.get("/v1/docs", async (c) => c.json(z.array(DocOut).parse(await port.docs.list())));
+  app.get("/v1/policy/active", async (c) => {
+    const current = await port.activation?.restore() ?? null;
+    return c.json(current ? PolicyActivationReceipt.parse(current) : null);
+  });
   app.get("/v1/docs/:path{.+}", async (c) => {
     const doc = await port.docs.get(c.req.param("path"));
     return doc ? c.json(DocOut.parse(doc)) : c.json({ error: "not found" }, 404);
@@ -194,6 +202,16 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
     return c.json(out(await port.drafts.publish(c.req.param("id"), principal)));
   });
   app.post("/v1/drafts/:id/discard", async (c) => c.json(out(await port.drafts.discard(c.req.param("id")))));
+  app.post("/v1/drafts/:id/activate", async (c) => {
+    const principal = c.get("principal");
+    if ((approval.requireSignIn || approval.approvers.size > 0)
+      && (c.get("principalKind") !== "human" || !approval.approvers.has(principal)))
+      return c.json({ error: "only an approver can activate a policy" }, 403);
+    const key = c.req.header("Idempotency-Key");
+    if (!key) return c.json({ error: "An activation operation key is required." }, 400);
+    const request = await body(c, z.object({ expectedCommit: z.string(), expectedDigest: z.string(), expectedActive: z.string().nullable() }).strict());
+    return c.json(PolicyActivationReceipt.parse(await port.drafts.activate(c.req.param("id"), { ...request, key, principal })));
+  });
 
   return app;
 }

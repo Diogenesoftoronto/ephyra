@@ -68,7 +68,11 @@ export function probeApplies(probe: Pick<ProbeDefinition, "area" | "paths">, are
   return files.some(file => probe.paths.some(pattern => new Bun.Glob(pattern).match(file)));
 }
 
-export type ProbeCatalogOptions = { git: Git; journal: Journal; secrets?: string[]; maxProbes?: number };
+export type ProbeCatalogOptions = {
+  git: Git; journal: Journal; secrets?: string[]; maxProbes?: number;
+  /** Explicitly reviewed policy documents can override intents independently of an application deployment. */
+  intentDocuments?: (trail: Trail) => Promise<Array<{ path: string; content: string; commit: string }>>;
+};
 
 /** Successful repros are immutable Git records. An interrupted registration can safely compare the same ref on restart. */
 export class GitProbeCatalog {
@@ -156,9 +160,16 @@ export class GitProbeCatalog {
     if (kind !== "regression") {
       const paths = (await this.options.git(["ls-tree", "-r", "--name-only", commit, "--", "intents/"]))
         .split("\n").filter(path => /^intents\/[a-zA-Z0-9._-]+\.md$/.test(path));
-      if (paths.length > 100) throw new Unverified("intent catalog limit");
-      for (const path of paths) {
-        const text = this.bounded(await this.options.git(["show", `${commit}:${path}`]));
+      const active = await this.options.intentDocuments?.(trail) ?? [];
+      const documents = new Map<string, { content?: string; commit: string }>(paths.map(path => [path, { commit }]));
+      for (const document of active) {
+        if (!/^intents\/[a-zA-Z0-9._-]+\.md$/.test(document.path)
+          || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(document.commit)) throw new Unverified("active intent source");
+        documents.set(document.path, document);
+      }
+      if (documents.size > 100) throw new Unverified("intent catalog limit");
+      for (const [path, document] of documents) {
+        const text = this.bounded(document.content ?? await this.options.git(["show", `${document.commit}:${path}`]));
         const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
         if (frontmatter === undefined) continue;
         const raw = Bun.YAML.parse(frontmatter) as Record<string, unknown>;
@@ -172,7 +183,7 @@ export class GitProbeCatalog {
           probes.push(Definition.parse({ id: `intent:${raw.id}:${spec.id ?? index}`, kind: "intent",
             paths: raw.paths ?? [], area: raw.area, command,
             ...(!command ? { unavailable: `intent ${String(spec.kind).slice(0, 60)} probe needs an execution adapter` } : {}),
-            source: { commit, path, digest: digest(text) } }));
+            source: { commit: document.commit, path, digest: digest(text) } }));
         }
       }
     }
