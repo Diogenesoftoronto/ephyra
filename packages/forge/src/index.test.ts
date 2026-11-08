@@ -62,9 +62,10 @@ test("local conditional landing, replay and base moved", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
-test("unverified Tangled and runner mode", async () => {
+test("Tangled advertises only its configured modes and events require service auth", async () => {
   const t = new TangledAdapter();
-  expect((await t.capabilities()).verified).toBe(false);
+  expect((await t.capabilities()).landingModes).toEqual(["trail_ref"]);
+  expect((await t.capabilities()).events).toBe(false);
   await expect(async () => {
     for await (const _ of t.events(null)) {
     }
