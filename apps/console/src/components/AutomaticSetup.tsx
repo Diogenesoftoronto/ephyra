@@ -10,11 +10,11 @@ export function SetupModeChoice({ value, onChange, disabled }: {
   return (
     <fieldset className="account-fields setup-mode" disabled={disabled}>
       <legend>How Ephyra should work</legend>
-      <label className="setup-mode-choice">
+      <label className="setup-mode-choice" data-selected={value === "autonomous" || undefined}>
         <input type="radio" name="setup-mode" checked={value === "autonomous"} onChange={() => onChange("autonomous")} />
         <span><strong>Self-driving</strong><small>Investigate and resolve within the configured policy. Ask when something needs you.</small></span>
       </label>
-      <label className="setup-mode-choice">
+      <label className="setup-mode-choice" data-selected={value === "supervised" || undefined}>
         <input type="radio" name="setup-mode" checked={value === "supervised"} onChange={() => onChange("supervised")} />
         <span><strong>Supervised</strong><small>Pause for your review at the configured checkpoints.</small></span>
       </label>

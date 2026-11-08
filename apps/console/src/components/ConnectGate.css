@@ -1,41 +1,55 @@
-.gate {
-  max-width: 34rem;
-  margin: var(--s7) auto;
-  padding: 0 var(--s4);
-  display: grid;
-  gap: var(--s4);
-}
-.connect-intro {
+.entry-page { min-height: 100dvh; padding: clamp(1rem, 3vw, 2.5rem); }
+.entry-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  justify-content: space-between;
+  max-width: 70rem;
+  margin: 0 auto var(--s5);
 }
-.connect-intro .ui-page-header {
-  flex: 1;
+.entry-toolbar > a { font: 680 1.45rem / 1 var(--font-display); text-decoration: none; }
+.gate {
+  max-width: 70rem;
+  min-height: min(46rem, calc(100dvh - 7rem));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+}
+.connect-form-surface {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s5);
+  padding: clamp(1.5rem, 3vw, 3rem) 0;
   min-width: 0;
-  border: 0;
-  margin: 0;
 }
+.connect-intro .ui-page-header { border: 0; margin: 0; padding: 0; }
+.connect-intro .ui-page-header h1 { max-width: 14ch; font-size: clamp(2rem, 3vw, 2.65rem); }
+.connect-intro .ui-page-header p { max-width: 38ch; }
 .connect-account {
-  padding-bottom: var(--s3);
+  margin-top: var(--s3);
+  padding: var(--s5);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-gel);
 }
-.connect-token {
-  padding-block: var(--s4);
-  border-block: 1px solid var(--line);
-}
-.connect-token > summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.connect-token[open] > summary {
-  margin-bottom: var(--s4);
-}
-@media (max-width: 450px) {
-  .connect-intro {
-    align-items: flex-start;
-  }
-  .connect-intro .jelly-specimen {
-    width: 80px;
-    height: 80px;
-  }
+.connect-account .stack { gap: var(--s4); }
+.connect-account a { width: 100%; min-height: 48px; text-align: center; }
+.connect-account .muted { font-size: var(--fs-small); }
+.connect-token { padding-block: var(--s3); border-bottom: 1px solid var(--line); }
+.connect-token > summary { cursor: pointer; font-weight: 600; min-height: 36px; }
+.connect-token[open] > summary { margin-bottom: var(--s4); }
+.connect-demo { display: grid; gap: var(--s1); font-size: var(--fs-small); }
+.connect-demo a { color: var(--ink); font-weight: 600; }
+.connect-journey { display: grid; gap: var(--s3); font-size: var(--fs-small); }
+.connect-journey li { display: flex; align-items: baseline; gap: var(--s3); }
+.connect-journey span { font: 400 0.65rem / 1 var(--font-mono); color: #f4bf78; }
+.sb-frame:has(> .entry-page) { padding: 0; }
+@media (max-width: 700px) {
+  .entry-page { padding: var(--s4); }
+  .gate { grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+  .connect-form-surface { padding: var(--s2) var(--s1) var(--s5); }
+  .connect-journey { display: none; }
+  .connect-intro .ui-page-header h1 { max-width: 20ch; font-size: 1.85rem; }
 }

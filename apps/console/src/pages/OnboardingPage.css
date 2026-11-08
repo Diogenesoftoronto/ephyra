@@ -195,3 +195,55 @@
     grid-column: 2;
   }
 }
+/* Setup is a focused form beside an illustrated explanation of the work ahead. */
+.account-page.onboarding-page { max-width: 72rem; gap: var(--s6); }
+.onboarding-heading__text { max-width: 46rem; }
+.onboarding-layout {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.72fr) minmax(0, 1.28fr);
+  gap: var(--s6);
+  align-items: start;
+}
+.onboarding-content {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  box-shadow: var(--shadow-surface);
+}
+.onboarding-explainer { display: grid; gap: var(--s4); }
+.onboarding-explainer li { display: grid; gap: var(--s1); }
+.onboarding-explainer strong { color: #f3c989; font-size: var(--fs-small); }
+.onboarding-explainer p { color: #d2d9cd; font-size: var(--fs-small); line-height: 1.6; }
+.setup-mode-choice {
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.setup-mode-choice[data-selected] { border-color: var(--jelly-deep); background: var(--jelly-tint); }
+.setup-mode-choice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.setup-mode-choice small { font-size: var(--fs-small); }
+.setup-progress li { position: relative; align-items: start; }
+.setup-step-marker {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font: 500 0.8rem / 1 var(--font-mono);
+  background: var(--surface);
+}
+.setup-progress [data-status="complete"] .setup-step-marker { background: var(--ok-tint); border-color: var(--ok); color: var(--ok); }
+.setup-progress [data-status="running"] .setup-step-marker { background: var(--jelly-tint); border-color: var(--jelly-deep); }
+.setup-progress [data-status="blocked"] .setup-step-marker { background: var(--warn-tint); border-color: var(--warn); }
+@media (max-width: 1100px) {
+  .onboarding-layout { grid-template-columns: minmax(0, 1fr); }
+  .onboarding-layout > .material-scene { display: none; }
+}
+@media (max-width: 450px) {
+  .onboarding-content { padding: var(--s4); border-radius: 12px; }
+  .setup-progress li { grid-template-columns: 1.5rem minmax(0, 1fr); }
+}

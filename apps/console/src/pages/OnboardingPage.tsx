@@ -5,7 +5,7 @@ import {
   AccountSaveFeedback, ModelAccessForm, RepositoryForm, type AccountPageProps,
 } from "../components/AccountForms.tsx";
 import { useAccountWrite } from "../components/useAccountWrite.ts";
-import { JellySpecimen } from "../components/JellySpecimen.tsx";
+import { MaterialScene } from "../components/MaterialScene.tsx";
 import { AutomaticSetup, SetupModeChoice } from "../components/AutomaticSetup.tsx";
 import "./OnboardingPage.css";
 
@@ -43,8 +43,16 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
             </Button>
           )}
         </div>
-        <JellySpecimen size={96} />
       </header>
+      <div className="onboarding-layout">
+      <MaterialScene compact title="Make room for the work."
+        description="One repository, a clear policy, and a record of every step.">
+        <ol className="onboarding-explainer">
+          <li><strong>Connect</strong><p>Choose the repository and branch Ephyra should work with.</p></li>
+          <li><strong>Prepare</strong><p>Ephyra inspects the code and records what it needs to run.</p></li>
+          <li><strong>Follow together</strong><p>See agent runs and invite teammates as viewers or approvers.</p></li>
+        </ol>
+      </MaterialScene>
       <div className="onboarding-content">
         {settings.repository ? automation ? (
           <AutomaticSetup
@@ -80,6 +88,7 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, a
           </details>
         )}
         <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
+      </div>
       </div>
     </div>
   );
