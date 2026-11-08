@@ -1,8 +1,9 @@
-import { Badge, Checkpoint, Empty, Row, Rows } from "../kit.ts";
+import { Badge, Checkpoint, Empty } from "../kit.ts";
 import { relativeTime } from "../lib/format.ts";
 import { useNow } from "../lib/clock.tsx";
 import type { InboxEntry } from "../api.ts";
 import { checkpointName } from "../ui/primitives.tsx";
+import "./WaitingList.css";
 
 export const itemLabel = (i: InboxEntry): string =>
   i.kind === "checkpoint"
@@ -48,40 +49,41 @@ export function WaitingList({ items, limit = 5 }: { items: InboxEntry[]; limit?:
   if (waiting.length === 0)
     return <Empty title="Nothing is waiting for you" body="Approvals and spend requests appear here." />;
   return (
-    <Rows>
-      {waiting.slice(0, limit).map((i) => (
-        <Row
-          key={`${i.trailId}-${i.kind}-${i.checkpoint ?? ""}`}
-          lead={<ItemLead item={i} />}
-          title={i.title}
-          meta={
-            <>
-              {itemStep(i)} · <span className="mono">{i.short}</span> · {i.area} · rev {i.bound.rev}
-              {i.bound.head && (
-                <>
-                  {" "}
-                  · <span className="mono">{i.bound.head.slice(0, 7)}</span>
-                </>
-              )}
-              <br />
-              <Badge tone={i.risk === "critical" ? "bad" : i.risk === "high" ? "warn" : "neutral"}>
-                {i.risk} risk
-              </Badge>
-              {" · "}
-              {i.blocking ? "Blocking" : "Advisory"} · requested {relativeTime(i.createdAt, now)}
-            </>
-          }
-          aside={
-            <a
-              href={`#/inbox/${i.trailId}`}
-              className={`ui-button ui-button--sm ui-button--${i.blocking ? "primary" : "secondary"}`}
-            >
-              Review
-            </a>
-          }
-        />
-      ))}
-      {waiting.length > limit && <Row title={<a href="#/inbox">and {waiting.length - limit} more</a>} />}
-    </Rows>
+    <div className="waiting-list">
+      <ol aria-label="Decisions waiting">
+        {waiting.slice(0, limit).map((i, index) => (
+          <li key={`${i.trailId}-${i.kind}-${i.checkpoint ?? ""}`}>
+            <div className="waiting-list__heading">
+              <ItemLead item={i} />
+              <div>
+                <p className="waiting-list__identity">{itemStep(i)} <span>·</span> <span className="mono">{i.short}</span></p>
+                <h3>{i.title}</h3>
+              </div>
+            </div>
+            <div className="waiting-list__details">
+              <Badge tone={i.risk === "critical" ? "bad" : i.risk === "high" ? "warn" : "neutral"}>{i.risk} risk</Badge>
+              <span>{i.blocking ? "Blocking" : "Advisory"}</span>
+              <span>{i.area}</span>
+            </div>
+            <div className="waiting-list__footer">
+              <p>
+                <span>Requested {relativeTime(i.createdAt, now)}</span>
+                <span>rev {i.bound.rev}{i.bound.head && <> · <span className="mono">{i.bound.head.slice(0, 7)}</span></>}</span>
+              </p>
+              <a
+                href={`#/inbox/${i.trailId}`}
+                className={`ui-button ui-button--sm ui-button--${index === 0 ? "primary" : "secondary"}`}
+                aria-label={`Review ${i.short}: ${i.title}`}
+              >Review <span aria-hidden="true">→</span></a>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {waiting.length > limit && (
+        <a className="waiting-list__more" href="#/inbox">
+          View {waiting.length - limit} more decisions in the inbox <span aria-hidden="true">→</span>
+        </a>
+      )}
+    </div>
   );
 }

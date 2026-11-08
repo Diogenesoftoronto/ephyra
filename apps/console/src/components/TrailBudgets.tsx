@@ -5,7 +5,7 @@ import { formatMicrousd, formatTokens } from "../lib/format.ts";
 const usd = (n: number) => formatMicrousd(Math.round(n));
 
 /** Each trail's spend and tokens as used of max. */
-export function TrailBudgets({ trails }: { trails: UsageSummary["byTrail"] }) {
+export function TrailBudgets({ trails, limit }: { trails: UsageSummary["byTrail"]; limit?: number }) {
   if (trails.length === 0) return <Empty title="No trail spent anything in this window" />;
   return (
     <div className="stack">
@@ -19,6 +19,7 @@ export function TrailBudgets({ trails }: { trails: UsageSummary["byTrail"] }) {
                 : 0;
           return ratio(b) - ratio(a);
         })
+        .slice(0, limit)
         .map((t) => (
           <div key={t.trailId} className="stack-sm">
             <Meter

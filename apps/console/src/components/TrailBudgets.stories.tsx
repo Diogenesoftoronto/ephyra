@@ -7,6 +7,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Budgets: Story = { args: { trails: usage14.byTrail } };
+export const Overview: Story = { args: { trails: usage14.byTrail, limit: 3 } };
 export const NearLimit: Story = {
   args: {
     trails: usage14.byTrail.map((t) => ({
