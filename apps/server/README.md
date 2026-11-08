@@ -8,7 +8,7 @@ The control plane: OTLP ingest, triage, the trail engine, effect wiring, the HTT
 Not Organic supplies the authenticated DID. Each account can configure its HTTPS repository/branch, optional Git token,
 and Hosted, OpenAI, Anthropic-compatible Messages, or OpenAI-compatible Chat Completions model access.
 Personal configuration never inherits deployment provider credentials, policy overrides, or the trusted local runner.
-Personal code execution and speech remain unconfigured; saved model access powers Velum's document drafting.
+Personal execution stays unconfigured unless the host provisions workspace-scoped automation adapters; saved model access powers Velum's document drafting. Speech remains separately configured.
 
 `GET /v1/account` returns public settings. `PUT /v1/account/{repository,model,onboarding}` requires an authenticated human,
 `X-Ephyra-Account` matching that DID, an `Idempotency-Key`, and `expectedVersion`. Cookie writes also require same-origin
@@ -323,3 +323,54 @@ OpenTUI application and its stories live in `apps/cli/src/inbox.stories.ts` for 
 
 New browser-facing application components and meaningful states should be added to Storybook alongside
 their implementation. The public marketing site is separate; the web console is `apps/console`.
+
+
+## Automatic setup and self-driving checkpoints
+
+`GET /v1/setup` reads the current workspace setup; `GET /v1/setup?operationKey=...` reads the exact start receipt.
+`POST /v1/setup` accepts `{ "mode": "autonomous" }` (the default) or `supervised`, with an `Idempotency-Key`.
+It inherits authentication, same-origin cookie protections and the workspace binding. It returns 202 while the
+`automatic_setup` job inspects the pinned repository commit. Starts are serialized with Git ref transactions;
+repeating a key cannot start a second run. Reusing a key for a different mode is rejected.
+
+`refs/ephyra/setup/runs/<id>` contains `state.json`, `autonomy.md`, `thresholds.yaml`, `intents/application.md`, and
+`ephyra/{verification,evidence,recovery}.json`. `refs/ephyra/setup/current` points to the latest run. These refs stay in
+the workspace mirror: setup does not push, change the source branch or deploy. Existing autonomy/intent/calibration
+files are retained; supervised mode can narrow checkpoint permissions. Repository scripts are untrusted candidates,
+not executed checks. Generated intent text explicitly leaves product-specific intent unverified.
+
+Setup creates real documents and checks configured capabilities. It does not provision a cloud sandbox, run a baseline,
+or verify remote write access by itself yet. Missing coding-agent, runner, decision, telemetry, verification, landing or
+watch capabilities produce specific operator blockers. Only ready setup is activated, and restart rechecks availability.
+The host supplies `composeApplication(..., { workspaceAutomation: async ({ did, workspaceId, directory }) => ... })`
+with account-bound `agent`, `runner`, `decide`, `evidenceSources` and previously verified `automationReadiness` flags.
+A personal agent without its own runner is rejected; deployment CLI credentials are not inherited. The flags represent
+host-supplied verification, not new proof performed by this setup job. Native Radicle transport, forge OAuth/apps,
+Tangled write operations and hosted automatic provisioning remain Unverified; HTTPS smart Git works across hosts.
+
+`checkpointHandlers` evaluates advisory A/B/C checkpoints using the decision backend and calibrated response identity.
+It records questions, source documents, answers and decisions under `decisions/`, with `latest-A/B/C.json` available
+in the trail inspector. C also validates the pinned proof and actual diff scope. Supervised checkpoints use the human
+inbox. Unknown identities, incomplete proof and ambiguous calls cannot approve. Durable provider receipts prevent paid
+retries, journal-head checks prevent stale decisions, and comment-triggered reevaluation has a per-revision call limit.
+Existing high/critical proof requirements still apply; this change does not remove those policy constraints.
+
+`gatherResearchEvidence` reads configured `EvidenceSource`s before research/reproduction, puts the results into untrusted
+prompt data and journals coverage, timestamps and exact source references. `TractionEvidence` implements Traction's
+actual `/api/state` contract with a server-configured account/workspace/project allowlist and credential resolver.
+Self-hosted deployments can set `EPHYRA_TRACTION_ORIGIN`, `EPHYRA_TRACTION_TOKEN` and a comma-separated
+`EPHYRA_TRACTION_PROJECTS` allowlist; personal workspaces never inherit this token. Its aggregate PostHog/service-health
+evidence supplies context, not traces or causal proof. Traction's operator token
+is broad; a hosted integration must authorize the configured project binding. Global briefings are excluded. No direct
+PostHog log/replay integration or automatic contacting of users is implemented here.
+
+Recovery plans preserve the declared trail budget, prior failure references and attempted hypotheses. Isolated retries
+change approach; a fresh context is named only for the CLI adapters that actually start a fresh session. Other adapters
+seek additional evidence. Ambiguous external operations do not retry. The planner is not a replacement for provider
+metering, hard spend reservations or a production sandbox's enforcement.
+
+Verified with local Git fixtures, fake decision/evidence services and browser flows: persistent setup documents,
+idempotent starts, restart recovery, capability blockers, supervised mode, machine A/B/C progression, stale and ambiguous
+responses, bounded recovery, source isolation and desktop/phone onboarding. No paid model, production repair, remote
+forge landing, live PostHog query or hosted provisioning was performed. Traction's public health endpoint responded,
+but authenticated coverage and end-to-end usefulness remain Unverified.

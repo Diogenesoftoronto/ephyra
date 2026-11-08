@@ -2,6 +2,8 @@ import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ConsoleClient, type SessionInfo } from "./api.ts";
 import { AccountClient, type AccountApi } from "./account-api.ts";
+import { SetupClient } from "./setup-api.ts";
+import { FakeSetupApi } from "./fake/setup.ts";
 import type { AccountSettings } from "@ephyra/core";
 import { App } from "./app/App.tsx";
 import { useAsync } from "./app/useAsync.ts";
@@ -207,6 +209,10 @@ function PersonalApp({
     () => new ConsoleClient(location.origin, token, fetch, undefined, settings.workspaceId),
     [token, settings.workspaceId],
   );
+  const automation = useMemo(
+    () => new SetupClient(location.origin, token, settings.workspaceId, identity.principal),
+    [token, settings.workspaceId, identity.principal],
+  );
   const workspace = useAsync(() => api.identity(), `workspace:${identity.principal}:${settings.workspaceId}`);
   useEffect(() => {
     if (
@@ -222,7 +228,7 @@ function PersonalApp({
           api={api}
           identity={{ ...owner, alias: identity.alias }}
           approver={owner.approver}
-          account={{ api: accountApi, settings, onChange }}
+          account={{ api: accountApi, settings, onChange, automation }}
           onDisconnect={onDisconnect}
           disconnectLabel={disconnectLabel}
         />
@@ -233,6 +239,7 @@ function PersonalApp({
 
 function Demo({ api }: { api: FakeApi }) {
   const accountApi = useMemo(() => new FakeAccountApi(), []);
+  const automation = useMemo(() => new FakeSetupApi(), []);
   const account = useAsync(() => accountApi.settings(), "demo-account");
   return (
     <Load state={account.state} retry={account.reload}>
@@ -241,7 +248,7 @@ function Demo({ api }: { api: FakeApi }) {
           api={api}
           demo
           identity={{ principal: ME, kind: "human", approver: true }}
-          account={{ api: accountApi, settings, onChange: account.set }}
+          account={{ api: accountApi, settings, onChange: account.set, automation }}
         />
       )}
     </Load>

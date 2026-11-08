@@ -75,11 +75,24 @@ const Config = z.object({
   EPHYRA_AGENT_MODEL: optional,
   EPHYRA_STEP_TIMEOUT_S: z.coerce.number().int().positive().default(1800),
   EPHYRA_WATCH_EVERY_S: z.coerce.number().int().positive().default(300),
+  /** Optional self-hosted evidence source. Personal workspaces receive their own authorized binding. */
+  EPHYRA_TRACTION_ORIGIN: optional,
+  EPHYRA_TRACTION_TOKEN: optional,
+  EPHYRA_TRACTION_PROJECTS: optional,
 });
 export type Config = z.infer<typeof Config>;
 
 export function readConfig(env: Record<string, string | undefined>): Config {
   const config = Config.parse(env);
+  if (config.EPHYRA_TRACTION_ORIGIN || config.EPHYRA_TRACTION_TOKEN || config.EPHYRA_TRACTION_PROJECTS) {
+    if (!(config.EPHYRA_TRACTION_ORIGIN && config.EPHYRA_TRACTION_TOKEN && config.EPHYRA_TRACTION_PROJECTS))
+      throw new Error("Traction needs EPHYRA_TRACTION_ORIGIN, EPHYRA_TRACTION_TOKEN and EPHYRA_TRACTION_PROJECTS");
+    const url = new URL(config.EPHYRA_TRACTION_ORIGIN);
+    if (url.protocol !== "https:" || url.origin !== config.EPHYRA_TRACTION_ORIGIN)
+      throw new Error("Traction requires a bare HTTPS origin without credentials, path, query or fragment");
+    if (config.EPHYRA_TRACTION_PROJECTS.split(",").some((id) => !/^[a-zA-Z0-9._-]{1,200}$/.test(id.trim())))
+      throw new Error("Traction project identifiers must be a comma-separated allowlist");
+  }
   if (config.CONVEX_URL && !config.EPHYRA_CONVEX_SECRET) throw new Error("CONVEX_URL is set but EPHYRA_CONVEX_SECRET is not");
   if (config.EPHYRA_DECIDE === "typesafe" && !config.TYPESAFE_API_KEY) throw new Error("EPHYRA_DECIDE=typesafe needs TYPESAFE_API_KEY");
   if (config.EPHYRA_DECIDE === "systemone" && !(config.EPHYRA_SYSTEMONE_URL && config.EPHYRA_SYSTEMONE_MODEL)) {

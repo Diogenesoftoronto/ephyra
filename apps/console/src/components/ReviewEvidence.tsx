@@ -12,7 +12,15 @@ export function ReviewEvidence({
 }) {
   return (
     <section className="stack" aria-label="Review evidence">
-      {(artefacts ?? []).map((a) => (
+      {(artefacts ?? []).map((a) => a.path.startsWith("decisions/") || a.path === "evidence/index.json" ? (
+        <details key={a.path} className="review-proof-item">
+          <summary>
+            {a.path === "evidence/index.json" ? "Research source coverage"
+              : `Machine checkpoint ${a.path.match(/latest-([ABC])/)?.[1] ?? "decision"}`}
+          </summary>
+          <pre className="review-document">{a.content}</pre>
+        </details>
+      ) : (
         <Card key={a.path} tone="quiet" title={a.path} meta={a.content ? <ReadAloudButton text={a.content} label={a.path} /> : undefined}>
           {a.content === null ? (
             <p className="muted">

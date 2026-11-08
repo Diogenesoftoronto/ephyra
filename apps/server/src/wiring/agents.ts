@@ -2,14 +2,16 @@
 // step with the coding agent, write artefacts into the journal, emit the next event, destroy the sandbox.
 // No sandbox is kept alive while a trail waits on a human.
 import { evaluateProof } from "@ephyra/policy";
-import { Unverified, personaFor } from "@ephyra/core";
-import { executorOf, runAgent, type ExecutorInfo } from "@ephyra/agent";
+import { ReconciliationRequired, Unverified, personaFor } from "@ephyra/core";
+import { ClaudeCodeAgent, CodexAgent, executorOf, redact, runAgent, type ExecutorInfo } from "@ephyra/agent";
 import type {
   AgentStep, AgentTask, CodingAgent, ProofBundle, ProofItem, Runner, RunnerHandle, ServiceProfile, Signal, Trail,
 } from "@ephyra/core";
 import type { HandlerSlice, ServerContext } from "./context.ts";
 import type { BilledTo, UsageRecorder } from "../usage.ts";
 import type { RunHandle, RunRecorder } from "../runs.ts";
+import { gatherResearchEvidence } from "./research-evidence.ts";
+import { buildRecovery } from "./recovery.ts";
 
 export type BuildProofFn = (options: {
   runner: Runner; handle: RunnerHandle; trail: Trail; base: string; head: string; probe: string;
@@ -31,6 +33,7 @@ export type AgentDeps = {
   runs?: RunRecorder;
   /** Exact secret values to scrub from run events (on top of pattern-based redaction). */
   secrets?: string[];
+  evidenceSources?: import("@ephyra/core").EvidenceSource[];
 };
 
 type StepPayload = { trailId: string; rev: number; step: AgentStep; note?: string };
@@ -126,10 +129,24 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
       data: { step: payload.step, reason: "no coding agent or runner configured on this deployment", retryable: false } });
     return;
   }
-  const priorFailures = (await ctx.trails.events(trail.id))
-    .filter((e) => e.type === "agent_failed" && e.rev === trail.rev && e.data.step === payload.step).length;
+  const events = await ctx.trails.events(trail.id);
+  const recovery = buildRecovery(trail, events, payload.step, {
+    retrySafety: deps.profile.readOnlyProd && deps.profile.credentials.length === 0 ? "isolated" : "unknown",
+    canResetContext: deps.agent instanceof CodexAgent || deps.agent instanceof ClaudeCodeAgent,
+    secrets: deps.secrets,
+  });
+  const recoveryFiles = { [`artefacts/recovery/${payload.step}-${trail.rev}-${recovery.attempt}.json`]: JSON.stringify(recovery.artifact) };
+  if (recovery.exhausted) {
+    await ctx.emit({ trail: trail.id, actor, type: "parked", data: { reason: recovery.artifact.reason ?? "Recovery needs new evidence." },
+      files: recoveryFiles });
+    return;
+  }
+  const evidence = ["research", "repro"].includes(payload.step)
+    ? await gatherResearchEvidence(deps.evidenceSources ?? [], trail, trail.title, { secrets: deps.secrets })
+    : { untrusted: {}, files: {} };
   const task: AgentTask = {
-    step: payload.step, trail, untrusted: await untrustedFor(ctx, trail), context: await contextFor(ctx, trail, payload.note),
+    step: payload.step, trail, untrusted: { ...await untrustedFor(ctx, trail), ...evidence.untrusted, recovery: recovery.untrustedHistory },
+    context: { ...await contextFor(ctx, trail, payload.note), recovery: recovery.instruction },
     budget: { tokens: trail.budget.tokensMax - trail.budget.tokensUsed, wallclockS: deps.stepTimeoutS },
   };
   let result;
@@ -152,7 +169,9 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     await record(error instanceof Unverified ? "unavailable" : "failed", { note: String(error) });
     await run?.finish({ status: error instanceof Unverified ? "unavailable" : "failed", error: String(error) });
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
-      data: { step: payload.step, reason: String(error).slice(0, 500), retryable: priorFailures < 2 } });
+      data: { step: payload.step, reason: redact(String(error), deps.secrets ?? [], 500),
+        retryable: !(error instanceof ReconciliationRequired) && recovery.attempt < 3 && recovery.artifact.retrySafety === "isolated" },
+      files: { ...evidence.files, ...recoveryFiles } });
     return;
   }
   const spent = { engine: engineOf(deps.agent, result.usage.model), tokens: result.usage.tokens, cost: result.usage.costMicrousd };
@@ -162,7 +181,8 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     await run?.finish({ status: "failed", engine: spent.engine, usage: { tokens: spent.tokens, costMicrousd: spent.cost },
       error: result.error ?? "coding agent returned an unsuccessful turn" });
     await ctx.emit({ trail: trail.id, actor, type: "agent_failed",
-      data: { step: payload.step, reason: result.error ?? "coding agent returned an unsuccessful turn", retryable: false } });
+      data: { step: payload.step, reason: result.error ?? "coding agent returned an unsuccessful turn", retryable: false },
+      files: { ...evidence.files, ...recoveryFiles } });
     return;
   }
   await record("ok", spent);
@@ -172,7 +192,7 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
   if (thread && trail.mirrors.ampThread !== thread) {
     await ctx.emit({ trail: trail.id, actor, type: "mirror_linked", data: { kind: "ampThread", id: thread } });
   }
-  const files: Record<string, string> = {};
+  const files: Record<string, string> = { ...evidence.files, ...recoveryFiles };
   for (const [path, content] of Object.entries(result.artefacts)) files[`artefacts/${payload.step}/${path}`] = content;
   if (result.sessions.length) files[`sessions/${payload.step}.json`] = JSON.stringify(result.sessions);
 

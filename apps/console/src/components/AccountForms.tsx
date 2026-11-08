@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { AccountSettings, ModelProvider, ModelUpdate, RepositoryUpdate } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
+import type { SetupApi } from "../setup-api.ts";
 import { Button, Field, Tag } from "../kit.ts";
 import { useAccountWrite, type AccountWriteState } from "./useAccountWrite.ts";
 import { ModelPicker } from "./ModelPicker.tsx";
@@ -8,6 +9,7 @@ import { normalizeCatalogBaseUrl, type ModelCatalog } from "../model-catalog.ts"
 import "./AccountForms.css";
 
 export interface AccountPageProps {
+  automation?: SetupApi;
   api: AccountApi;
   settings: AccountSettings;
   onChange: (settings: AccountSettings) => void;
@@ -17,6 +19,7 @@ export interface AccountPageProps {
 export interface AccountFormProps extends AccountPageProps {
   onBusyChange?: (busy: boolean) => void;
   secondaryAction?: ReactNode;
+  submitLabel?: string;
 }
 
 const providers: Record<ModelProvider, string> = {
@@ -56,10 +59,10 @@ export function AccountSaveFeedback({ state, onRefresh }: { state: AccountWriteS
   );
 }
 
-export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, secondaryAction }: AccountFormProps) {
+export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, secondaryAction, submitLabel }: AccountFormProps) {
   const repository = settings.repository;
   const [url, setUrl] = useState(repository?.url ?? "");
-  const [branch, setBranch] = useState(repository?.branch ?? "main");
+  const [branch, setBranch] = useState(repository?.branch ?? "");
   const [username, setUsername] = useState(repository?.username ?? "");
   const [token, setToken] = useState("");
   const [clearToken, setClearToken] = useState(false);
@@ -71,7 +74,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
   }, [write.locked, onBusyChange]);
   useEffect(() => {
     setUrl(settings.repository?.url ?? "");
-    setBranch(settings.repository?.branch ?? "main");
+    setBranch(settings.repository?.branch ?? "");
     setUsername(settings.repository?.username ?? "");
     setToken("");
     setClearToken(false);
@@ -97,7 +100,8 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
         const input: RepositoryUpdate = {
           expectedVersion: settings.version,
           url: url.trim(),
-          branch: branch.trim(),
+          branch: branch.trim() || "main",
+          ...(!branch.trim() ? { discoverDefaultBranch: true } : {}),
           username: username.trim(),
           ...(token.trim() ? { token: token.trim() } : {}),
           ...(clearToken ? { clearToken: true } : {}),
@@ -140,9 +144,9 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
               }}
             />
           </Field>
-          <Field label="Branch">
+          <Field label="Branch (optional)" hint="Leave blank to use the repository’s default branch.">
             <input
-              required
+              placeholder="Detect automatically"
               maxLength={200}
               autoCapitalize="none"
               autoCorrect="off"
@@ -198,7 +202,10 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
           </div>
         </details>
       </fieldset>
-      <p className="account-hint">Changing the repository or branch opens a separate document workspace.</p>
+      <p className="account-hint">
+        GitHub, GitLab, Forgejo, Tangled, or any HTTPS Git clone URL. Use an HTTPS gateway for Radicle.
+        Changing the repository or branch opens a separate workspace.
+      </p>
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       <div className="account-actions">
         <Button
@@ -208,7 +215,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
           disabled={write.locked}
           data-account-action="save-repository"
         >
-          {onDone ? "Continue" : "Save repository"}
+          {submitLabel ?? (onDone ? "Continue" : "Save repository")}
         </Button>
         {secondaryAction}
       </div>

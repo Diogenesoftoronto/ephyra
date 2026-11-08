@@ -21,6 +21,10 @@ export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
   repository?: AccountOptions["repository"];
   providerFetch?: AccountOptions["fetcher"];
+  /** The host provisions these for this account/workspace. Deployment CLI credentials are never inherited. */
+  workspaceAutomation?: (scope: { did: string; workspaceId: string; directory: string }) => Promise<
+    Pick<ComposeOverrides, "agent" | "runner" | "decide" | "evidenceSources" | "automationReadiness">
+  >;
 };
 
 /** Personal workspaces share the account authority but never project stores, repo paths, provider keys or policy files. */
@@ -98,7 +102,11 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           NOTORGANIC_PRODUCT: config.NOTORGANIC_PRODUCT,
           EPHYRA_CONSOLE_DIR: config.EPHYRA_CONSOLE_DIR,
         });
+        const automation = await opts.workspaceAutomation?.({ did, workspaceId, directory });
+        if (automation?.agent && !automation.runner)
+          throw new AccountError(503, "The workspace coding agent needs its own isolated runner.");
         return compose(personal, {
+          ...automation,
           startJobs: opts.startJobs,
           workspace: workspaceId,
           signIn,

@@ -27,8 +27,11 @@ export interface HttpPort {
  */
 const READABLE_NAMES = new Set(["hypothesis.md", "plan.md", "intent.md", "evidence/index.json", "proof/manifest.json"]);
 const READABLE_ARTEFACT = /^artefacts\/[a-z][a-z_-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const READABLE_DECISION = /^decisions\/(?:[ABC]\/[a-f0-9]{64}|latest-[ABC])\.json$/;
+const READABLE_EVIDENCE = /^evidence\/research\/[0-9]{4,10}\/[a-f0-9]{16}\/(?:index|source-[0-9]{2})\.json$/;
 export const isReadableFile = (path: string) =>
-  !path.includes("..") && (READABLE_NAMES.has(path) || READABLE_ARTEFACT.test(path));
+  !path.includes("..") && (READABLE_NAMES.has(path) || READABLE_ARTEFACT.test(path)
+    || READABLE_DECISION.test(path) || READABLE_EVIDENCE.test(path));
 /** Largest file served, in bytes. Bigger files are refused rather than truncated, so nobody judges half a document. */
 export const MAX_FILE_BYTES = 256 * 1024;
 export type DecisionInput = { checkpoint: "A" | "B" | "C" | "spend"; verdict: "approve" | "revise" | "reject"; note?: string; bound?: InboxItem["bound"] };

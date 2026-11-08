@@ -23,7 +23,7 @@ export function untrustedJson(label: string, value: unknown): string {
 export function buildPolicyQuestion(
   area: Area,
   checkpoint: Checkpoint,
-  facts: { diff_scope: unknown; proof: unknown; exportedTypesChanged: boolean },
+  facts: { diff_scope: unknown; proof: unknown; exportedTypesChanged: boolean | null },
 ): JudgementRequest {
   return {
     allow_fallback: false,

@@ -1,36 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import type { SetupMode } from "@ephyra/core";
 import { Button } from "../kit.ts";
 import {
-  AccountSaveFeedback,
-  ModelAccessForm,
-  RepositoryForm,
-  SetupReview,
-  type AccountPageProps,
+  AccountSaveFeedback, ModelAccessForm, RepositoryForm, type AccountPageProps,
 } from "../components/AccountForms.tsx";
 import { useAccountWrite } from "../components/useAccountWrite.ts";
 import { JellySpecimen } from "../components/JellySpecimen.tsx";
+import { AutomaticSetup, SetupModeChoice } from "../components/AutomaticSetup.tsx";
 import "./OnboardingPage.css";
 
-const steps = ["Repository", "Model access", "Review"];
-const titles = ["Connect your repository", "Choose model access", "Review your setup"];
-
-export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }: AccountPageProps) {
-  const [step, setStep] = useState(() => (settings.repository ? (settings.model.provider === "none" ? 1 : 2) : 0));
-  const heading = useRef<HTMLHeadingElement>(null);
-  const previousStep = useRef(step);
+export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog, automation }: AccountPageProps) {
+  const [mode, setModeValue] = useState<SetupMode>(() => {
+    try { return localStorage.getItem(`ephyra.setup.mode:${settings.did}`) === "supervised" ? "supervised" : "autonomous"; }
+    catch { return "autonomous"; }
+  });
+  const setMode = (value: SetupMode) => {
+    setModeValue(value);
+    try { localStorage.setItem(`ephyra.setup.mode:${settings.did}`, value); } catch { /* memory only */ }
+  };
   const write = useAccountWrite(api, onChange);
   const [formBusy, setFormBusy] = useState(false);
   const locked = write.locked || formBusy;
-  useEffect(() => {
-    if (previousStep.current !== step) heading.current?.focus();
-    previousStep.current = step;
-  }, [step]);
-  async function finish(action: "skip" | "complete") {
-    const persistedAction = action === "complete" && !settings.repository ? "skip" : action;
+  async function open(ready: boolean) {
     const next = await write.save(
-      { expectedVersion: settings.version, action: persistedAction },
+      { expectedVersion: settings.version, action: ready ? "complete" as const : "skip" as const },
       (value, key) => api.onboarding(value, key),
-      persistedAction === "skip" ? "Setup saved for later." : "Setup saved.",
+      ready ? "Setup saved." : "Setup progress is saved. You can return at any time.",
     );
     if (next) onDone?.();
   }
@@ -38,85 +33,51 @@ export function OnboardingPage({ api, settings, onChange, onDone, loadCatalog }:
     <div className="account-page onboarding-page">
       <header className="ui-page-header onboarding-heading">
         <div className="onboarding-heading__text">
-          <h1 ref={heading} tabIndex={-1}>
-            {titles[step]}
-          </h1>
-          <Button
-            variant="ghost"
-            disabled={locked}
-            onClick={() => void finish("skip")}
-            data-account-action="skip-setup"
-          >
-            Explore first
-          </Button>
+          <h1>{settings.repository ? "Your application’s setup" : "Let Ephyra set up your application"}</h1>
+          <p className="account-hint">
+            Connect your repository. Ephyra inspects it, prepares autonomy documents, and checks what it needs to run.
+          </p>
+          {!settings.repository && (
+            <Button variant="ghost" disabled={locked} onClick={() => void open(false)} data-account-action="skip-setup">
+              Explore first
+            </Button>
+          )}
         </div>
         <JellySpecimen size={96} />
       </header>
-      <nav aria-label="Setup progress">
-        <ol className="onboarding-steps">
-          {steps.map((label, index) => (
-            <li key={label}>
-              <button
-                type="button"
-                aria-current={step === index ? "step" : undefined}
-                disabled={locked}
-                onClick={() => setStep(index)}
-              >
-                <span className="onboarding-step-number" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span>{label}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
       <div className="onboarding-content">
-        {step === 0 ? (
-          <RepositoryForm
-            api={api}
-            settings={settings}
-            onChange={onChange}
-            onDone={() => setStep(1)}
-            onBusyChange={setFormBusy}
-            secondaryAction={
-              <Button variant="ghost" disabled={locked} onClick={() => setStep(1)}>
-                Skip repository
-              </Button>
-            }
-          />
-        ) : step === 1 ? (
-          <ModelAccessForm
-            api={api}
-            settings={settings}
-            onChange={onChange}
-            onDone={() => setStep(2)}
-            onBusyChange={setFormBusy}
-            loadCatalog={loadCatalog}
-            secondaryAction={
-              <Button variant="ghost" disabled={locked} onClick={() => setStep(0)}>
-                Back
-              </Button>
-            }
+        {settings.repository ? automation ? (
+          <AutomaticSetup
+            key={settings.workspaceId}
+            api={automation}
+            account={settings.did}
+            workspace={settings.workspaceId}
+            initialMode={mode}
+            onOpen={(ready) => { if (!locked) void open(ready); }}
           />
         ) : (
+          <div className="account-feedback" data-tone="warning" role="status">
+            <strong>Automatic setup is unavailable on this connection.</strong>
+            <p>Your repository is saved. The deployment needs an automatic setup service before it can prepare the application.</p>
+            <Button onClick={() => void open(false)} disabled={locked}>Open workspace</Button>
+          </div>
+        ) : (
           <>
-            <SetupReview settings={settings} />
-            <div className="account-actions">
-              <Button
-                variant="primary"
-                loading={write.busy}
-                disabled={locked}
-                onClick={() => void finish("complete")}
-                data-account-action="finish-setup"
-              >
-                Open workspace
-              </Button>
-              <Button variant="ghost" disabled={locked} onClick={() => setStep(1)}>
-                Back
-              </Button>
-            </div>
+            <SetupModeChoice value={mode} onChange={setMode} disabled={locked} />
+            <RepositoryForm
+              api={api} settings={settings} onChange={onChange} onBusyChange={setFormBusy}
+              submitLabel="Connect and set up automatically"
+            />
           </>
+        )}
+        {settings.repository && (
+          <details className="account-advanced">
+            <summary>Model access and repository settings</summary>
+            <div className="account-advanced-fields">
+              <ModelAccessForm api={api} settings={settings} onChange={onChange} loadCatalog={loadCatalog} onBusyChange={setFormBusy} />
+              <RepositoryForm api={api} settings={settings} onChange={onChange} onBusyChange={setFormBusy} />
+            </div>
+          </details>
         )}
         <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       </div>

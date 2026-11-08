@@ -20,12 +20,15 @@ const STEP_NOUN: Record<string, string> = { research: "research", repro: "reprod
 function fromEvent(trail: Trail, e: TrailEvent): Item | null {
   const s = trail.short;
   const make = (persona: PersonaId | null, status: Item["status"], summary: string): Item => ({
-    id: `event:${e.id}`, at: e.at, persona, status, summary, trailId: trail.id, short: s, engine: e.actor.kind === "agent" ? e.actor.id : null,
+    id: `event:${e.id}`, at: e.at, persona, status, summary, trailId: trail.id, short: s,
+    engine: e.actor.kind === "agent" || e.actor.kind === "policy" ? e.actor.id : null,
   });
   switch (e.type) {
     case "trail_created": return make("rho", "done", `Opened trail ${s} from a new signal`);
     case "triage_completed": return make("rho", "done", `Triaged the signal for ${s}`);
     case "research_completed": return make("bell", "done", `Wrote the hypothesis for ${s}`);
+    case "checkpoint_decided": return make("rho", "done",
+      `${e.data.decision.by === "policy" ? "Model" : "Human"} checkpoint ${e.data.checkpoint}: ${e.data.decision.verdict} for ${s}`);
     case "repro_completed":
       return e.data.ok ? make("nema", "done", `Wrote a failing reproduction for ${s}`) : make("nema", "failed", `Could not reproduce the failure for ${s}`);
     case "plan_completed": return make("lappet", "done", `Planned the fix for ${s}`);
@@ -79,6 +82,11 @@ export async function activity(deps: ActivityDeps, limit: number): Promise<Activ
     } else if (job.kind === "watch") {
       persona = "turri";
       summary = running ? `Checking ${short ?? "a trail"} after landing` : `Next check of ${short ?? "a trail"} after landing is scheduled`;
+    } else if (job.kind === "automatic_setup") {
+      summary = running ? "Preparing repository autonomy and checking execution readiness" : "Automatic repository setup is queued";
+    } else if (job.kind === "checkpoint_evaluation") {
+      persona = "rho";
+      summary = running ? `Checking the evidence before continuing ${short ?? "a trail"}` : "A machine checkpoint is queued";
     }
     if (!summary) continue;
     items.push({
@@ -88,7 +96,7 @@ export async function activity(deps: ActivityDeps, limit: number): Promise<Activ
   }
 
   for (const entry of await store.inboxList()) {
-    if (entry.kind !== "checkpoint" && entry.kind !== "spend") continue;
+    if ((entry.kind !== "checkpoint" && entry.kind !== "spend") || !entry.blocking) continue;
     const w = entry.checkpoint ? WAITING_ON[entry.checkpoint] : null;
     items.push({
       id: `inbox:${entry.id}`, at: entry.createdAt, persona: w?.persona ?? null, status: "waiting", trailId: entry.trailId, short: entry.short, engine: null,

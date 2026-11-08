@@ -61,13 +61,15 @@ export class Engine {
 
   /** Apply one event. Returns the resulting trail, or throws when the state machine rejects it. */
   async emit(input: EmitInput): Promise<Trail> {
-    const { trail: trailId, actor, files, eventId, expectedBound, ...body } = input;
+    const { trail: trailId, actor, files, eventId, expectedBound, expectedJournalHead, ...body } = input;
     if (eventId && (files || !['human_comment', 'claimed_by_human', 'released_by_human'].includes(body.type))) {
       throw new InvalidTransition('Stable event IDs are limited to collaboration requests');
     }
     const { trail, effects } = await this.serial(trailId, async () => {
       const current = await this.journal.read(trailId);
       if (!current) throw new Error(`unknown trail ${trailId}`);
+      if (expectedJournalHead !== undefined && current.head !== expectedJournalHead)
+        throw new StaleApproval('The evidence changed before the decision was applied');
       const recorded = eventId && current.events.find((e) => e.id === eventId);
       if (recorded) {
         const intent = { actor, ...body };

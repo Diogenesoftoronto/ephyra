@@ -29,6 +29,8 @@ export type EmitInput = {
   eventId?: string;
   /** Rechecked against the durable journal inside the per-trail serialization boundary. */
   expectedBound?: InboxItem['bound'];
+  /** Reject a result evaluated against a journal which has since changed. */
+  expectedJournalHead?: string;
 } & TrailEventBody;
 
 export interface InboxStore {
