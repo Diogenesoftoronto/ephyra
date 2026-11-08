@@ -118,7 +118,7 @@ cases.push({
     await p.getByRole("button", { name: /^Nema / }).click();
     await p.getByRole("heading", { name: "Nema", exact: true }).waitFor();
     await noOverflow(p);
-    await p.getByRole("radio", { name: "Dark", exact: true }).check();
+    await p.getByRole("switch", { name: "Dark mode", exact: true }).check();
     await shot(p, "persona-mobile-dark");
     assert.equal(
       await p.locator('.persona-card video, .persona-card img[src*=".gif"]').count(),
@@ -148,7 +148,7 @@ cases.push({
     await p.getByRole("heading", { name: "Transcript", exact: true }).waitFor();
     await visible(p, "policy: reject");
     await visible(p, "Waiting for the proof runner");
-    await p.getByRole("radio", { name: "Dark", exact: true }).check();
+    await p.getByRole("switch", { name: "Dark mode", exact: true }).check();
     await shot(p, "run-desktop-dark");
   },
 });

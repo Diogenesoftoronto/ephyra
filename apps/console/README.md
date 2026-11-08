@@ -58,6 +58,8 @@ not proof of account access or actual spending. Missing metadata stays unknown; 
 **⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/S navigates to
 Overview/Inbox/Runs/Usage/Workspace/Personas/Settings. Letter shortcuts are disabled while typing or using a modal.
 Menus, recessed inputs, active controls and hover/focus states share console tokens and reduced-motion behavior.
+The light/dark switch sits beside Commands. It follows the system color preference until toggled;
+an explicit choice is remembered in this browser. There is no separate Auto control.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
 Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
@@ -104,6 +106,7 @@ bun run --filter @ephyra/console tutor-interactions
 bun run --filter @ephyra/console multiplayer
 env -u LD_LIBRARY_PATH bun apps/console/scripts/signin.ts
 env -u LD_LIBRARY_PATH bun apps/console/scripts/account-layout.ts
+env -u LD_LIBRARY_PATH bun apps/console/scripts/theme.ts
 ```
 
 The sign-in browser harness checks the public app link, PKCE redirect/callback, protected cookie, reload,

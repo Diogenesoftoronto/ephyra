@@ -231,7 +231,10 @@ function Frame({
             </strong>
             <small>{account?.settings.repository?.branch ?? (account ? "Connect a repository" : "Deployment")}</small>
           </a>
-          <CommandMenu />
+          <div className="workspace-bar__actions">
+            <ThemeToggle />
+            <CommandMenu />
+          </div>
         </div>
         {account &&
           account.settings.onboarding.status !== "complete" &&
@@ -257,7 +260,6 @@ function Frame({
           />
         </Suspense>
         <footer className="app-foot">
-          <ThemeToggle />
           {onDisconnect && (
             <button className="ui-button ui-button--ghost" onClick={onDisconnect}>
               {disconnectLabel}

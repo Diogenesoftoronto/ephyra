@@ -321,7 +321,7 @@ try {
   assert.ok(await b.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "mobile page has no overflow");
   assert.ok(await discussion(b).evaluate((node) => node.scrollWidth <= node.clientWidth + 1), "mobile discussion has no overflow");
   await b.screenshot({ path: join(artifacts, "shared-review-mobile.png"), fullPage: true });
-  await b.getByRole("radio", { name: "Dark", exact: true }).check();
+  await b.getByRole("switch", { name: "Dark mode", exact: true }).check();
   await discussion(b).scrollIntoViewIfNeeded();
   await b.screenshot({ path: join(artifacts, "shared-review-mobile-dark.png"), fullPage: true });
   assert.deepEqual(errors, [], "browser runtime errors");

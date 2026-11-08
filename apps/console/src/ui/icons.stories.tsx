@@ -10,6 +10,8 @@ const names: IconName[] = [
   "personas",
   "copy",
   "check",
+  "sun",
+  "moon",
   "specimen",
 ];
 const meta: Meta = { title: "UI/Icons" };
