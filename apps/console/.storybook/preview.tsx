@@ -7,6 +7,7 @@ import { ClockProvider } from "../src/lib/clock.tsx";
 import "../src/theme.css";
 import "../src/ui/ui.css";
 import "../src/layout.css";
+import "../src/materials.css";
 
 declare module "@storybook/react-vite" {
   interface Parameters {

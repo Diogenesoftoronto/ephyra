@@ -1,0 +1,84 @@
+.material-scene {
+  --focus: #ffcd7a;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s6);
+  min-width: 0;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border-radius: 24px;
+  color: #f5f0df;
+  background: #142a28;
+  box-shadow: inset 0 0 0 1px #ffffff26, 0 20px 48px -32px #081b1c99;
+}
+.material-scene::before,
+.material-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.material-scene::before {
+  background: linear-gradient(170deg, #163d3b30, #102523c9 68%, #0b1e1df2),
+    url("/app/materials/amber-glass-dark-v1.webp") center / 640px;
+  opacity: 0.7;
+}
+.material-scene::after {
+  inset: 18px;
+  border: 1px solid #e4f2dc21;
+  border-radius: 12px;
+}
+.material-scene__label {
+  color: #d2d9cd;
+  font: 400 0.66rem / 1.8 var(--font-mono);
+  letter-spacing: 0.035em;
+}
+.material-scene__label span { margin-inline: var(--s2); color: #f7b866; }
+.material-scene__specimen {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  padding-block: var(--s3);
+}
+.material-scene__specimen::before {
+  content: "";
+  position: absolute;
+  width: 78%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #c29d5a27, #c29d5a08 60%, transparent 70%);
+  border: 1px solid #e7e4c519;
+  box-shadow: 0 0 0 24px #e7e4c505, 0 0 0 25px #e7e4c50c;
+  pointer-events: none;
+  transition: transform 600ms var(--ease-out), opacity 600ms ease;
+}
+.material-scene__specimen:has(.jelly-specimen[data-motion="playing"])::before {
+  transform: scale(1.06);
+  opacity: 0.65;
+}
+.material-scene__copy { display: grid; gap: var(--s3); }
+.material-scene__copy h2 { max-width: 13ch; font-size: clamp(1.8rem, 3.1vw, 3rem); line-height: 1.08; }
+.material-scene__copy p { max-width: 35ch; color: #d2d9cd; line-height: 1.65; }
+.material-scene--compact { gap: var(--s5); padding: var(--s6); }
+.material-scene--compact .material-scene__copy h2 { max-width: 22ch; font-size: 1.65rem; }
+.material-scene--compact .material-scene__label { font-size: 0.6rem; }
+@media (max-width: 700px) {
+  .material-scene { gap: var(--s4); min-height: 180px; border-radius: 16px; padding: var(--s5); }
+  .material-scene::after { inset: 10px; border-radius: 8px; }
+  .material-scene__specimen { position: absolute; inset-inline-end: 12px; top: 32px; opacity: 0.8; }
+  .material-scene__specimen .jelly-specimen { width: 112px; height: 112px; }
+  .material-scene__specimen::before { display: none; }
+  .material-scene__copy { position: relative; max-width: calc(100% - 104px); }
+  .material-scene__copy h2 { font-size: 1.65rem; max-width: 16ch; }
+  .material-scene__copy p { display: none; }
+}
+@media (forced-colors: active) {
+  .material-scene { border: 1px solid CanvasText; background: Canvas; color: CanvasText; }
+  .material-scene__label, .material-scene__copy p { color: CanvasText; }
+  .material-scene::before, .material-scene::after, .material-scene__specimen::before { display: none; }
+}

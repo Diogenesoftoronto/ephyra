@@ -27,7 +27,8 @@ rtk proxy env -u LD_LIBRARY_PATH bun apps/console/scripts/export-jelly.ts
 
 `JellySpecimen` is an explicit small play interaction. Pointer entry, click, touch, or keyboard activation makes
 the specimen refract briefly, then rest. It is neither a progress indicator nor evidence of a healthy deployment.
-It sits beside the welcome/setup heading and never draws beneath text.
+It sits in an illustrated glass panel on welcome and invitation screens, and beside the setup form on wide screens.
+It never draws beneath reading text; compact phone panels keep the complete touch target visible.
 
 WebGL is lazy, limited to one small canvas on these routes, with no external library or provider request.
 The renderer caps resolution at 384px and frame rate near 30fps. The still remains visible until a first frame exists.
@@ -36,7 +37,7 @@ Missing artwork falls back to the existing vector mark.
 
 Persona avatars use their existing transparent art. Only recorded running work breathes continuously;
 directory hover/focus plays a finite greeting. A pending drafting request uses Velum's same art in both themes.
-Button presses preserve approximate volume, navigation icons tilt slightly, and the current setup step is an amber bead.
+Button presses preserve approximate volume, navigation icons tilt slightly, and setup steps distinguish recorded running, complete and blocked states.
 None of these changes delay or intercept account operations.
 
 ## Review and verification
@@ -44,5 +45,20 @@ None of these changes delay or intercept account operations.
 All new states are in Storybook. `Motion/JellySpecimen/ShareableLoops` is paused initially and provides downloads.
 `scripts/motion.ts` checks actual WebGL draws and their termination, keyboard, changing reduced-motion preferences,
 offscreen suspension, simulated hidden tabs, unavailable/lost contexts, personas, and responsive layouts in Chromium.
-`scripts/account-layout.ts` checks that the setup and Settings interactions continue to work.
+`scripts/signin.ts` and `scripts/automatic-setup.ts` check automatic setup and Settings interactions.
+`scripts/experience-layout.ts` checks the entrance, setup, run roster, team, and acceptance screens in both themes.
 Physical mobile GPU behavior and Safari remain unverified by these local checks.
+
+## Glass material layers (November 8)
+
+`apps/console/public/materials/amber-glass-{light,dark}-v1.webp` are unmodified copies of the existing site textures.
+They appear behind the entrance scene, team explanation, and shell. Reading cards are opaque. The material layers are
+static; there is no background video, autoplay loop, or runtime generation request. The specimen's existing finite
+shader interaction gently expands its surrounding light ring. Reduced motion retains the still artwork.
+
+We tried `ideogram/v4/tiling` on fal with two cast-glass prompts, one dark lagoon and one pale lightbox. Both returned
+gray images containing unwanted text artifacts, so neither candidate is included in the product. The credential-free
+request IDs and rejection are recorded in `public/materials/manifest.json`; prompts live in `scripts/generate-materials.py`.
+The script reads the authorized fal key from skate in memory, persists queue receipts before polling, resumes saved
+requests, and leaves candidates under ignored `site/_sources/console-materials/` for visual review. An ambiguous
+submission is never retried automatically. Actual billing was not reported and remains unknown.

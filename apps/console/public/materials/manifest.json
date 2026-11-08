@@ -1,0 +1,23 @@
+{
+  "assets": [
+    {
+      "file": "amber-glass-dark-v1.webp",
+      "source": "site/assets/img/gel-texture-dark.webp",
+      "operation": "Unmodified copy of existing project artwork"
+    },
+    {
+      "file": "amber-glass-light-v1.webp",
+      "source": "site/assets/img/gel-texture-light.webp",
+      "operation": "Unmodified copy of existing project artwork"
+    }
+  ],
+  "generationTrials": {
+    "model": "ideogram/v4/tiling",
+    "requestIds": [
+      "01a1ba31-90cb-7963-b77d-dc391577957e",
+      "01a1ba35-41f8-7192-ad0e-0f91e27b8b54"
+    ],
+    "review": "Rejected: gray images with unwanted text artifacts; neither image is shipped.",
+    "actualCost": null
+  }
+}
