@@ -1,8 +1,8 @@
 import type { AgentRun } from "@ephyra/core";
-import { Card, Status, Tag } from "../kit.ts";
+import { Card, Status } from "../kit.ts";
 import { formatMicrousd, formatTokens, safeHref } from "../lib/format.ts";
 import { Elapsed } from "./Elapsed.tsx";
-import { ExecutorChip } from "./ExecutorChip.tsx";
+import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaLabel } from "./PersonaLabel.tsx";
 import { RunStatus } from "./RunList.tsx";
 import "./RunHeader.css";
@@ -24,7 +24,7 @@ export function RunHeader({ run, stream = "idle" }: { run: AgentRun; stream?: St
               {run.short}
             </a>
           )}
-          <Tag>{run.engine}</Tag>
+          <EngineBadge engine={run.engine} executor={run.executor} />
         </div>
         <div className="run-header-line">
           <RunStatus status={run.status} />
@@ -42,13 +42,10 @@ export function RunHeader({ run, stream = "idle" }: { run: AgentRun; stream?: St
             )}
           </span>
         </div>
-        <p className="run-header-where">
-          <ExecutorChip executor={run.executor} />
-        </p>
         <div className="run-header-line">
           {thread && (
             <a href={thread} target="_blank" rel="noopener noreferrer">
-              Open in Amp ↗
+              Open agent thread ↗
             </a>
           )}
           {portal && (

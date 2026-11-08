@@ -3,6 +3,7 @@ import { Empty, Row, Rows, Status } from "../kit.ts";
 import { relativeTime } from "../lib/format.ts";
 import { useNow } from "../lib/clock.tsx";
 import { Elapsed } from "./Elapsed.tsx";
+import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
 import "./ActivityFeed.css";
 
@@ -23,7 +24,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
               {item.short}
             </a>
           ) : null}
-          {item.engine && <span className="activity-meta__engine">{item.engine}</span>}
+          {item.engine && <span className="activity-meta__engine"><EngineBadge engine={item.engine} /></span>}
           <span>
             {item.status === "running" && item.startedAt ? (
               <>

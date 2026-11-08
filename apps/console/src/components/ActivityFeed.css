@@ -1,2 +1,2 @@
-.activity-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); }
-.activity-meta__engine { font-family: var(--font-mono); font-size: var(--fs-label); overflow-wrap: anywhere; }
+.activity-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--s2); }
+.activity-meta__engine { display: inline-flex; }

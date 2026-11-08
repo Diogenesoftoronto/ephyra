@@ -1,8 +1,9 @@
 import type { AgentRun } from "@ephyra/core";
-import { Empty, Row, Rows, Status, Tag } from "../kit.ts";
+import { Empty, Row, Rows, Status } from "../kit.ts";
 import { Elapsed } from "./Elapsed.tsx";
-import { ExecutorChip } from "./ExecutorChip.tsx";
+import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
+import "./RunList.css";
 
 export const RUN_STATE = {
   running: "running",
@@ -19,14 +20,14 @@ export function RunStatus({ status }: { status: AgentRun["status"] }) {
 export function RunRow({ run }: { run: AgentRun }) {
   return (
     <Row
-      href={`#/runs/${run.id}`}
+      className="run-row"
       lead={
         run.persona ? (
           <PersonaAvatar persona={run.persona} size={32} live={run.status === "running"} />
         ) : undefined
       }
       title={
-        <>
+        <a className="run-row__link" href={`#/runs/${run.id}`}>
           {run.step}
           {run.short ? (
             <>
@@ -34,14 +35,14 @@ export function RunRow({ run }: { run: AgentRun }) {
               on <span className="mono">{run.short}</span>
             </>
           ) : null}
-        </>
+        </a>
       }
       meta={
-        <>
-          <Tag>{run.engine}</Tag> · <ExecutorChip executor={run.executor} />
-          {run.executor.portalUrl ? " · preview" : ""}
-          {run.error ? <> · {run.error}</> : null}
-        </>
+        <span className="run-row__meta">
+          <EngineBadge engine={run.engine} executor={run.executor} />
+          {run.executor.portalUrl && <span>Preview available</span>}
+          {run.error && <span>{run.error}</span>}
+        </span>
       }
       aside={
         <>

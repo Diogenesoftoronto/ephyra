@@ -4,6 +4,7 @@ import { relativeTime } from "../lib/format.ts";
 import { useNow } from "../lib/clock.tsx";
 import { TotalCost } from "./Cost.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
+import { EngineBadge } from "./EngineBadge.tsx";
 import "./PersonaCard.css";
 
 /** A persona: its face, its role, who it is named for, what it does, what it did lately and what that cost. */
@@ -22,6 +23,7 @@ export function PersonaCard({
 }) {
   const now = useNow(60_000);
   const running = recent.some((a) => a.status === "running");
+  const engines = [...new Set(recent.flatMap((a) => a.engine ? [a.engine] : []))];
   return (
     <Card className="persona-card" tone="tray">
       <div className="persona-head">
@@ -62,9 +64,9 @@ export function PersonaCard({
           </ul>
         )}
       </section>
-      <p className="muted">
-        Recorded engines:{" "}
-        {[...new Set(recent.flatMap((a) => (a.engine ? [a.engine] : [])))].join(", ") || "none reported"}
+      <p className="muted persona-engines">
+        <span>Recorded engines</span>
+        {engines.length ? engines.map((engine) => <EngineBadge key={engine} engine={engine} />) : <span>None reported</span>}
       </p>
       <p>
         <a href={persona.id === "velum" ? "#/workspace" : `#/runs?persona=${persona.id}`}>
