@@ -240,7 +240,7 @@ try {
     await page.getByRole("button", { name: "Refresh questions", exact: true }).click();
     await page.getByRole("region", { name: "Recorded answer" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Send answer", exact: true }).count(), 0);
-    assert.equal(writes.filter((write) => write.path.endsWith("/answer")).length, 1, "exact GET reconciles resumed trails without another answer");
+    assert.equal(writes.filter((write) => write.path.endsWith("/answer")).length, 1, "exact GET reconciles resumed quests without another answer");
     assert.ok(!(await page.evaluate(() => JSON.stringify(sessionStorage))).includes("ephyra.question.pending"));
     await lost.finish();
   } catch (error) { await lost.failure(); throw error; } finally { await lost.close(); }

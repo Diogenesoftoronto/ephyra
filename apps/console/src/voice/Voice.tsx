@@ -384,7 +384,7 @@ export function VoiceSurface({ state, session }: { state: VoiceState; session: A
           <div className="voice-start">
             <p>
               {state.target?.assistantName
-                ? "Ask about this trail's evidence and what an approval permits. The explanation stays attached to this revision."
+                ? "Ask about this quest's evidence and what an approval permits. The explanation stays attached to this revision."
                 : state.target?.context.kind === "draft"
                   ? "Describe what your application should do. Velum drafts the changes with you; proposals stay in the document conversation for review."
                   : "Talk through agent work, a proof, or what the application has spent. Velum reads the recorded context for this view."}

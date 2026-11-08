@@ -1,4 +1,5 @@
 /* Framing only. The screens, controls, typography and materials are the production components. */
+body { min-width: 0; }
 .tour-recorded { padding: clamp(16px, 3vw, 32px); max-width: 78rem; margin: auto; }
 .tour-recorded-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
 .tour-recorded-heading > span, .tour-recorded-heading small { color: var(--muted); }

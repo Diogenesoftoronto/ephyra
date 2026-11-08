@@ -68,7 +68,7 @@ export class Client {
 			);
 			if (matches.length !== 1)
 				throw new Error(
-					matches.length ? "Ambiguous short ID" : "Trail not found",
+					matches.length ? "Ambiguous short ID" : "Quest not found",
 				);
 			id = matches[0]!.id;
 		}

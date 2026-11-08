@@ -101,7 +101,7 @@ export function createDemoRoom(options = {}) {
       persistence = 'browser';
     } catch { persistence = 'memory'; }
   };
-  const assertTrail = (trail) => { if (!key(trail, 100)) throw new TypeError('A valid trail ID is required.'); };
+  const assertTrail = (trail) => { if (!key(trail, 100)) throw new TypeError('A valid quest ID is required.'); };
   const assertOpen = () => { if (closed) throw new Error('The sample room is closed.'); };
 
   function getSnapshot(trailId) {

@@ -350,7 +350,7 @@ export async function runCommand(
 			kill: "Killed",
 			park: "Parked",
 			resume: "Resumed",
-			claim: "Review claimed; use ephyra release <trail> before deciding",
+			claim: "Review claimed; use ephyra release <quest> before deciding",
 			land: "Landing requested",
 			comment: "Comment posted",
 		};

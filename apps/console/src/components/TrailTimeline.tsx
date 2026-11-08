@@ -9,7 +9,7 @@ type Line = { text: string; tone?: "ok" | "warn" | "bad" | "info"; link?: string
 export function describeEvent(e: TrailEvent): Line {
   switch (e.type) {
     case "trail_created":
-      return { text: `Trail opened: ${e.data.title}` };
+      return { text: `Quest opened: ${e.data.title}` };
     case "triage_completed":
       return {
         text: `Triaged as ${e.data.result.risk} risk in ${e.data.result.area}, severity ${e.data.result.severity}`,
@@ -77,7 +77,7 @@ export function describeEvent(e: TrailEvent): Line {
 export function TrailTimeline({ events }: { events: TrailEvent[] }) {
   if (events.length === 0) return <p className="muted">No events yet.</p>;
   return (
-    <ol className="timeline" aria-label="Trail timeline">
+    <ol className="timeline" aria-label="Quest timeline">
       {events.map((e) => {
         const line = describeEvent(e);
         const href = safeHref(line.link);

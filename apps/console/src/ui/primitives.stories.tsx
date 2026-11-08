@@ -196,7 +196,7 @@ export const EmptyState: S = {
       <Empty
         title="Nothing is waiting for you"
         body="When an agent needs a decision, it appears here."
-        action={<Button size="sm">Open trails</Button>}
+        action={<Button size="sm">Open quests</Button>}
       />
     </Card>
   ),

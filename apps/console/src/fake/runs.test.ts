@@ -32,7 +32,7 @@ describe("run fixtures", () => {
     expect(events.some((e) => e.type === "reasoning")).toBe(true);
     expect(events.find((e) => e.tool?.isError)).toBeTruthy();
   });
-  test("filters by trail and status", async () => {
+  test("filters by quest and status", async () => {
     const api = new FakeApi();
     const failed = (await api.runs({ status: "failed" }))[0]!;
     expect(failed.error).toContain("did not compile");

@@ -63,7 +63,7 @@ const inbox = (name: string, state: InboxState, description?: string) =>
 
 export default defineStories({
 	title: "Inbox",
-	description: "The keyboard inbox, from an example trail.",
+	description: "The keyboard inbox, from an example quest.",
 });
 
 export const Empty = inbox("Empty", { items: [], selected: 0 });
@@ -82,7 +82,7 @@ export const CheckpointC = inbox(
 	at("C", "proof"),
 	"Proof passed; approving lands it.",
 );
-export const Loading = inbox("Loading the trail", {
+export const Loading = inbox("Loading the quest", {
 	items: [DEMO_ITEMS.A, ...DEMO_OTHERS],
 	selected: 0,
 });
@@ -99,7 +99,7 @@ const evidenceState = (() => {
 export const Explain = inbox(
 	"Explain (e)",
 	evidenceState,
-	"The evidence index behind the trail.",
+	"The evidence index behind the quest.",
 );
 export const Keys = inbox("Keys (?)", at("A", "hypothesis", { pane: "help" }));
 export const Revise = inbox(
@@ -131,7 +131,7 @@ export const ErrorState = inbox("API error", {
 	error: "API unavailable",
 });
 export const Watching = story({
-	name: "Trail: landed and watching",
+	name: "Quest: landed and watching",
 	render: draw((w) => {
 		const d = demoTrail("watching");
 		return trailView(
@@ -143,7 +143,7 @@ export const Watching = story({
 	}),
 });
 export const RolledBack = story({
-	name: "Trail: rolled back",
+	name: "Quest: rolled back",
 	render: draw((w) =>
 		trailView(DEMO_ROLLBACK.trail, DEMO_ROLLBACK.events, {}, w),
 	),

@@ -149,8 +149,8 @@ try {
   }
   const { page: a } = await session(aToken);
   const { page: b } = await session(bToken);
-  const discussion = (page: Page) => page.getByRole("region", { name: "Shared trail discussion", exact: true });
-  const draft = (page: Page) => page.getByLabel("Comment on this trail", { exact: true });
+  const discussion = (page: Page) => page.getByRole("region", { name: "Shared quest discussion", exact: true });
+  const draft = (page: Page) => page.getByLabel("Comment on this quest", { exact: true });
   const message = (page: Page, text: string) => discussion(page).getByText(text, { exact: true });
   const post = async (page: Page, text: string) => {
     await draft(page).fill(text);
@@ -198,7 +198,7 @@ try {
   assert.equal((await write(bToken, "release")).status, 409, "second reviewer cannot release ownership");
   assert.equal((await server.ctx.trails.get(trail.id))!.owner?.id, SESSIONS[aToken]);
   await a.getByRole("button", { name: "Release review", exact: true }).click();
-  await b.getByText("No reviewer has claimed this trail.", { exact: true }).waitFor();
+  await b.getByText("No reviewer has claimed this quest.", { exact: true }).waitFor();
   await preservedDraft("incoming release preserves draft node, focus and caret");
   assert.ok(await b.getByRole("button", { name: "Claim review", exact: true }).isEnabled());
   console.log("PASS exclusive review ownership and server refusal of wrong-owner writes");
@@ -300,13 +300,13 @@ try {
   await a.getByRole("region", { name: "Review evidence", exact: true }).getByText(advanced.document, { exact: true }).waitFor();
   await a.getByText("This approval is stale.", { exact: true }).waitFor();
   await updatedInbox;
-  assert.equal(await a.locator(".trail-head-facts dd").first().textContent(), String(advanced.trail.rev), "trail revision updates automatically");
+  assert.equal(await a.locator(".trail-head-facts dd").first().textContent(), String(advanced.trail.rev), "quest revision updates automatically");
   assert.equal(await boundRevision.textContent(), String(previousRevision), "automatic updates retain the original review binding");
   assert.ok(await approve.isDisabled(), "stale approval remains disabled after new documents and inbox data arrive");
   await b.getByRole("region", { name: "Review evidence", exact: true }).getByText(advanced.document, { exact: true }).waitFor();
   await b.getByText("This approval is stale.", { exact: true }).waitFor();
   await preservedDraft("remote revision preserves the other reviewer's draft node, focus and caret");
-  await a.getByRole("button", { name: "Reload this trail", exact: true }).click();
+  await a.getByRole("button", { name: "Reload this quest", exact: true }).click();
   await a.getByText("This approval is stale.", { exact: true }).waitFor({ state: "hidden" });
   await a.getByText("Shared updates connected", { exact: true }).waitFor();
   assert.equal(await boundRevision.textContent(), String(advanced.trail.rev), "explicit review reload adopts the current binding");

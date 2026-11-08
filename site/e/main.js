@@ -855,7 +855,7 @@
   const CAPTIONS = [
     { a: -1, b: 0.4, text: "Your software, in production", at: "a", side: "right" },
     { a: 0.42, b: 1.12, text: "An error in production", tone: "mint", at: "spark", side: "right" },
-    { a: 1.14, b: 1.76, text: "Its errors become one trail", at: "cyst", side: "right" },
+    { a: 1.14, b: 1.76, text: "Its errors become one quest", at: "cyst", side: "right" },
     { a: 1.78, b: 2.12, text: "The repro fails on main", tone: "mint", at: "cyst", side: "above" },
     { a: 2.14, b: 2.5, text: "A patch, tested on that repro", at: "bud", side: "right" },
     { a: 2.5, b: 2.74, text: "The same repro passes", tone: "amber", at: "bud", side: "right" },

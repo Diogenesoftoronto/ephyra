@@ -50,7 +50,7 @@ export function TrailActions({
       <div className="trail-actions">
         <p className="trail-actions-owner">
           {humanOwner ? <><strong>{mine ? "You hold this review" : "Review claimed"}.</strong> <span>{humanOwner}</span></>
-            : ownerUnknown ? "This older handoff has no recorded owner." : "No reviewer has claimed this trail."}
+            : ownerUnknown ? "This older handoff has no recorded owner." : "No reviewer has claimed this quest."}
         </p>
         <div className="trail-actions-row">
           <Button
@@ -70,14 +70,14 @@ export function TrailActions({
               )
             }
           >
-            {parked ? "Resume trail" : "Park trail"}
+            {parked ? "Resume quest" : "Park quest"}
           </Button>
         </div>
         {ownerUnknown ? <p className="muted">An operator must reconcile this handoff before the workflow can continue.</p>
           : humanOwner ? <p className="muted">Only the owner can release this review. Comments remain shared.</p>
           : !canClaim && <p className="muted">Review claims are available while waiting at a checkpoint.</p>}
         {mine && <p className="muted">Release the review to make the checkpoint decision available again.</p>}
-        {!canAct && <p className="muted">Only approvers can act on trails.</p>}
+        {!canAct && <p className="muted">Only approvers can act on quests.</p>}
         {failure && (
           <p role="alert">
             <strong>{failure.title}.</strong> {failure.body}

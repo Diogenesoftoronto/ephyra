@@ -17,7 +17,7 @@ try {
     const page = await context.newPage(); page.setDefaultTimeout(12_000); page.on("pageerror", e => errors.push(e.message));
     const story = (name: string) => page.goto(`${stories.url}/iframe.html?id=components-tutorpanel--${name}&viewMode=story`);
     await story("ready");
-    await page.getByRole("button", { name: "Explain this trail", exact: true }).click();
+    await page.getByRole("button", { name: "Explain this quest", exact: true }).click();
     await page.locator(".tutor-answer").waitFor();
     await page.getByText("Records Tutor received", { exact: false }).click();
     await page.getByText("Tests: 42 passed, 0 failed. Production watch has not run.", { exact: true }).waitFor();
@@ -45,14 +45,14 @@ try {
     assert.ok(await page.getByRole("button", { name: "Talk with &Tutor", exact: true }).isDisabled());
     await story("uncertain");
     await page.getByText("Tutor paused", { exact: true }).waitFor();
-    assert.ok(await page.getByRole("button", { name: "Explain this trail", exact: true }).isDisabled());
+    assert.ok(await page.getByRole("button", { name: "Explain this quest", exact: true }).isDisabled());
     assert.equal(await page.locator(".tutor-answer").count(), 0);
     await story("read-only");
-    assert.ok(await page.getByRole("button", { name: "Explain this trail", exact: true }).isDisabled());
+    assert.ok(await page.getByRole("button", { name: "Explain this quest", exact: true }).isDisabled());
     assert.ok(await page.getByRole("button", { name: "Talk with &Tutor", exact: true }).isDisabled());
     await story("unavailable");
     await page.getByText("Tutor is not connected", { exact: true }).waitFor();
-    assert.ok(await page.getByRole("button", { name: "Explain this trail", exact: true }).isDisabled());
+    assert.ok(await page.getByRole("button", { name: "Explain this quest", exact: true }).isDisabled());
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await context.close();
     console.log(`Tutor explanations, sources, follow-ups, voice, stale/uncertain and spending guards passed at ${width}px.`);

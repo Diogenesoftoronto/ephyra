@@ -15,7 +15,7 @@ type Feedback = { kind: "success" | "error" | "uncertain" | "stale"; message: st
 type ShareLink = { url: string; label: string; role: TeamRole; invitationId?: string };
 
 const roles = [
-  { id: "viewer", name: "Viewer", detail: "Follow runs, read trails, and see costs.", icon: "runs" },
+  { id: "viewer", name: "Viewer", detail: "Follow runs, read quests, and see costs.", icon: "runs" },
   { id: "approver", name: "Approver", detail: "Everything a viewer can do, plus approve changes and spend under your policy.", icon: "check" },
 ] as const;
 

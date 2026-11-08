@@ -92,7 +92,7 @@ function TutorConversation({ trail, events, canSpend }: { trail: Trail; events: 
     void ask(text).catch(() => {});
   };
   return (
-    <Card tone="quiet" title="Understand this trail" meta={<Badge>&amp;Tutor</Badge>}>
+    <Card tone="quiet" title="Understand this quest" meta={<Badge>&amp;Tutor</Badge>}>
       <div className="tutor-panel stack">
         <p>Work through the reproduction, patch and proof, and what an approval would allow.</p>
         {cap?.provider && (
@@ -126,7 +126,7 @@ function TutorConversation({ trail, events, canSpend }: { trail: Trail; events: 
                 <Notice
                   tone="warn"
                   title="This explanation is out of date"
-                  body="The trail changed while Tutor was answering. Reload and read the current evidence before deciding."
+                  body="The quest changed while Tutor was answering. Reload and read the current evidence before deciding."
                 />
               )}
               <ReadAloudButton text={turn.reply.text} label="Tutor's explanation, read by Velum" />
@@ -164,11 +164,11 @@ function TutorConversation({ trail, events, canSpend }: { trail: Trail; events: 
               loading={busy}
               onClick={() =>
                 send(
-                  "Explain this trail, what is still unverified, and what approving the current checkpoint would allow.",
+                  "Explain this quest, what is still unverified, and what approving the current checkpoint would allow.",
                 )
               }
             >
-              Explain this trail
+              Explain this quest
             </Button>
           </div>
         )}
@@ -205,7 +205,7 @@ function TutorConversation({ trail, events, canSpend }: { trail: Trail; events: 
                 const result = await ask(text, signal);
                 return {
                   text: result.stale
-                    ? `This explanation is out of date. Reload the trail before deciding. ${result.text}`
+                    ? `This explanation is out of date. Reload the quest before deciding. ${result.text}`
                     : result.text,
                   receipt: result.receipt,
                 };

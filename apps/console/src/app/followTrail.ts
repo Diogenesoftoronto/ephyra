@@ -25,12 +25,12 @@ async function read(api: Pick<ConsoleApi, "trail">, id: string, signal: AbortSig
   const interrupted = new Promise<never>((_, reject) => {
     cancel = () => {
       request.abort();
-      reject(new Error("Trail read was cancelled."));
+      reject(new Error("Quest read was cancelled."));
     };
     signal.addEventListener("abort", cancel, { once: true });
     timer = setTimeout(() => {
       request.abort();
-      reject(new Error("The trail server did not answer in time."));
+      reject(new Error("The quest server did not answer in time."));
     }, timeoutMs);
     if (signal.aborted) cancel();
   });

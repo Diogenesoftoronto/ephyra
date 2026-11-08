@@ -20,7 +20,7 @@ export const DEMO_TEXT = {
 ## Evidence
 - 37 failures since 14:02, every one a cart with three or more discounted lines
 - Started with 8c1e0f2, "show per-line discounts"
-- No earlier trail touched total.ts
+- No earlier quest touched total.ts
 
 ## Next
 Reproduce with three lines at 33⅓% off, then round once, at the end.`,
@@ -46,7 +46,7 @@ Not touching: the payments adapter.`,
 		},
 		{
 			source: "trails",
-			title: "No earlier trail touched total.ts",
+			title: "No earlier quest touched total.ts",
 			snippet: "0 open, 0 closed in this area since March",
 			score: 0.6,
 		},
@@ -251,7 +251,7 @@ export const DEMO_EVENTS: TrailEvent[] = [
 					backends: { extract: "clairic", decide: "judgement-jev/jev-1.14" },
 					reasons: [
 						"actionable 0.92 ≥ 0.6",
-						"no open trail with this fingerprint",
+						"no open quest with this fingerprint",
 						"area checkout: medium risk",
 					],
 					notifyHuman: true,

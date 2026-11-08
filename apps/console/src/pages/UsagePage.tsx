@@ -123,9 +123,9 @@ export function UsagePage() {
                   rows={u.byEngine.map((g) => ({ key: g.key, totals: g.totals, label: <Tag>{g.key}</Tag> }))}
                 />
               </Card>
-              <Card tone="quiet" title="By trail">
+              <Card tone="quiet" title="By quest">
                 <BreakdownTable
-                  title="Trail"
+                  title="Quest"
                   selected={filters.trail || null}
                   onSelect={(k) => setFilters({ ...filters, trail: k ?? "" })}
                   rows={u.byTrail.map((t) => ({
@@ -140,7 +140,7 @@ export function UsagePage() {
                 />
               </Card>
             </div>
-            <Card tone="quiet" title="Trail budgets">
+            <Card tone="quiet" title="Quest budgets">
               <TrailBudgets trails={u.byTrail} />
             </Card>
           </>

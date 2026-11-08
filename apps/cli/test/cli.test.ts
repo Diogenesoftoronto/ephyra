@@ -35,7 +35,7 @@ for (const [key, action] of [
 ])
 	test(`key ${key}`, () =>
 		expect(inboxReducer(state, key!).command?.action).toBe(action));
-test("l lands a ready trail, but not at a checkpoint: approving C is what lands it", () => {
+test("l lands a ready quest, but not at a checkpoint: approving C is what lands it", () => {
 	expect(inboxReducer(state, "l").command).toBeUndefined();
 	const notice = { ...item, kind: "notice" as const, checkpoint: undefined };
 	expect(inboxReducer({ items: [notice], selected: 0 }, "l").command?.action).toBe("land");

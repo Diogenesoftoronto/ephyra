@@ -43,7 +43,7 @@ test("question fixture answers require the addressed account and do not silently
     .rejects.toThrow();
 });
 
-test("historical trail questions render validated records and preserve unrecognized data as escaped text", () => {
+test("historical quest questions render validated records and preserve unrecognized data as escaped text", () => {
   const record = renderToStaticMarkup(createElement(ReviewEvidence, {
     artefacts: [{ path: "questions/latest.json", content: JSON.stringify(QUESTION_FIXTURE) }],
   }));

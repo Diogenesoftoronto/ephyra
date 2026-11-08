@@ -96,7 +96,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -201,7 +201,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -321,7 +321,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -441,7 +441,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -567,7 +567,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -768,7 +768,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -1115,7 +1115,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -1541,7 +1541,7 @@
               },
               "reasons": [
                 "actionable 0.92 \u2265 0.6",
-                "no open trail with this fingerprint",
+                "no open quest with this fingerprint",
                 "area checkout: medium risk"
               ],
               "notifyHuman": true
@@ -2114,7 +2114,7 @@
       ]
     }
   },
-  "hypothesis": "# Hypothesis\n`sumLineItems` rounds each line to whole cents before adding them up, so a cart of discounted lines can total a cent less than the amount charged.\n\n## Evidence\n- 37 failures since 14:02, every one a cart with three or more discounted lines\n- Started with 8c1e0f2, \"show per-line discounts\"\n- No earlier trail touched total.ts\n\n## Next\nReproduce with three lines at 33\u2153% off, then round once, at the end.",
+  "hypothesis": "# Hypothesis\n`sumLineItems` rounds each line to whole cents before adding them up, so a cart of discounted lines can total a cent less than the amount charged.\n\n## Evidence\n- 37 failures since 14:02, every one a cart with three or more discounted lines\n- Started with 8c1e0f2, \"show per-line discounts\"\n- No earlier quest touched total.ts\n\n## Next\nReproduce with three lines at 33\u2153% off, then round once, at the end.",
   "plan": "# Plan\n1. Keep line totals in integer micro-cents; round once, in `cartTotal`.\n2. Add the probe `checkout/one-cent-drift`; it fails on base.\n3. Leave the receipt's display rounding alone.\n\nTouches: services/checkout/src/total.ts, total.test.ts\nNot touching: the payments adapter.",
   "evidence": [
     {
@@ -2131,7 +2131,7 @@
     },
     {
       "source": "trails",
-      "title": "No earlier trail touched total.ts",
+      "title": "No earlier quest touched total.ts",
       "snippet": "0 open, 0 closed in this area since March",
       "score": 0.6
     },

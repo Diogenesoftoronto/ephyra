@@ -32,7 +32,7 @@ function fixture() {
   api.voiceCapabilities = async () => CAP;
   api.transcribe = async (_input, op) => {
     calls.push("transcribe");
-    return { text: "Explain this trail", receipt: receipt(op) };
+    return { text: "Explain this quest", receipt: receipt(op) };
   };
   api.voiceReply = async (_input, op) => {
     calls.push("reply");
@@ -188,7 +188,7 @@ test("blocked playback reuses its audio without another synthesis call", async (
     if (play++ === 0) throw new Error("Playback blocked");
   };
   await f.session.open(target);
-  await f.session.submit("Explain this trail");
+  await f.session.submit("Explain this quest");
   expect(f.session.getSnapshot().phase).toBe("error");
   expect(f.session.getSnapshot().canReplay).toBe(true);
   await f.session.replay();
@@ -206,7 +206,7 @@ test("unavailable speech does not ask for the microphone or silently switch prov
   };
   await f.session.open(target);
   await f.session.begin();
-  await f.session.submit("Explain this trail");
+  await f.session.submit("Explain this quest");
   expect(captured).toBe(false);
   expect(f.calls).toEqual(["reply"]);
   f.session.close();

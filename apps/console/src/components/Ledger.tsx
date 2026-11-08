@@ -56,7 +56,7 @@ export function Ledger({
             <th>Who</th>
             <th>Step</th>
             <th>Engine</th>
-            <th>Trail</th>
+            <th>Quest</th>
             <th>Tokens</th>
             <th>Cost</th>
             <th>Time</th>

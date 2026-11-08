@@ -4,9 +4,9 @@ The React/Vite console is served at `https://console.ephyra.quest/app/`. The pub
 `https://ephyra.quest` embeds the same components with explicitly fictional walkthrough data.
 The console uses the server API for these implemented screens:
 
-- **Overview:** waiting decisions, recorded activity, recent spend and trail budgets.
+- **Overview:** waiting decisions, recorded activity, recent spend and quest budgets.
 - **Inbox:** checkpoint A/B/C and spend decisions, revision/head/proof bindings, journal evidence,
-  proof results, history and trail actions. Stale approvals and read-only accounts cannot decide.
+  proof results, history and quest actions. Stale approvals and read-only accounts cannot decide.
 - **Usage:** 7/14-day totals, spend by day, persona/engine/trail breakdowns, budgets and a paginated,
   filterable ledger. Unknown prices stay unknown; totals are explicitly lower bounds when incomplete.
 - **Team:** single-use invitations with owner-selected Viewer or Approver access, explicit joining, and revocation.
@@ -19,8 +19,8 @@ The console uses the server API for these implemented screens:
   Running entries use a bell pulse; directory hover/focus gives a brief greeting. Idle roles remain still.
 
 The Overview gives decision titles a full reading column, marks one review action as primary, and shows
-the three trail budgets with the highest usage ratios, with a link to all budgets in Usage. Summary totals
-still cover every trail in the returned window, including the explicit unknown-cost count. Daily spend
+the three quest budgets with the highest usage ratios, with a link to all budgets in Usage. Summary totals
+still cover every quest in the returned window, including the explicit unknown-cost count. Daily spend
 amounts are available in an expandable table. Navigation includes a skip link and keyboard-operated
 mobile More menu; budget meters use their visible labels as accessible names.
 
@@ -102,9 +102,15 @@ lookups, and retains manual entry on rate limits or errors. Private repositories
 
 `bun run --filter @ephyra/console build:walkthrough` builds the same App and TrailPanel components for `site/e/app/`.
 The web Docker build performs this automatically. Six feature views show Overview, setup, Runs, Workspace, Personas
-and Team. The nine-stage bug tour renders the real trail panel from the checked-in CLI walkthrough recording.
+and Team. The nine-stage bug tour renders the real quest panel from the checked-in CLI walkthrough recording.
 Sample accounts and teams are fictional; the tour creates no repository, invitation or provider job. Its separate
 entry uses fake adapters, a network-blocking CSP and an allowlisted same-origin parent-message protocol.
+
+Inline previews leave scrolling to the landing page. The reader opens interactive screens in a native dialog.
+Scene changes scroll only their own document; route focus uses `preventScroll` so it cannot move the host page.
+The shared-browser probes `scripts/landing-scroll.probe.js` and `scripts/landing-workspace.probe.js` check story
+alignment in both directions, workspace switching, narrow frames, dialog focus/position restoration and the origin boundary.
+The visible term is **quest**; existing `Trail` types, routes, event names and saved IDs remain compatible.
 
 `env -u LD_LIBRARY_PATH bun apps/console/scripts/product-walkthrough.ts` checks all six views and nine stages at
 390/1440px, recorded proof, foreign-origin message refusal, errors and layout. `juice-interactions.ts` checks repository
@@ -168,9 +174,9 @@ checks six screens at 320/390/1440 pixels in both themes. These are local checks
 ## Shared reviews
 
 The real Inbox shows authenticated authors, comments and review handoffs from the git journal.
-Selected trails refresh every two seconds, with bounded retries and a connection indicator. Incoming
+Selected quests refresh every two seconds, with bounded retries and a connection indicator. Incoming
 changes and transient read failures preserve the comment input, selection and draft. Drafts and
-unconfirmed operations stay in memory per API connection, principal and trail across navigation.
+unconfirmed operations stay in memory per API connection, principal and quest across navigation.
 They are not a durable offline outbox and are lost on a full page reload.
 
 Approvers can claim a review at checkpoints A, B and C. The claim records the owner and blocks
@@ -225,7 +231,7 @@ renders every story at desktop and phone widths; `interactions` exercises draft 
 proposals, publishing, usage filters/pagination, mobile navigation, live events and refusal states.
 Screenshots go to the ignored `artifacts/interactions` directory.
 
-`multiplayer` starts an isolated loopback server with production HTTP handlers, trail engine and git
+`multiplayer` starts an isolated loopback server with production HTTP handlers, quest engine and git
 journal, then uses independent Chromium profiles. Identity resolution and review snapshots are fixtures;
 shared comments, claims, releases and receipt checks use real requests and durable journal writes.
 It checks authorization, competing claims, draft/caret preservation, reconnect catch-up, ambiguous
@@ -242,7 +248,7 @@ production deployment and cloud/forge writes. Storybook/demo fixtures are not ev
 
 **Talk with Velum** is available in the work screens; onboarding and Settings keep the focus on setup.
 Overview and Usage conversations use a fresh server snapshot;
-opening a trail or run supplies that resource's recorded context. These conversations explain the evidence and have
+opening a quest or run supplies that resource's recorded context. These conversations explain the evidence and have
 no mutation tools. In an open document, spoken and typed turns use the same saved Velum thread, generated forms and
 reviewable proposals. Dirty, closed and read-only drafts retain their existing guards.
 
@@ -283,13 +289,13 @@ wallet settlement, mobile Safari and production delivery. No paid provider calls
 Velum can use Ampersand to work through ambiguous intent and propose document changes. This is an optional server
 configuration; the console keeps the same saved thread, reviewable proposals and explicit apply/publish controls.
 
-Every trail has **Understand this trail**. **Explain this trail** asks &Tutor to walk through recorded evidence and the
+Every quest has **Understand this quest**. **Explain this quest** asks &Tutor to walk through recorded evidence and the
 current checkpoint. Follow-up questions, editable dictation and **Talk with &Tutor** use the same explanation endpoint.
 Velum narrates Tutor's text through the configured speech provider, with captions and separate receipts. Tutor is not
-presented as a native audio model. Answers also remain visible in the trail panel while the view stays open.
+presented as a native audio model. Answers also remain visible in the quest panel while the view stays open.
 
 **Records Tutor received** shows the exact bounded excerpts, alongside the revision, model identity and recorded cost.
-Missing proof stays missing. A changed trail refuses a new question or labels an in-flight answer stale. Uncertain
+Missing proof stays missing. A changed quest refuses a new question or labels an in-flight answer stale. Uncertain
 requests stop further submission until the operator reconciles them. The panel has no approval controls; existing
 checkpoint controls remain the decision surface. Read-only accounts can inspect availability but cannot spend.
 
@@ -368,9 +374,9 @@ link. The delivery token is write-only. These choices permit autonomous investig
 not approve code or grant capabilities. Contact routing can be disabled without introducing an approval checkpoint.
 
 Inbox shows question/answer checks with exact model identities and request/response evidence, delivery state and the
-bound trail revision. Only the addressed account gets an answer form. Historical `questions/latest.json` records also
-render in trail evidence. An interrupted answer stores only a credential-free question/operation reference in session
-storage, scoped to the account and workspace. Reload reads the exact saved record even if the resumed trail disappeared
+bound quest revision. Only the addressed account gets an answer form. Historical `questions/latest.json` records also
+render in quest evidence. An interrupted answer stores only a credential-free question/operation reference in session
+storage, scoped to the account and workspace. Reload reads the exact saved record even if the resumed quest disappeared
 from the active question list; it never repeats the POST. Missing records remain explicitly unconfirmed.
 
 Connection saves use account/version/workspace bindings and operation keys. Conflicts and uncertain saves require a

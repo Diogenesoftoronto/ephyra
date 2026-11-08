@@ -53,7 +53,7 @@ export function Shell({
     if (previousPage.current !== current) {
       previousPage.current = current;
       setMore(false);
-      main.current?.focus();
+      main.current?.focus({ preventScroll: true });
       window.scrollTo(0, 0);
     }
   }, [current, nav]);

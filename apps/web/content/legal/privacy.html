@@ -14,12 +14,12 @@
 <p>The deployment encrypts the refresh token with AES-GCM, under a key it holds, before storing it in its database. While you sign in, your browser holds a short-lived HttpOnly cookie, <code>ephyra_login</code>, for up to ten minutes. The cookie ties the sign-in callback to the browser that started it.</p>
 <p>A session lasts until you sign out or it is revoked or expires. It expires at the end of Not Organic’s refresh lifetime, or after 30 days if Not Organic does not state one.</p>
 <p>When you sign in from a terminal, the CLI stores its session in <code>~/.config/ephyra/credentials.json</code> on your computer, readable only by your user account. Running <code>ephyra logout</code> removes it.</p>
-<p>When you approve or reject a checkpoint, the deployment records your DID, your decision, the time and the trail revision. The record goes in the trail’s journal and in the deployment’s audit log, because a reviewable record of who approved what is the purpose of a checkpoint.</p>
+<p>When you approve or reject a checkpoint, the deployment records your DID, your decision, the time and the quest revision. The record goes in the quest’s journal and in the deployment’s audit log, because a reviewable record of who approved what is the purpose of a checkpoint.</p>
 
-<h2 id="signals">Production signals and trails</h2>
+<h2 id="signals">Production signals and quests</h2>
 <p>A deployment receives the errors, traces and logs its operator’s applications send it, along with repository content and forge activity. These can include personal information about the operator’s own users, such as account identifiers, IP addresses or request contents captured in a stack trace.</p>
 <p>The operator decides what to send. It is responsible for having a lawful basis and for removing what is not needed before sending it.</p>
-<p>Trails record evidence, hypotheses, reproduction scripts, patches and proof as git objects under <code>refs/ephyra/trails</code> in the repository. Excerpts of signals can appear in that evidence. When a trail lands, its commits carry <code>Ephyra-Trail</code> and <code>Ephyra-Proof</code> trailers.</p>
+<p>Quests record evidence, hypotheses, reproduction scripts, patches and proof as git objects under <code>refs/ephyra/trails</code> in the repository. Excerpts of signals can appear in that evidence. When a quest lands, its commits carry <code>Ephyra-Trail</code> and <code>Ephyra-Proof</code> trailers.</p>
 
 <h2 id="ai">AI providers</h2>
 <p>To triage a signal, Ephyra sends an excerpt of it to the extraction and decision models the deployment chose. Those can be:</p>
@@ -28,7 +28,7 @@
 <li>a provider reached directly with the operator’s own keys;</li>
 <li>a model the operator hosts.</li>
 </ul>
-<p>To work a trail, Ephyra sends the evidence, code and instructions to the coding agent the operator chose, such as Amp, Claude Code or Codex. Each provider receives the content it needs to answer the request. Hosted model calls through Not Organic use the deployment’s billing account, not the identity of the person who approved the work.</p>
+<p>To work a quest, Ephyra sends the evidence, code and instructions to the coding agent the operator chose, such as Amp, Claude Code or Codex. Each provider receives the content it needs to answer the request. Hosted model calls through Not Organic use the deployment’s billing account, not the identity of the person who approved the work.</p>
 <p>Untrusted content is marked as data in these requests, never as instructions. We do not use your content to train models. Provider retention and training depend on the provider and on the operator’s agreement with it. We do not promise zero retention, and a request is not end-to-end encrypted from the provider that answers it.</p>
 
 <h2 id="providers">Service providers, transfers and disclosures</h2>
@@ -44,7 +44,7 @@
 <tr><td>Sign-in state</td><td>Up to ten minutes.</td></tr>
 <tr><td>Sessions</td><td>Until sign-out, revocation or expiry.</td></tr>
 <tr><td>Signals, inbox items, jobs and operation records</td><td>Kept in the deployment’s database until the operator deletes them. No automatic deletion schedule is implemented yet.</td></tr>
-<tr><td>Trail journals</td><td>Git refs in the repository, kept until someone deletes them. Copies pushed to forges, mirrors or Radicle seed nodes can persist after local deletion.</td></tr>
+<tr><td>Quest journals</td><td>Git refs in the repository, kept until someone deletes them. Copies pushed to forges, mirrors or Radicle seed nodes can persist after local deletion.</td></tr>
 <tr><td>Approval audit records</td><td>Kept for the life of the deployment, because they explain why code landed.</td></tr>
 <tr><td>Journal articles</td><td>Public until the author deletes them from the data server. Copies made by feeds, caches and AT Protocol relays are outside our control.</td></tr>
 </tbody>

@@ -73,7 +73,7 @@ function Fixture({ mode = "ready", canSpend = true }: { mode?: string; canSpend?
 const meta: Meta = { title: "Components/TutorPanel" };
 export default meta;
 const explain: StoryObj["play"] = async ({ canvasElement }) => {
-  const button = await within(canvasElement).findByRole("button", { name: "Explain this trail" });
+  const button = await within(canvasElement).findByRole("button", { name: "Explain this quest" });
   // Availability is asynchronous; wait for the real component to enable the control.
   await waitFor(() => {
     if ((button as HTMLButtonElement).disabled) throw new Error("Loading");

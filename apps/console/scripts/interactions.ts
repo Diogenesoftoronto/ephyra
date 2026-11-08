@@ -62,7 +62,7 @@ cases.push({
     await p.getByRole("button", { name: "Send", exact: true }).click();
     const proposal = p.locator(".proposal").last();
     await proposal
-      .getByText("Add a billing area: high risk, Propose level, lands as a trail ref.", { exact: true })
+      .getByText("Add a billing area: high risk, Propose level, lands as a quest ref.", { exact: true })
       .waitFor();
     await proposal.getByRole("button", { name: "Use this proposal", exact: true }).click();
     await proposal.getByText("In the draft", { exact: true }).waitFor();
