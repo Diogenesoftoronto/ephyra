@@ -2,9 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PERSONAS } from "@ephyra/core";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
 
-const meta = { title: "Personas/PersonaAvatar", component: PersonaAvatar } satisfies Meta<
-  typeof PersonaAvatar
->;
+const meta = { title: "Personas/PersonaAvatar", component: PersonaAvatar } satisfies Meta<typeof PersonaAvatar>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -16,8 +14,8 @@ const row = (size: 24 | 32 | 48 | 96, live = false) => (
   </div>
 );
 
-/** With no art served, each persona shows its initial on its colour. This is the fallback, and what ships until the files exist. */
-export const Fallback: Story = {
+/** The shipped transparent art, at the actual product sizes. */
+export const Sizes: Story = {
   args: { persona: "rho" },
   render: () => (
     <div className="stack">
@@ -29,6 +27,12 @@ export const Fallback: Story = {
   ),
 };
 export const Live: Story = { args: { persona: "nema" }, render: () => row(48, true) };
+export const Fallback: Story = { args: { persona: "rho", size: 48, base: "/missing-personas" } };
+export const DarkLive: Story = {
+  args: { persona: "velum" },
+  parameters: { theme: "dark" },
+  render: () => row(96, true),
+};
 export const Dark: Story = {
   args: { persona: "velum" },
   parameters: { theme: "dark" },

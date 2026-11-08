@@ -1,11 +1,3 @@
-.gate {
-  max-width: 34rem;
-  margin: var(--s7) auto;
-  padding: 0 var(--s4);
-  display: grid;
-  gap: var(--s4);
-}
-
 .account-mark {
   display: grid;
   place-items: center;

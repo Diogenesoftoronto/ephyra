@@ -1,3 +1,18 @@
+.onboarding-heading {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.onboarding-heading__text {
+  min-width: 0;
+}
+.onboarding-heading__text .ui-button {
+  margin: var(--s2) 0 0;
+  padding-left: 0;
+  color: var(--muted);
+}
 .onboarding-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -14,6 +29,7 @@
   align-items: center;
   gap: var(--s2);
   width: 100%;
+  height: 100%;
   min-height: 48px;
   padding: var(--s3) 0;
   border: 0;
@@ -29,8 +45,26 @@
   border-bottom-color: var(--jelly-deep);
 }
 .onboarding-step-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
   font: 500 var(--fs-label) / 1 var(--font-mono);
   color: var(--muted);
+  transition:
+    background 180ms,
+    color 180ms,
+    transform 180ms var(--ease-out);
+}
+.onboarding-steps button[aria-current="step"] .onboarding-step-number {
+  background: var(--jelly);
+  color: var(--on-jelly);
+  box-shadow: inset 0 1px 1px color-mix(in oklab, white 45%, transparent);
+}
+.onboarding-steps button:active:not(:disabled) .onboarding-step-number {
+  transform: scale(1.06, 0.94);
 }
 .onboarding-steps button:disabled {
   cursor: default;
@@ -48,8 +82,20 @@
   }
 }
 @media (max-width: 450px) {
+  .onboarding-heading .jelly-specimen {
+    width: 72px;
+    height: 72px;
+  }
   .onboarding-steps button {
     font-size: var(--fs-small);
     gap: var(--s1);
+  }
+}
+@media (max-width: 360px) {
+  .onboarding-steps button {
+    display: grid;
+    grid-template-rows: 24px 1fr;
+    align-items: start;
+    gap: var(--s2);
   }
 }

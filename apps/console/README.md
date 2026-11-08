@@ -13,8 +13,8 @@ The console uses the server API for these implemented screens:
 - **Workspace:** the application map and autonomy, threshold and intent documents. Edit a draft
   directly or with Velum, review a proposal or json-render form, apply it, and publish a policy ref.
   Unsaved edits block switching draft views and publishing. Publishing does not change the live policy.
-- **Personas:** six named roles with existing still/motion assets, recorded engines, activity and spend.
-  Motion is restricted to the selected active persona and respects reduced-motion preferences.
+- **Personas:** six named roles with transparent artwork, recorded engines, activity and spend.
+  Running entries use a bell pulse; directory hover/focus gives a brief greeting. Idle roles remain still.
 
 ## Run
 
@@ -62,6 +62,17 @@ The light/dark switch sits beside Commands. It follows the system color preferen
 an explicit choice is remembered in this browser. There is no separate Auto control.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
+Welcome and setup include a small interactive amber specimen. Hover, touch, Enter or Space triggers a 2.1-second
+texture-refraction shader, then it settles. WebGL is allocated only on interaction, capped at 384px and about 30fps.
+The ordinary image remains the fallback when WebGL is unavailable or lost. Reduced motion uses stills;
+moving offscreen or hiding the tab stops drawing. Persona pulses use transparent stills in both themes,
+without the dark rectangles of the original video exports. No animation implies that an unconfigured agent is working.
+
+`Motion/JellySpecimen` in Storybook includes light, dark, small, keyboard, missing-art and downloadable loop examples.
+The [motion asset notes](../../design/brand/CONSOLE-MOTION.md) record the image-generation prompt, source artwork,
+transparent GIF/WebP exports and reproduction commands. GIFs are shareable exports; the app loads the 46KB poster
+and runs its small shader only on interaction, rather than downloading a video or GIF for every visit.
+
 Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
 account/workspace bindings, including when another tab changes the signed-in cookie. The sign-in browser harness now
 checks optional BYOK onboarding, hidden saved keys, shortcuts, real draft requests using a named offline model fixture,
@@ -107,6 +118,7 @@ bun run --filter @ephyra/console multiplayer
 env -u LD_LIBRARY_PATH bun apps/console/scripts/signin.ts
 env -u LD_LIBRARY_PATH bun apps/console/scripts/account-layout.ts
 env -u LD_LIBRARY_PATH bun apps/console/scripts/theme.ts
+env -u LD_LIBRARY_PATH bun apps/console/scripts/motion.ts
 ```
 
 The sign-in browser harness checks the public app link, PKCE redirect/callback, protected cookie, reload,
@@ -115,6 +127,9 @@ It runs the real HTTP server with a fictional Not Organic gateway; hosted accoun
 Sign-in, manual connection and expired-session states are included in Storybook.
 The offline account layout check covers 320–1440px, retained unsaved fields, section keyboard navigation,
 optional setup, dark mode and reconciliation after an uncertain save. It captures the rendered Storybook screens.
+The motion check counts real WebGL draws, verifies zero idle drawing, keyboard replay, live reduced-motion changes,
+offscreen/hidden-tab suspension, lost/unavailable WebGL fallbacks, transparent persona motion and 320–1440px layouts.
+Hidden-tab state is simulated. Physical mobile GPU performance and Safari are not established by this Chromium check.
 
 Build both the app and Storybook before `interactions`. The browser scripts start temporary loopback
 static servers, close them on completion, and use the installed Playwright Chromium headless shell.
