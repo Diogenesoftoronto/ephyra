@@ -110,7 +110,8 @@ export type ArtifactRef = { path: string; digest: string; bytes: number; mediaTy
 export interface Runner {
   readonly name: string;
   readonly capabilities: { checkpoint: "none" | "disk" | "memory"; network: ServiceProfile["network"][]; shell: boolean; browser: boolean };
-  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile; leaseS?: number }): Promise<RunnerHandle>;
+  allocate(req: { trail: Trail; attempt: number; repoUrl: string; commit: string; profile: ServiceProfile;
+    leaseS?: number; operationKey?: string }): Promise<RunnerHandle>;
   exec(handle: RunnerHandle, command: string[], opts: { cwd?: string; env?: Record<string, string>; deadlineMs: number }): AsyncIterable<ExecOutput>;
   writeFile(handle: RunnerHandle, path: string, content: string | Uint8Array): Promise<void>;
   readFile(handle: RunnerHandle, path: string): Promise<Uint8Array | null>;
