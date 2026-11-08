@@ -95,6 +95,9 @@ The sample label stays visible at every width. Previous/Next buttons and Left/Ri
 
 The inline frames are inert previews, so wheel and touch gestures continue down the page. “Explore this screen” and “Read full details” open an interactive, scrollable native dialog. The recorded quest remains read-only. It does not send messages to a server, show live teammates, start/stop agents, or provide authenticated multiplayer. Evidence positioning uses the child window's `scrollTo`; `scrollIntoView` would also move the parent page and desynchronize the story.
 
+Landing HTML, scripts, styles and JSON revalidate between releases. The `20261108-quests` URL suffix evicts the older
+five-minute cached walkthrough during this migration; the reader, module imports and fixture share the same suffix.
+
 The visual direction is G3-06, “Connected Notes”: open reading surfaces, curved connections, restrained membrane edges, and amber checkpoint actions. `output/jellyware-exploration/` contains the 30-concept, three-generation MAP-Elites comparison, prompts, lineage, and subjective assessment scores. The generated concept images include proposed collaboration behavior; the walkthrough uses only the recorded fixture and the local demo described above.
 
 `apps/console/scripts/landing-scroll.probe.js` runs in the shared browser. It checks all nine scenes forward and backward, page drift, alignment, preview gesture handling, arrow navigation and details-dialog position restoration. `apps/console/scripts/product-walkthrough.ts` covers the six workspace scenes, nine recorded moments and frame-origin boundary. Older `apps/web/scripts/check-console.js` checks the retired hand-built GUI and does not validate the React walkthrough. These checks use sample data; they are not evidence of real production repairs, forge landing, or networked collaboration.

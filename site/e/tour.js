@@ -1,6 +1,6 @@
-import { renderConsole, setupConsoleSelector } from "./console.js";
-import { createDemoRoom } from "./multiplayer.js";
-import { showProductScreen, readProductScreen } from "./product-tour.js";
+import { renderConsole, setupConsoleSelector } from "./console.js?v=20261108-quests";
+import { createDemoRoom } from "./multiplayer.js?v=20261108-quests";
+import { showProductScreen, readProductScreen } from "./product-tour.js?v=20261108-quests";
 
 // Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
 // The screens come from walkthrough.json, which apps/cli/scripts/walkthrough.ts renders with the inbox's own view,
@@ -487,7 +487,7 @@ import { showProductScreen, readProductScreen } from "./product-tour.js";
     field.focus({ preventScroll: true });
   });
 
-  fetch("walkthrough.json", { credentials: "omit" })
+  fetch("walkthrough.json?v=20261108-quests", { credentials: "omit" })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((d) => {
       data = d;

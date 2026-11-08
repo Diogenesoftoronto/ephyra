@@ -159,6 +159,15 @@ describe("Standard.site blog", () => {
 });
 
 describe("static site", () => {
+  test("returning browsers revalidate the walkthrough code and fixture with its HTML", async () => {
+    const h = site();
+    for (const path of ["/", "/e/tour.js", "/e/product-tour.js", "/e/product-tour.css", "/e/walkthrough.json"]) {
+      const response = await get(h, path);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-cache");
+    }
+    expect((await get(h, "/assets/brand/logo.svg")).headers.get("cache-control")).toBe("public, max-age=86400");
+  });
   test("the default homepage serves the recovered GUI/TUI walkthrough and all of its assets", async () => {
     const h = site();
     const html = await (await get(h, "/")).text();

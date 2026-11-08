@@ -15,7 +15,7 @@ export function showProductScreen(container, scene, { interactive = false } = {}
     if (!interactive) { frame.tabIndex = -1; frame.setAttribute('aria-hidden', 'true'); }
     frame.loading = 'lazy';
     frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-    frame.src = `/e/app/walkthrough.html?scene=${encodeURIComponent(scene)}`;
+    frame.src = `/e/app/walkthrough.html?v=20261108-quests&scene=${encodeURIComponent(scene)}`;
     frame.addEventListener('load', () => sync(frame, frames.get(frame)));
     container.replaceChildren(frame);
   }

@@ -151,12 +151,14 @@ export function createSite(config: SiteConfig) {
     if (ext === ".html") {
       const html = asHome ? seoHead(await file.text(), "/", { base: `/${rel.replace(/index\.html$/, "")}` })
         : seoHead(await file.text(), ("/" + rel).replace(/index\.html$/, ""), { noindex: true });
-      return new Response(html, { headers: { "content-type": TYPES[".html"]!, "cache-control": "public, max-age=300" } });
+      return new Response(html, { headers: { "content-type": TYPES[".html"]!, "cache-control": "no-cache" } });
     }
     const immutable = rel.startsWith("assets/");
+    // Unversioned code and fixtures must not survive a deployment beside newer HTML.
+    const revalidate = [".js", ".css", ".json"].includes(ext);
     return new Response(file, { headers: {
       "content-type": TYPES[ext] ?? "application/octet-stream",
-      "cache-control": immutable ? "public, max-age=86400" : "public, max-age=300",
+      "cache-control": revalidate ? "no-cache" : immutable ? "public, max-age=86400" : "public, max-age=300",
     } });
   }
 
