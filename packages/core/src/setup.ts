@@ -10,6 +10,8 @@ export const SetupRun = z.object({
   operationKey: z.string().optional(),
   mode: SetupMode,
   status: z.enum(["queued", "running", "blocked", "ready", "failed"]),
+  /** Investigation may run while external landing/watch coverage is still blocked. */
+  investigationActive: z.boolean().optional(),
   repository: z.object({ url: z.string(), branch: z.string(), head: z.string() }),
   startedAt: z.string(),
   updatedAt: z.string(),

@@ -5,6 +5,7 @@ import { parseAutonomy, parseThresholds, renderAutonomy, THRESHOLDS_TEMPLATE } f
 import { redact } from "@ephyra/agent";
 import type { Git } from "../wiring/landing.ts";
 import type { Jobs, RepoConfig } from "../wiring/context.ts";
+import { redactModelText } from "./model-redaction.ts";
 
 const CURRENT = "refs/ephyra/setup/current";
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -14,8 +15,11 @@ export class SetupConflict extends Error {}
 export type SetupCapability = { id: string; available: boolean; summary: string; action: string };
 export type SetupOptions = {
   git: Git; repo: RepoConfig; jobs: Jobs;
-  capabilities: () => Promise<SetupCapability[]>;
+  capabilities: (run?: SetupRun) => Promise<SetupCapability[]>;
   activate: (run: SetupRun) => Promise<void>;
+  provision?: (run: SetupRun) => Promise<{
+    artifacts: SetupRun["artifacts"]; verification: boolean; provisioned: boolean; detail: string;
+  }>;
   secrets?: string[];
   now?: () => Date;
 };
@@ -194,12 +198,20 @@ export class AutomaticSetup {
     const current = await this.read(CURRENT);
     if (!current) return;
     if (current.run.status === "ready") {
-      const missing = (await this.options.capabilities()).filter((cap) => !cap.available);
+      const missing = (await this.options.capabilities(current.run)).filter((cap) => !cap.available);
       if (missing.length) {
         current.run.status = "blocked";
         current.run.blockers = missing.map(({ id, summary, action }) => ({ id, summary, action, owner: "operator" }));
+        current.run.investigationActive = !missing.some((cap) => ["agent", "runner", "decision", "verification"].includes(cap.id));
         current.run.steps[4]!.status = "blocked";
         current.run.steps[4]!.detail = "Execution capabilities changed since setup. Recheck before activating.";
+        current.head = await this.save(current.run, current.head, current.head);
+      } else await this.options.activate(current.run);
+    }
+    if (current.run.status === "blocked" && current.run.investigationActive) {
+      const caps = await this.options.capabilities(current.run);
+      if (caps.some((cap) => !cap.available && ["agent", "runner", "decision", "verification"].includes(cap.id))) {
+        current.run.investigationActive = false;
         await this.save(current.run, current.head, current.head);
       } else await this.options.activate(current.run);
     }
@@ -228,7 +240,7 @@ export class AutomaticSetup {
       run.steps[0]!.status = "complete";
       run.steps[0]!.detail = `Inspected ${files.length} paths at ${run.repository.head.slice(0, 12)}; no repository code executed.`;
       run.artifacts = bootstrapArtifacts(files, manifest, run.mode).map((artifact) => {
-        const content = redact(artifact.content, this.options.secrets ?? [], 200_000);
+        const content = redactModelText(artifact.content, this.options.secrets ?? [], 200_000);
         return { ...artifact, content, digest: sha(content) };
       });
       // Preserve existing policy text. Choosing automatic setup never silently expands an existing policy's permissions.
@@ -253,19 +265,36 @@ export class AutomaticSetup {
       run.steps[3]!.detail = "Telemetry source hints recorded. Source coverage is not yet verified.";
       run.steps[4]!.status = "running";
       await persist();
-      const capabilities = await this.options.capabilities();
+      const prerequisites = await this.options.capabilities(run);
+      if (this.options.provision && !prerequisites.some((cap) => ["agent", "runner"].includes(cap.id) && !cap.available)) {
+        run.steps[2]!.status = "running";
+        run.steps[2]!.detail = "Provisioning a sandbox and running the repository's discovered checks.";
+        await persist();
+        const result = await this.options.provision(run);
+        for (const artifact of result.artifacts) {
+          run.artifacts = run.artifacts.filter((item) => item.path !== artifact.path);
+          const content = redactModelText(artifact.content, this.options.secrets ?? [], 250_000);
+          run.artifacts.push({ path: artifact.path, content, digest: sha(content) });
+        }
+        run.steps[2]!.status = result.verification ? "complete" : "blocked";
+        run.steps[2]!.detail = result.detail;
+        await persist();
+      }
+      const capabilities = await this.options.capabilities(run);
       run.blockers = capabilities.filter((cap) => !cap.available).map(({ id, summary, action }) => ({ id, summary, action, owner: "operator" }));
       if (await this.head(this.options.repo.baseRef) !== run.repository.head) {
         run.blockers.push({ id: "base_changed", summary: "The repository changed during setup.",
           action: "Run setup again against the current commit.", owner: "maintainer" });
       }
       run.status = run.blockers.length ? "blocked" : "ready";
+      run.investigationActive = !run.blockers.some((blocker) => !["telemetry", "landing", "watch"].includes(blocker.id));
       run.steps[4]!.status = run.blockers.length ? "blocked" : "complete";
       run.steps[4]!.detail = run.blockers.length
-        ? "Configuration is prepared. Resolve the listed capabilities before activating the loop."
+        ? run.investigationActive ? "Investigation is active. The listed capabilities still block unattended landing."
+          : "Configuration is prepared. Resolve the listed capabilities before activating the loop."
         : "Required capabilities are configured. This is not proof of a production repair.";
       await persist();
-      if (run.status === "ready") await this.options.activate(run);
+      if (run.status === "ready" || run.investigationActive) await this.options.activate(run);
     } catch {
       // Never serialize raw Git/provider errors or repository content as an error message.
       run.status = "failed";

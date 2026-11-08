@@ -217,3 +217,74 @@ describe("account configuration service", () => {
     expect(f.changes).toHaveLength(4);
   });
 });
+
+test("PostHog credentials are write-only, project-bound and revoked before cached adapters can disclose data", async () => {
+  const calls: string[] = [];
+  const f = await fixture(async (url, init) => {
+    calls.push(url);
+    expect(new Headers(init?.headers).get("Authorization")).toBe(`Bearer ${KEY}`);
+    return json({ columns: ["id", "timestamp", "event", "exception_list", "fingerprint", "level", "session_id", "steps"],
+      results: [], is_cached: false, last_refresh: new Date().toISOString() });
+  });
+  const workspace = workspaceId(DID);
+  const input = { expectedVersion: 0, workspaceId: workspace, enabled: true, origin: "https://us.posthog.com", projectId: "42",
+    includeRecordings: false, apiKey: KEY };
+  const saved = await f.service.saveTelemetry(DID, input, "posthog-first-001");
+  expect(saved.telemetry).toMatchObject({ status: "verified", keyConfigured: true, projectId: "42" });
+  expect(JSON.stringify(saved)).not.toContain(KEY);
+  expect(await f.box.open((await f.store.get(DID))!.telemetryKey!)).toBe(KEY);
+  expect(await f.service.saveTelemetry(DID, input, "posthog-first-001")).toEqual(saved);
+  expect(calls.length).toBe(1);
+  const adapter = (await f.service.telemetryFor(DID, workspace))!;
+  expect((await adapter.exceptions()).events).toEqual([]);
+  const { apiKey: _secret, ...withoutKey } = input;
+  await expect(f.service.saveTelemetry(DID, { ...withoutKey, expectedVersion: 1, projectId: "99" },
+    "posthog-other-project")).rejects.toThrow("API key");
+  await f.service.saveTelemetry(DID, { ...withoutKey, expectedVersion: 1, enabled: false }, "posthog-disconnect");
+  await expect(adapter.exceptions()).rejects.toThrow();
+  expect(await f.service.telemetryFor(DID, workspace)).toBeNull();
+  expect((await f.store.get(DID))!.telemetryKey).toBeUndefined();
+  expect(await f.service.telemetryFor(OTHER, workspace)).toBeNull();
+});
+
+test("contact routing defaults to the owner inbox; external recipients require an authenticated bridge", async () => {
+  const f = await fixture();
+  const initial = await f.service.settings(DID);
+  expect(initial.people).toMatchObject({ enabled: true, contacts: [{ id: "workspace-owner", did: DID }] });
+  const contact = { id: "support", alias: "Customer support", roles: ["user" as const], areas: ["checkout"] };
+  const input = { expectedVersion: 0, workspaceId: initial.workspaceId, enabled: true, contacts: [contact] };
+  await expect(f.service.savePeople(DID, input, "contact-no-bridge")).rejects.toThrow("delivery bridge");
+  const saved = await f.service.savePeople(DID, { ...input, webhookUrl: "https://support.example/ephyra", token: KEY }, "contact-bridge-01");
+  expect(saved.people).toMatchObject({ contacts: [contact], keyConfigured: true });
+  expect(JSON.stringify(saved)).not.toContain(KEY);
+  expect((await f.service.peopleFor(DID, saved.workspaceId))!.token).toBe(KEY);
+  expect(await f.service.peopleFor(OTHER, saved.workspaceId)).toBeNull();
+  await expect(f.service.savePeople(DID, { ...input, expectedVersion: 1, webhookUrl: "http://localhost/messages", token: KEY },
+    "contact-private-01")).rejects.toThrow();
+  await f.service.savePeople(DID, { ...input, expectedVersion: 1, enabled: false }, "contact-disable-01");
+  expect(await f.service.peopleFor(DID, saved.workspaceId)).toBeNull();
+});
+
+test("canonical native identity determines the workspace and changing repositories clears scoped connections", async () => {
+  const f = await fixture();
+  const seen: RepositoryInput[] = [];
+  const canonical = "rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5";
+  const service = new Accounts({ ...f.service.options, repository: {
+    resolve: async (input) => ({ url: canonical, forge: { kind: "radicle", source: input.url, repositoryId: canonical } }),
+    discover: async () => "trunk",
+    prepare: async (input) => { seen.push(input); return { url: input.url, branch: input.branch, head: "a".repeat(40), verifiedAt: "now" }; },
+  } });
+  const initial = await service.settings(DID);
+  await service.savePeople(DID, { expectedVersion: 0, workspaceId: initial.workspaceId, enabled: true,
+    contacts: initial.people!.contacts }, "owner-setup-0001");
+  const saved = await service.saveRepository(DID, { expectedVersion: 1, url: "https://app.radicle.xyz/example", branch: "main",
+    discoverDefaultBranch: true }, "native-first-001");
+  expect(saved.workspaceId).toBe(workspaceId(DID, canonical, "trunk"));
+  expect(saved.repository?.forge).toMatchObject({ kind: "radicle", source: "https://app.radicle.xyz/example" });
+  expect(seen[0]?.url).toBe(canonical);
+  expect(saved.people?.workspaceId).toBe(saved.workspaceId);
+  const other = await f.service.saveRepository(DID, { expectedVersion: 2, url: "https://forge.example/new.git", branch: "main" },
+    "different-repo-001");
+  expect((await f.store.get(DID))!.settings.people).toBeUndefined();
+  expect(other.people?.contacts).toEqual(initial.people!.contacts);
+});

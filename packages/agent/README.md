@@ -2,7 +2,21 @@
 
 Renders step-specific prompts with untrusted blocks, runs Claude Code or Codex through an injected Runner, records reported usage and observes Entire trailers. Review JSON is validated before becoming a proof item. ProofBuilder runs a shared probe and test suite in detached worktrees, measures the diff and delegates policy evaluation. UI evidence is present only for configured commands that ran. Proof logs are bounded and redact common credential formats and explicitly supplied secrets; callers must supply any known secret values.
 
-Offline tests cover prompt escaping, CLI invocation and timeout reporting, malformed review, a real temporary git repository with a failing-then-passing probe and Bun tests, and an observed Entire trailer. No live model, provider, Storybook or Textbook integration has been verified. Runner implementations must enforce `deadlineMs` and report timeouts. Neither installed CLI advertises a hard token cap or a max-turns option, so these adapters cannot enforce either limit; usage is reported after execution. Codex does not report cost in its JSON events, so cost is null. Test failure identity parsing currently supports Bun and Cargo output; other formats throw `Unverified` instead of inventing counts.
+Offline tests cover prompt escaping, CLI invocation and timeout reporting, malformed review, a real temporary git repository with a failing-then-passing probe and Bun tests, and an observed Entire trailer. No live model, provider, Storybook or Textbook integration has been verified. Runner implementations must enforce `deadlineMs` and report timeouts. Neither installed CLI advertises a hard token cap or a max-turns option, so these adapters cannot enforce either limit; usage is reported after execution. Codex does not report cost in its JSON events, so cost is null.
+
+`ProofOptions.prepareRevision({ cwd, commit, remainingMs })` runs once in each fresh base/head
+worktree before its probes or tests. It can install the revision's dependencies and return
+`PreparedProofRevision` with a `testCommand` argv and a preparation `log`. The command must match
+between revisions; the redacted preparation log accompanies the test evidence. Failed preparation
+stops proof evaluation and still attempts worktree cleanup. The caller supplies dependency identity,
+installation receipts and replay protection; a successful setup sandbox does not prepare another VM.
+
+The exported `parseTestOutput(output, exit, secrets?)` reads Bun, Cargo, Node TAP v13, Jest and Vitest
+text reports. Counts must agree with the process exit and every failed test needs a distinct observed
+identity. Unknown formats, incomplete or mixed summaries, cancellations, empty/skipped-only suites
+and ambiguous failure identities throw `Unverified`. Offline parser tests include actual local
+`node:test` output and recorded-format Jest/Vitest fixtures. These fixtures verify parsing, not live
+Jest/Vitest installation or hosted execution; arbitrary custom reporters remain unsupported.
 
 Proof probes run three times at each revision by default (`probeRuns` accepts integers from 2 to 10).
 Every base run must fail and every head run must pass. A disagreement throws `Unverified` before

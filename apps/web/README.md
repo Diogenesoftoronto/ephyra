@@ -15,6 +15,8 @@ Settings:
 - **`EPHYRA_HOME_CUT`:** `e` (the default), `a`, `b` or `c` picks which cut is served at `/`. The server adds `<base href="/<cut>/">` so the cut's relative links still resolve, and `/<cut>/` redirects to `/`. A cut used as home must not rely on bare `#anchor` links, because they resolve against the base. Cut D is a draft: it isn't committed or copied into the image.
 - **`EPHYRA_BLOG_PUBLICATION_URI`:** connects the journal.
 - **`EPHYRA_API_ORIGIN`:** links the control plane from `llms.txt`.
+- **`EPHYRA_SITE_REDIRECT_ORIGINS`:** comma-separated previous origins and aliases that redirect to the canonical site,
+  preserving paths and queries. `/healthz` remains available on every host for deployment health checks.
 
 ## Routes
 
@@ -35,10 +37,17 @@ Every HTML page gets these at serve time:
 
 ## Live
 
-Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephyra-site.up.railway.app.
+Railway service `web` (`infra/docker/Dockerfile.web`, configured in `.railway/railway.ts`) serves https://ephrya.app.
+`www.ephrya.app` and the original `ephyra-site.up.railway.app` redirect to that origin. The application is
+https://console.ephrya.app/app/ on service `server`; its origin is registered in Not Organic's gateway and portal client catalogs.
 The journal is `at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self`, on the PDS identity `ephyra.pds.notorganic.info`.
 The publication's `url` must equal `EPHYRA_SITE_ORIGIN`, so moving to a custom domain means rewriting the publication record too.
+Record-derived `/posts/<slug>` links redirect to `/blog/posts/<slug>`; document record identities and paths stay unchanged.
 Deploy with `railway up --service web --ci`.
+
+Porkbun DNS is managed with Sesame. The apex ALIAS points at `018v5dcu.up.railway.app`, `console` CNAME at
+`7f8y2trv.up.railway.app`, and `www` CNAME at `xg8sire9.up.railway.app`. Each hostname also has its Railway ownership
+TXT record. Read Railway's current domain status before changing these targets or replacing a domain attachment.
 
 ## Publishing the journal
 

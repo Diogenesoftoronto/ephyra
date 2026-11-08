@@ -12,9 +12,16 @@ FROM deps AS console-build
 RUN bun install --frozen-lockfile
 RUN bun run --filter @ephyra/console build
 
+FROM oven/bun:1.4.4-alpine AS radicle
+ARG TARGETARCH
+RUN apk add --no-cache curl xz
+COPY --chmod=755 infra/docker/install-radicle.sh /usr/local/bin/install-radicle
+RUN /usr/local/bin/install-radicle "$TARGETARCH" /opt/radicle
+
 FROM oven/bun:1.4.4-alpine
 # git is required by the journal (refs/ephyra/trails/*) and forge adapters.
-RUN apk add --no-cache git su-exec
+RUN apk add --no-cache git su-exec ca-certificates
+COPY --from=radicle /opt/radicle/bin/ /usr/local/bin/
 WORKDIR /app
 COPY --from=deps /app /app
 COPY --from=console-build /app/apps/console/dist /app/apps/console/dist

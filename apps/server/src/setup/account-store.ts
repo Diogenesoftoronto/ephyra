@@ -5,7 +5,10 @@ import { api } from "../../convex/_generated/api";
 import { TeamRecord } from "./team-record.ts";
 
 /** Server-only account state. Credential strings are already sealed; this store never opens them. */
-export type AccountRecord = { settings: AccountSettings; modelKey?: string; repoToken?: string; team?: TeamRecord };
+export type AccountRecord = {
+  settings: AccountSettings; modelKey?: string; repoToken?: string; team?: TeamRecord;
+  telemetryKey?: string; peopleToken?: string;
+};
 export type AccountBeginResult =
   | { status: "fresh" }
   | { status: "completed"; record: AccountRecord }
@@ -27,6 +30,8 @@ const accountRecord = z
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
     team: TeamRecord.optional(),
+    telemetryKey: z.string().optional(),
+    peopleToken: z.string().optional(),
   })
   .strict();
 const decode = (json: string): AccountRecord => accountRecord.parse(JSON.parse(json));

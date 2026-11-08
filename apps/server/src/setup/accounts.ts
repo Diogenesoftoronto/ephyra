@@ -6,15 +6,25 @@ import {
   type ModelUpdate,
   type RepositoryUpdate,
   type OnboardingUpdate,
+  type KnowledgeUpdate,
+  type KnowledgeCatalog,
+  type KnowledgeSelection,
+  type TelemetryUpdate,
+  type PeopleUpdate,
 } from "@ephyra/core";
 import { redact } from "@ephyra/agent";
+import { PostHogEvidence } from "@ephyra/evidence";
 import type { SecretBox, Fetch } from "../auth/crypto.ts";
 import type { NotOrganicSignIn } from "../auth/notorganic.ts";
+import { NotOrganicKnowledge, KnowledgeAccessError } from "../auth/knowledge.ts";
 import { AnthropicDraftModel, OpenAiDraftModel, NotOrganicDraftModel, type DraftModel } from "../velum.ts";
 import { canonicalJson } from "../audit.ts";
 import type { AccountRecord, AccountStore } from "./account-store.ts";
 import { ConnectionError, parsePublicHttps, publicHttpsFetch } from "./network.ts";
 import { RepositoryConnector } from "./repository.ts";
+import { ForgeRepositoryConnector, type ForgeResolution, type ForgeRepositoryInput } from "./forge-repository.ts";
+import { ownerContact } from "./questions.ts";
+import { redactModelText } from "./model-redaction.ts";
 
 export class AccountError extends Error {
   constructor(
@@ -30,9 +40,11 @@ export type AccountOptions = {
   operationSecret: string;
   dataDir: string;
   signIn: NotOrganicSignIn;
-  repository?: Pick<RepositoryConnector, "prepare"> & Partial<Pick<RepositoryConnector, "discover">>;
+  repository?: Pick<RepositoryConnector, "prepare"> & Partial<Pick<RepositoryConnector, "discover">>
+    & { resolve?: (input: ForgeRepositoryInput) => Promise<ForgeResolution> };
   fetcher?: Fetch;
   onWorkspaceChange?: (before: string, after: string) => void;
+  automation?: (did: string) => AccountSettings["automation"];
 };
 
 export function workspaceId(did: string, url = "", branch = ""): string {
@@ -67,9 +79,11 @@ export function initialAccount(did: string): AccountRecord {
 export class Accounts {
   private readonly repository;
   private readonly fetcher;
+  readonly knowledgeGateway: NotOrganicKnowledge;
   constructor(readonly options: AccountOptions) {
-    this.repository = options.repository ?? new RepositoryConnector();
+    this.repository = options.repository ?? new ForgeRepositoryConnector();
     this.fetcher = options.fetcher ?? publicHttpsFetch;
+    this.knowledgeGateway = new NotOrganicKnowledge(options.signIn);
   }
   directory(id: string): string {
     if (!/^ws_[a-f0-9]{40}$/.test(id)) throw new AccountError(400, "Invalid workspace.");
@@ -80,6 +94,9 @@ export class Accounts {
   }
   async public(record: AccountRecord): Promise<AccountSettings> {
     const result = AccountSettings.parse(record.settings);
+    result.automation = this.options.automation?.(result.did);
+    result.people ??= { enabled: true, workspaceId: result.workspaceId, contacts: [ownerContact(result.did)],
+      webhookUrl: null, keyConfigured: false, updatedAt: result.onboarding.updatedAt };
     if (result.model.provider === "notorganic") {
       const ready = await this.options.signIn.hasScope(result.did, `infer:${result.model.model}`);
       result.model.status = ready ? "saved" : "needs_sign_in";
@@ -94,7 +111,130 @@ export class Accounts {
   }
   async scopes(did: string): Promise<string[]> {
     const record = await this.options.store.get(did);
-    return record?.settings.model.provider === "notorganic" ? [`infer:${record.settings.model.model}`] : [];
+    return [
+      ...(record?.settings.model.provider === "notorganic" ? [`infer:${record.settings.model.model}`] : []),
+      ...(record?.settings.knowledge?.enabled ? ["knowledge:read", "knowledge:tools"] : []),
+    ];
+  }
+  async knowledge(did: string): Promise<KnowledgeCatalog> {
+    const record = await this.record(did);
+    const manage = new URL("/", this.options.signIn.config.authorizationUrl);
+    manage.searchParams.set("view", "knowledge");
+    manage.searchParams.set("app_client", this.options.signIn.config.publicOrigin);
+    manage.searchParams.set("return_to", `${this.options.signIn.config.publicOrigin}/app/#/onboarding`);
+    const links = { manageUrl: manage.href, authorizeUrl: "/auth/login?setup=1" };
+    if (!record.settings.knowledge?.enabled) return {
+      ...links, status: "disabled", sources: [], detail: "Connect the knowledge sources you want Ephyra to use during research.",
+    };
+    const allowed = await Promise.all(["knowledge:read", "knowledge:tools"].map((scope) => this.options.signIn.hasScope(did, scope)));
+    if (allowed.some((value) => !value)) return {
+      ...links, status: "needs_sign_in", sources: [], detail: "Allow Ephyra to access the connections you share from Not Organic.",
+    };
+    try {
+      return { ...links, status: "available", sources: await this.knowledgeGateway.sources(did),
+        detail: "Choose sources for automatic research. Manage their access in your Not Organic account." };
+    } catch (error) {
+      return { ...links, status: error instanceof KnowledgeAccessError && error.status === "needs_sign_in" ? "needs_sign_in" : "unavailable",
+        sources: [], detail: "Knowledge connections could not be checked. Refresh to try again, or manage access in Not Organic." };
+    }
+  }
+  async saveKnowledge(did: string, input: KnowledgeUpdate, key: string) {
+    return this.change(did, key, "knowledge", input, async (record) => {
+      if (input.workspaceId !== record.settings.workspaceId)
+        throw new AccountError(409, "Your workspace changed. Reload before choosing knowledge sources.");
+      if (!input.enabled && input.sources.length) throw new AccountError(400, "Remove sources when disconnecting knowledge.");
+      if (input.sources.length) {
+        const catalog = await this.knowledge(did);
+        if (catalog.status !== "available") throw new AccountError(422, "Allow knowledge access and refresh the available sources before saving.");
+        for (const selection of input.sources) {
+          const source = catalog.sources.find((item) => item.id === selection.id);
+          if (!source || selection.resources && !source.resourcesAllowed)
+            throw new AccountError(422, "A selected source is no longer shared with Ephyra. Refresh its access before saving.");
+          if (selection.searchTool && !source.tools.some((tool) => tool.queryField !== null
+            && tool.name === selection.searchTool!.name && tool.queryField === selection.searchTool!.queryField
+            && tool.definitionHash === selection.searchTool!.definitionHash))
+            throw new AccountError(422, "A selected research tool changed or is unavailable. Refresh and choose it again.");
+        }
+      }
+      record.settings.knowledge = {
+        enabled: input.enabled, workspaceId: record.settings.workspaceId, sources: input.sources,
+        updatedAt: new Date().toISOString(),
+      };
+      return record;
+    });
+  }
+  async saveTelemetry(did: string, input: TelemetryUpdate, key: string) {
+    return this.change(did, key, "telemetry", input, async (record) => {
+      if (input.workspaceId !== record.settings.workspaceId) throw new AccountError(409, "Your workspace changed. Reload before saving telemetry.");
+      if (input.apiKey && input.clearKey) throw new AccountError(400, "Replace the key or remove it.");
+      const origin = input.enabled ? parsePublicHttps(input.origin).origin : "";
+      if (input.enabled && (!/^\d+$/.test(input.projectId) || new URL(input.origin).pathname.replace(/\/$/, "")))
+        throw new AccountError(400, "Enter the PostHog origin and numeric project ID.");
+      const previous = record.settings.telemetry;
+      const retained = previous?.origin === origin && previous.projectId === input.projectId && previous.workspaceId === input.workspaceId;
+      const secret = input.apiKey ?? (!input.clearKey && retained && record.telemetryKey
+        ? await this.options.box.open<string>(record.telemetryKey) : undefined);
+      if (input.enabled && !secret) throw new AccountError(400, "A PostHog personal API key with project read access is required.");
+      let checkedAt: string | null = null;
+      if (input.enabled) {
+        const source = new PostHogEvidence({ origin, projectId: input.projectId, scope: { accountId: did, workspaceId: input.workspaceId },
+          credential: async () => secret!, authorize: async () => true, fetcher: this.fetcher, includeRecordings: input.includeRecordings });
+        await source.exceptions(new Date(Date.now() - 60_000).toISOString());
+        checkedAt = new Date().toISOString();
+      }
+      record.settings.telemetry = { enabled: input.enabled, workspaceId: input.workspaceId, provider: "posthog", origin,
+        projectId: input.projectId, keyConfigured: Boolean(input.enabled && secret), includeRecordings: input.includeRecordings,
+        status: input.enabled ? "verified" : "saved", checkedAt,
+        detail: input.enabled ? "Project access checked. Ephyra polls observed exceptions and uses them during research."
+          : "PostHog is disconnected." };
+      if (input.enabled && secret) record.telemetryKey = await this.options.box.seal(secret);
+      else delete record.telemetryKey;
+      return record;
+    });
+  }
+  async telemetryFor(did: string, workspace: string): Promise<PostHogEvidence | null> {
+    const record = await this.options.store.get(did);
+    const config = record?.settings.telemetry;
+    if (record?.settings.workspaceId !== workspace || !config?.enabled || config.workspaceId !== workspace || !record.telemetryKey) return null;
+    const allowed = async () => {
+      const fresh = await this.options.store.get(did);
+      return Boolean(fresh?.settings.workspaceId === workspace && fresh.telemetryKey === record.telemetryKey
+        && canonicalJson(fresh.settings.telemetry) === canonicalJson(config));
+    };
+    return new PostHogEvidence({ origin: config.origin, projectId: config.projectId, scope: { accountId: did, workspaceId: workspace },
+      authorize: allowed, credential: async () => await allowed() ? this.options.box.open<string>(record.telemetryKey!) : null,
+      fetcher: this.fetcher, includeRecordings: config.includeRecordings });
+  }
+  async savePeople(did: string, input: PeopleUpdate, key: string) {
+    return this.change(did, key, "people", input, async (record) => {
+      if (input.workspaceId !== record.settings.workspaceId) throw new AccountError(409, "Your workspace changed. Reload before saving contacts.");
+      if (input.token && input.clearToken) throw new AccountError(400, "Replace the delivery token or remove it.");
+      const webhookUrl = input.webhookUrl ? parsePublicHttps(input.webhookUrl).href : null;
+      const token = input.token ?? (!input.clearToken && webhookUrl === record.settings.people?.webhookUrl && record.peopleToken
+        ? await this.options.box.open<string>(record.peopleToken) : undefined);
+      if (input.enabled && input.contacts.some((contact) => contact.did !== did) && (!webhookUrl || !token))
+        throw new AccountError(400, "Other recipients need an authenticated delivery bridge.");
+      record.settings.people = { enabled: input.enabled, workspaceId: input.workspaceId, contacts: input.contacts,
+        webhookUrl, keyConfigured: Boolean(token), updatedAt: new Date().toISOString() };
+      if (token) record.peopleToken = await this.options.box.seal(token);
+      else delete record.peopleToken;
+      return record;
+    });
+  }
+  async peopleFor(did: string, workspace: string) {
+    const record = await this.options.store.get(did);
+    if (!record || record.settings.workspaceId !== workspace) return null;
+    const settings = record.settings.people ?? { enabled: true, workspaceId: workspace, contacts: [ownerContact(did)],
+      webhookUrl: null, keyConfigured: false, updatedAt: record.settings.onboarding.updatedAt };
+    if (!settings.enabled || settings.workspaceId !== workspace) return null;
+    return { settings, ...(record.peopleToken ? { token: await this.options.box.open<string>(record.peopleToken) } : {}) };
+  }
+  /** Re-read local authority before each upstream call and before returning source content. */
+  async knowledgeAllowed(did: string, workspace: string, selection: KnowledgeSelection): Promise<boolean> {
+    const record = await this.options.store.get(did);
+    const knowledge = record?.settings.knowledge;
+    return Boolean(record?.settings.workspaceId === workspace && knowledge?.workspaceId === workspace
+      && knowledge.enabled && knowledge.sources.some((item) => canonicalJson(item) === canonicalJson(selection)));
   }
   private async change(
     did: string,
@@ -146,9 +286,10 @@ export class Accounts {
     return this.change(did, key, "repository", input, async (record) => {
       if (input.token && input.clearToken)
         throw new AccountError(400, "Choose a replacement token or remove the token.");
-      const url = parsePublicHttps(input.url).href;
-      if (new URL(url).search) throw new AccountError(400, "Repository URLs cannot contain query parameters.");
       const previous = record.settings.repository;
+      const resolved = this.repository.resolve ? await this.repository.resolve(input) : { url: parsePublicHttps(input.url).href };
+      const url = resolved.url;
+      if (!this.repository.resolve && new URL(url).search) throw new AccountError(400, "Repository URLs cannot contain query parameters.");
       const sameRepository = previous?.url === url;
       const token =
         input.token ??
@@ -156,21 +297,39 @@ export class Accounts {
           ? await this.options.box.open<string>(record.repoToken)
           : undefined);
       const username = input.username || (sameRepository ? previous?.username : undefined);
+      const credentialHost = input.credentialHost || (sameRepository ? previous?.credentialHost : undefined);
       if (input.discoverDefaultBranch && !this.repository.discover)
         throw new AccountError(422, "Default branch discovery is unavailable. Enter the branch name.");
       const branch = input.discoverDefaultBranch
-        ? await this.repository.discover!({ url, username, token })
+        ? await this.repository.discover!({ url, username, token, credentialHost } as ForgeRepositoryInput)
         : input.branch.replace(/^refs\/heads\//, "");
       const id = workspaceId(did, url, branch);
       const verified = await this.repository.prepare(
-        { url, branch, ...(username ? { username } : {}), ...(token ? { token } : {}) },
+        { url, branch, ...(username ? { username } : {}), ...(token ? { token } : {}), ...(credentialHost ? { credentialHost } : {}) } as ForgeRepositoryInput,
         this.directory(id),
       );
       record.settings.workspaceId = id;
+      if (record.settings.knowledge && record.settings.knowledge.workspaceId !== id) {
+        // The initial onboarding choice follows the first repository. A different repository needs a new opt-in.
+        if (!previous) record.settings.knowledge.workspaceId = id;
+        else delete record.settings.knowledge;
+      }
+      for (const kind of ["telemetry", "people"] as const) {
+        if (record.settings[kind] && record.settings[kind]!.workspaceId !== id) {
+          if (!previous) record.settings[kind]!.workspaceId = id;
+          else {
+            delete record.settings[kind];
+            if (kind === "telemetry") delete record.telemetryKey;
+            else delete record.peopleToken;
+          }
+        }
+      }
       record.settings.repository = {
         ...verified,
+        ...("forge" in resolved ? { forge: resolved.forge } : {}),
         credentialConfigured: Boolean(token),
         ...(username ? { username } : {}),
+        ...(credentialHost ? { credentialHost } : {}),
       };
       if (token) record.repoToken = await this.options.box.seal(token);
       else delete record.repoToken;
@@ -288,7 +447,7 @@ export class Accounts {
           });
           return {
             ...result,
-            text: redact(result.text, [apiKey], 150_000),
+            text: redactModelText(result.text, [apiKey], 150_000),
             engine: redact(result.engine, [apiKey], 200),
           };
         } catch (error) {

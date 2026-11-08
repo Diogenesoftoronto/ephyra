@@ -13,6 +13,7 @@ import {
   type UsageEntry,
   type VoiceCapabilities, type VoiceAudioInput, type VoiceReplyInput, type VoiceSpeech, type VoiceTranscript, type VoiceReply,
   type TutorCapabilities, type TutorInput, type TutorReply,
+  type InvestigationQuestion, type InvestigationAnswer,
 } from "@ephyra/core";
 import {
   ApiError,
@@ -75,6 +76,8 @@ export type FakeOptions = {
   seedConversation?: boolean;
   /** Pause between live run events. Infinity holds the stream where it is (for stable screenshots). Default 1200. */
   streamIntervalMs?: number;
+  questions?: InvestigationQuestion[];
+  rejectQuestionAnswers?: boolean;
 };
 
 const BILLING: AreaForm = {
@@ -123,6 +126,7 @@ export class FakeApi implements ConsoleApi {
   private released = new Map<string, number>();
   private refreshed = new Set<string>();
   private inboxReads = 0;
+  private questionItems: InvestigationQuestion[];
   private tick = 0;
   private counter = 0;
   /** Every write that reached the fake, for tests: [method, args]. */
@@ -130,6 +134,7 @@ export class FakeApi implements ConsoleApi {
 
   constructor(private readonly options: FakeOptions = {}) {
     this.now = options.now ?? STORY_NOW;
+    this.questionItems = structuredClone(options.questions ?? []);
     const empty = options.empty === true;
     this.trails = empty ? [] : makeTrails(this.now);
     this.inboxItems = empty ? [] : makeInbox(this.trails, this.now);
@@ -150,6 +155,30 @@ export class FakeApi implements ConsoleApi {
   async identity() {
     await this.gate("identity");
     return { principal: this.options.principal ?? ME, kind: "human" as const, approver: this.options.approver !== false };
+  }
+  async questions() {
+    await this.gate("questions");
+    return structuredClone(this.questionItems);
+  }
+  async question(trailId: string, questionId: string) {
+    await this.gate("question");
+    return structuredClone(this.questionItems.find((question) => question.id === questionId && question.trailId === trailId) ?? null);
+  }
+  async answerQuestion(trailId: string, questionId: string, input: InvestigationAnswer, operationKey: string) {
+    await this.gate("answerQuestion");
+    const question = this.questionItems.find((item) => item.id === questionId && item.trailId === trailId);
+    if (!question || question.recipient?.did !== (this.options.principal ?? ME)) throw new ApiError(403);
+    if (question.answer) {
+      if (question.answer.text !== input.text.trim()) throw new ApiError(409);
+      return structuredClone(question);
+    }
+    if (question.status !== "awaiting_answer") throw new ApiError(409);
+    this.writes.push(["answerQuestion", { trailId, questionId, input, operationKey }]);
+    question.answer = { text: input.text.trim(), by: question.recipient.id, at: this.stamp(), accepted: !this.options.rejectQuestionAnswers };
+    question.status = question.answer.accepted ? "answered" : "rejected";
+    question.checks.push({ phase: "answer", model: "fixture/not-a-live-model", accepted: question.answer.accepted,
+      request: { fixture: true }, response: { fixture: true } });
+    return structuredClone(question);
   }
 
   // ── plumbing ──

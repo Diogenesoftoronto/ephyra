@@ -13,6 +13,8 @@ const accountRecord = z
     modelKey: z.string().optional(),
     repoToken: z.string().optional(),
     team: TeamRecord.optional(),
+    telemetryKey: z.string().optional(),
+    peopleToken: z.string().optional(),
   })
   .strict();
 

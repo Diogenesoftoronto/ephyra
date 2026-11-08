@@ -38,11 +38,11 @@ function localGit(args: string[], cwd?: string, env?: Record<string, string>) {
   return { code: result.exitCode, stdout: result.stdout.toString() };
 }
 
-async function fixture() {
+async function fixture(format: "sha1" | "sha256" = "sha1") {
   const root = await temporary();
   const source = join(root, "source");
   await mkdir(source);
-  expect(localGit(["init", "--quiet", "--initial-branch=main", "--template="], source).code).toBe(0);
+  expect(localGit(["init", "--quiet", "--initial-branch=main", "--template=", `--object-format=${format}`], source).code).toBe(0);
   await writeFile(join(source, "README.md"), "An offline fixture.\n");
   expect(localGit(["add", "README.md"], source).code).toBe(0);
   expect(localGit(["commit", "--quiet", "-m", "fixture"], source).code).toBe(0);
@@ -122,6 +122,10 @@ describe("repository input validation", () => {
     expect(() => normalizeRepositoryInput({ url: cloneUrl, branch: "main", token: "secret\nheader" })).toThrow(
       ConnectionError,
     );
+    expect(() => normalizeRepositoryInput({ url: cloneUrl, branch: "main", token: "fixture", credentialHost: "other.example.com" }))
+      .toThrow(ConnectionError);
+    expect(normalizeRepositoryInput({ url: cloneUrl, branch: "main", token: "fixture", credentialHost: "forge.example.com" }).credentialHost)
+      .toBe("https://forge.example.com");
   });
 
   test("all accepted generated branch names remain one valid refs/heads argument", () => {
@@ -140,6 +144,19 @@ describe("repository input validation", () => {
 });
 
 describe("repository connection", () => {
+  test("negotiates SHA-256 from the selected advertised ref before creating a bare workspace", async () => {
+    const f = await fixture("sha256");
+    const connection = await new RepositoryConnector({ lookup: publicLookup, execute: f.execute })
+      .prepare({ url: cloneUrl, branch: "main" }, f.directory);
+    expect(connection.head).toBe(f.head);
+    expect(connection.head).toHaveLength(64);
+    expect(localGit(["--git-dir", join(f.directory, "workspace.git"), "rev-parse", "--show-object-format"]).stdout.trim()).toBe("sha256");
+    const initial = f.invocations.find((item) => item.args.includes("init"))!;
+    expect(initial.args).toContain("--object-format=sha256");
+    expect(f.invocations.find((item) => item.args.includes("ls-remote"))!.args).toEqual([
+      "ls-remote", "--refs", "--", cloneUrl, "refs/heads/main",
+    ]);
+  });
   test("fetches a real selected branch into a bare mirror and returns its actual commit", async () => {
     const f = await fixture();
     expect(localGit(["branch", "unselected"], f.source).code).toBe(0);

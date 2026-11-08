@@ -14,3 +14,5 @@ export * from "./tutor.ts";
 export * from "./settings.ts";
 export * from "./setup.ts";
 export * from "./team.ts";
+export * from "./knowledge.ts";
+export * from "./connections.ts";

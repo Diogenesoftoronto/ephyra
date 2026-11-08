@@ -52,6 +52,10 @@ try {
       if (url.pathname === "/v1/account/workspaces") return json([
         { workspaceId: account.workspaceId, ownerDid: account.did, name: "Offline fixture", role: "owner" },
       ]);
+      if (url.pathname === "/v1/account/knowledge") return json({
+        status: "disabled", sources: [], detail: "Knowledge connections are optional.",
+        manageUrl: "/fixture/connections", authorizeUrl: "/auth/login?setup=1",
+      });
       if (url.pathname === "/v1/inbox") return json([]);
       if (url.pathname === "/v1/account/repository") {
         repositorySaves++;
@@ -119,7 +123,7 @@ try {
       if (scenario.mode === "supervised") await page.getByRole("radio", { name: /^Supervised/ }).check();
       const branch = page.getByRole("textbox", { name: /^Branch \(optional\)/ });
       assert.equal(await branch.inputValue(), "");
-      await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill("https://github.com/fixture/application.git");
+      await page.getByRole("textbox", { name: "Repository address", exact: true }).fill("https://github.com/fixture/application.git");
       await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
       if (scenario.loseResponse) {
         await page.getByText("Checking whether setup started", { exact: true }).waitFor();
