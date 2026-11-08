@@ -655,7 +655,8 @@ To prepare a server release, commit the intended source, then run `bun infra/doc
 It exports exactly `HEAD` into a temporary directory, excludes all dirty/untracked files, writes a credential-free
 release manifest, and stamps `ephyra-release.json` in that export. Upload its reported `source` directory with the pinned
 Railway CLI to the existing server service and production environment. `/healthz` returns the exact exported revision
-with `Cache-Control: no-store`; a development checkout returns null. The archived Git tar checksum and previous Railway
+with `Cache-Control: no-store`; a development checkout returns null. Both the original Git archive and the exact
+deployable payload (including its revision marker) have SHA-256 checksums. These and the previous Railway
 deployment ID are the release/rollback evidence. Deploy additive Convex functions/schema before the matching server.
 Use the currently configured `EPHYRA_PUBLIC_ORIGIN` for verification; local IaC may lag a separately authorized domain
 change. A healthy deployment verifies startup and HTTP routes, not an account's paid repair or browser workflow.
