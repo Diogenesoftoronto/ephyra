@@ -29,7 +29,7 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
   app.get("/session", async (c) => {
     const principal = await signIn.authenticate(browserSessionToken(c, origin) ?? "");
     return c.json({ signIn: true, identity: principal ? {
-      principal: principal.did, kind: "human", approver: approvers.has(principal.did),
+      principal: principal.did, ...(principal.handle ? { alias: principal.handle } : {}), kind: "human", approver: approvers.has(principal.did),
     } : null });
   });
 

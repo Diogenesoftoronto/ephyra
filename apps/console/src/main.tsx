@@ -220,7 +220,7 @@ function PersonalApp({
       {(owner) => (
         <App
           api={api}
-          identity={owner}
+          identity={{ ...owner, alias: identity.alias }}
           approver={owner.approver}
           account={{ api: accountApi, settings, onChange }}
           onDisconnect={onDisconnect}

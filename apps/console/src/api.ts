@@ -96,6 +96,7 @@ export type TrailOperation = z.infer<typeof TrailOperation>;
  * deterministic implementation used by Storybook, tests and `?demo`. Every write takes an operation key.
  */
 export const SessionInfo = z.object({
+  alias: z.string().optional(),
   principal: z.string(),
   kind: z.enum(["service", "human"]),
   approver: z.boolean(),
