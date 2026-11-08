@@ -4,6 +4,7 @@ import { AgentRun, AgentRunEvent, type PersonaId } from "@ephyra/core";
 import type { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 import { safeNote } from "./usage.ts";
+import { WorkerOwnershipLost, type WorkerClaim } from "./wiring/worker-lease.ts";
 
 export type RunFilter = { trail?: string; status?: AgentRun["status"]; limit: number };
 export type EventDraft = Omit<AgentRunEvent, "runId" | "seq" | "at"> & { at?: string };
@@ -20,7 +21,7 @@ export interface RunStore {
   append(runId: string, events: (Omit<AgentRunEvent, "runId" | "seq">)[]): Promise<AgentRunEvent[]>;
   /** Events with seq > after (all when undefined), oldest first. */
   events(runId: string, after: number | undefined, limit: number): Promise<AgentRunEvent[]>;
-  /** Marks runs still "running" as failed (the server that was running them is gone). Returns how many. */
+  /** Closes runs belonging to a previous worker; an active worker's transcripts stay open. */
   closeRunning(reason: string, endedAt: Date): Promise<number>;
 }
 
@@ -65,14 +66,15 @@ export class MemoryRunStore implements RunStore {
 }
 
 export class ConvexRunStore implements RunStore {
-  constructor(private readonly client: ConvexHttpClient, private readonly secret: string) {}
+  constructor(private readonly client: ConvexHttpClient, private readonly secret: string, private readonly owner?: () => WorkerClaim) {}
+  private ownerClaim() { if (!this.owner) throw new WorkerOwnershipLost(); return this.owner(); }
   async create(run: AgentRun) {
     const valid = AgentRun.parse(run);
-    await this.client.mutation(api.runs.create, { secret: this.secret, runId: valid.id, json: JSON.stringify(valid) });
+    await this.client.mutation(api.runs.create, { secret: this.secret, ...this.ownerClaim(), runId: valid.id, json: JSON.stringify(valid) });
   }
   async put(run: AgentRun) {
     const valid = AgentRun.parse(run);
-    return this.client.mutation(api.runs.update, { secret: this.secret, runId: valid.id, json: JSON.stringify(valid) });
+    return this.client.mutation(api.runs.update, { secret: this.secret, ...this.ownerClaim(), runId: valid.id, json: JSON.stringify(valid) });
   }
   async get(id: string) {
     const json = await this.client.query(api.runs.get, { secret: this.secret, runId: id });
@@ -96,7 +98,9 @@ export class ConvexRunStore implements RunStore {
     const out: AgentRunEvent[] = [];
     for (let i = 0; i < events.length; i += 100) {
       const batch = events.slice(i, i + 100);
-      const first = await this.client.mutation(api.runs.appendEvents, { secret: this.secret, runId, events: batch.map((e) => JSON.stringify(e)) });
+      const first = await this.client.mutation(api.runs.appendEvents, {
+        secret: this.secret, ...this.ownerClaim(), runId, events: batch.map((e) => JSON.stringify(e)),
+      });
       out.push(...batch.map((e, k) => AgentRunEvent.parse({ ...e, runId, seq: first + k })));
     }
     return out;
@@ -106,7 +110,9 @@ export class ConvexRunStore implements RunStore {
     return rows.map((j) => AgentRunEvent.parse(JSON.parse(j)));
   }
   async closeRunning(reason: string, endedAt: Date) {
-    return this.client.mutation(api.runs.closeRunning, { secret: this.secret, reason: safeNote(reason, 500), endedAt: endedAt.toISOString() });
+    return this.client.mutation(api.runs.closeRunning, {
+      secret: this.secret, ...this.ownerClaim(), reason: safeNote(reason, 500), endedAt: endedAt.toISOString(),
+    });
   }
 }
 

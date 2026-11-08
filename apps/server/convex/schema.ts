@@ -101,12 +101,20 @@ export default defineSchema({
     lastError: v.optional(v.string()),
     /** When the current attempt was claimed; shown as "running since" in the activity feed. */
     startedMs: v.optional(v.number()),
+    ownerId: v.optional(v.string()),
+    ownerFence: v.optional(v.number()),
+    claimId: v.optional(v.string()),
   })
     .index("by_workspace", ["workspace"])
     .index("by_key", ["key"])
     .index("by_workspace_key", ["workspace", "key"])
     .index("by_status_run_at", ["status", "runAtMs"])
     .index("by_workspace_status_run_at", ["workspace", "status", "runAtMs"]),
+
+  /** One fenced background-worker owner per workspace; HTTP replicas may remain followers. */
+  runtimeWorkers: defineTable({
+    workspace: v.optional(v.string()), ownerId: v.string(), fence: v.number(), expiresMs: v.number(),
+  }).index("by_workspace", ["workspace"]),
 
   /** Operation ledger: one row per effect key, so a replay never repeats a side effect. */
   operations: defineTable({
@@ -171,6 +179,8 @@ export default defineSchema({
     status: v.string(),
     startedMs: v.number(),
     json: v.string(),
+    ownerId: v.optional(v.string()),
+    ownerFence: v.optional(v.number()),
   })
     .index("by_workspace", ["workspace"])
     .index("by_run_id", ["runId"])
