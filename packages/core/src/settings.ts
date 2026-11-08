@@ -45,6 +45,7 @@ export const RepositoryUpdate = z
     expectedVersion: version,
     url: z.string().trim().min(1).max(2048),
     branch: z.string().trim().min(1).max(200),
+    discoverDefaultBranch: z.boolean().optional(),
     username: z.string().trim().max(200).optional(),
     token: secret.optional(),
     clearToken: z.boolean().optional(),
