@@ -2,7 +2,7 @@
 import { Hono, type Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { randomToken } from "./crypto.ts";
-import { SignInError, userCode, type NotOrganicSignIn } from "./notorganic.ts";
+import { SignInError, userCode, claimReturnTo, type NotOrganicSignIn } from "./notorganic.ts";
 import { cliApprovalView, cliApprovedView, cliExpiredView, signInFailedView } from "./views.ts";
 import { browserRequestAllowed, browserSessionToken, sessionCookieName, sessionCookieOptions } from "./browser-session.ts";
 
@@ -38,9 +38,11 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
     try {
       const browser = randomToken();
       const cli = c.req.query("cli");
+      const returnTo = c.req.query("returnTo");
+      if (returnTo !== undefined && !claimReturnTo(returnTo)) throw new SignInError(400, "Invalid sign-in return target.");
       const principal = c.req.query("setup") === "1" ? await signIn.authenticate(browserSessionToken(c, origin) ?? "") : null;
       const scopes = principal && setupScopes ? await setupScopes(principal.did) : [];
-      const url = await signIn.begin(browser, cli || undefined, scopes);
+      const url = await signIn.begin(browser, cli || undefined, scopes, returnTo);
       setCookie(c, LOGIN_COOKIE, browser, { httpOnly: true, secure: secure(origin), sameSite: "Lax", path: "/auth", maxAge: 600 });
       return c.redirect(url, 302);
     } catch (error) {
@@ -57,7 +59,7 @@ export function authRoutes(signIn: NotOrganicSignIn, approvers: ReadonlySet<stri
       const approver = approvers.has(result.principal.did);
       if (!result.cli) {
         setCookie(c, sessionCookieName(origin), result.token, sessionCookieOptions(origin));
-        return c.redirect("/app/", 303);
+        return c.redirect(claimReturnTo(result.returnTo) ?? "/app/", 303);
       }
       const code = userCode(result.cli.challenge);
       return c.html(cliApprovalView({ who, approver, code, challenge: result.cli.challenge, csrf: result.cli.csrf }));

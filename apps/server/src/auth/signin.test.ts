@@ -116,6 +116,23 @@ describe("sign in with Not Organic", () => {
     expect(res.headers.get("set-cookie")).toContain("HttpOnly");
   });
 
+  test("agent claim return survives bound sign-in while arbitrary redirects and CLI combinations are refused", async () => {
+    const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
+    const { app } = await server(fake);
+    const returnTo = `/agent/claim?attempt=${"x".repeat(43)}`;
+    const callback = await browserLogin(app, fake, `?returnTo=${encodeURIComponent(returnTo)}`);
+    expect(callback.status).toBe(303);
+    expect(callback.headers.get("location")).toBe(returnTo);
+    const access = await browserLogin(app, fake, "?returnTo=%2Fagent%2Faccess");
+    expect(access.headers.get("location")).toBe("/agent/access");
+    for (const target of ["https://evil.test/", "//evil.test/", "/app/", `${returnTo}&next=https://evil.test/`,
+      "/agent/access?next=https://evil.test/"]) {
+      expect((await app.request(`/auth/login?returnTo=${encodeURIComponent(target)}`)).status).toBe(400);
+    }
+    const challenge = await sha256b64url("v".repeat(43));
+    expect((await app.request(`/auth/login?cli=${challenge}&returnTo=${encodeURIComponent(returnTo)}`)).status).toBe(400);
+  });
+
   test("CLI login: browser approval releases a session that can approve trails; service token cannot", async () => {
     const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
     const { app } = await server(fake);
