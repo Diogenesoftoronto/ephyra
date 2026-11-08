@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Hono } from "hono";
 import {
-  ProofItem, Unverified, systemIds, type Budget, type CodingAgent, type DecideBackend, type Effect, type ExtractBackend, type Runner,
+  ProofItem, Unverified, sha256Hex, systemIds, type Budget, type CodingAgent, type DecideBackend, type Effect, type ExtractBackend, type Runner,
   type ServiceProfile, type SignalStore, type Trail, type TransitionContext,
 } from "@ephyra/core";
 import { MemorySignalStore, otlpRoutes } from "@ephyra/ingest";
@@ -57,6 +57,9 @@ import { AutomaticSetup, setupGit, type SetupOptions } from "./setup/automation.
 import { setupRoutes } from "./http/setup.ts";
 import { InvestigationQuestions, type QuestionOptions } from "./setup/questions.ts";
 import { registerPostHogPolling } from "./setup/telemetry.ts";
+import { telemetryCoverage } from "./setup/bootstrap-coverage.ts";
+import { BootstrapEvidence } from "./setup/bootstrap-evidence.ts";
+import { BootstrapContact, type BootstrapContactOptions } from "./setup/bootstrap-contact.ts";
 import { PolicyActivation } from "./policy-activation.ts";
 import { ampReportRoutes } from "./amp-reports.ts";
 import { GitProbeCatalog, probeHandlers, type ProbeHandlerDeps } from "./wiring/probes.ts";
@@ -90,6 +93,8 @@ export type Composed = {
   setup: AutomaticSetup;
   questions: InvestigationQuestions | null;
   telemetry: ReturnType<typeof registerPostHogPolling> | null;
+  /** Runs a delegated mutation under the same captured workspace fence as HTTP mutations. */
+  withOwner<T>(work: () => Promise<T>): Promise<T>;
   health(): Promise<{ store: "ok" | "unavailable" | "memory" }>;
   start(): Promise<void>;
   close(): Promise<void>;
@@ -263,8 +268,10 @@ export type ComposeOverrides = {
   profile?: ServiceProfile;
   operationLedger?: import("@ephyra/core").OperationLedger;
   questions?: Omit<QuestionOptions, "ctx" | "decide" | "ledger">;
+  bootstrapContact?: Omit<BootstrapContactOptions, "ctx" | "ledger" | "current">;
   resolveTelemetry?: () => Promise<import("@ephyra/evidence").PostHogEvidence | null>;
   setupProvision?: SetupOptions["provision"];
+  assessBootstrap?: SetupOptions["assess"];
   prepareProof?: AgentDeps["prepareProof"];
   decide?: DecideBackend;
   /** Replaces the configured Velum model (tests: nothing here may touch the network). */
@@ -377,13 +384,28 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       projectIds: config.EPHYRA_TRACTION_PROJECTS!.split(",").map((id) => id.trim()) },
     credential: async () => config.EPHYRA_TRACTION_TOKEN!,
   })] : []);
+  let currentSetup: () => Promise<import("@ephyra/core").SetupRun | null> = async () => null;
+  let investigationWasActive = false;
+  let setupCleanupUncertain = false;
+  const setupCleanupKey = `bootstrap-cleanup:${repo.id}`;
+  const canInvestigate = async () => {
+    if (!opts.workspace) return true;
+    if (setupCleanupUncertain) return false;
+    try {
+      const run = await currentSetup();
+      if (!run?.investigationActive || !["ready", "blocked"].includes(run.status)) return false;
+      return (await g(["rev-parse", repo.baseRef])).trim() === run.repository.head;
+    } catch { return false; }
+  };
+  const bootstrapEvidence = new BootstrapEvidence({ workspaceId: repo.id, current: () => currentSetup(), secrets: knownSecrets(config) });
   const intakeHooks = intake(ctx, {
-    extract, decide, budget,
+    extract, decide, budget, canInvestigate,
     baseSha: async () => (await g(["rev-parse", repo.baseRef])).trim(),
   });
   const questions = opts.questions ? new InvestigationQuestions({ ...opts.questions, ctx, decide, ledger }) : null;
+  let onTelemetryObservation = async () => {};
   const telemetry = opts.resolveTelemetry ? registerPostHogPolling({ ctx, resolve: opts.resolveTelemetry, ledger,
-    onSignal: (signal) => intakeHooks.onNewSignal(signal) }) : null;
+    onSignal: (signal) => intakeHooks.onNewSignal(signal), onObservation: () => onTelemetryObservation() }) : null;
   const control = new WorkControl();
   let activation: PolicyActivation | undefined;
   let appliedPolicy: string | undefined;
@@ -397,8 +419,12 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const proofReceipts = config.EPHYRA_PROOF_RECEIPTS_DIR ? new TrustedProofReceipts({
     directory: config.EPHYRA_PROOF_RECEIPTS_DIR, trustFile: config.EPHYRA_PROOF_TRUST_FILE!,
   }) : null;
-  const runProbe = isolatedProbeRunner({ ctx, runner, profile, ledger, control, prepare: opts.prepareProof,
+  const isolatedRunProbe = isolatedProbeRunner({ ctx, runner, profile, ledger, control, prepare: opts.prepareProof,
     timeoutS: config.EPHYRA_STEP_TIMEOUT_S, secrets: knownSecrets(config) });
+  const runProbe: typeof isolatedRunProbe = async (...args) => {
+    if (!await canInvestigate()) throw new Unverified("workspace investigation readiness");
+    return isolatedRunProbe(...args);
+  };
   const landing = await opts.landing?.({ ctx, ledger, probes, runProbe, telemetry });
   const human = humanHandlers(ctx);
   const notify = human.notify_inbox!;
@@ -411,8 +437,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     human,
     checkpointHandlers(ctx, { decide, ledger, secrets: knownSecrets(config) }),
     agentHandlers(ctx, { runner, agent, profile, control, buildProof: buildProof as unknown as BuildProofFn,
+      canInvestigate,
       stepTimeoutS: config.EPHYRA_STEP_TIMEOUT_S,
-      usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config), evidenceSources,
+      usage, agentBilledTo: agentBilledTo(config), runs, secrets: knownSecrets(config),
       prepareProof: opts.prepareProof,
       createProofCollector: (trail, observer) => createVerificationCollector({ catalog: probes, journal, ...opts.verification,
         commands: opts.verification?.commands ?? (() => repositoryVerificationCommands(g, trail)),
@@ -460,11 +487,16 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
           });
         },
       }),
-      resolveEvidenceSources: opts.resolveEvidenceSources ? () => opts.resolveEvidenceSources!(ledger) : undefined }),
+      resolveEvidenceSources: async () => {
+        const sources = [...evidenceSources, ...await opts.resolveEvidenceSources?.(ledger) ?? []];
+        return (await currentSetup())?.bootstrap ? [bootstrapEvidence, ...sources] : sources;
+      } }),
     landingHandlers(ctx, {
       adapters: landing?.adapters ?? [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
-      watch: landing?.watch, refreshBase: landing?.refreshBase, canLand: landing?.canLand,
+      watch: landing?.watch, refreshBase: landing?.refreshBase,
+      canLand: opts.workspace ? async () => (await currentSetup())?.status === "ready" && await canInvestigate()
+        && (!landing?.canLand || await landing.canLand()) : landing?.canLand,
     }),
     probeHandlers(ctx, { catalog: probes, ledger, run: runProbe, onSignal: intakeHooks.onNewSignal,
       respondents: opts.respondents, secrets: knownSecrets(config) }),
@@ -474,9 +506,36 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   engine.setHandlers(handlers);
 
   const setup = new AutomaticSetup({
-    git: setupGit(repo.mirrorDir), repo, jobs: ctx.jobs, secrets: knownSecrets(config),
+    git: async (args, options) => {
+      const writing = ["hash-object", "mktree", "commit-tree", "update-ref"].includes(args[0] ?? "");
+      if (writing) durableStore?.assertOwner();
+      const result = await setupGit(repo.mirrorDir)(args, options);
+      if (writing) durableStore?.assertOwner();
+      return result;
+    }, repo, jobs: ctx.jobs, secrets: knownSecrets(config),
     provision: opts.setupProvision,
+    onAssessed: async (run) => {
+      const active = run.status === "ready" || run.investigationActive === true;
+      if (opts.workspace && investigationWasActive && !active) {
+        const receipts = await control.stopAll();
+        setupCleanupUncertain ||= receipts.some(receipt => ["pending_allocation", "reconciliation_required"].includes(receipt.status));
+        if (setupCleanupUncertain) {
+          await ledger.begin(setupCleanupKey, sha256Hex(setupCleanupKey));
+          await ledger.markAmbiguous(setupCleanupKey, "Workspace readiness changed and runner cleanup requires reconciliation.");
+          log("bootstrap runner cleanup needs reconciliation", { receipts });
+        }
+      }
+      investigationWasActive = active;
+      await bootstrapContact?.schedule(run);
+    },
+    assess: async (run) => {
+      // Observation starts during bootstrap, independently of coding/landing readiness.
+      await telemetry?.start();
+      return [...await opts.assessBootstrap?.(run) ?? [], await telemetryCoverage(telemetry, opts.resolveTelemetry)];
+    },
     capabilities: async (run) => {
+      const cleanup = await ledger.get(setupCleanupKey);
+      setupCleanupUncertain ||= Boolean(cleanup && cleanup.status !== "done");
       let baseline = false;
       try {
         const receipt = JSON.parse(run?.artifacts.find((a) => a.path === "ephyra/provisioning.json")?.content ?? "null");
@@ -497,12 +556,15 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       { id: "agent", available: Boolean(agent) && (!opts.resolveDraftModel || Boolean(await opts.resolveDraftModel().catch(() => null))),
         summary: "A coding agent is not configured for this workspace.",
         action: "Connect a workspace-scoped coding agent on the host." },
-      { id: "runner", available: Boolean(runner), summary: "An execution sandbox is not configured.",
-        action: "Provision an isolated workspace runner through the hosting integration." },
+      { id: "runner", available: Boolean(runner) && !setupCleanupUncertain,
+        summary: setupCleanupUncertain ? "An earlier execution sandbox needs cleanup reconciliation." : "An execution sandbox is not configured.",
+        action: setupCleanupUncertain ? "Reconcile the recorded runner cleanup before restoring investigation."
+          : "Provision an isolated workspace runner through the hosting integration." },
       { id: "decision", available: Boolean(decide) && (config.EPHYRA_DECIDE !== "notorganic" || !signIn || !billingDid
           || await signIn.hasScope(billingDid, "judgement:evaluate")), summary: "A checkpoint decision model is not configured.",
         action: "Connect the decision backend and calibrate its exact returned identity." },
-      { id: "telemetry", available: opts.automationReadiness?.telemetry === true || Boolean(await opts.resolveTelemetry?.()),
+      { id: "telemetry", available: opts.automationReadiness?.telemetry === true
+          || (await telemetry?.latest())?.result.coverage?.complete === true,
         summary: "Live telemetry coverage is unverified.",
         action: "Connect scoped error telemetry and verify ingestion for this repository." },
       { id: "verification", available: opts.automationReadiness?.verification === true || baseline,
@@ -529,6 +591,10 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       await telemetry?.start();
     },
   });
+  currentSetup = () => setup.current();
+  const bootstrapContact = opts.bootstrapContact ? new BootstrapContact({ ...opts.bootstrapContact,
+    ctx, ledger, current: () => setup.current(), secrets: [...knownSecrets(config), ...opts.bootstrapContact.secrets ?? []] }) : null;
+  onTelemetryObservation = async () => { await setup.reassess(); };
   if (!durableStore) await setup.restore();
 
   // OTLP ingest, authenticated with the API token.
@@ -638,6 +704,11 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     try { await store.inboxList(); return { store: "ok" as const }; } catch { return { store: "unavailable" as const }; }
   };
   const app = new Hono();
+  const withOwner = async <T>(work: () => Promise<T>): Promise<T> => {
+    if (!durableStore) return work();
+    durableStore.assertOwner();
+    return durableStore.withOwner(work);
+  };
   if (durableStore) app.use("/v1/*", async (c, next) => {
     const readonly = ["GET", "HEAD", "OPTIONS"].includes(c.req.method);
     try {
@@ -679,7 +750,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
         await activation?.restore();
         await setup.restore();
         await engine.recoverEffects(undefined, { project: false });
-        if (!opts.workspace && repo.url) await telemetry?.start();
+        if (repo.url && (!opts.workspace || await setup.current())) await telemetry?.start();
         if (version === generation) { durableStore?.assertOwner(); jobs.start(); }
       };
       if (durableStore) await durableStore.startOwner({ onAcquired: async () => {
@@ -703,7 +774,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
   return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel,
-    engine, jobs, setup, questions, telemetry, health, start,
+    engine, jobs, setup, questions, telemetry, withOwner, health, start,
     close: async () => {
       generation++; telemetry?.stop(); jobs.stop(); startup = null;
       if (durableStore) await durableStore.stopOwner();

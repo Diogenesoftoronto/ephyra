@@ -43,6 +43,7 @@ export type AgentDeps = {
   resolveEvidenceSources?: () => Promise<import("@ephyra/core").EvidenceSource[]>;
   prepareProof?: (runner: Runner, handle: RunnerHandle, trail: Trail) => Promise<ProofOptions["prepareRevision"]>;
   control?: WorkControl;
+  canInvestigate?: () => Promise<boolean>;
   createProofCollector?: (trail: Trail, options: {
     signal: AbortSignal; onUsage: NonNullable<import("@ephyra/agent").AgentRunOptions["onUsage"]>;
   }) => ProofOptions["collectEvidence"];
@@ -111,6 +112,7 @@ async function withSandbox<T>(deps: AgentDeps, ctx: ServerContext, trail: Trail,
   if (!deps.runner) throw new Error("no runner configured on this deployment");
   return (deps.control ?? new WorkControl()).run(trail.id, deps.runner, async (runner, signal) => {
     if (!await ownsWork(ctx, trail)) throw new Unverified("superseded agent allocation");
+    if (deps.canInvestigate && !await deps.canInvestigate()) throw new Unverified("workspace investigation readiness");
     signal.throwIfAborted();
     const handle = await runner.allocate({
       trail, attempt, repoUrl: ctx.repo.url, commit: commitFor(trail), profile: deps.profile,
@@ -118,6 +120,7 @@ async function withSandbox<T>(deps: AgentDeps, ctx: ServerContext, trail: Trail,
     });
     try {
       if (!await ownsWork(ctx, trail)) throw new Unverified("superseded sandbox work");
+      if (deps.canInvestigate && !await deps.canInvestigate()) throw new Unverified("workspace investigation readiness");
       signal.throwIfAborted();
       return await work(runner, handle, signal);
     } finally {
@@ -161,6 +164,11 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
   const trail = await ctx.trails.get(payload.trailId);
   if (!trail || trail.rev !== payload.rev || trail.state !== stepState[payload.step]
     || (trail.workGeneration ?? 0) !== (payload.generation ?? 0)) return;
+  if (deps.canInvestigate && !await deps.canInvestigate()) {
+    await ctx.emit({ trail: trail.id, actor: { kind: "system", id: "bootstrap" }, type: "parked",
+      data: { reason: "Workspace setup needs verification before autonomous investigation can continue." }, expectedWork: workBound(trail) });
+    return;
+  }
   const actor = { kind: "agent" as const, id: deps.agent?.name ?? "none" };
   const started = Date.now();
   const budget = workBudget(trail, deps.stepTimeoutS);
@@ -230,6 +238,7 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
       if (!usageReported) await onUsage({ key: `${operation}:result`, ...r.usage });
       signal.throwIfAborted();
       if (!await ownsWork(ctx, trail)) throw new Unverified("superseded agent output");
+      if (deps.canInvestigate && !await deps.canInvestigate()) throw new Unverified("workspace investigation readiness changed");
       if (r.ok && payload.step === "patch" && r.outputs.head) await publishHead(runner, handle, ctx, trail, r.outputs.head);
       return r;
     });
@@ -321,6 +330,11 @@ async function runProof(ctx: ServerContext, deps: AgentDeps, payload: ProofPaylo
   const trail = await ctx.trails.get(payload.trailId);
   if (!trail || trail.rev !== payload.rev || !trail.head || (trail.workGeneration ?? 0) !== (payload.generation ?? 0)
     || !(trail.state === "proving" || trail.state === "handed_off" && trail.resumeTo === "proving")) return;
+  if (deps.canInvestigate && !await deps.canInvestigate()) {
+    if (trail.state !== "handed_off") await ctx.emit({ trail: trail.id, actor: { kind: "system", id: "bootstrap" }, type: "parked",
+      data: { reason: "Workspace setup needs verification before proof execution can continue." }, expectedWork: workBound(trail) });
+    return;
+  }
   const budget = workBudget(trail, deps.stepTimeoutS);
   if (budget.reason) {
     if (trail.state !== "handed_off") await ctx.emit({ trail: trail.id, actor: { kind: "system", id: "proof" },
