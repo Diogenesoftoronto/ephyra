@@ -5,6 +5,13 @@ import { PostHogAccessError, type PostHogCursor, type PostHogEvidence, type Post
 import type { ServerContext } from "../wiring/context.ts";
 
 export type PostHogPollInput = { source?: string; since?: string; cursor?: PostHogCursor };
+export type PostHogPollCoverage = {
+  windowSince: string | null; windowUntil: string | null;
+  /** Oldest actual computation watermark across all queried pages; never the retrieval time. */
+  computedThrough: string | null;
+  computation: "upstream_timestamp" | "uncached_query_window" | "unknown";
+  complete: boolean; gaps: string[];
+};
 export type PostHogPollResult = {
   status: "complete" | "partial" | "inactive" | "unavailable" | "reconciliation_required";
   source: string | null;
@@ -17,6 +24,7 @@ export type PostHogPollResult = {
   nextSince: string | null;
   /** Safe machine status only, never an upstream error body. */
   reason?: string;
+  coverage?: PostHogPollCoverage;
 };
 export type PostHogPollingOptions = {
   ctx: ServerContext;
@@ -110,7 +118,8 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
     return stopped ? null : source;
   };
   const empty = (): PostHogPollResult => ({ status: "inactive", source: null, pages: 0, observed: 0,
-    ingested: 0, duplicates: 0, reconciliationRequired: 0, nextCursor: null, nextSince: null });
+    ingested: 0, duplicates: 0, reconciliationRequired: 0, nextCursor: null, nextSince: null,
+    coverage: { windowSince: null, windowUntil: null, computedThrough: null, computation: "unknown", complete: false, gaps: [] } });
   const note = (result: PostHogPollResult) => ctx.log("PostHog polling", {
     status: result.status, source: result.source, pages: result.pages, observed: result.observed,
     ingested: result.ingested, duplicates: result.duplicates, reconciliationRequired: result.reconciliationRequired,
@@ -131,6 +140,29 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
       for (let page = 0; page < maxPages; page++) {
         const batch = await source.exceptions(since, cursor);
         result.pages++;
+        const coverage = result.coverage!;
+        if (coverage.windowSince === null) { coverage.windowSince = batch.window.since; coverage.windowUntil = batch.window.until; }
+        if (coverage.windowSince !== batch.window.since || coverage.windowUntil !== batch.window.until) {
+          coverage.gaps.push("Query pages did not cover the same fixed window.");
+        }
+        const refresh = batch.freshness.lastRefresh;
+        if (refresh !== null && Date.parse(refresh) > Date.parse(batch.retrievedAt) + 5000) {
+          coverage.gaps.push("Query computation timestamp is in the future.");
+        }
+        const watermark = refresh !== null
+          ? new Date(Math.min(Date.parse(refresh), Date.parse(batch.window.until))).toISOString()
+          : batch.freshness.cached === false ? batch.window.until : null;
+        if (watermark === null) coverage.gaps.push("Query computation time is unknown.");
+        else {
+          if (Date.parse(watermark) < Date.parse(batch.window.since)) coverage.gaps.push("Query computation predates its requested window.");
+          if (coverage.computedThrough === null || Date.parse(watermark) < Date.parse(coverage.computedThrough)) {
+            coverage.computedThrough = watermark;
+          }
+          coverage.computation = refresh !== null ? "upstream_timestamp" : "uncached_query_window";
+        }
+        if (batch.window.clamped) coverage.gaps.push("Requested query history was clamped.");
+        if (batch.events.some(event => event.truncated)) coverage.gaps.push("Exception evidence was truncated.");
+        if (batch.coverage === "partial" && !batch.nextCursor) coverage.gaps.push("The terminal query page has partial coverage.");
         if (batch.freshness.state !== "fresh") {
           result.status = "unavailable"; result.reason = "stale_or_unknown_computation"; note(result); return result;
         }
@@ -179,6 +211,8 @@ export function registerPostHogPolling(options: PostHogPollingOptions): PostHogP
         since = batch.window.since;
       }
       result.status = result.reconciliationRequired ? "reconciliation_required" : result.nextCursor ? "partial" : "complete";
+      result.coverage!.gaps = [...new Set(result.coverage!.gaps)];
+      result.coverage!.complete = result.status === "complete" && result.coverage!.computedThrough !== null && !result.coverage!.gaps.length;
       note(result); return result;
     } catch (error) {
       if (error instanceof PostHogAccessError) {
