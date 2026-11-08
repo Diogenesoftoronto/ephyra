@@ -4,11 +4,11 @@ import { Badge, Button, Card, Hash } from "../kit.ts";
 import { describeError } from "../lib/errors.ts";
 import { clockTime } from "../lib/format.ts";
 import { hasBlocking } from "../lib/warnings.ts";
+import type { PolicyActivationControls } from "../app/policyActivationSession.ts";
 import "./PublishBar.css";
 
 /**
- * Apply, then publish. Publishing writes a commit to the draft's policy ref; it does not change the policy in effect until
- * that commit lands. Only approvers publish. A 409 means the live document moved or the draft has errors.
+ * Publication preserves a reviewed commit. A separate approver action activates the exact document in this workspace.
  */
 export function PublishBar({
   draft,
@@ -17,6 +17,7 @@ export function PublishBar({
   onDiscard,
   onStartOver,
   unsaved,
+  activation,
 }: {
   draft: Draft;
   canPublish?: boolean;
@@ -24,13 +25,14 @@ export function PublishBar({
   onDiscard: () => Promise<void>;
   onStartOver?: () => void;
   unsaved?: boolean;
+  activation?: PolicyActivationControls;
 }) {
   const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState<"publish" | "discard" | null>(null);
+  const [busy, setBusy] = useState<"publish" | "discard" | "activate" | "check" | null>(null);
   const [error, setError] = useState<unknown>(null);
   const blocked = hasBlocking(draft.warnings);
   useEffect(() => setConfirm(false), [draft.content, unsaved]);
-  const run = async (what: "publish" | "discard", fn: () => Promise<void>) => {
+  const run = async (what: "publish" | "discard" | "activate" | "check", fn: () => Promise<void>) => {
     setBusy(what);
     setError(null);
     try {
@@ -45,8 +47,13 @@ export function PublishBar({
   const failure = error ? describeError(error) : null;
 
   if (draft.status === "published" && draft.published) {
+    const activationError = activation?.error ?? error;
+    const failed = activationError ? describeError(activationError) : null;
+    const working = activation?.busy || busy !== null;
+    const mayActivate = canPublish && activation?.status === "ready" && !activation.current && !activation.pending
+      && !activation.error && !blocked && !working;
     return (
-      <Card tone="quiet" title="Published">
+      <Card tone="quiet" title={activation?.current ? "Policy active" : "Published"}>
         <dl className="publish-facts">
           <div>
             <dt>Ref</dt>
@@ -69,10 +76,51 @@ export function PublishBar({
             </dd>
           </div>
         </dl>
-        <p className="muted">
-          The policy in effect changes when this commit lands on the base ref, through the same landing as
-          trails.
-        </p>
+        <div className="publish" aria-live="polite">
+          {activation?.current ? (
+            <p><Badge tone="ok">In effect</Badge> This document matches the policy active in this workspace.</p>
+          ) : activation?.status === "loading" || activation?.status === "idle" ? (
+            <p role="status" className="muted">Checking the active policy…</p>
+          ) : (
+            <p className="muted">Publishing preserves this version. Activating it updates the runtime policy for this workspace.</p>
+          )}
+          {activation?.pending ? (
+            <p role="alert"><strong>Activation outcome is unconfirmed.</strong> Check the active policy before taking another action.
+              The request will not be sent again.</p>
+          ) : failed ? (
+            <p role="alert"><strong>{failed.title}.</strong> {failed.body}</p>
+          ) : null}
+          {(!activation || activation.status === "unavailable") && (
+            <p className="muted">Policy activation is not available from this server.</p>
+          )}
+          {!canPublish && <p className="muted">Only approvers can activate a published policy.</p>}
+          {activation && activation.status !== "unavailable" && !activation.current && (
+            <>
+              {confirm && mayActivate ? (
+                <div className="publish-confirm">
+                  <p>Activate <span className="mono">{draft.path}</span> in this workspace? The reviewed content and active version
+                    are checked again before it takes effect. This does not deploy application code.</p>
+                  <div className="publish-row">
+                    <Button variant="primary" disabled={!mayActivate} loading={busy === "activate" || activation.busy}
+                      onClick={() => void run("activate", activation.activate)}>Activate policy</Button>
+                    <Button variant="ghost" disabled={working} onClick={() => setConfirm(false)}>Cancel activation</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="publish-row">
+                  {canPublish && !activation.pending && (
+                    <Button variant="primary" disabled={!mayActivate} loading={activation.busy}
+                      onClick={() => setConfirm(true)}>Activate policy…</Button>
+                  )}
+                  <Button variant="ghost" disabled={working} loading={busy === "check"}
+                    onClick={() => void run("check", activation.reload)}>
+                    {activation.pending ? "Check active policy" : "Reload active policy"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </Card>
     );
   }
@@ -120,7 +168,7 @@ export function PublishBar({
           <div className="publish-confirm">
             <p>
               This writes a commit to <span className="mono">refs/ephyra/policy/{draft.id}</span> with your
-              name on it. Nothing changes in production until it lands.
+              name on it. Activation is a separate step after publication.
             </p>
             <div className="publish-row">
               <Button

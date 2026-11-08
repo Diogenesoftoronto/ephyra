@@ -12,7 +12,8 @@ The console uses the server API for these implemented screens:
   decisions and live SSE updates. Reconnection resumes by sequence without dropping received events.
 - **Workspace:** the application map and autonomy, threshold and intent documents. Edit a draft
   directly or with Velum, review a proposal or json-render form, apply it, and publish a policy ref.
-  Unsaved edits block switching draft views and publishing. Publishing does not change the live policy.
+  Unsaved edits block switching draft views and publishing. Publishing preserves a reviewed version; a separate approver
+  action activates its exact content for this workspace. Activation does not deploy application code.
 - **Personas:** six named roles with transparent artwork, recorded engines, activity and spend.
   Running entries use a bell pulse; directory hover/focus gives a brief greeting. Idle roles remain still.
 

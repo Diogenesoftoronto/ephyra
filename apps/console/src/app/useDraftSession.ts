@@ -6,6 +6,7 @@ import { newOp } from "../lib/hooks.ts";
 import { formMessage } from "../lib/protocol.ts";
 import { hasBlocking } from "../lib/warnings.ts";
 import { useAsync } from "./useAsync.ts";
+import { usePolicyActivationSession } from "./policyActivationSession.ts";
 
 export type SendFailure = { error: unknown; text: string };
 
@@ -17,6 +18,7 @@ export type SendFailure = { error: unknown; text: string };
 export function useDraftSession(api: ConsoleApi, id: string) {
   const { state, reload, set } = useAsync(() => api.draft(id), `draft:${id}`);
   const draft = state.status === "ready" ? state.data : null;
+  const activation = usePolicyActivationSession(api, draft);
   const [pending, setPending] = useState<string | undefined>();
   const [failure, setFailure] = useState<SendFailure | null>(null);
   const [live, setLive] = useState<AreaSketch[] | null>(null);
@@ -137,6 +139,7 @@ export function useDraftSession(api: ConsoleApi, id: string) {
     saveContent,
     publish,
     discard,
+    activation,
     liveMap: live,
     draftMap: draft?.sketches ?? null,
   };
