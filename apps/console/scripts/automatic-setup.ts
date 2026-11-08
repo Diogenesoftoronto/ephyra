@@ -120,7 +120,7 @@ try {
       if (scenario.mode === "supervised") await page.getByRole("radio", { name: /^Supervised/ }).check();
       const branch = page.getByRole("textbox", { name: /^Branch \(optional\)/ });
       assert.equal(await branch.inputValue(), "");
-      await page.getByRole("textbox", { name: "Repository clone URL", exact: true }).fill("https://github.com/fixture/application.git");
+      await page.getByRole("textbox", { name: "Repository address", exact: true }).fill("https://github.com/fixture/application.git");
       await page.getByRole("button", { name: "Connect and set up automatically", exact: true }).click();
       if (scenario.loseResponse) {
         await page.getByText("Checking whether setup started", { exact: true }).waitFor();

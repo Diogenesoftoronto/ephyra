@@ -14,6 +14,7 @@ import {
   TutorCapabilities, TutorReply, type TutorInput,
   type VoiceAudioInput, type VoiceReplyInput,
   type Persona,
+  InvestigationQuestion, type InvestigationAnswer,
 } from "@ephyra/core";
 import { z } from "zod";
 
@@ -117,6 +118,9 @@ export interface ConsoleApi {
   usage(query?: UsageQuery): Promise<UsageSummary>;
   entries(query?: EntriesQuery): Promise<EntriesPage>;
   inbox(): Promise<InboxEntry[]>;
+  questions(): Promise<InvestigationQuestion[]>;
+  question(trailId: string, questionId: string): Promise<InvestigationQuestion | null>;
+  answerQuestion(trailId: string, questionId: string, input: InvestigationAnswer, operationKey: string): Promise<InvestigationQuestion>;
   trail(id: string, signal?: AbortSignal): Promise<TrailDetail>;
   /** Check this authenticated principal's durable receipt without repeating a write. */
   trailOperation(id: string, action: SharedTrailAction, operationKey: string): Promise<TrailOperation>;
@@ -325,6 +329,25 @@ export class ConsoleClient implements ConsoleApi {
   }
   inbox() {
     return this.request("/v1/inbox", z.array(InboxItemSchema));
+  }
+  async questions() {
+    const questions = await this.request("/v1/questions", z.array(InvestigationQuestion));
+    if (this.workspaceId && questions.some((question) => question.workspaceId !== this.workspaceId)) throw new Error("Question workspace mismatch.");
+    return questions;
+  }
+  async question(trailId: string, questionId: string) {
+    const value = await this.request(`/v1/questions/${encodeURIComponent(trailId)}/${encodeURIComponent(questionId)}`, InvestigationQuestion.nullable());
+    if (value && !this.matchesQuestion(value, trailId, questionId)) throw new Error("Question identity mismatch.");
+    return value;
+  }
+  async answerQuestion(trailId: string, questionId: string, input: InvestigationAnswer, operationKey: string) {
+    const value = await this.request(`/v1/questions/${encodeURIComponent(trailId)}/${encodeURIComponent(questionId)}/answer`, InvestigationQuestion,
+      { method: "POST", body: input, operationKey });
+    if (!this.matchesQuestion(value, trailId, questionId)) throw new UnknownWriteOutcome(operationKey);
+    return value;
+  }
+  private matchesQuestion(value: InvestigationQuestion, trailId: string, questionId: string) {
+    return value.trailId === trailId && value.id === questionId && (!this.workspaceId || value.workspaceId === this.workspaceId);
   }
   trail(id: string, signal?: AbortSignal) {
     return this.request(`/v1/trails/${encodeURIComponent(id)}`, TrailDetailSchema, undefined, signal);

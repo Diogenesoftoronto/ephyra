@@ -31,12 +31,16 @@ export function SetupProgress({ run }: { run: SetupRun }) {
   return (
     <div className="automatic-setup">
       <div className="account-saved" role="status">
-        <h2>{statusNames[run.status]}</h2>
+        <h2>{run.investigationActive && run.status === "blocked" ? "Investigation active · landing needs a connection" : statusNames[run.status]}</h2>
         <Tag>{run.mode === "autonomous" ? "Self-driving" : "Supervised"}</Tag>
       </div>
       <p className="account-hint">
         {run.repository.branch} · <code>{run.repository.head.slice(0, 12)}</code>
       </p>
+      {run.investigationActive && <p className="account-hint">
+        Ephyra can investigate signals in this workspace.
+        {run.blockers.length > 0 && " The remaining blockers below limit later steps such as landing or watching a change."}
+      </p>}
       <ol className="setup-progress" aria-label="Automatic setup progress">
         {run.steps.map((step) => (
           <li key={step.id} data-status={step.status}>

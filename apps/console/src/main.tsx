@@ -206,8 +206,8 @@ function PersonalApp({
   disconnectLabel?: string;
 }) {
   const api = useMemo(
-    () => new ConsoleClient(location.origin, token, fetch, undefined, settings.workspaceId),
-    [token, settings.workspaceId],
+    () => new ConsoleClient(location.origin, token, fetch, identity.principal, settings.workspaceId),
+    [token, identity.principal, settings.workspaceId],
   );
   const automation = useMemo(
     () => new SetupClient(location.origin, token, settings.workspaceId, identity.principal),
