@@ -103,3 +103,11 @@ New additive exports `SetupMode`, `SetupRequest` and `SetupRun` describe request
 artifacts, source commit and readiness blockers. `RepositoryUpdate.discoverDefaultBranch` is a new optional field;
 existing explicit-branch requests are unchanged. Setup readiness is configuration state, not evidence that a repair or
 verification ran. The server validates these contracts against real local Git fixtures and the console consumes them.
+
+## Account knowledge contracts (core changes)
+
+`knowledge.ts` adds `KnowledgeCatalog`, `KnowledgeSourceView`, `KnowledgeToolView`, `KnowledgeSearchTool`,
+`KnowledgeSelection`, `KnowledgeConnection` and `KnowledgeUpdate`. `AccountSettings.knowledge` and
+`EvidenceSource.search`'s `operationKey` are new optional fields. Existing callers and stored accounts remain valid.
+Selections bind a workspace, exact source IDs and selected tool-definition hashes; schemas never grant upstream access.
+Property tests cover explicit capabilities and selection validity. Gateway grants and MCP behavior remain Unverified by core.

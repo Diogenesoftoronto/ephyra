@@ -151,7 +151,7 @@ export interface CodingAgent {
 export type EvidenceHit = { source: string; id: string; title: string; snippet: string; revision?: string; score: number; uri?: string };
 export interface EvidenceSource {
   readonly name: string; // "git", "entire", "otel", "trails", "voxq"
-  search(query: { text: string; files?: string[]; fingerprint?: string; since?: string; limit: number }): Promise<EvidenceHit[]>;
+  search(query: { text: string; files?: string[]; fingerprint?: string; since?: string; limit: number; operationKey?: string }): Promise<EvidenceHit[]>;
   fetch(hit: EvidenceHit): Promise<{ mediaType: string; content: string }>;
 }
 
