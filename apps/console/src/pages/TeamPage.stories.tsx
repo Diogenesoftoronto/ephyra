@@ -27,6 +27,7 @@ export const Loading: StoryObj = { render: () => <Fixture options={{ hang: ["tea
 export const Error: StoryObj = { render: () => <Fixture options={{ fail: { team: new ApiError(503) } }} /> };
 export const OwnerOnly: StoryObj = { render: () => <Fixture options={{ fail: { team: new ApiError(403) } }} /> };
 export const LinkReady: StoryObj = { render: () => <Fixture />, play: createLink };
+export const LiveExpiry: StoryObj = { ...LinkReady, parameters: { clock: null } };
 export const CreatingLink: StoryObj = { render: () => <Fixture options={{ hang: ["invite"] }} />, play: createLink };
 export const SaveFailed: StoryObj = {
   render: () => <Fixture options={{ fail: { invite: new ApiError(422, "The invitation could not be created.") } }} />,

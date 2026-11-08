@@ -1,0 +1,7 @@
+.invitation-code { display: grid; gap: var(--s3); align-content: start; justify-items: start; min-width: 0; }
+.invitation-code__mark { background: white; width: 240px; max-width: 100%; border-radius: 8px; overflow: hidden; }
+.invitation-code__mark svg { display: block; width: 100%; height: auto; forced-color-adjust: none; }
+.invitation-code__caption { display: grid; gap: var(--s2); }
+.invitation-code__caption h3, .invitation-code__caption p { margin: 0; }
+.invitation-code__caption p { font-size: var(--fs-small); color: var(--muted); max-width: 32ch; }
+.invitation-code__caption button { justify-self: start; }

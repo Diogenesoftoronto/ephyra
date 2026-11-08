@@ -3,6 +3,8 @@ import type { TeamInvitation, TeamInviteInput, TeamRevokeInput, TeamRole, TeamSt
 import { ApiError, UnknownWriteOutcome } from "../api.ts";
 import { invitationUrl, type TeamApi } from "../team-api.ts";
 import { Badge, Button, Card, Empty, Field, Icon, PageHeader, Skeleton } from "../kit.ts";
+import { InvitationCode } from "../components/InvitationCode.tsx";
+import { useNow } from "../lib/clock.tsx";
 import "./TeamPage.css";
 
 type Operation =
@@ -34,10 +36,10 @@ function date(value: string): string {
   });
 }
 
-function inviteStatus(invitation: TeamInvitation): string {
+function inviteStatus(invitation: TeamInvitation, now: number): string {
   if (invitation.revokedAt) return invitation.acceptedBy ? "Access removed" : "Revoked";
   if (invitation.acceptedBy) return "Joined";
-  return Date.parse(invitation.expiresAt) <= Date.now() ? "Expired" : "Waiting to join";
+  return Date.parse(invitation.expiresAt) <= now ? "Expired" : "Waiting to join";
 }
 
 function RevokeConfirmation({ invitation, onConfirm, onCancel }: {
@@ -75,6 +77,7 @@ function RevokeConfirmation({ invitation, onConfirm, onCancel }: {
 }
 
 export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => void }) {
+  const now = useNow(1000);
   const [team, setTeam] = useState<TeamState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,7 +120,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
   const uncertain = feedback?.kind === "uncertain";
   const locked = Boolean(busy || uncertain || feedback?.kind === "stale");
   const shareInvitation = share?.invitationId ? team?.invitations.find((row) => row.id === share.invitationId) : undefined;
-  const linkUnavailable = shareInvitation && inviteStatus(shareInvitation) !== "Waiting to join";
+  const linkUnavailable = shareInvitation && inviteStatus(shareInvitation, now) !== "Waiting to join";
   const members = team?.invitations.filter((row) => row.acceptedBy && !row.revokedAt) ?? [];
   const invitations = team?.invitations.filter((row) => !row.acceptedBy && !row.revokedAt) ?? [];
   const history = team?.invitations.filter((row) => row.revokedAt) ?? [];
@@ -259,7 +262,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
           <div className="team-person-name"><strong>{item.label}</strong><Badge>{item.role === "viewer" ? "Viewer" : "Approver"}</Badge></div>
           {item.acceptedBy && <code className="team-identity">{item.acceptedBy}</code>}
           <p className="team-note">
-            {inviteStatus(item)} · {item.revokedAt ? `Revoked ${date(item.revokedAt)}`
+            {inviteStatus(item, now)} · {item.revokedAt ? `Revoked ${date(item.revokedAt)}`
               : item.acceptedAt ? date(item.acceptedAt) : `Link expires ${date(item.expiresAt)}`}
           </p>
         </div>
@@ -328,7 +331,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
             <p>Your team can follow the same runs, evidence, and costs. Approvers can help at the checkpoints you set.</p>
             <ol>
               <li>Choose a role for this invitation.</li>
-              <li>Share the link privately.</li>
+              <li>Share the link or let them scan your QR code.</li>
               <li>Your teammate signs in and joins.</li>
             </ol>
             <p className="team-note">Anyone with the link can join once. Unused links expire after seven days. No email is sent.</p>
@@ -337,15 +340,18 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
         {share && <Card className="team-share" tone="tray">
           <h2 ref={shareHeading} tabIndex={-1}>{linkUnavailable ? "This invitation is no longer open" : "A place is ready"}</h2>
           <p><strong>{share.label}</strong> · {share.role === "viewer" ? "Viewer" : "Approver"}</p>
-          {linkUnavailable ? <p>{inviteStatus(shareInvitation!)}. Create a new invitation to share another link.</p> : <>
-            <p>Share this link privately. Anyone who has it can join once.</p>
-            <div className="team-share-controls">
+          {linkUnavailable ? <p>{inviteStatus(shareInvitation!, now)}. Create a new invitation to share another link.</p> : <>
+            <p>Share the link or QR code privately. Anyone who has either can join once.</p>
+            <div className="team-share-layout">
+              <InvitationCode url={share.url} role={share.role} />
+              <div className="team-share-controls">
               <Field label="Invitation link" hint={shareInvitation ? `Expires ${date(shareInvitation.expiresAt)}.` : "Expires seven days after creation."}>
                 <input ref={linkInput} type="text" name="invitationLink" readOnly value={share.url} onFocus={(event) => event.currentTarget.select()} />
               </Field>
               <Button variant="primary" onClick={() => void copy()}><Icon name={copyState === "copied" ? "check" : "copy"} />
                 {copyState === "copied" ? "Copied" : "Copy link"}
               </Button>
+              </div>
             </div>
           </>}
           <p className="team-copy-feedback" role="status" aria-live="polite">

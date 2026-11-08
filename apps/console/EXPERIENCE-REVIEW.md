@@ -97,3 +97,15 @@ presentations, not proof items. This does not add T3's headless preview or MCP t
 New additive `RunVisual` schema export and optional `AgentRunEvent.visual` field. Existing required contracts,
 event kinds and proof authority are unchanged. Live Amp/provider execution, deployed Convex persistence,
 cross-device access, Safari/iOS and production deployment remain unverified.
+
+## Scan-to-join invitations — November 8
+
+Fresh invitations now show a locally encoded QR beside the copyable link, with a downloadable 960px PNG.
+The selected Viewer or Approver role remains part of the server-owned invitation; scanning does not bypass
+sign-in, preview or deliberate acceptance. The app removes the displayed QR when its link expires or when
+refreshed state reports acceptance/revocation. The original manual-copy recovery remains available.
+
+The real local account/browser check passed all twelve displayed-QR decodes across roles, themes and
+320/390/1440px widths, plus both PNG decodes. Both decoded URLs completed the sign-in and joining flow.
+Revocation and clock-driven expiry removal passed in the recovery fixture. Public phone reachability,
+camera hardware and Safari/iOS remain unverified. No core changes were needed for QR invitations.
