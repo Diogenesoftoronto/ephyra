@@ -17,8 +17,11 @@ export function SettingsPage({
   onDone,
   onResumeSetup,
   loadCatalog,
+  alias,
+  onDisconnect,
+  disconnectLabel = "Sign out",
   initialSection = "repository",
-}: AccountPageProps & { onResumeSetup?: () => void; initialSection?: SettingsSection }) {
+}: AccountPageProps & { onResumeSetup?: () => void; initialSection?: SettingsSection; alias?: string; onDisconnect?: () => void; disconnectLabel?: string }) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const id = useId();
   return (
@@ -96,6 +99,10 @@ export function SettingsPage({
       >
         <dl className="settings-account-details">
           <div>
+            <dt>Alias</dt>
+            <dd>{alias ?? "Not available"}</dd>
+          </div>
+          <div>
             <dt>Signed in with</dt>
             <dd>Not Organic</dd>
           </div>
@@ -116,6 +123,13 @@ export function SettingsPage({
             </dd>
           </div>
         </dl>
+        {onDisconnect && (
+          <div className="account-actions">
+            <Button variant="ghost" onClick={onDisconnect} disabled={disconnectLabel === "Signing out…"}>
+              {disconnectLabel}
+            </Button>
+          </div>
+        )}
         <a href="/auth/login?setup=1">Update account permissions</a>
         {onResumeSetup && (
           <div className="account-actions">

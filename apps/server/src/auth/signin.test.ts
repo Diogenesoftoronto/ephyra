@@ -57,7 +57,7 @@ describe("sign in with Not Organic", () => {
     expect(await callback.text()).not.toContain(cookie.split("=")[1]!);
     const headers = { cookie, "X-Ephyra-Principal": OTHER };
     const identity = { principal: DID, kind: "human", approver: true };
-    expect(await (await app.request("/auth/session", { headers })).json()).toEqual({ signIn: true, identity });
+    expect(await (await app.request("/auth/session", { headers })).json()).toEqual({ signIn: true, identity: { ...identity, alias: "approver.test" } });
     expect(await (await app.request("/v1/me", { headers })).json()).toEqual(identity);
     expect((await app.request("/v1/inbox", { headers })).status).toBe(200);
     const draft = await app.request("/v1/drafts", {

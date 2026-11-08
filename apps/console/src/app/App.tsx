@@ -55,7 +55,13 @@ function Page({
   approver,
   principal,
   account,
+  onDisconnect,
+  disconnectLabel,
+  alias,
 }: {
+  alias?: string;
+  onDisconnect?: () => void;
+  disconnectLabel?: string;
   route: Route;
   approver: boolean;
   principal?: string;
@@ -86,6 +92,9 @@ function Page({
       return route.page === "settings" ? (
         <SettingsPage
           {...account}
+          onDisconnect={onDisconnect}
+          disconnectLabel={disconnectLabel}
+          alias={alias}
           onResumeSetup={() => {
             location.hash = "#/onboarding";
           }}
@@ -211,7 +220,7 @@ function Frame({
           location.hash = `#/${id}`;
         }}
         user={{
-          name: demo ? "Demo" : (identity?.principal ?? "Connected"),
+          name: demo ? "Demo" : (identity?.alias ?? "Your account"),
           detail: demo ? "made-up data" : account ? "personal workspace" : approver ? "approver" : "read only",
           avatar: (
             <span className="account-mark" aria-hidden="true">
@@ -257,10 +266,13 @@ function Frame({
             approver={approver}
             principal={identity?.principal}
             account={account}
+            alias={identity?.alias}
+            onDisconnect={onDisconnect}
+            disconnectLabel={disconnectLabel}
           />
         </Suspense>
         <footer className="app-foot">
-          {onDisconnect && (
+          {onDisconnect && !account && (
             <button className="ui-button ui-button--ghost" onClick={onDisconnect}>
               {disconnectLabel}
             </button>
