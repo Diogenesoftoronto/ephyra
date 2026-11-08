@@ -90,6 +90,14 @@ and runs its small shader only on interaction, rather than downloading a video o
 The local material layers reuse the existing site artwork; two new fal Ideogram tiling candidates were rejected after
 visual inspection and are not shipped. See `public/materials/manifest.json` and the motion asset notes.
 
+Agent activity uses local Amp, Codex and Claude Code logo badges. Hover, keyboard focus or tap reveals the exact recorded
+engine and execution details; Escape or an outside interaction dismisses them. The host does not determine the agent
+brand. Unknown engines or unavailable artwork retain a neutral glyph and inspectable identity. Badges have separate
+controls from run navigation and persona filters. Asset sources and the included license are in `public/engines/README.md`.
+After building the app and Storybook, `env -u LD_LIBRARY_PATH bun apps/console/scripts/engine-badges.ts` verifies both
+themes at 320/390/1440px, hoverable details, keyboard/touch access, long IDs, missing artwork and independent navigation.
+These checks use fictional local runs; they do not establish live agent availability.
+
 Account and workspace changes replace the API scope and remount cached review/voice state. The server also rejects stale
 account/workspace bindings, including when another tab changes the signed-in cookie. The sign-in browser harness now
 checks optional BYOK onboarding, hidden saved keys, shortcuts, real draft requests using a named offline model fixture,

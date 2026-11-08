@@ -144,7 +144,7 @@ cases.push({
   width: 1280,
   run: async (p) => {
     await demo(p, "runs");
-    await p.locator('a.ui-row[href="#/runs/run-orb-7qm2x"]').click();
+    await p.locator('.run-row__link[href="#/runs/run-orb-7qm2x"]').click();
     await p.getByRole("heading", { name: "Transcript", exact: true }).waitFor();
     await visible(p, "policy: reject");
     await visible(p, "Waiting for the proof runner");

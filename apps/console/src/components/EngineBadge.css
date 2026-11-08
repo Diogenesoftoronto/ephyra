@@ -1,0 +1,48 @@
+.engine-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 5px;
+  vertical-align: middle;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-surface);
+  cursor: help;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.engine-badge:hover { background: var(--surface-hover); border-color: var(--control-border-hover); }
+.engine-badge img { display: block; width: 24px; height: 24px; object-fit: contain; }
+.engine-badge[data-brand="amp"] img { border-radius: 6px; }
+/* The Codex asset is monochrome. The light inset retains its shape in either theme. */
+.engine-badge[data-brand="codex"] { background: #f7f6f2; color: #171717; }
+.engine-badge[data-brand="codex"]:hover { background: #eeede9; }
+.engine-tooltip {
+  position: fixed;
+  z-index: var(--z-toast);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: var(--s4);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-popover);
+  text-align: start;
+  font-size: var(--fs-small);
+  line-height: 1.5;
+}
+.engine-tooltip > strong { display: block; margin-bottom: var(--s2); }
+.engine-tooltip dl { display: grid; gap: var(--s2); margin: 0; }
+.engine-tooltip dl > div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: var(--s3); }
+.engine-tooltip dt { color: var(--muted); }
+.engine-tooltip dd { margin: 0; font-family: var(--font-mono); font-size: var(--fs-label); overflow-wrap: anywhere; }
+@media (pointer: coarse), (max-width: 760px) {
+  .engine-badge { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .engine-badge { transition: none; } }

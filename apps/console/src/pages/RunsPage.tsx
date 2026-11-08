@@ -7,6 +7,7 @@ import { Load } from "../components/Load.tsx";
 import { noRunFilters, RunFilters, type RunFilterValue } from "../components/RunFilters.tsx";
 import { RunList } from "../components/RunList.tsx";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
+import { EngineBadge } from "../components/EngineBadge.tsx";
 import "./RunsPage.css";
 
 /** Every running and recent agent run, wherever it executes: Amp orbs and runners, local processes, sandboxes. */
@@ -69,15 +70,17 @@ function RunsBody({
           const own = all.filter((run) => run.persona === persona.id);
           const working = own.filter((run) => run.status === "running");
           const latest = [...own].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
-          return <button key={persona.id} type="button" className="run-roster__agent"
-            aria-pressed={filters.persona === persona.id} aria-label={`Filter runs by ${persona.name}`}
-            onClick={() => setFilters({ ...filters, persona: filters.persona === persona.id ? "" : persona.id })}>
-            <PersonaAvatar persona={persona.id} size={48} live={working.length > 0} />
-            <span className="run-roster__identity"><strong>{persona.name}</strong><small>{persona.role}</small></span>
-            <span className="run-roster__status">{working.length ? `${working.length} running`
-              : latest ? `Last run ${latest.status}` : "No recent run"}</span>
-            <span className="run-roster__engine" title={latest?.engine}>{latest?.engine ?? "No engine recorded"}</span>
-          </button>;
+          return <div key={persona.id} className="run-roster__agent" data-selected={filters.persona === persona.id}>
+            <button type="button" className="run-roster__filter"
+              aria-pressed={filters.persona === persona.id} aria-label={`Filter runs by ${persona.name}`}
+              onClick={() => setFilters({ ...filters, persona: filters.persona === persona.id ? "" : persona.id })}>
+              <PersonaAvatar persona={persona.id} size={48} live={working.length > 0} />
+              <span className="run-roster__identity"><strong>{persona.name}</strong><small>{persona.role}</small></span>
+              <span className="run-roster__status">{working.length ? `${working.length} running`
+                : latest ? `Last run ${latest.status}` : "No recent run"}</span>
+            </button>
+            <span className="run-roster__engine"><EngineBadge engine={latest?.engine} executor={latest?.executor} /></span>
+          </div>;
         })}
       </section>
       <p className="account-hint">Showing the latest 100 runs. Refreshes every five seconds while this page is visible.</p>

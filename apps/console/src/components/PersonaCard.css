@@ -38,3 +38,4 @@
 .persona-spend {
   margin: 0;
 }
+.persona-engines { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin: 0; }
