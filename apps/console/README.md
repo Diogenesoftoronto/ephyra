@@ -16,6 +16,18 @@ The console uses the server API for these implemented screens:
 - **Personas:** six named roles with transparent artwork, recorded engines, activity and spend.
   Running entries use a bell pulse; directory hover/focus gives a brief greeting. Idle roles remain still.
 
+The Overview gives decision titles a full reading column, marks one review action as primary, and shows
+the three trail budgets with the highest usage ratios, with a link to all budgets in Usage. Summary totals
+still cover every trail in the returned window, including the explicit unknown-cost count. Daily spend
+amounts are available in an expandable table. Navigation includes a skip link and keyboard-operated
+mobile More menu; budget meters use their visible labels as accessible names.
+
+The [interface review](INTERFACE-REVIEW.md) records the scope and verification of this pass using
+Jakub Krehel's skills. After building the app and Storybook, run
+`env -u LD_LIBRARY_PATH bun apps/console/scripts/interface-polish.ts` from the repository root.
+It uses local fictional fixtures, writes screenshots and measured checks to `artifacts/interface-polish/`,
+and does not verify live providers, accounts, or deployments.
+
 ## Run
 
 From the repository root:
