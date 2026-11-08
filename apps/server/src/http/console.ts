@@ -9,7 +9,7 @@ import { DraftError, type DraftService } from "../drafts.ts";
 import type { PolicyDocs } from "../docs.ts";
 import type { RunBroker, RunStore } from "../runs.ts";
 import type { AuthEnv } from "./auth.ts";
-import type { ApprovalPolicy } from "./app.ts";
+import { isApprover, type ApprovalPolicy } from "./app.ts";
 
 export type ConsolePort = {
   usage: UsageStore;
@@ -188,7 +188,8 @@ export function consoleRoutes(port: ConsolePort, approval: ApprovalPolicy): Hono
     // Publishing is for approvers. With approvers configured the caller must be a signed-in one (a service token's principal header is
     // caller-supplied, so it cannot stand in); with none configured (development) the shared auth is all there is.
     const principal = c.get("principal");
-    if ((approval.requireSignIn || approval.approvers.size > 0) && (c.get("principalKind") !== "human" || !approval.approvers.has(principal))) {
+    if ((approval.requireSignIn || approval.approvers.size > 0 || approval.resolveApprover)
+      && (c.get("principalKind") !== "human" || !await isApprover(approval, principal))) {
       return c.json({ error: "only an approver can publish a draft" }, 403);
     }
     return c.json(out(await port.drafts.publish(c.req.param("id"), principal)));

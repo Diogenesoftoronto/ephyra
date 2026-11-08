@@ -245,6 +245,7 @@ export type ComposeOverrides = {
   workspacePrepared?: boolean;
   setupScopes?: (did: string) => Promise<string[]>;
   resolveDraftModel?: () => Promise<DraftModel | null>;
+  resolveApprover?: (did: string) => Promise<boolean>;
   /** Operator-provided, workspace-scoped capabilities verified by the hosting integration. Never inferred from a URL. */
   automationReadiness?: Partial<Record<"telemetry" | "verification" | "landing" | "watch", boolean>>;
   evidenceSources?: import("@ephyra/core").EvidenceSource[];
@@ -445,7 +446,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   const api = createApp(
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
-    { requireSignIn: Boolean(signIn), approvers, ...(signIn ? { browserOrigin: signIn.config.publicOrigin } : {}) },
+    { requireSignIn: Boolean(signIn), approvers, resolveApprover: opts.resolveApprover, ...(signIn ? { browserOrigin: signIn.config.publicOrigin } : {}) },
     (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice))
       .route("/", tutorRoutes(tutor)).route("/", setupRoutes(setup)),
   );

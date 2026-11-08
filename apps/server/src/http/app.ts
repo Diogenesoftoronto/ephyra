@@ -50,7 +50,15 @@ const emptyInput = z.object({}).strict();
  * Who may change trails. When `requireSignIn` is set (Not Organic sign-in configured), decisions and actions
  * need a signed-in account on the approver list; the service token alone can no longer approve anything.
  */
-export type ApprovalPolicy = { requireSignIn: boolean; approvers: ReadonlySet<string>; browserOrigin?: string };
+export type ApprovalPolicy = {
+  requireSignIn: boolean;
+  approvers: ReadonlySet<string>;
+  browserOrigin?: string;
+  /** Resolve current workspace authority per request; never cache shared membership in the static set. */
+  resolveApprover?: (did: string) => Promise<boolean>;
+};
+export const isApprover = (approval: ApprovalPolicy, did: string): Promise<boolean> =>
+  approval.resolveApprover ? approval.resolveApprover(did) : Promise.resolve(approval.approvers.has(did));
 
 const PLUGIN_REPORT = /^\/v1\/runs\/[^/]+\/policy$/;
 
@@ -71,14 +79,14 @@ export function createApp(
     if (c.get("principalKind") !== "human") {
       return c.json({ error: "sign in with Not Organic to change trails" }, 403);
     }
-    if (!approval.approvers.has(c.get("principal"))) {
-      return c.json({ error: "this Not Organic account is not an approver on this deployment" }, 403);
+    if (!await isApprover(approval, c.get("principal"))) {
+      return c.json({ error: "this Not Organic account is not an approver in this workspace" }, 403);
     }
     return next();
   });
-  app.get("/v1/me", (c) => c.json({
+  app.get("/v1/me", async (c) => c.json({
     principal: c.get("principal"), kind: c.get("principalKind"),
-    approver: !approval.requireSignIn || (c.get("principalKind") === "human" && approval.approvers.has(c.get("principal"))),
+    approver: !approval.requireSignIn || (c.get("principalKind") === "human" && await isApprover(approval, c.get("principal"))),
   }));
   app.get("/v1/inbox", async (c) => { c.header('Cache-Control', 'no-store'); return c.json(await port.inbox()); });
   app.get("/v1/trails", async (c) => c.json(await port.trails(c.req.query("state"))));

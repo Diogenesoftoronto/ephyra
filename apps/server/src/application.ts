@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
-import { RepositoryUpdate, ModelUpdate, OnboardingUpdate } from "@ephyra/core";
+import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
 import { readConfig, type Config } from "./config.ts";
 import { auth, type AuthEnv } from "./http/auth.ts";
@@ -16,6 +16,8 @@ import {
   type AccountStore,
 } from "./setup/account-store.ts";
 import { RepositoryConnector } from "./setup/repository.ts";
+import { Teams } from "./setup/team.ts";
+import { forwardSharedRequest } from "./setup/team-stream.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
@@ -55,6 +57,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     },
   });
   const account = accounts;
+  const teams = new Teams(store, config.EPHYRA_SESSION_KEY);
 
   async function runtime(record: AccountRecord): Promise<Composed> {
     const { workspaceId, did, repository } = record.settings;
@@ -112,6 +115,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           signIn,
           workspacePrepared: true,
           resolveDraftModel: () => account.modelFor(did, workspaceId),
+          resolveApprover: (principal) => teams.canApprove(did, workspaceId, principal),
         });
       })().catch((error) => {
         runtimes.delete(workspaceId);
@@ -148,6 +152,32 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     await next();
   });
   app.get("/v1/account", async (c) => c.json(await account.settings(c.get("principal"))));
+  app.get("/v1/account/workspaces", async (c) => c.json(await teams.workspaces(c.get("principal"))));
+  app.get("/v1/account/team", async (c) => c.json(await teams.team(c.get("principal"), c.req.header("X-Ephyra-Workspace"))));
+  app.post("/v1/account/team/invitations", async (c) => {
+    const value = TeamInviteInput.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Choose a label and a Viewer or Approver role." }, 400);
+    if (c.req.header("X-Ephyra-Workspace") !== value.data.workspaceId)
+      return c.json({ error: "Your workspace changed. Refresh before inviting a teammate." }, 409);
+    return c.json(await teams.invite(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.post("/v1/account/team/revoke", async (c) => {
+    const value = TeamRevokeInput.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Choose an invitation to revoke." }, 400);
+    if (c.req.header("X-Ephyra-Workspace") !== value.data.workspaceId)
+      return c.json({ error: "Your workspace changed. Refresh before revoking access." }, 409);
+    return c.json(await teams.revoke(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.post("/v1/account/team/accept", async (c) => {
+    const value = TeamAcceptInput.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "This invitation link is invalid." }, 400);
+    return c.json(await teams.accept(c.get("principal"), value.data.token, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.post("/v1/account/team/preview", async (c) => {
+    const value = TeamAcceptInput.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "This invitation link is invalid." }, 400);
+    return c.json(await teams.preview(c.get("principal"), value.data.token));
+  });
   app.put("/v1/account/repository", async (c) => {
     const value = RepositoryUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the repository URL, branch and credentials." }, 400);
@@ -165,10 +195,22 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   });
   app.all("/v1/*", async (c) => {
     if (c.get("principalKind") === "service") return legacy.app.fetch(c.req.raw);
-    const record = await account.record(c.get("principal"));
+    const principal = c.get("principal");
+    const record = await account.record(principal);
     const bound = c.req.header("X-Ephyra-Workspace");
-    if ((bound && bound !== record.settings.workspaceId) || (!bound && !["GET", "HEAD"].includes(c.req.method))) {
+    const reading = ["GET", "HEAD"].includes(c.req.method);
+    if (!bound && !reading) {
       return c.json({ error: "Your workspace changed. Reload before continuing." }, 409);
+    }
+    if (bound && bound !== record.settings.workspaceId) {
+      const shared = await teams.shared(principal, bound);
+      if (!shared) return c.json({ error: "Your workspace changed or access is unavailable. Reload before continuing." }, 409);
+      if (!reading && (shared.access.role !== "approver" || /^\/v1\/setup(?:\/|$)/.test(c.req.path)))
+        return c.json({ error: shared.access.role === "viewer"
+          ? "Viewer access is read-only. Ask the owner for Approver access." : "Only the workspace owner can change setup." }, 403);
+      const target = await runtime(shared.record);
+      return forwardSharedRequest(c.req.raw, (request) => target.app.fetch(request), () =>
+        teams.stillShared(shared.record.settings.did, bound, principal, shared.invitationId));
     }
     return (await runtime(record)).app.fetch(c.req.raw);
   });
