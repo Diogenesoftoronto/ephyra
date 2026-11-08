@@ -230,3 +230,27 @@ pauses while the page is hidden. The workflow continues on the server after leav
 Verified locally: setup HTTP contract, default/supervised startup, duplicate-mount protection, exact lost-write
 reconciliation, output escaping, console tests/typecheck/build. Storybook and demo setup data are marked fictional.
 Live repository authentication, provider execution, forge landing and hosted Traction remain separate integration checks.
+
+### Knowledge and MCP connections
+
+The optional knowledge panel appears during onboarding and in **Settings → Knowledge**. **Connect knowledge** saves
+the workspace's opt-in with no selected sources. When needed, the server-provided Not Organic sign-in link requests
+access; **Manage connections in Not Organic** opens that application's connection grant and return location. Credentials
+remain in Not Organic. **Explore first** still works without enabling knowledge.
+
+Users choose shared resources and an eligible search tool once for autonomous research. The selection saves the exact
+source ID, tool definition hash and query field; nothing is preselected. Changed tools and revoked sources remain visible
+until explicitly replaced or removed. Unsupported tools can be inspected but cannot be selected. **Disconnect knowledge**
+clears Ephyra's workspace opt-in and selections; Not Organic's portal manages its application grant separately.
+
+Catalogs refresh on an explicit refresh or return to the page. Account/workspace changes discard loaded and pending form
+state, and late reads/saves cannot update another scope. Interrupted saves lock further changes until a read-only refresh
+of saved settings; revision conflicts similarly require review. Source names and descriptions render as text, and links
+allow HTTPS, same-app paths, or credential-free HTTP loopback addresses for local development.
+
+Verified locally: account API binding and response validation, exact tool selection, source revocation, escaping,
+unknown-save recovery, keyboard tab focus, desktop/390px layouts, optional onboarding skip, and account/workspace
+isolation. Run `bun run --filter @ephyra/console build`, then
+`env -u LD_LIBRARY_PATH bun apps/console/scripts/knowledge.ts` for four browser scenarios using offline HTTP fixtures.
+`Account/Knowledge connections` and `Screens/SettingsPage` provide fictional state and phone stories. Hosted Not Organic
+authorization, upstream MCP connectors and live autonomous research remain separate integration checks.
