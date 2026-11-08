@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KnowledgeConnection } from "./knowledge.ts";
 
 /** Public account setup contracts. Saved credentials are never part of a response. */
 export const ModelProvider = z.enum(["none", "notorganic", "openai", "anthropic", "compatible"]);
@@ -30,6 +31,7 @@ export const AccountSettings = z.object({
   model: ModelConnection,
   onboarding: z.object({ status: z.enum(["new", "in_progress", "skipped", "complete"]), updatedAt: z.string() }),
   execution: z.literal("not_configured"),
+  knowledge: KnowledgeConnection.optional(),
 });
 export type AccountSettings = z.infer<typeof AccountSettings>;
 
