@@ -7,6 +7,7 @@ export * from "./ids.ts";
 
 export * from "./lifecycle.ts";
 export * from "./console.ts";
+export * from "./run-visual.ts";
 export * from "./digest.ts";
 export * from "./voice.ts";
 export * from "./tutor.ts";
