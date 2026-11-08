@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="tour.css">
 <link rel="stylesheet" href="console.css">
+<link rel="stylesheet" href="product-tour.css">
   <link rel="stylesheet" href="jellyware.css">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
@@ -77,6 +78,23 @@
   </div>
 </div>
 
+<section class="product-tour" data-product-tour aria-labelledby="product-tour-title">
+  <h2 id="product-tour-title">A workspace for you and your agents.</h2>
+  <p class="lede">Connect your application, follow the work, and bring your team into the decisions. Explore the actual Ephyra interface below.</p>
+  <div class="product-tour-choices" role="group" aria-label="Explore the application">
+    <button type="button" data-product-scene="overview" aria-pressed="true" data-description="See what needs your attention, which agents are working, and what the current trails have cost.">Overview</button>
+    <button type="button" data-product-scene="onboarding" aria-pressed="false" data-description="Start with your repository. Choose self-driving or supervised setup, then connect the knowledge and signals your agents need.">Getting started</button>
+    <button type="button" data-product-scene="runs" aria-pressed="false" data-description="Open a run to read its conversation, inspect tool calls and visual results, or follow an available runner link.">Agent runs</button>
+    <button type="button" data-product-scene="workspace" aria-pressed="false" data-description="Keep intent, autonomy and application knowledge in reviewable documents. Draft changes with Velum before publishing them.">Workspace</button>
+    <button type="button" data-product-scene="personas" aria-pressed="false" data-description="Meet the six roles, inspect their recorded engines and activity, and say hello to each companion.">Personas</button>
+    <button type="button" data-product-scene="team" aria-pressed="false" data-description="Invite a viewer or an approver with a single-use link or QR code. Team access and review decisions remain explicit.">Your team</button>
+  </div>
+  <p class="product-tour-caption" aria-live="polite"></p>
+  <div class="product-tour-screen"></div>
+  <div class="product-tour-foot"><p>Interactive sample data. Changes stay in this preview; no repository, invitation, or model call is created.</p>
+    <a href="/app/">Open your own workspace <span aria-hidden="true">↗</span></a></div>
+</section>
+
 <section class="tour" id="how" aria-labelledby="how-title">
   <div class="tour-head">
     <h2 id="how-title">One bug, start to finish</h2>
@@ -106,7 +124,7 @@
         <div id="gui-panel" class="gui-screen" role="region" aria-label="Graphical trail walkthrough" tabindex="0"></div>
         <div id="tui-panel" class="term-screen" hidden role="img" aria-label="Terminal"><pre class="term-pre"></pre><div class="term-focus"></div></div>
         <div class="term-strip" hidden aria-hidden="true"></div>
-        <div class="gui-example-note">Sample walkthrough. Buttons move through the example.</div>
+        <div class="gui-example-note">Actual app components · recorded sample trail. Use Previous and Next to follow the example.</div>
         <div class="term-tools"><span>← → to browse steps</span><button class="term-read" type="button">Read the full screen</button></div>
       </figure>
     </div>

@@ -166,7 +166,8 @@ describe("static site", () => {
     expect(html).toContain('id="tui-choice"');
     expect(html).toContain("Born for the terminal?");
     expect(html).toContain('id="how"');
-    expect(html).toContain("Sample walkthrough. Buttons move through the example.");
+    expect(html).toContain("Actual app components · recorded sample trail.");
+    expect(html).toContain('data-product-tour');
     for (const asset of ["tour.css", "tour.js", "console.css", "console.js", "jellyware.css", "multiplayer.js", "walkthrough.json"]) {
       expect({ asset, status: (await get(h, `/e/${asset}`)).status }).toEqual({ asset, status: 200 });
     }

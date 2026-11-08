@@ -7,6 +7,7 @@ node_modules/
 !.env.example
 coverage/
 dist/
+dist-walkthrough/
 .ephyra-local/
 # generated media sources stay on disk, out of git
 site/_sources/

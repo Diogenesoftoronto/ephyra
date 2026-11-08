@@ -1,0 +1,19 @@
+.product-tour { max-width: 1320px; margin: 0 auto; padding: clamp(3rem, 8vw, 7rem) var(--gutter, 5vw); }
+.product-tour h2 { font: 600 clamp(2rem, 4vw, 3.5rem)/1.06 var(--font-display, 'Anybody', sans-serif); letter-spacing: -.035em; }
+.product-tour .lede { max-width: 45rem; margin: 1rem 0 1.8rem; }
+.product-tour-choices { display: flex; flex-wrap: wrap; gap: .4rem 1.5rem; border-bottom: 1px solid var(--tour-line); }
+.product-tour-choices button { border: 0; border-bottom: 2px solid transparent; background: none; color: inherit; padding: .8rem 0;
+  min-height: 44px; font: inherit; cursor: pointer; }
+.product-tour-choices button[aria-pressed='true'] { border-bottom-color: var(--amber); }
+.product-tour-choices button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.product-tour-caption { min-height: 3rem; max-width: 54rem; margin: 1rem 0; line-height: 1.6; }
+.product-tour-screen { overflow: hidden; border: 1px solid var(--tour-line); border-radius: 26px 34px 26px 34px;
+  box-shadow: 0 16px 48px #0000000c; }
+.product-tour-screen iframe { width: 100%; height: min(760px, 82svh); min-height: 520px; }
+iframe[data-product-frame] { display: block; border: 0; background: transparent; }
+.gui-screen > iframe[data-product-frame] { width: 100%; height: 100%; }
+.gui-reader > iframe[data-product-frame] { width: 100%; height: 75svh; }
+.product-tour-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem; margin-top: 1rem; }
+.product-tour-foot p { max-width: 42rem; font-size: .875rem; opacity: .75; }
+@media (max-width: 600px) { .product-tour { padding-inline: 16px; } .product-tour-screen { border-radius: 20px; }
+  .product-tour-choices { gap: .2rem 1rem; } .product-tour-screen iframe { min-height: 590px; } }

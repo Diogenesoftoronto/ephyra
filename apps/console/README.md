@@ -1,6 +1,7 @@
 # Ephyra console
 
-The React/Vite console is served by the Ephyra server at `/app/`. Cut E remains the public homepage.
+The React/Vite console is served at `https://console.ephyra.quest/app/`. The public homepage at
+`https://ephyra.quest` embeds the same components with explicitly fictional walkthrough data.
 The console uses the server API for these implemented screens:
 
 - **Overview:** waiting decisions, recorded activity, recent spend and trail budgets.
@@ -60,8 +61,8 @@ Settings is available in the navigation (under **More** on phones). Hosted Not O
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
 Settings groups Repository, Model access, Connections and Account into a text tab row at every screen size.
 Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
-leaving Settings, reloading, or accepting updated saved settings resets them. Setup pairs a focused form with an illustrated
-explanation on wide screens. Settings keeps one reading column. Saved model connection details expand from their status row.
+leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses one open reading column over a
+full-page material, with three compact steps and optional connections collapsed. Saved model connection details expand from their status row.
 Keys start blank, can be replaced or removed, and are never stored in browser storage or returned by the server.
 Changing provider protocol or endpoint does not silently reuse a saved key.
 
@@ -76,29 +77,40 @@ The light/dark switch sits beside Commands. It follows the system color preferen
 an explicit choice is remembered in this browser. There is no separate Auto control.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
-Welcome, invitation acceptance, and wide-screen setup include an interactive amber specimen on a textured glass surface. Hover, touch, Enter or Space triggers a 2.1-second
-texture-refraction shader, then it settles. WebGL is allocated only on interaction, capped at 384px and about 30fps.
-The ordinary image remains the fallback when WebGL is unavailable or lost. Reduced motion uses stills;
-moving offscreen or hiding the tab stops drawing. Persona pulses use transparent stills in both themes,
-without the dark rectangles of the original video exports. No animation implies that an unconfigured agent is working.
+Welcome and invitation acceptance use an amber specimen; each persona has its own short generated greeting.
+Hover or keyboard/touch activation starts one finite gesture. Clips are silent, load only on interaction, stop offscreen
+or in a hidden tab, and support explicit pause/replay. Reduced motion retains the still without requesting video.
+Data-saving and touch devices wait for explicit play. Decoders without VP9 transparency fall back to the approved still.
+Custom specimen artwork retains the earlier WebGL shader. Decorative greetings never represent agent activity.
 
-`Motion/JellySpecimen` in Storybook includes light, dark, small, keyboard, missing-art and downloadable loop examples.
-The [motion asset notes](../../design/brand/CONSOLE-MOTION.md) record the image-generation prompt, source artwork,
-transparent GIF/WebP exports and reproduction commands. GIFs are shareable exports; the app loads the 46KB poster
-and runs its small shader only on interaction, rather than downloading a video or GIF for every visit.
+**Sound** is off by default. Opting in enables quiet touch, copy, connected and invitation cues, with a shared throttle,
+no preloading and immediate cross-tab mute. Success cues follow confirmed results. The study gallery also includes
+message and attention cues, which are not wired to application events. The [motion and sound notes](public/juice/README.md)
+list exact models, requests, selected derivatives and the experiment limits. All playback uses local assets; the app
+never generates media or sends credentials to fal.
 
-The shell uses new pale and slate glass tiles, and each of the six personas has a distinct generated material.
-These are decorative layers behind readable surfaces; they do not indicate activity. Onboarding adds a glass-path
-illustration, and Team uses a small glass gathering. The entrance backdrop plays one five-second light study, with
-pause/replay controls and no looping. Reduced motion and forced colors use still artwork without requesting video;
-data-saving mode waits for explicit play. Hiding the tab or moving the scene offscreen stops playback.
+The shell uses pale and slate glass tiles, and each of the six personas has a distinct generated material. Decorative
+layers sit behind readable surfaces. The [material notes](public/materials/README.md) retain the fifteen selected Ideogram
+tile studies, illustration sources and older motion comparisons. Current entrance motion uses the reviewed H3 Max,
+FLUX 3 Max and Seedance 2.5 character clips; the earlier Kling/Wan background study is no longer played there.
 
-The [material notes](public/materials/README.md) record the fifteen retained Ideogram tile studies, FLUX illustrations,
-Kling/Wan motion comparisons, selected assets, saved prompts and request receipts. They supersede the initial two
-rejected tiling attempts. All assets are local: loading the application never makes a fal generation request.
-`scripts/ambient-material.ts` checks real browser decoding, playback controls, lifecycle and still fallbacks.
-`scripts/tiling-gallery.py` and `scripts/media-gallery.py` build the offline comparisons in `artifacts/material-lab/`;
-the latter includes local application screenshots when present. `scripts/material-lab.ts` checks their controls and playback.
+The repository picker includes GitHub, GitLab, Tangled, Forgejo and generic Git logos and links. Public GitHub discovery
+fills the repository address and default branch without submitting settings. It uses no credentials, cancels stale
+lookups, and retains manual entry on rate limits or errors. Private repositories still use the existing credential flow.
+
+### Public app walkthrough
+
+`bun run --filter @ephyra/console build:walkthrough` builds the same App and TrailPanel components for `site/e/app/`.
+The web Docker build performs this automatically. Six feature views show Overview, setup, Runs, Workspace, Personas
+and Team. The nine-stage bug tour renders the real trail panel from the checked-in CLI walkthrough recording.
+Sample accounts and teams are fictional; the tour creates no repository, invitation or provider job. Its separate
+entry uses fake adapters, a network-blocking CSP and an allowlisted same-origin parent-message protocol.
+
+`env -u LD_LIBRARY_PATH bun apps/console/scripts/product-walkthrough.ts` checks all six views and nine stages at
+390/1440px, recorded proof, foreign-origin message refusal, errors and layout. `juice-interactions.ts` checks repository
+selection, finite gestures, all seven alpha clips, opaque-decoder fallback and reduced motion. `feedback.ts` checks
+opt-in, throttling, cross-tab mute and actual browser decoding of all six cues. These are offline Chromium checks;
+physical mobile devices, Safari transparency, live forge authentication and human audio evaluation remain unverified.
 
 Agent activity uses local Amp, Codex and Claude Code logo badges. Hover, keyboard focus or tap reveals the exact recorded
 engine and execution details; Escape or an outside interaction dismisses them. The host does not determine the agent
