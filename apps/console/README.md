@@ -245,6 +245,35 @@ repository with a fake model, unit/property tests, app/Storybook builds, and the
 Unverified: live provider replies, hosted sign-in with a real account, live agent/orb streams,
 production deployment and cloud/forge writes. Storybook/demo fixtures are not evidence for those.
 
+## Loop view prototype and design lab
+
+`design/09-console-redesign.md` is the decision record. The code is a prototype: nothing in `src/loop` or
+`src/lab` is reachable from the console's routes yet.
+
+- `src/loop/model.ts` turns server shapes into what the screen says. `src/loop/scenario.ts` replays a
+  simulated hour of seven quests through the real state machine. `src/loop/parts.tsx` and `Inspector.tsx`
+  are the components.
+- `lab.html` compares seven layouts and has three benches (components, alignment, motion). It always
+  shows "Simulated quests. No agent ran."
+
+```sh
+bun run --filter @ephyra/console build:lab          # then open dist-lab/lab.html through any static server
+bun run --filter @ephyra/console lab:shots          # screenshots and metrics.json in .screens/lab
+bun run --filter @ephyra/console loop:accept        # 13 promises, checked through data attributes
+bun run --filter @ephyra/console loop:e2e           # the real server, then the built console in a browser
+bun run --filter @ephyra/console typecheck:scripts
+```
+
+Verified locally: the view model (44 tests, property tests included); the acceptance contract on all seven
+lab layouts; and, with `loop:e2e`, that the real server takes a signal to a landed and watched fix with no
+person deciding, recovers from a failed first reading and a failed proof, stops only at a blocking
+checkpoint, and keeps another quest working meanwhile. The coding agent, decide backend and production
+telemetry in that run are fixtures and are recorded as fixtures.
+
+Not verified, and failing in `loop:e2e` today: the console showing any of it (there is no `#/loop` view),
+approving from the browser, live updates, and asking a person. Sign in, connecting a repository and
+automatic setup are not part of that script yet.
+
 ## Voice
 
 **Talk with Velum** is available in the work screens; onboarding and Settings keep the focus on setup.
