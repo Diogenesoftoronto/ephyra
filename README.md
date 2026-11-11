@@ -110,11 +110,13 @@ These items are flagged in 02 §8: Tangled pull/issue write payloads and service
 
 ## Local development and checks
 
-Run `bun install` first. `devenv up` starts Postgres, the API (3000), console
+Run `bun install` first. `devenv up` starts the API (3000), console
 (Vite default 5173, `/app/`), console Storybook (6006), and terminal Textbook (8008).
 To start one process use `devenv up console` or `devenv up storybook`.
 Radicle is optional via `devenv --profile forge shell`; the current pinned package
 is marked insecure by Nix, so this profile needs a secure pin before use.
+Durable state uses Convex (`CONVEX_URL` and `EPHYRA_CONVEX_SECRET`). Without
+these settings the API uses ephemeral memory; devenv does not start a database.
 API provider/account configuration is documented in `apps/server/README.md`.
 
 - `bun run check:package core` (or `server`, `console`, etc.): one workspace's typecheck and tests.
