@@ -3,7 +3,7 @@ import { ApiError, UnknownWriteOutcome } from "../api.ts";
 export type Described = {
   title: string;
   body: string;
-  kind: "stale" | "forbidden" | "unknown-outcome" | "unavailable" | "not-found" | "other";
+  kind: "stale" | "forbidden" | "unknown-outcome" | "unavailable" | "not-found" | "rate-limited" | "other";
 };
 
 /** Plain-language text for a failed call. Server text is shown as text only, and only when it is short. */
