@@ -7,6 +7,7 @@ import { Shell, type NavItem } from "../kit.ts";
 import { ThemeToggle } from "../components/ThemeToggle.tsx";
 import { Empty, Skeleton } from "../kit.ts";
 import { InboxPage } from "../pages/InboxPage.tsx";
+import { LoopPage } from "../pages/LoopPage.tsx";
 import { OverviewPage } from "../pages/OverviewPage.tsx";
 import { PersonasPage } from "../pages/PersonasPage.tsx";
 const RunPage = lazy(() => import("../pages/RunPage.tsx").then((m) => ({ default: m.RunPage })));
@@ -39,6 +40,7 @@ export type AccountContext = {
 };
 
 const LABEL: Record<PageId, string> = {
+  loop: "Loop",
   overview: "Overview",
   usage: "Usage",
   inbox: "Inbox",
@@ -82,6 +84,8 @@ function Page({
   workspace?: WorkspaceContext;
 }) {
   switch (route.page) {
+    case "loop":
+      return <LoopPage questId={route.id} canAct={approver} principal={principal} />;
     case "overview":
       return <OverviewPage />;
     case "usage":
@@ -228,6 +232,8 @@ function Frame({
           : route.page === "usage"
             ? { kind: "usage" }
             : { kind: "overview" };
+  // The loop page is the answer to "am I needed?". Nothing sits between the top of the page and that answer.
+  const plain = route.page === "loop";
   const voiceLabel =
     voiceContext.kind === "usage"
       ? "Usage, last 7 days"
@@ -290,7 +296,7 @@ function Frame({
               <a href="#/onboarding">View automatic setup →</a>
             </aside>
           )}
-        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && route.page !== "team" && (
+        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && route.page !== "team" && !plain && (
           <div className="voice-entry">
             <VoiceLauncher />
           </div>

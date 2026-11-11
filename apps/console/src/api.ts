@@ -4,6 +4,7 @@ import {
   AgentRunEvent,
   AreaSketch,
   Draft,
+  Effect,
   PersonaId,
   PolicyDoc,
   Trail,
@@ -67,6 +68,8 @@ export const TrailDetailSchema = z.object({
   trail: Trail,
   events: z.array(TrailEvent),
   artefacts: z.array(z.object({ path: z.string(), content: z.string().nullable() })).optional(),
+  /** What each transition asked the engine to do, with the event that caused it. Absent on servers that keep no history. */
+  effects: z.array(z.object({ cause: z.string(), effect: Effect })).optional(),
 });
 export type TrailDetail = z.infer<typeof TrailDetailSchema>;
 

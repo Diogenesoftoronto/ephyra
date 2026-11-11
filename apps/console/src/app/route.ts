@@ -1,11 +1,11 @@
-export const PAGES = ["overview", "inbox", "runs", "usage", "workspace", "personas", "team", "settings", "onboarding"] as const;
+export const PAGES = ["loop", "overview", "inbox", "runs", "usage", "workspace", "personas", "team", "settings", "onboarding"] as const;
 export type PageId = (typeof PAGES)[number];
 export type Route = { page: PageId; id?: string } | { page: "not-found"; path: string };
 
-/** `#/inbox/<trail id>` to `{ page: "inbox", id }`. An empty hash is the overview; an unknown one is not-found. */
+/** `#/inbox/<trail id>` to `{ page: "inbox", id }`. An empty hash is the loop; an unknown one is not-found. */
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, "").split("?")[0]!;
-  if (path === "") return { page: "overview" };
+  if (path === "") return { page: "loop" };
   const [page, id, ...rest] = path.split("/").map((s) => {
     try {
       return decodeURIComponent(s);
