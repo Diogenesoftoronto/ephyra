@@ -20,7 +20,8 @@
     "build:lab": "vite build --config vite.lab.config.ts",
     "lab:shots": "env -u LD_LIBRARY_PATH bun scripts/lab-shots.ts",
     "loop:accept": "env -u LD_LIBRARY_PATH bun scripts/loop-acceptance.ts",
-    "loop:e2e": "env -u LD_LIBRARY_PATH bun --no-env-file scripts/e2e-loop.ts"
+    "loop:e2e": "env -u LD_LIBRARY_PATH bun --no-env-file scripts/e2e-loop.ts",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.32",

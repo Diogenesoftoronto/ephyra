@@ -12,7 +12,7 @@
  */
 import { $ } from "bun";
 import { join } from "node:path";
-import type { Browser, Page } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
 import { ATTENTION, ATTENTION_GROUP, ATTENTION_LABEL, STAGE_IDS, type Attention } from "../src/loop/model.ts";
 import { HOOD_TABS } from "../src/loop/Inspector.tsx";
 import { launch, serve } from "./browser.ts";
@@ -26,6 +26,8 @@ export interface AcceptanceOptions {
   browser: Browser;
   /** Called before each check that changes state (approving), so a real server can be reseeded. */
   reset?: () => Promise<void>;
+  /** Called on every fresh browser context before the page loads, for example to seed a session. */
+  prepare?: (context: BrowserContext) => Promise<void>;
 }
 
 class Skip extends Error {}
@@ -359,6 +361,7 @@ export async function runAcceptance(options: AcceptanceOptions): Promise<Outcome
     const context = await options.browser.newContext({
       viewport: check.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, reducedMotion: "reduce",
     });
+    await options.prepare?.(context);
     const page = await context.newPage();
     const errors: string[] = [];
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
