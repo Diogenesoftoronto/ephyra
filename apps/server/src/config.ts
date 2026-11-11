@@ -49,6 +49,8 @@ const Config = z.object({
 
   // System One backends. Each is optional; without a decide backend triage routes every signal to a human.
   EPHYRA_EXTRACT: z.enum(["parser", "workers-ai", "notorganic", "none"]).default("parser"),
+  /** On-demand Clairic spend forecast on the Usage page. Off unless chosen; never runs on page load. */
+  EPHYRA_FORECAST: z.enum(["none", "notorganic", "workers-ai"]).default("none"),
   EPHYRA_DECIDE: z.enum(["typesafe", "systemone", "notorganic", "none"]).default("none"),
   TYPESAFE_API_KEY: optional,
   TYPESAFE_MODEL: z.string().default("jev-1.14"),
@@ -118,6 +120,9 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   if (config.EPHYRA_DECIDE === "systemone" && !(config.EPHYRA_SYSTEMONE_URL && config.EPHYRA_SYSTEMONE_MODEL)) {
     throw new Error("EPHYRA_DECIDE=systemone needs EPHYRA_SYSTEMONE_URL and EPHYRA_SYSTEMONE_MODEL");
   }
+  if (config.EPHYRA_FORECAST === "workers-ai" && !(config.CLOUDFLARE_ACCOUNT_ID && config.CLOUDFLARE_AI_API_TOKEN)) {
+    throw new Error("EPHYRA_FORECAST=workers-ai needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_API_TOKEN");
+  }
   if (config.EPHYRA_EXTRACT === "workers-ai" && !(config.CLOUDFLARE_ACCOUNT_ID && config.CLOUDFLARE_AI_API_TOKEN)) {
     throw new Error("EPHYRA_EXTRACT=workers-ai needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_API_TOKEN");
   }
@@ -151,6 +156,7 @@ export function readConfig(env: Record<string, string | undefined>): Config {
       throw new Error("Remote voice services require HTTPS");
   }
   const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic"
+    || config.EPHYRA_FORECAST === "notorganic"
     || config.EPHYRA_VOICE === "notorganic" || config.EPHYRA_TUTOR === "notorganic";
   if (hosted && !signIn) throw new Error("hosted Not Organic models need sign-in configured (EPHYRA_PUBLIC_ORIGIN, EPHYRA_SESSION_KEY)");
   if (hosted && !(config.EPHYRA_BILLING_DID || approverDids(config).length)) {

@@ -1,9 +1,9 @@
 // Hosted System One models through Not Organic, paid from the billing account's wallet.
 // Credentials come from that account's Ephyra sign-in session (DPoP keys + rotating refresh token).
 import type {
-  DecideBackend, ExtractBackend, ExtractionRequest, JudgementRequest,
+  DecideBackend, ExtractBackend, ExtractionRequest, JudgementRequest, ExtractionForecastRequest, ForecastBackend,
 } from "@ephyra/core";
-import { NotOrganicDecide, NotOrganicExtract, type UsageHook } from "@ephyra/models";
+import { NotOrganicDecide, NotOrganicExtract, NotOrganicForecast, type UsageHook } from "@ephyra/models";
 import type { NotOrganicSignIn } from "./notorganic.ts";
 
 async function options(signIn: NotOrganicSignIn, did: string, alias: string, purpose: "extract" | "decide.triage", onUsage?: UsageHook) {
@@ -34,5 +34,16 @@ export class HostedExtract implements ExtractBackend {
   async extract(req: ExtractionRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
     const client = new NotOrganicExtract(await options(this.signIn, this.billingDid, this.alias, "extract", this.onUsage));
     return client.extract({ model: "extraction", ...req }, opts);
+  }
+}
+
+/** Clairic forecast on the billing account's Not Organic wallet. The forecast service records usage itself. */
+export class HostedForecast implements ForecastBackend {
+  readonly kind = "notorganic" as const;
+  readonly alias = "notorganic-forecast";
+  readonly requestedModel = "extraction";
+  constructor(private readonly signIn: NotOrganicSignIn, private readonly billingDid: string) {}
+  async forecast(req: ExtractionForecastRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
+    return new NotOrganicForecast(await options(this.signIn, this.billingDid, this.alias, "extract")).forecast(req, opts);
   }
 }

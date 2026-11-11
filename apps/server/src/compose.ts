@@ -12,7 +12,7 @@ import { GitJournal } from "@ephyra/journal";
 import {
   AUTONOMY_TEMPLATE, THRESHOLDS_TEMPLATE, areaFor, checkpointMode, parseAutonomy, parseThresholds, type AutonomyPolicy,
 } from "@ephyra/policy";
-import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract, dpopProof } from "@ephyra/models";
+import { ParserExtract, SystemOneHttpDecide, TypeSafeDecide, WorkersAiClairicExtract, WorkersAiClairicForecast, dpopProof } from "@ephyra/models";
 import { LocalRunner } from "@ephyra/runner";
 import { AmpAgent, AmpReportInbox, ClaudeCodeAgent, CodexAgent, buildProof, runAgent, type AmpThreadStore } from "@ephyra/agent";
 import { PlainGitAdapter } from "@ephyra/forge";
@@ -20,13 +20,15 @@ import { TractionEvidence } from "@ephyra/evidence";
 import { MemoryAudit } from "./audit.ts";
 import { approverDids, type Config } from "./config.ts";
 import { SecretBox } from "./auth/crypto.ts";
-import { HostedDecide, HostedExtract } from "./auth/hosted.ts";
+import { HostedDecide, HostedExtract, HostedForecast } from "./auth/hosted.ts";
 import { NotOrganicSignIn } from "./auth/notorganic.ts";
 import { authRoutes } from "./auth/routes.ts";
 import { ConvexAuthStore, MemoryAuthStore } from "./auth/store.ts";
 import { createApp } from "./http/app.ts";
 import { consoleRoutes, type ConsolePort } from "./http/console.ts";
 import { voiceRoutes } from "./http/voice.ts";
+import { usageForecastRoutes } from "./http/usage-forecast.ts";
+import { UsageForecastService, type ForecastRoute } from "./usage-forecast.ts";
 import { tutorRoutes } from "./http/tutor.ts";
 import { AmpersandDraftModel, TUTOR_MODEL } from "./humans.ts";
 import { TutorService, NotOrganicTutorBackend, DirectTutorBackend, type TutorBackend } from "./tutor.ts";
@@ -251,6 +253,8 @@ function quota(perMinute: number) {
 }
 
 export type ComposeOverrides = {
+  /** Test seam: a fake forecast route. Production chooses one from EPHYRA_FORECAST only. */
+  forecastRoute?: ForecastRoute | null;
   ampReports?: AmpReportInbox;
   verification?: Pick<VerificationOptions, "commands" | "sources">;
   respondents?: ProbeHandlerDeps["respondents"];
@@ -688,6 +692,14 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
   }));
   const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), secrets: knownSecrets(config) });
+  const forecastRoute: ForecastRoute | null = opts.forecastRoute !== undefined ? opts.forecastRoute
+    : config.EPHYRA_FORECAST === "notorganic" && signIn && billingDid
+      ? { backend: new HostedForecast(signIn, billingDid), provider: "notorganic", billedTo: "notorganic" }
+      : config.EPHYRA_FORECAST === "workers-ai"
+        ? { backend: new WorkersAiClairicForecast({ alias: "clairic-forecast", accountId: config.CLOUDFLARE_ACCOUNT_ID!, credential: config.CLOUDFLARE_AI_API_TOKEN! }),
+          provider: "byok:cloudflare", billedTo: "byok" }
+        : null;
+  const forecast = new UsageForecastService({ route: forecastRoute, ledger, usage, entries: () => usageStore.list(), now });
   const tutorBackend = opts.tutorBackend ?? (config.EPHYRA_TUTOR === "notorganic"
     ? new NotOrganicTutorBackend(signIn!, billingDid!, config.EPHYRA_TUTOR_MAX_COST_MICROUSD)
     : config.EPHYRA_TUTOR === "ampersand" ? new DirectTutorBackend(new AmpersandDraftModel(config.EPHYRA_HUMANS_API_KEY!, ledger, TUTOR_MODEL)) : null);
@@ -696,7 +708,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
     { requireSignIn: Boolean(signIn), approvers, resolveApprover: opts.resolveApprover, ...(signIn ? { browserOrigin: signIn.config.publicOrigin } : {}) },
-    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice))
+    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice)).route("/", usageForecastRoutes(forecast))
       .route("/", tutorRoutes(tutor)).route("/", setupRoutes(setup)),
   );
   const mode = client ? "convex" as const : "memory" as const;
