@@ -127,7 +127,7 @@ function Page({
         <OnboardingPage
           {...account}
           onDone={() => {
-            location.hash = "#/overview";
+            location.hash = "#/loop";
           }}
         />
       );
@@ -136,7 +136,7 @@ function Page({
         <Empty
           title="That page does not exist"
           body={`There is nothing at “${route.path}”.`}
-          action={<a href="#/overview">Go to the overview</a>}
+          action={<a href="#/loop">Go to the loop</a>}
         />
       );
   }

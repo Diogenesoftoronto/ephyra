@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import type { AgentRunEvent, Trail, TrailState } from "@ephyra/core";
-import { sceneViews } from "./board.tsx";
-import { assemble, detailPlan, mergeRunEvents, runNow, type LiveDetail } from "./live.ts";
+import { sceneViews, tagSides, type Spot } from "./board.tsx";
+import { POLL_BUSY_MS, POLL_QUIET_MS, assemble, detailPlan, mergeRunEvents, pollDelay, runNow, type LiveDetail } from "./live.ts";
 import { fleetView } from "./model.ts";
 import { LAST_TICK, VIEWER, worldAt } from "./scenario.ts";
 
@@ -108,6 +108,19 @@ describe("which journals a poll reads", () => {
   });
 });
 
+describe("how often the board asks", () => {
+  test("closely while anything is moving by itself, less often when nothing can change without a person", () => {
+    fc.assert(fc.property(tick, (at) => {
+      const views = worldAt(at).views;
+      const moving = views.some((view) => ["self", "recovering", "reverted"].includes(view.attention));
+      expect(pollDelay(views)).toBe(moving ? POLL_BUSY_MS : POLL_QUIET_MS);
+    }), { numRuns: 60 });
+    expect(pollDelay([])).toBe(POLL_QUIET_MS);
+    expect(pollDelay([{ attention: "needs_you" }, { attention: "asking" }, { attention: "held" }, { attention: "set" }])).toBe(POLL_QUIET_MS);
+    expect(pollDelay([{ attention: "set" }, { attention: "recovering" }])).toBe(POLL_BUSY_MS);
+  });
+});
+
 describe("run transcripts", () => {
   const event = (seq: number, patch: Partial<AgentRunEvent> = {}): AgentRunEvent =>
     ({ runId: "run", seq, at: "2026-11-10T10:00:00.000Z", type: "message", text: `line ${seq}`, ...patch });
@@ -126,6 +139,46 @@ describe("run transcripts", () => {
       .toBe("bun test cart.test.js");
     expect(runNow([event(0, { text: "x".repeat(300) })])!.length).toBe(96);
     expect(runNow([event(0, { type: "reasoning", text: "private" })])).toBeNull();
+  });
+});
+
+describe("the scene's tags", () => {
+  const spot = fc.record({ cx: fc.integer({ min: 0, max: 700 }), cy: fc.integer({ min: 0, max: 240 }) });
+  const at = (id: string, cx: number, cy: number): Spot => ({ id, cx, cy, size: 48, width: 84 });
+  const box = (s: Spot, side: "above" | "below") => {
+    const top = side === "below" ? s.cy + s.size / 2 - 6 : s.cy - s.size / 2 - 12;
+    return { left: s.cx - s.width / 2, right: s.cx + s.width / 2, top, bottom: top + 18 };
+  };
+  type B = ReturnType<typeof box>;
+  const touching = (a: B, b: B) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+
+  test("a tag sits underneath unless that lands on another tag, and then it goes above", () => {
+    expect([...tagSides([at("a", 300, 120), at("b", 320, 120)]).values()]).toEqual(["below", "above"]);
+    expect([...tagSides([at("a", 100, 120), at("b", 500, 120)]).values()]).toEqual(["below", "below"]);
+    // Side by side on the seabed and a step apart in height: far enough that neither needs to move.
+    expect([...tagSides([at("a", 300, 100), at("b", 320, 160)]).values()]).toEqual(["below", "below"]);
+  });
+
+  test("every quest gets a side, a tag only goes above to get off another tag, and two quests never share a spot", () => {
+    fc.assert(fc.property(fc.array(spot, { maxLength: 12 }), (spots) => {
+      const placed = spots.map((s, i) => at(`q${i}`, s.cx, s.cy));
+      const sides = tagSides(placed);
+      expect(sides.size).toBe(placed.length);
+      for (const item of placed) {
+        if (sides.get(item.id) !== "above") continue;
+        const others = placed.filter((other) => other.id !== item.id);
+        // It moved because underneath was taken, and where it moved to was free of everything placed before it.
+        expect(others.some((other) => touching(box(item, "below"), box(other, sides.get(other.id)!)))).toBe(true);
+      }
+      if (placed.length === 2) {
+        const [a, b] = placed as [Spot, Spot];
+        const clash = touching(box(a, sides.get(a.id)!), box(b, sides.get(b.id)!));
+        const second = sides.get(a.id) === "below" && (a.cx < b.cx || (a.cx === b.cx && a.cy <= b.cy)) ? b : a;
+        const first = second === a ? b : a;
+        // Two tags only ever touch when the second had nowhere free to go.
+        if (clash) expect(touching(box(second, "above"), box(first, sides.get(first.id)!))).toBe(true);
+      }
+    }), { numRuns: 300 });
   });
 });
 

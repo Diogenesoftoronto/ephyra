@@ -423,7 +423,10 @@
 @keyframes lp-enter { from { opacity: 0; filter: blur(4px); transform: translateY(12px); } }
 @keyframes lp-morph { from { opacity: 0; filter: blur(4px); transform: scale(0.82); } }
 @keyframes lp-bob { 50% { transform: translateY(-4px); } }
-@keyframes lp-bell { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.22, 1.5); } }
+/* The ring grows sideways by --bell-x. On a phone the button is as wide as the screen, so it grows mostly upward:
+   a ring wider than the screen makes the whole page scroll sideways while it rings. */
+@keyframes lp-bell { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(var(--bell-x, 1.22), 1.5); } }
+@media (max-width: 720px) { .lp-needs { --bell-x: 1.03; } }
 @keyframes lp-slide { from { opacity: 0; transform: translateX(32px); } }
 
 /* ── Under the hood as a modal: it covers the page, so it holds the keyboard and the page behind is inert ── */

@@ -46,7 +46,7 @@ export function AccountWorkspace(props: Props) {
   const choose = (id: string) => {
     setSelected(id);
     try { rememberWorkspace(sessionStorage, identity.principal, settings.workspaceId, id); } catch { /* Storage blocked. */ }
-    location.hash = "#/overview";
+    location.hash = "#/loop";
   };
   if (invitation.token) return (
     <main className="entry-page">
@@ -98,7 +98,7 @@ function WorkspaceSession({ identity, token, settings, accountApi, onChange, onD
   const session = useAsync(() => api.identity(), `workspace:${identity.principal}:${access.workspaceId}:${access.role}`);
   useEffect(() => {
     if (access.role === "owner" && ["new", "in_progress"].includes(settings.onboarding.status)
-      && ["", "#", "#/", "#/overview"].includes(location.hash)) location.hash = "#/onboarding";
+      && ["", "#", "#/", "#/loop", "#/overview"].includes(location.hash)) location.hash = "#/onboarding";
   }, [identity.principal, access.workspaceId]);
   return <Load state={session.state} retry={session.reload}>{(current) => (
     <App api={api} identity={{ ...current, alias: identity.alias }} approver={current.approver}

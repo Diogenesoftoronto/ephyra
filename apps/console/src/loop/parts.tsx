@@ -126,7 +126,7 @@ export function FleetSentence({ fleet, as: Tag = "h1" }: { fleet: FleetView; as?
         // The reasons in brackets are the second read, so they are set quieter than the count they explain.
         const aside = part.trim().match(/^(.*?)\s(\(.+\))\.$/);
         return (
-          <span key={i} data-group={group(part)}>{aside ? <>{aside[1]} <i>{aside[2]}</i>.</> : part.trim()}{" "}</span>
+          <span key={`${i}:${part}`} data-group={group(part)}>{aside ? <>{aside[1]} <i>{aside[2]}</i>.</> : part.trim()}{" "}</span>
         );
       })}
     </Tag>

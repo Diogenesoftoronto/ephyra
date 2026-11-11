@@ -1,6 +1,6 @@
 // The board: every quest at once. The scene shows where each one is in the loop; the bench groups them by who holds
 // the next move. The lab and the console draw the same board from the same view-models.
-import { useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
 import {
   ATTENTION_LABEL, LOOP_STAGES, byAttention, loopPoint, type AttentionGroup, type QuestView, type StageId,
@@ -29,7 +29,15 @@ const LOOP_PATH = Array.from({ length: 65 }, (_, i) => {
   return `${(point.x * 100).toFixed(2)},${(point.depth * 100).toFixed(2)}`;
 }).join(" ");
 
-export function StageHeads({ views, narrow, current }: { views: readonly QuestView[]; narrow: boolean; current?: StageId }) {
+type HeadsProps = {
+  views: readonly QuestView[]; current?: StageId;
+  /** Too little room for eight names: only the current stage is named. */
+  narrow: boolean;
+  /** Whether to mark the checkpoints. They fit wherever the names do not. Defaults to whenever there is room for names. */
+  gates?: boolean;
+};
+
+export function StageHeads({ views, narrow, current, gates = !narrow }: HeadsProps) {
   return (
     <ol className="lp-stages" aria-label="The loop, stage by stage">
       {LOOP_STAGES.map((s) => {
@@ -39,12 +47,81 @@ export function StageHeads({ views, narrow, current }: { views: readonly QuestVi
             <PersonaAvatar persona={s.persona} size={24} />
             {/* A phone has room for one name: the stage of the quest you are looking at. */}
             <span className={narrow && s.id !== current ? "sr-only" : undefined}>{s.label}</span>
-            {s.gate && !narrow && <abbr title={`Checkpoint ${s.gate}`}>{s.gate}</abbr>}
+            {s.gate && gates && <abbr title={`Checkpoint ${s.gate}`}>{s.gate}</abbr>}
           </li>
         );
       })}
     </ol>
   );
+}
+
+/**
+ * How many times each quest has moved since the board was first drawn. A quest that changes stage or status, or that
+ * appears, gets one ripple where it now is. Nothing ripples for what was already there when the page opened.
+ */
+function useMoves(views: readonly QuestView[]): ReadonlyMap<string, number> {
+  const seen = useRef<Map<string, string> | null>(null);
+  const [moves, setMoves] = useState<ReadonlyMap<string, number>>(() => new Map());
+  useEffect(() => {
+    const was = seen.current;
+    const now = new Map(views.map((view) => [view.id, `${view.stage.id}:${view.attention}`]));
+    seen.current = now;
+    if (!was) return;
+    const moved = views.filter((view) => was.get(view.id) !== now.get(view.id)).map((view) => view.id);
+    if (!moved.length) return;
+    setMoves((before) => {
+      const next = new Map(before);
+      for (const id of moved) next.set(id, (next.get(id) ?? 0) + 1);
+      return next;
+    });
+  }, [views]);
+  return moves;
+}
+
+/** Where a quest is drawn, in pixels inside the field: its centre, its specimen's size, and how wide its tag is. */
+export type Spot = { id: string; cx: number; cy: number; size: number; width: number };
+type Box = { left: number; right: number; top: number; bottom: number };
+const TAG_HEIGHT = 18;
+const tagBox = (spot: Spot, side: "above" | "below"): Box => {
+  const top = side === "below" ? spot.cy + spot.size / 2 - 6 : spot.cy - spot.size / 2 - 12;
+  return { left: spot.cx - spot.width / 2, right: spot.cx + spot.width / 2, top, bottom: top + TAG_HEIGHT };
+};
+const touching = (a: Box, b: Box) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+
+/**
+ * Which side of its specimen each quest's tag sits on. A tag goes underneath. Where that would land on a tag already
+ * placed, it goes above instead, if there is room there. Quests are placed left to right, so the result is stable.
+ */
+export function tagSides(spots: readonly Spot[]): Map<string, "above" | "below"> {
+  const sides = new Map<string, "above" | "below">();
+  const placed: Box[] = [];
+  for (const spot of [...spots].sort((a, b) => a.cx - b.cx || a.cy - b.cy || a.id.localeCompare(b.id))) {
+    const free = (box: Box) => !placed.some((other) => touching(box, other));
+    const side = free(tagBox(spot, "below")) || !free(tagBox(spot, "above")) ? "below" : "above";
+    sides.set(spot.id, side);
+    placed.push(tagBox(spot, side));
+  }
+  return sides;
+}
+
+/** The size of an element, kept current. It starts from a likely size, so the first paint is already close. */
+function useSize(initial: { width: number; height: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState(initial);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const read = () => {
+      const next = { width: el.clientWidth, height: el.clientHeight };
+      setSize((was) => (was.width === next.width && was.height === next.height ? was : next));
+    };
+    read();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(read);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, size] as const;
 }
 
 type SceneProps = {
@@ -55,27 +132,49 @@ type SceneProps = {
 /** The water column: left to right is progress, top to bottom is distance from production. */
 export function LoopScene({ views, selected, current, narrow, compact, onSelect }: SceneProps) {
   const at = slots(views);
+  const moves = useMoves(views);
   const size = narrow ? 36 : compact ? 48 : 56;
+  const place = (view: QuestView) => {
+    const point = loopPoint(view.progress);
+    return { point, slot: at.get(view.id)!.slot * (point.depth > 0.5 ? -1 : 1) };
+  };
+  // The same arithmetic the stylesheet does to place a quest, so tags can be kept off each other.
+  // On a phone the tag is a badge on the specimen's shoulder, so there is nothing to keep apart.
+  const [field, box] = useSize({ width: 712, height: 232 });
+  const pad = compact ? 40 : 48;
+  // With too little room for every name, only the selected quest keeps its name; the rest keep their status glyph.
+  // The names are in the list underneath either way.
+  const dense = !narrow && box.width / Math.max(1, views.length) < 76;
+  const named = (view: QuestView) => !narrow && (!dense || view.id === selected);
+  const sides = narrow ? null : tagSides(views.map((view) => {
+    const { point, slot } = place(view);
+    return {
+      id: view.id, size, width: named(view) ? 34 + view.short.length * 6.6 : 26,
+      cx: Math.min(Math.max(point.x * box.width, 56), box.width - 56),
+      cy: pad + point.depth * (box.height - 2 * pad) + slot * (size + 20),
+    };
+  }));
   return (
     <section className="lp-scene" data-compact={compact || undefined} aria-label="Every quest, by where it is in the loop">
-      <StageHeads views={views} narrow={narrow} current={current} />
-      <div className="lp-scene-field" data-plot style={vars({ "--pitch": `${size + (narrow ? 8 : 20)}px` })}>
+      {/* Eight stage names need about 72 px each. With less, only the current one is spelled out. */}
+      <StageHeads views={views} narrow={narrow || box.width < 580} gates={!narrow} current={current} />
+      <div className="lp-scene-field" data-plot ref={field} style={vars({ "--pitch": `${size + (narrow ? 8 : 20)}px` })}>
         <span className="lp-scene-level" data-level="surface">production</span>
         <span className="lp-scene-level" data-level="seabed">git</span>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points={LOOP_PATH} /></svg>
         <ul>
           {views.map((view) => {
-            const point = loopPoint(view.progress);
-            const slot = at.get(view.id)!.slot * (point.depth > 0.5 ? -1 : 1);
+            const { point, slot } = place(view);
             const picked = view.id === selected;
             return (
               <li key={view.id} data-quest={view.short} data-stage={view.stage.id} data-attention={view.attention}
-                data-retreats={view.retreats} data-selected={picked || undefined}
+                data-retreats={view.retreats} data-selected={picked || undefined} data-tag={sides?.get(view.id)}
                 style={vars({ "--x": point.x.toFixed(4), "--y": point.depth.toFixed(4), "--slot": slot })}>
                 <button type="button" aria-pressed={picked} onClick={() => onSelect(view.id)}
                   aria-label={`${view.short}, ${ATTENTION_LABEL[view.attention]}, ${view.stage.label}. ${view.title}. ${view.headline}`}>
+                  {moves.get(view.id) ? <i className="lp-scene-ripple" key={moves.get(view.id)} aria-hidden="true" /> : null}
                   <Specimen quest={view} size={size} />
-                  <span className="lp-scene-tag"><AttentionMark attention={view.attention} label={false} />{!narrow && view.short}</span>
+                  <span className="lp-scene-tag"><AttentionMark attention={view.attention} label={false} />{named(view) && view.short}</span>
                 </button>
               </li>
             );
@@ -118,6 +217,8 @@ export function QuestGroups({ views, selected, narrow, row, meter = "path", fini
       {GROUPS.map(([group, label]) => {
         const mine = sorted.filter((view) => view.group === group);
         if (!mine.length) return null;
+        // Whatever finished last is what someone is most likely looking for, so finished quests read newest first.
+        if (group === "finished") mine.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
         // The selected quest is always listed, so choosing one in the scene never points at a row that is not there.
         const fold = group === "finished" && finished !== undefined && !all && mine.length > finished;
         const shown = fold ? mine.filter((view, i) => i < finished! || view.id === selected) : mine;
