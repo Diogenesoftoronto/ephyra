@@ -22,7 +22,9 @@ const personaStyle = (p: PersonaId): CSSProperties => ({
 
 // ── Shell ──
 /** `overflow: true` items move into the "More" sheet on phones, keeping the bottom bar to five. */
-export type NavItem = { id: string; label: string; icon?: IconName; count?: number; overflow?: boolean };
+export type NavItem = { id: string; label: string; icon?: IconName; count?: number; overflow?: boolean;
+  /** Only in the phone "More" sheet; on wide screens it is reached elsewhere (e.g. the account link in the rail). */
+  sheetOnly?: boolean };
 export function Shell({
   nav,
   current,
@@ -34,7 +36,7 @@ export function Shell({
   nav: NavItem[];
   current: string;
   onNavigate: (id: string) => void;
-  user?: { name: string; detail?: string; avatar?: ReactNode };
+  user?: { name: string; detail?: string; avatar?: ReactNode; href?: string; current?: boolean };
   children: ReactNode;
   className?: string;
 }) {
@@ -128,7 +130,7 @@ export function Shell({
           <b>Ephyra</b>
         </a>
         <nav className="ui-nav" aria-label="Console">
-          {nav.map((n) => (
+          {nav.filter((n) => !n.sheetOnly).map((n) => (
             <button
               key={n.id}
               type="button"
@@ -168,7 +170,15 @@ export function Shell({
             </button>
           )}
         </nav>
-        {user && (
+        {user && (user.href ? (
+          <a className="ui-rail-foot" href={user.href} aria-current={user.current ? "page" : undefined}>
+            {user.avatar}
+            <span className="who">
+              {user.name}
+              {user.detail && <span>{user.detail}</span>}
+            </span>
+          </a>
+        ) : (
           <div className="ui-rail-foot">
             {user.avatar}
             <div className="who">
@@ -176,7 +186,7 @@ export function Shell({
               {user.detail && <span>{user.detail}</span>}
             </div>
           </div>
-        )}
+        ))}
       </aside>
       <main ref={main} id={mainId} tabIndex={-1} className="ui-main">{children}</main>
     </div>

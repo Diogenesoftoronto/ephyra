@@ -1,11 +1,29 @@
+/* Each area is its own framed card, even inside a quiet parent, so neighbouring areas never run together. */
+.area-card.ui-card--quiet,
+.area-card {
+  padding: var(--s4) var(--s5) var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-surface);
+  gap: var(--s3);
+}
+.area-card > header {
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+.area-card > header h2 {
+  font-size: var(--fs-h3);
+  overflow-wrap: anywhere;
+}
 .area-body {
   display: grid;
-  gap: 0.8rem;
+  gap: var(--s3);
 }
 .area-card-tags {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: var(--s1) var(--s2);
 }
 .area-intent,
 .area-paths {
@@ -15,10 +33,18 @@
 .area-paths {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 0.6rem;
+  gap: var(--s1) var(--s3);
 }
 .area-check {
   display: inline-flex;
-  gap: 0.5rem;
+  gap: var(--s2);
   align-items: center;
+}
+.area-card[data-velum-selected] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .area-card.ui-card--quiet,
+  .area-card { padding: var(--s4); }
 }

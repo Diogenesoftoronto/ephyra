@@ -125,26 +125,31 @@
 .workspace-bar {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: var(--s3);
   justify-content: space-between;
-  padding: 0.65rem var(--gutter);
+  padding: var(--s2) var(--gutter);
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
+}
+/* The workspace name has priority: it shrinks last, and the actions collapse to icons first. */
+.workspace-bar > :first-child {
+  flex: 1 1 auto;
+  min-width: 7rem;
 }
 .workspace-bar__repo {
   min-width: 0;
   display: flex;
-  gap: 0.65rem;
+  gap: var(--s2) var(--s3);
   align-items: center;
+  min-height: 44px;
   text-decoration: none;
 }
 .workspace-bar__actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  max-width: 100%;
-  flex: none;
-  gap: var(--s3);
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: var(--s2);
 }
 .workspace-bar__repo strong {
   max-width: 32ch;
@@ -160,34 +165,38 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Setup invitation: aligned to the page column, copy on the left, two clear actions on the right. */
 .workspace-setup-note {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s5);
   justify-content: space-between;
   align-items: center;
-  margin: 1rem var(--gutter) 0;
-  padding: 0.8rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--warn-tint);
-  font-size: 0.875rem;
+  margin: var(--s4) var(--gutter) 0;
+  padding: var(--s3) var(--s4);
+  border: 1px solid color-mix(in oklab, var(--jelly-deep) 35%, var(--line));
+  border-radius: var(--radius);
+  background: var(--jelly-tint);
+  font-size: var(--fs-small);
+}
+.workspace-setup-note > p { flex: 1 1 22rem; max-width: 62ch; line-height: 1.5; }
+.workspace-setup-note > p strong { display: block; font-size: var(--fs-body); color: var(--ink); }
+.workspace-setup-note > p span { color: var(--muted); }
+.workspace-setup-note__actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.workspace-setup-note__actions .ui-button { min-height: 40px; }
+@media (max-width: 900px) {
+  .command-trigger kbd { display: none; }
 }
 @media (max-width: 640px) {
-  .command-trigger kbd,
-  .workspace-bar__repo small {
-    display: none;
-  }
-  .workspace-bar {
-    padding: 0.6rem 1rem;
-  }
-  .command-menu footer {
-    flex-wrap: wrap;
-  }
-  .workspace-setup-note {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
+  .workspace-bar__repo small { display: none; }
+  .workspace-bar { padding: var(--s2) var(--s4); gap: var(--s2); }
+  .workspace-bar .entry-preferences .sound-toggle { display: none; }
+  .command-trigger > span:not([aria-hidden]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .command-trigger { min-width: 44px; justify-content: center; padding-inline: var(--s2); }
+  .command-menu footer { flex-wrap: wrap; }
+  .workspace-setup-note { margin-inline: var(--s4); }
+  .workspace-setup-note__actions { width: 100%; }
+  .workspace-setup-note__actions .ui-button { flex: 1 1 10rem; justify-content: center; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .command-trigger {
