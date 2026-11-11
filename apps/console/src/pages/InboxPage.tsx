@@ -31,7 +31,7 @@ export function InboxPage({ trailId, canAct = true, principal, questionWorkspace
         }
       />
       {!trailId && setupApi && principal && questionWorkspace && <BootstrapSetup api={setupApi} principal={principal} workspace={questionWorkspace} />}
-      {principal && questionWorkspace && <InvestigationQuestions api={api} principal={principal} workspace={questionWorkspace} trailId={trailId} />}
+      {!trailId && principal && questionWorkspace && <InvestigationQuestions api={api} principal={principal} workspace={questionWorkspace} />}
       <div className="inbox-split" data-detail={trailId ? "true" : "false"}>
         <section className="inbox-list-pane" aria-label="Waiting items">
           <Load state={inbox.state} retry={inbox.reload} skeleton={<Skeleton lines={5} />}>
@@ -46,7 +46,10 @@ export function InboxPage({ trailId, canAct = true, principal, questionWorkspace
               </p>
               <Load state={detailState} retry={inbox.reload} skeleton={<Skeleton block />}>
                 {(items) => (
-                  <TrailPanel trailId={trailId} items={items} canAct={canAct} principal={principal} onChanged={inbox.reload} />
+                  <TrailPanel trailId={trailId} items={items} canAct={canAct} principal={principal} onChanged={inbox.reload}
+                    questions={principal && questionWorkspace
+                      ? <InvestigationQuestions api={api} principal={principal} workspace={questionWorkspace} trailId={trailId} compact />
+                      : null} />
                 )}
               </Load>
             </>

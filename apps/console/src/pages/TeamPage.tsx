@@ -1,4 +1,7 @@
 import { playFeedback } from "../lib/feedback.ts";
+import type { PersonProfile } from "@ephyra/core";
+import { useOptionalApi } from "../app/ApiContext.tsx";
+import { PersonIdentity } from "../components/PersonIdentity.tsx";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { TeamInvitation, TeamInviteInput, TeamRevokeInput, TeamRole, TeamState } from "@ephyra/core";
 import { ApiError, UnknownWriteOutcome } from "../api.ts";
@@ -98,6 +101,11 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
   const linkInput = useRef<HTMLInputElement>(null);
   const shareHeading = useRef<HTMLHeadingElement>(null);
   const feedbackRegion = useRef<HTMLDivElement>(null);
+  const inviteFeedback = useRef<HTMLDivElement>(null);
+  /** Which action the current feedback belongs to, so recovery is shown beside it. */
+  const [origin, setOrigin] = useState<"invite" | "revoke" | "refresh" | null>(null);
+  const appApi = useOptionalApi();
+  const [people, setPeople] = useState<Map<string, PersonProfile> | "loading" | "unavailable">("loading");
   const confirmOpener = useRef<HTMLButtonElement | null>(null);
   const formId = useId();
 
@@ -118,6 +126,19 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
     return () => { generation.current++; };
   }, [api]);
 
+  // Display identities from Not Organic; a failure leaves neutral labels, never DIDs as names.
+  useEffect(() => {
+    let live = true;
+    if (!appApi?.profiles) { setPeople("unavailable"); return; }
+    setPeople("loading");
+    appApi.profiles().then((r) => live && setPeople(new Map(r.people.map((p) => [p.did, p]))), () => live && setPeople("unavailable"));
+    return () => { live = false; };
+  }, [appApi, team?.version]);
+  const identity = (did: string, invitedAs?: string, size: 32 | 48 = 32) => (
+    <PersonIdentity did={did} invitedAs={invitedAs} size={size} loading={people === "loading"}
+      profile={people instanceof Map ? people.get(did) ?? null : null}
+      avatarUrl={people instanceof Map && people.get(did)?.avatar && appApi?.avatarUrl ? appApi.avatarUrl(did) : null} />
+  );
   const uncertain = feedback?.kind === "uncertain";
   const locked = Boolean(busy || uncertain || feedback?.kind === "stale");
   const shareInvitation = share?.invitationId ? team?.invitations.find((row) => row.id === share.invitationId) : undefined;
@@ -129,6 +150,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
   async function refresh() {
     if (active.current) return;
     active.current = true;
+    if (!pending.current) setOrigin("refresh");
     const session = generation.current;
     setBusy("refresh");
     try {
@@ -174,10 +196,12 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
     active.current = true;
     const session = generation.current;
     pending.current = operation;
+    setOrigin(operation.kind);
     setBusy(operation.kind);
     setFeedback(null);
     setChecked(false);
     setConfirm(null);
+    let failed = false;
     try {
       let next: TeamState;
       if (operation.kind === "invite") {
@@ -210,6 +234,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
       if (operation.kind === "invite") requestAnimationFrame(() => shareHeading.current?.focus());
     } catch (error) {
       if (session !== generation.current) return;
+      failed = true;
       if (error instanceof UnknownWriteOutcome) {
         setFeedback({
           kind: "uncertain",
@@ -223,10 +248,24 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
       if (session === generation.current) {
         active.current = false;
         setBusy(null);
+        // Move focus to the feedback beside the action that failed, so a form never looks dead off-screen.
         if (operation.kind === "revoke") requestAnimationFrame(() => feedbackRegion.current?.focus());
+        else if (failed) requestAnimationFrame(() => {
+          inviteFeedback.current?.focus({ preventScroll: true });
+          inviteFeedback.current?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        });
       }
     }
   }
+
+  const recovery = feedback ? <div className="team-actions">
+    <Button size="sm" onClick={() => void refresh()} loading={busy === "refresh"} disabled={Boolean(busy)}>
+      Check saved state
+    </Button>
+    {uncertain && checked && <Button
+      size="sm" onClick={() => { if (pending.current) void perform(pending.current); }} disabled={Boolean(busy)}
+    >Retry same operation</Button>}
+  </div> : null;
 
   function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -263,7 +302,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
         <span className="team-person-mark" aria-hidden="true">{item.label.trim().slice(0, 1).toLocaleUpperCase()}</span>
         <div className="team-person-detail">
           <div className="team-person-name"><strong>{item.label}</strong><Badge>{item.role === "viewer" ? "Viewer" : "Approver"}</Badge></div>
-          {item.acceptedBy && <code className="team-identity">{item.acceptedBy}</code>}
+          {item.acceptedBy && identity(item.acceptedBy, item.label)}
           <p className="team-note">
             {inviteStatus(item, now)} · {item.revokedAt ? `Revoked ${date(item.revokedAt)}`
               : item.acceptedAt ? date(item.acceptedAt) : `Link expires ${date(item.expiresAt)}`}
@@ -285,17 +324,10 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
       <PageHeader title="Team" lede="Invite your team to follow the work and help with approvals."
         actions={<Button size="sm" disabled={loading || Boolean(busy)} onClick={() => void refresh()}>Refresh</Button>} />
       <div ref={feedbackRegion} tabIndex={-1} className="team-feedback" role="status" aria-live="polite" aria-atomic="true">
-        {feedback && <p data-tone={feedback.kind}>{feedback.message}</p>}
-        {busy && <p>{busy === "refresh" ? "Checking saved team details…" : busy === "invite" ? "Creating invitation…" : "Revoking access…"}</p>}
+        {origin !== "invite" && feedback && <p data-tone={feedback.kind}>{feedback.message}</p>}
+        {busy && busy !== "invite" && <p>{busy === "refresh" ? "Checking saved team details…" : "Revoking access…"}</p>}
       </div>
-      {feedback && <div className="team-actions">
-        <Button size="sm" onClick={() => void refresh()} loading={busy === "refresh"} disabled={Boolean(busy)}>
-          Check saved state
-        </Button>
-        {uncertain && checked && <Button
-          size="sm" onClick={() => { if (pending.current) void perform(pending.current); }} disabled={Boolean(busy)}
-        >Retry same operation</Button>}
-      </div>}
+      {origin !== "invite" && recovery}
       {loading && <div className="team-loading"><p role="status">Loading your team…</p><Skeleton lines={5} /></div>}
       {loadError && <Card tone="alert" title="Your team could not be loaded">
         <p role="alert">{loadError}</p>
@@ -326,6 +358,11 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
               <div className="team-actions"><Button type="submit" variant="primary" loading={busy === "invite"} disabled={locked}>
                 Create invitation link
               </Button></div>
+              <div ref={inviteFeedback} tabIndex={-1} className="team-feedback team-feedback--inline" role="status" aria-live="polite" aria-atomic="true">
+                {busy === "invite" && <p>Creating invitation…</p>}
+                {origin === "invite" && feedback && <p data-tone={feedback.kind}>{feedback.message}</p>}
+              </div>
+              {origin === "invite" && recovery}
             </form>
           </Card>
           <aside className="team-guide">
@@ -369,7 +406,7 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
           <div className="team-person team-owner">
             <span className="team-person-mark" aria-hidden="true"><Icon name="workspace" /></span>
             <div className="team-person-detail"><div className="team-person-name"><strong>Workspace owner</strong><Badge>Owner</Badge></div>
-              <code className="team-identity">{team.ownerDid}</code>
+              {identity(team.ownerDid)}
               <p className="team-note">Manages the workspace, account, and team.</p>
             </div>
           </div>

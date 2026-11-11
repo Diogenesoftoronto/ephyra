@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useApi } from "../app/ApiContext.tsx";
 import { useAsync } from "../app/useAsync.ts";
-import { Button, Card, Field, PageHeader, Skeleton } from "../kit.ts";
+import { Button, Card, PageHeader, Skeleton } from "../kit.ts";
 import { ApplicationMap } from "../components/ApplicationMap.tsx";
+import { WorkspaceAsk } from "../components/WorkspaceAsk.tsx";
 import { DocList, DraftList } from "../components/DocList.tsx";
 import { Load } from "../components/Load.tsx";
 import { describeError } from "../lib/errors.ts";
@@ -28,7 +29,6 @@ export function WorkspacePage({
   const map = useAsync(() => api.doc(AUTONOMY), "ws:map");
   const docs = useAsync(() => api.docs(), "ws:docs");
   const drafts = useAsync(() => api.drafts(), "ws:drafts");
-  const [ask, setAsk] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -47,12 +47,21 @@ export function WorkspacePage({
       setBusy(null);
     }
   };
-  const send = () =>
-    run("ask", async () => {
+  /** Rejects on failure so the composer keeps the words. */
+  const send = async (text: string) => {
+    setBusy("ask");
+    setError(null);
+    try {
       const id = await openDraft(AUTONOMY);
-      await api.sendMessage(id, ask.trim(), newOp());
-      return id;
-    });
+      await api.sendMessage(id, text, newOp());
+      onOpenDraft(id);
+    } catch (e) {
+      setError(e);
+      throw e;
+    } finally {
+      setBusy(null);
+    }
+  };
   const failure = error ? describeError(error) : null;
 
   return (
@@ -77,42 +86,9 @@ export function WorkspacePage({
       >
         <div className="stack">
           <Load state={map.state} retry={map.reload} skeleton={<Skeleton block />}>
-            {(doc) => <ApplicationMap sketches={doc.sketches ?? []} />}
+            {(doc) => <ApplicationMap sketches={doc.sketches ?? []} revision={doc.digest} />}
           </Load>
-          <form
-            className="ws-ask"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (ask.trim() && canDraft) void send();
-            }}
-          >
-            <Field
-              label="Ask Velum"
-              hint="In plain words, e.g. “Payments should never land without me; the marketing site can fix itself.”"
-            >
-              <textarea
-                rows={2}
-                value={ask}
-                maxLength={2000}
-                onChange={(e) => setAsk(e.target.value)}
-                disabled={!canDraft}
-              />
-            </Field>
-            <Button
-              variant="primary"
-              loading={busy === "ask"}
-              disabled={!canDraft || busy !== null || ask.trim() === ""}
-              onClick={() => void send()}
-            >
-              Ask Velum
-            </Button>
-          </form>
-          {!canDraft && <p className="muted">Only approvers can start drafts.</p>}
-          {failure && (
-            <p role="alert">
-              <strong>{failure.title}.</strong> {failure.body}
-            </p>
-          )}
+          <WorkspaceAsk canDraft={canDraft} busy={busy === "ask"} failure={failure} onDraft={(text) => send(text)} />
         </div>
       </Card>
       <Card tone="quiet" title="Drafts">

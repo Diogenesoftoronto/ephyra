@@ -1,4 +1,4 @@
-export const PAGES = ["overview", "inbox", "runs", "usage", "workspace", "personas", "team", "settings", "onboarding"] as const;
+export const PAGES = ["overview", "inbox", "runs", "usage", "workspace", "personas", "team", "settings", "onboarding", "account"] as const;
 export type PageId = (typeof PAGES)[number];
 export type Route = { page: PageId; id?: string } | { page: "not-found"; path: string };
 

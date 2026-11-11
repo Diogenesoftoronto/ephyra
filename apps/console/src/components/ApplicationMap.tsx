@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AreaSketch } from "@ephyra/core";
 import { Button, Empty, Field } from "../kit.ts";
 import { AreaCard } from "./AreaCard.tsx";
+import { Referable } from "../velum/VelumProvider.tsx";
 import "./ApplicationMap.css";
 
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
@@ -11,10 +12,13 @@ export function ApplicationMap({
   sketches,
   original,
   onChange,
+  revision,
 }: {
   sketches: readonly AreaSketch[];
   original?: readonly AreaSketch[];
   onChange?: (next: AreaSketch[]) => void;
+  /** The published document digest. With it, each area can be referred to Velum at this revision. */
+  revision?: string;
 }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -43,7 +47,12 @@ export function ApplicationMap({
   return (
     <div className="map">
       <div className="grid-cards map-grid">
-        {sketches.map((s) => (
+        {sketches.map((s) => revision && !onChange ? (
+          <Referable key={s.name} id={`area:${s.name}`} refData={{ kind: "area", name: s.name, revision }}
+            label={`${s.name} area`} href="#/workspace">
+            <AreaCard sketch={s} />
+          </Referable>
+        ) : (
           <AreaCard
             key={s.name}
             sketch={s}

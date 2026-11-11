@@ -14,8 +14,10 @@ export const questionStatus = (question: InvestigationQuestion): string => {
     rejected: "Check did not pass", ambiguous: "Outcome needs reconciliation", superseded: "Quest moved on" }[question.status];
 };
 
-export function InvestigationQuestions({ api, principal, workspace, trailId }: {
+export function InvestigationQuestions({ api, principal, workspace, trailId, compact }: {
   api: ConsoleApi; principal: string; workspace: string; trailId?: string;
+  /** Inside a quest: render nothing when this quest has no questions, instead of an empty global panel. */
+  compact?: boolean;
 }) {
   const scope = questionScope(principal, workspace);
   const questions = useAsync(async () => {
@@ -35,6 +37,10 @@ export function InvestigationQuestions({ api, principal, workspace, trailId }: {
     addEventListener("focus", refresh);
     return () => removeEventListener("focus", refresh);
   }, [questions.reload]);
+  const relevant = questions.state.status === "ready"
+    ? questions.state.data.current.some((q) => !trailId || q.trailId === trailId) || questions.state.data.unresolved.length > 0
+    : true;
+  if (compact && questions.state.status !== "error" && !relevant) return null;
   return <section className="investigation-questions" aria-label="Investigation questions">
     <div className="question-heading"><div><h2>Questions from Ephyra</h2>
       <p className="account-hint">Factual questions that can unblock an investigation. Each question and answer is checked.</p>

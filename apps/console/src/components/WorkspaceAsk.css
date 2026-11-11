@@ -1,0 +1,13 @@
+.ws-ask { display: grid; gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--rule); }
+.ws-ask__modes { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; justify-self: start; border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--surface-recessed); }
+.ws-ask__modes button { min-height: 40px; padding: 0 var(--s3); border: 1px solid transparent; border-radius: var(--radius-pill); background: none; color: var(--muted); cursor: pointer; font-size: var(--fs-small); }
+.ws-ask__modes button[aria-checked="true"] { background: var(--surface); border-color: var(--jelly-deep); color: var(--ink); font-weight: 650; box-shadow: var(--shadow-surface); }
+.ws-ask__label { font-weight: 600; margin-top: var(--s2); }
+.ws-ask textarea { width: 100%; min-height: 3.5rem; resize: vertical; padding: var(--s2) var(--s3); border: 1px solid var(--control-border); border-radius: var(--radius-sm); background: var(--surface-recessed); }
+.ws-ask__context { display: grid; gap: var(--s1); font-size: var(--fs-small); }
+.ws-ask__context p { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
+.ws-ask__area { padding: 2px var(--s2); border-radius: var(--radius-pill); background: var(--jelly-tint); border: 1px solid var(--jelly-deep); }
+.ws-ask__row { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; }
+.ws-ask__row .ui-button { min-height: 44px; }
+.ws-ask__failure { padding: var(--s2) var(--s3); border-radius: var(--radius-sm); background: var(--bad-tint); }
+@media (pointer: coarse) { .ws-ask__modes button { min-height: 44px; } }

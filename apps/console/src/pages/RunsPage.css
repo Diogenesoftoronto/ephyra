@@ -41,3 +41,21 @@
 .run-roster__engine { position: relative; z-index: 1; display: grid; gap: var(--s2); margin: var(--s3) var(--s4) var(--s4); }
 @media (max-width: 1200px) { .run-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 500px) { .run-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); } }
+
+.run-roster-wrap > summary {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s1) var(--s3);
+  min-height: 44px; padding: var(--s2) 0; font-weight: 600;
+}
+.run-roster-wrap > summary .muted { font-weight: 400; font-size: var(--fs-small); }
+.run-roster-wrap[open] > summary { margin-bottom: var(--s3); }
+@media (max-width: 760px) {
+  /* Phones: one compact row per persona instead of tall cards. */
+  .run-roster { grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--rule); }
+  .run-roster__agent { grid-template-columns: minmax(0, 1fr) auto; align-items: center; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; box-shadow: none; background: transparent; }
+  .run-roster__filter { grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 0 var(--s3); padding: var(--s2) 0; min-height: 52px; }
+  .run-roster__filter .ui-avatar { width: 32px; height: 32px; grid-row: span 2; }
+  .run-roster__identity { grid-template-columns: auto 1fr; gap: var(--s2); align-items: baseline; }
+  .run-roster__identity strong { font-size: 1rem; }
+  .run-roster__status { grid-column: 2; color: var(--muted); }
+  .run-roster__engine { margin: 0; grid-auto-flow: column; align-items: center; }
+}

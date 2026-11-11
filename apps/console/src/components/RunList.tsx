@@ -5,6 +5,7 @@ import { EngineBadge } from "./EngineBadge.tsx";
 import { PersonaAvatar } from "./PersonaAvatar.tsx";
 import { RunAccess } from "./RunAccess.tsx";
 import "./RunList.css";
+import { Referable } from "../velum/VelumProvider.tsx";
 
 export const RUN_STATE = {
   running: "running",
@@ -66,7 +67,10 @@ export function RunList({ runs, empty = "No runs match." }: { runs: AgentRun[]; 
   return (
     <Rows>
       {runs.map((r) => (
-        <RunRow key={r.id} run={r} />
+        <Referable key={r.id} id={`run:${r.id}`} refData={{ kind: "run", id: r.id }}
+          label={`${r.step}${r.short ? ` on ${r.short}` : ""}`} href={`#/runs/${r.id}`}>
+          <RunRow run={r} />
+        </Referable>
       ))}
     </Rows>
   );

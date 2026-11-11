@@ -91,6 +91,21 @@ function TutorConversation({ trail, events, canSpend }: { trail: Trail; events: 
   const send = (text: string) => {
     void ask(text).catch(() => {});
   };
+  // Optional and unavailable: one compact, informative line instead of a disabled form ahead of the real work.
+  if (cap && !cap.provider && !turns.length) {
+    return (
+      <details className="tutor-unavailable">
+        <summary>
+          <span><strong>&amp;Tutor explanations</strong> are not connected on this deployment.</span>
+          <span className="muted">Details</span>
+        </summary>
+        <p className="muted">
+          An operator can connect &amp;Tutor through Not Organic or a Humans&amp; API key. Until then, read the recorded
+          evidence below, or ask Velum about this quest from the Ask Velum button.
+        </p>
+      </details>
+    );
+  }
   return (
     <Card tone="quiet" title="Understand this quest" meta={<Badge>&amp;Tutor</Badge>}>
       <div className="tutor-panel stack">

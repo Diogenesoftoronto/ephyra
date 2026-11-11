@@ -1,0 +1,64 @@
+/* Usage charts. Recorded = amber (validated #a24a00 light / #d07b00 dark); forecast = teal (#008674 / #00a7ae), dashed,
+   so identity never relies on colour alone. Status segments use the reserved ok / cherry / warn tokens with a legend. */
+.usage-chart { --actual: oklch(0.52 0.135 52); --predict: oklch(0.55 0.11 180); display: grid; gap: var(--s3); min-width: 0; }
+:root[data-theme="dark"] .usage-chart { --actual: oklch(0.66 0.15 64); --predict: oklch(0.66 0.115 200); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .usage-chart { --actual: oklch(0.66 0.15 64); --predict: oklch(0.66 0.115 200); } }
+.usage-chart__legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); font-size: var(--fs-label); color: var(--muted); }
+.usage-chart__legend > :last-child:not(span) { margin-inline-start: auto; }
+.sw { display: inline-block; width: 14px; height: 10px; margin-inline-end: var(--s1); vertical-align: -1px; border-radius: 2px; }
+.sw--bar { background: color-mix(in oklab, var(--actual) 45%, transparent); }
+.sw--line { height: 2px; background: var(--actual); vertical-align: 3px; }
+.sw--forecast { height: 0; border-top: 2px dashed var(--predict); vertical-align: 3px; }
+.sw--partial { border: 1.5px dashed var(--actual); background: none; }
+.sw--ok { background: var(--ok); } .sw--failed { background: var(--cherry); } .sw--unavailable { background: var(--warn); }
+.usage-chart__plot { position: relative; min-width: 0; }
+.usage-chart svg { display: block; width: 100%; overflow: visible; border-radius: 4px; }
+.usage-chart svg:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.usage-chart .grid line { stroke: var(--rule); }
+.usage-chart .grid text, .usage-chart .days text { fill: var(--muted); font: 500 11px var(--font-body); font-variant-numeric: tabular-nums; }
+.usage-chart .bar { fill: color-mix(in oklab, var(--actual) 45%, transparent); }
+.usage-chart .bar--partial { fill: color-mix(in oklab, var(--actual) 18%, transparent); stroke: var(--actual); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.usage-chart .pace { fill: none; stroke: var(--actual); stroke-width: 2; stroke-linejoin: round; }
+.usage-chart .dot { fill: var(--actual); stroke: var(--surface); stroke-width: 2; }
+.usage-chart .dot--partial { fill: var(--surface); stroke: var(--actual); }
+.usage-chart .forecast { fill: none; stroke: var(--predict); stroke-width: 2; stroke-dasharray: 6 4; }
+.usage-chart .band { fill: color-mix(in oklab, var(--predict) 16%, transparent); }
+.usage-chart .cursor { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.usage-chart .seg--ok { fill: var(--ok); } .usage-chart .seg--failed { fill: var(--cherry); } .usage-chart .seg--unavailable { fill: var(--warn); }
+.usage-chart g.partial .seg { fill-opacity: 0.5; }
+.usage-chart g[data-active] .seg { stroke: var(--ink); stroke-width: 1; }
+.usage-chart__tip {
+  position: absolute; top: 0; z-index: 2; width: 180px; display: grid; gap: 2px; padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-popover);
+  font-size: var(--fs-label); pointer-events: none;
+}
+.drivers { display: grid; gap: 2px; }
+.drivers__row {
+  display: grid; grid-template-columns: minmax(6rem, 1.2fr) minmax(4rem, 2fr) auto; gap: var(--s3); align-items: center;
+  width: 100%; min-height: 40px; padding: var(--s1) var(--s2); border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: none; color: inherit; font: inherit; font-size: var(--fs-small); text-align: start;
+}
+button.drivers__row { cursor: pointer; }
+button.drivers__row:hover { background: var(--surface-hover); }
+button.drivers__row[aria-pressed="true"] { border-color: var(--jelly-deep); background: var(--jelly-tint); }
+.drivers__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drivers__track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.drivers__track > span { display: block; height: 100%; border-radius: 4px; background: var(--actual, var(--chart)); }
+.drivers__value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.drivers__unknown { color: var(--warn); font-weight: 600; }
+.drivers { --actual: oklch(0.52 0.135 52); }
+:root[data-theme="dark"] .drivers { --actual: oklch(0.66 0.15 64); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .drivers { --actual: oklch(0.66 0.15 64); } }
+@media (max-width: 480px) {
+  .drivers__row { grid-template-columns: minmax(0, 1fr) auto; }
+  .drivers__track { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (pointer: coarse) { .drivers__row { min-height: 44px; } }
+.coverage { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; }
+.coverage > div:first-child { display: grid; }
+.coverage__value { font: 650 1.5rem / 1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.coverage__label { color: var(--muted); font-size: var(--fs-small); }
+.coverage__bar { display: flex; gap: 2px; flex: 1 1 10rem; height: 10px; min-width: 8rem; }
+.coverage__priced { background: var(--actual); border-radius: 4px; }
+.coverage__unknown { border-radius: 4px; background: repeating-linear-gradient(135deg, var(--warn) 0 3px, transparent 3px 6px); border: 1px solid var(--warn); }
+@media (forced-colors: active) { .usage-chart .bar, .drivers__track > span, .coverage__priced { fill: CanvasText; background: CanvasText; } }

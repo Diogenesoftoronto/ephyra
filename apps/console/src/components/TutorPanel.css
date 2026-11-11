@@ -10,3 +10,7 @@
 .tutor-turn details summary { cursor: pointer; }
 .tutor-receipt, .tutor-boundary { font-size: .8rem; overflow-wrap: anywhere; }
 .tutor-panel .ui-button { justify-self: start; }
+
+.tutor-unavailable { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); }
+.tutor-unavailable > summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s1) var(--s3); align-items: center; min-height: 44px; padding: var(--s2) var(--s4); font-size: var(--fs-small); }
+.tutor-unavailable > p { padding: 0 var(--s4) var(--s3); font-size: var(--fs-small); }

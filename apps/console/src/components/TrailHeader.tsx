@@ -2,12 +2,15 @@ import type { Trail } from "@ephyra/core";
 import { Badge, Card, Hash, Meter, Tag } from "../kit.ts";
 import { formatMicrousd, formatTokens } from "../lib/format.ts";
 import "./TrailHeader.css";
+import { Referable } from "../velum/VelumProvider.tsx";
 
 const RISK = { critical: "bad", high: "warn", medium: "info", low: "neutral" } as const;
 
 export function TrailHeader({ trail }: { trail: Trail }) {
   const b = trail.budget;
   return (
+    <Referable id={`trail:${trail.id}`} refData={{ kind: "trail", id: trail.id, rev: trail.rev }}
+      label={`${trail.short} revision ${trail.rev}`} href={`#/inbox/${trail.id}`}>
     <Card tone="quiet">
       <div className="trail-head">
         <div className="trail-head-top">
@@ -57,5 +60,6 @@ export function TrailHeader({ trail }: { trail: Trail }) {
         </div>
       </div>
     </Card>
+    </Referable>
   );
 }

@@ -16,7 +16,10 @@ const DraftPage = lazy(() => import("../pages/DraftPage.tsx").then((m) => ({ def
 import { WorkspacePage } from "../pages/WorkspacePage.tsx";
 import { parseRoute, type PageId, type Route } from "./route.ts";
 import "./App.css";
-import { VoiceProvider, VoiceLauncher } from "../voice/Voice.tsx";
+import { VoiceProvider } from "../voice/Voice.tsx";
+import { VelumProvider } from "../velum/VelumProvider.tsx";
+import { CompanionPanel, VelumInvoker } from "../velum/CompanionPanel.tsx";
+import { ProfilePage } from "../pages/ProfilePage.tsx";
 import type { VoiceContext } from "@ephyra/core";
 import type { AccountSettings } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
@@ -48,6 +51,7 @@ const LABEL: Record<PageId, string> = {
   team: "Team",
   settings: "Settings",
   onboarding: "Setup",
+  account: "Your account",
 };
 
 function useRoute(): Route {
@@ -85,7 +89,7 @@ function Page({
     case "overview":
       return <OverviewPage />;
     case "usage":
-      return <UsagePage />;
+      return <UsagePage scope={`${principal ?? "deployment"}::${account?.settings.workspaceId ?? workspace?.name ?? "deployment"}`} />;
     case "inbox":
       return <InboxPage trailId={route.id} canAct={approver} principal={principal}
         questionWorkspace={account?.settings.workspaceId} setupApi={account?.automation} />;
@@ -95,6 +99,9 @@ function Page({
       return route.id ? <DraftPage draftId={route.id} canPublish={approver} /> : <WorkspacePage canDraft={approver} />;
     case "personas":
       return <PersonasPage />;
+    case "account":
+      return <ProfilePage principal={principal} onDisconnect={onDisconnect} disconnectLabel={disconnectLabel}
+        workspaceName={workspace?.name} workspaceRole={workspace?.role} />;
     case "team":
       return team ? <TeamPage {...team} /> : <Empty title="Team access is managed by the owner"
         body="Switch to your own workspace to invite viewers and approvers." />;
@@ -213,9 +220,10 @@ function Frame({
     .map((id) => ({
       id,
       label: LABEL[id],
-      icon: id,
+      icon: id === "account" ? "team" : id,
       count: id === "inbox" ? waiting : undefined,
-      overflow: id === "workspace" || id === "personas" || id === "team" || id === "settings",
+      overflow: id === "workspace" || id === "personas" || id === "team" || id === "settings" || id === "account",
+      sheetOnly: id === "account",
     }));
   const current = route.page === "not-found" ? "" : route.page;
   const voiceContext: VoiceContext =
@@ -232,9 +240,21 @@ function Frame({
     voiceContext.kind === "usage"
       ? "Usage, last 7 days"
       : voiceContext.kind === "overview"
-        ? "Application overview"
+        ? route.page === "overview" ? "Application overview" : `${LABEL[route.page as PageId] ?? "This page"} (overview data)`
         : `${voiceContext.kind === "trail" ? "Quest" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
+  // One Velum conversation per signed-in account and workspace. Switching either starts an empty one.
+  const velumScope = `${identity?.principal ?? (demo ? "demo" : "deployment")}::${workspace?.name ?? account?.settings.workspaceId ?? "deployment"}::${workspace?.role ?? "owner"}`;
+  const companionContext: VoiceContext = voiceContext.kind === "draft" ? { kind: "overview" } : voiceContext;
   return (
+    <VelumProvider
+      key={velumScope}
+      api={api}
+      scope={velumScope}
+      context={companionContext}
+      contextLabel={voiceContext.kind === "draft" ? "the workspace (document conversations stay in the draft)" : voiceLabel}
+      canSpend={approver}
+      readOnlyReason={workspace?.role === "viewer" ? "Viewers can read this conversation but not use the workspace's models." : null}
+    >
     <VoiceProvider
       api={api}
       context={voiceContext}
@@ -249,11 +269,13 @@ function Frame({
           location.hash = `#/${id}`;
         }}
         user={{
-          name: demo ? "Demo" : (identity?.alias ?? "Your account"),
+          name: demo ? "Demo account" : (identity?.alias ?? "Your account"),
           detail: demo ? "made-up data" : workspace?.role ?? (account ? "personal workspace" : approver ? "approver" : "read only"),
+          href: "#/account",
+          current: route.page === "account",
           avatar: (
             <span className="account-mark" aria-hidden="true">
-              {demo ? "D" : "U"}
+              {(demo ? "D" : identity?.alias?.charAt(0) ?? "Y").toUpperCase()}
             </span>
           ),
         }}
@@ -270,6 +292,7 @@ function Frame({
             <small>{account?.settings.repository?.branch ?? (account ? "Connect a repository" : "Deployment")}</small>
           </a>}
           <div className="workspace-bar__actions">
+            <VelumInvoker />
             <span className="entry-preferences"><SoundToggle /><ThemeToggle /></span>
             <CommandMenu />
           </div>
@@ -285,16 +308,18 @@ function Frame({
           account.settings.onboarding.status !== "complete" &&
           route.page !== "onboarding" &&
           route.page !== "settings" && (
-            <aside className="workspace-setup-note">
-              <span>Ephyra can prepare your repository and autonomy documents.</span>
-              <a href="#/onboarding">View automatic setup →</a>
+            <aside className="workspace-setup-note" aria-label="Automatic setup">
+              <p>
+                <strong>Ephyra can automagically set itself up.</strong>{" "}
+                <span>It reads your repository and drafts autonomy documents for you to review. Nothing lands without you.</span>
+              </p>
+              <div className="workspace-setup-note__actions">
+                <a href="#/onboarding" className="ui-button ui-button--sm ui-button--ghost">Learn about automatic setup</a>
+                <a href="#/onboarding" className="ui-button ui-button--sm ui-button--primary"
+                  data-account-action="try-setup">Try automatic setup</a>
+              </div>
             </aside>
           )}
-        {voiceContext.kind !== "draft" && route.page !== "settings" && route.page !== "onboarding" && route.page !== "team" && (
-          <div className="voice-entry">
-            <VoiceLauncher />
-          </div>
-        )}
         <Suspense fallback={<Skeleton block />}>
           <Page
             key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}
@@ -318,6 +343,8 @@ function Frame({
           {demo ? <p className="muted">Demo data · no server connected.</p> : null}
         </footer>
       </Shell>
+      <CompanionPanel />
     </VoiceProvider>
+    </VelumProvider>
   );
 }
