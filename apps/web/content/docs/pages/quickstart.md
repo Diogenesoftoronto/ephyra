@@ -22,10 +22,10 @@ Paste the repository's HTTPS URL. Setup discovers the default branch. For a priv
 
 You are asked for one thing: **Autonomous** or **Supervised**.
 
-- **Supervised** makes every checkpoint blocking. Ephyra stops at the hypothesis, at the plan and at the patch, and waits for you each time. Choose this if you are deciding whether to trust it.
-- **Autonomous** is the default. It lets low-risk work continue without you, within the policy setup prepares.
+- **Supervised** makes every checkpoint blocking and lands fixes as a branch for you to merge. Ephyra stops at the hypothesis, at the plan and at the patch, and waits for you each time. Choose this if you are deciding whether to trust it.
+- **Autonomous** is the default. Checkpoints are advisory and proven fixes may land directly, so work continues without you as long as its proof is complete.
 
-Either way, changes rated high or critical always need a named person at the last checkpoint, and critical changes are never landed automatically. You can change the mode for any part of your code later; see [Policy](./policy).
+Either way, a fix lands only with the proof its risk requires. Changes rated high or critical always need a named person at the last checkpoint, and critical changes are never landed automatically. Both modes start with one area covering the whole repository; you can split it and set each part differently later. See [Policy](./policy#where-you-start).
 
 ## 4. Read what setup found
 

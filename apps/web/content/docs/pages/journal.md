@@ -67,7 +67,7 @@ git for-each-ref --format='%(refname)' 'refs/ephyra/trails/*/journal'
 git show refs/ephyra/trails/<quest-id>/journal:trail.json
 git show refs/ephyra/trails/<quest-id>/journal:hypothesis.md
 
-# Its history: one commit per transition
+# Its history, newest first
 git log --oneline refs/ephyra/trails/<quest-id>/journal
 
 # The exact patch that was proven at revision 1, against your main branch

@@ -47,7 +47,11 @@ export default defineRailway(() => {
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
     networking: {
       serviceDomains: { "ephyra-site.up.railway.app": { port: 3000 } },
-      customDomains: { "ephyra.quest": { port: 3000 }, "ephrya.app": { port: 3000 }, "www.ephrya.app": { port: 3000 } },
+      // docs.ephyra.quest serves the guide at its root (EPHYRA_DOCS_ORIGIN below). Attach the domain and its DNS before
+      // setting the variable: once it is set, /docs on the main site redirects there.
+      customDomains: {
+        "ephyra.quest": { port: 3000 }, "docs.ephyra.quest": { port: 3000 }, "ephrya.app": { port: 3000 }, "www.ephrya.app": { port: 3000 },
+      },
     },
     env: {
       PORT: "3000",
@@ -58,6 +62,7 @@ export default defineRailway(() => {
       // Standard.site publication on the Ephyra PDS identity (ephyra.pds.notorganic.info).
       EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
       EPHYRA_API_ORIGIN: "https://console.ephyra.quest",
+      EPHYRA_DOCS_ORIGIN: "https://docs.ephyra.quest",
     },
   });
 

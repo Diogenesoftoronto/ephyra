@@ -39,7 +39,7 @@ Secrets are read from the environment and never logged, written to a journal, co
 | `NOTORGANIC_ISSUER` | `https://api.notorganic.info` | Identity provider API. |
 | `NOTORGANIC_AUTHORIZATION_URL` | `https://id.notorganic.info/authorize` | Where sign-in sends the browser. |
 | `NOTORGANIC_PRODUCT` | `notorganic` | The product this origin is registered under. |
-| `EPHYRA_BILLING_DID` | unset | The account hosted model calls are billed to. |
+| `EPHYRA_BILLING_DID` | first approver | The account hosted model calls are billed to. |
 
 ## Models
 
@@ -65,7 +65,7 @@ Secrets are read from the environment and never logged, written to a journal, co
 | `EPHYRA_AMP_PROJECT`, `EPHYRA_AMP_RUNNER_ID` | unset | For the `orb` and `runner` executors. |
 | `EPHYRA_AMP_MODE` | `medium` | `low`, `medium`, `high` or `ultra`. |
 | `EPHYRA_HOSTED_RUNNER` | `none` | Runner for hosted accounts: `none` or `railway`. |
-| `EPHYRA_HOSTED_ACCOUNTS` | empty | Accounts granted hosted execution. |
+| `EPHYRA_HOSTED_ACCOUNTS` | empty | The account DIDs the operator grants hosted execution. Model and repository keys stay with each account. |
 | `EPHYRA_RAILWAY_TOKEN`, `EPHYRA_RAILWAY_ENVIRONMENT_ID` | unset | For `EPHYRA_HOSTED_RUNNER=railway`. |
 | `EPHYRA_RAILWAY_CHECKPOINT`, `EPHYRA_RAILWAY_REGION` | unset | Optional sandbox image and placement. |
 | `EPHYRA_RAILWAY_CPU` | `1` | Sandbox CPUs, up to 32. |

@@ -42,11 +42,12 @@ const cost = (microusd: number | null | undefined) => (microusd === null || micr
 export function runsView(runs: AgentRun[], w = 80, now = new Date()): Line[] {
 	if (!runs.length)
 		return finish([[g("No agent runs yet.", "muted")], [g("Runs appear when a quest reaches a step an agent works: research, reproduction, plan, patch, review.", "muted")]], w);
-	const out: Line[] = [[g("run".padEnd(14), "muted"), g("quest".padEnd(10), "muted"), g("step".padEnd(12), "muted"), g("status".padEnd(13), "muted"), g("engine".padEnd(26), "muted"), g("started", "muted")]];
+	// The engine comes last and is not cut to a column: it is an identity, recorded exactly as the backend returned it.
+	const out: Line[] = [[g("run".padEnd(14), "muted"), g("quest".padEnd(10), "muted"), g("step".padEnd(12), "muted"), g("status".padEnd(13), "muted"), g("started".padEnd(11), "muted"), g("engine", "muted")]];
 	for (const r of runs)
 		out.push([
 			g(col(r.id, 14), "strong"), g(col(r.short ?? "-", 10)), g(col(r.step, 12)),
-			g(col(r.status, 13), RUN_TONE[r.status]), g(col(r.engine, 26), "muted"), g(ago(r.startedAt, now), "muted"),
+			g(col(r.status, 13), RUN_TONE[r.status]), g(col(ago(r.startedAt, now), 11), "muted"), g(oneLine(r.engine)),
 		]);
 	out.push([], [g("ephyra run <run> ", "strong"), g("reads a transcript; ", "muted"), g("--follow ", "strong"), g("keeps reading while it runs", "muted")]);
 	return finish(out, w);

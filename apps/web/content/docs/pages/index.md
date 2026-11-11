@@ -16,7 +16,7 @@ Ephyra is built for that gap. It takes a production signal and works it as a **q
 - **[I want to try it on my repository](./quickstart)** Sign in, connect a repository over HTTPS and read what setup found. About ten minutes.
 - **[I would rather my coding agent set it up](./agent-setup)** One prompt to paste. The agent asks for scoped access; you approve it.
 - **[Something is waiting on me and I do not know how to judge it](./reviewing)** What each checkpoint asks, what to read, and what approving commits you to.
-- **[I am nervous about what it can do to my code](./policy)** Authority is set per area of your repository, and it starts in shadow mode.
+- **[I am nervous about what it can do to my code](./policy)** Authority is set per area of your repository. Supervised setup stops at every step, and shadow mode only watches.
 - **[It is stuck, refused something, or shows nothing](./troubleshooting)** Symptoms, what causes them, and the next step.
 - **[I want to run it on my own machines](./self-hosting)** A local server in two commands, then durable state and sign-in.
 

@@ -41,7 +41,7 @@ Save the URL under telemetry in **Settings**.
 
 ## What the watch observes
 
-Once the landed commit is confirmed deployed, the watch runs for the window your policy sets (two hours by default). It needs three things for the whole window:
+Once the landed commit is confirmed deployed, the watch runs for the window your policy sets (`watch: 2h` in the generated policy). It needs three things for the whole window:
 
 - the deployed commit,
 - the probes that apply to the change,
