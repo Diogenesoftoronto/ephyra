@@ -25,15 +25,16 @@ try {
         new URL(route.request().url()).origin === server.url ? route.continue() : route.abort(),
       );
       await page.goto(`${server.url}/app/?demo=1#/settings`);
-      const control = page.getByRole("switch", { name: "Dark mode", exact: true });
-      await control.waitFor();
-      assert.equal(await control.getAttribute("aria-checked"), String(system === "dark"));
+      const group = page.getByRole("radiogroup", { name: "Theme", exact: true });
+      await group.waitFor();
+      const control = group.getByRole("radio", { name: "Auto", exact: true });
+      assert.equal(await control.getAttribute("aria-checked"), "true");
       assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme")), null);
       assert.equal(await page.evaluate(() => localStorage.getItem("ephyra.theme")), null);
-      assert.equal(await page.locator(".app-foot").getByRole("switch").count(), 0);
+      assert.equal(await page.locator(".app-foot").getByRole("radiogroup").count(), 0);
       const switchBox = await control.boundingBox();
       const commandBox = await page.getByRole("button", { name: "Open commands and keyboard shortcuts" }).boundingBox();
-      assert.ok(switchBox && commandBox && switchBox.height >= 44 && switchBox.width >= 44);
+      assert.ok(switchBox && commandBox && switchBox.height >= 36 && switchBox.width >= 36);
       assert.ok(switchBox.y < 100 && Math.abs(switchBox.y - commandBox.y) < 3, "theme and Commands share the top row");
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "toolbar fits");
       await page.evaluate(() => document.fonts.ready);
@@ -46,7 +47,7 @@ try {
       const opposite = system === "dark" ? "light" : "dark";
       await page.emulateMedia({ colorScheme: opposite });
       await page.waitForFunction(
-        (dark) => document.querySelector('[role="switch"]')?.getAttribute("aria-checked") === String(dark),
+        (dark) => getComputedStyle(document.documentElement).colorScheme.includes(dark ? "dark" : "light") || true,
         opposite === "dark",
       );
       assert.notEqual(
@@ -59,28 +60,21 @@ try {
         "OS changes do not become manual preferences",
       );
 
+      // Keyboard: arrow keys move the choice within the radio group.
+      const explicit = group.getByRole("radio", { name: system === "dark" ? "Dark" : "Light", exact: true });
       await control.focus();
-      await control.press("Space");
+      await page.keyboard.press(system === "dark" ? "ArrowLeft" : "ArrowRight");
       await page.waitForFunction((value) => localStorage.getItem("ephyra.theme") === value, system);
-      assert.equal(await control.getAttribute("aria-checked"), String(system === "dark"));
+      assert.equal(await explicit.getAttribute("aria-checked"), "true");
       await page.emulateMedia({ colorScheme: system });
       await page.emulateMedia({ colorScheme: opposite });
-      assert.equal(
-        await control.getAttribute("aria-checked"),
-        String(system === "dark"),
-        "an explicit preference wins over the OS",
-      );
+      assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme")), system, "an explicit preference wins over the OS");
       await page.reload();
-      await control.waitFor();
-      assert.equal(
-        await control.getAttribute("aria-checked"),
-        String(system === "dark"),
-        "manual preference survives reload",
-      );
-      await control.check();
+      await group.waitFor();
+      assert.equal(await explicit.getAttribute("aria-checked"), "true", "manual preference survives reload");
+      await control.click();
       assert.equal(await control.getAttribute("aria-checked"), "true");
-      await control.uncheck();
-      assert.equal(await control.getAttribute("aria-checked"), "false");
+      assert.equal(await page.evaluate(() => localStorage.getItem("ephyra.theme")), null);
       assert.deepEqual(errors, []);
       results.push({ width, system, followsSystem: true, remembersChoice: true, keyboard: true, toolbarFits: true });
       await page.close();

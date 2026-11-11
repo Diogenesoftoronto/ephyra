@@ -1,2 +1,19 @@
-.activity-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--s2); }
+/* Meta line: quest id, engine and time sit on one rhythm whether or not the engine badge is present. */
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  min-height: 36px;
+}
+.activity-meta > a.mono {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
 .activity-meta__engine { display: inline-flex; }
+.activity-meta__time { white-space: nowrap; }
+@media (pointer: coarse), (max-width: 760px) {
+  .activity-meta { min-height: 44px; }
+  .activity-meta > a.mono { min-height: 44px; }
+}

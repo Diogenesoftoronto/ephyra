@@ -78,11 +78,10 @@ fetch('${origin}/fixture/forbidden',{method:'POST',body:'untrusted'}).catch(()=>
       assert.equal(await page.locator("body").getAttribute("data-compromised"), null);
       assert.equal(await page.locator("iframe").getAttribute("sandbox"), "allow-scripts");
       const initialColor = await frame.locator("body").evaluate((element) => getComputedStyle(element).color);
-      const switchTheme = page.getByRole("switch", { name: "Dark mode", exact: true });
-      await switchTheme.click();
+      await page.getByRole("radio", { name: scheme === "dark" ? "Light" : "Dark", exact: true }).click();
       await frame.locator(`html[style*="color-scheme: ${scheme === "dark" ? "light" : "dark"}"]`).waitFor();
       assert.notEqual(await frame.locator("body").evaluate((element) => getComputedStyle(element).color), initialColor);
-      await switchTheme.click();
+      await page.getByRole("radio", { name: scheme === "dark" ? "Dark" : "Light", exact: true }).click();
       await frame.locator(`html[style*="color-scheme: ${scheme}"]`).waitFor();
       await frame.getByRole("slider", { name: "Number of items" }).fill("7");
       assert.equal(await frame.locator("#before").innerText(), "$2.38");

@@ -25,7 +25,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
             </a>
           ) : null}
           {item.engine && <span className="activity-meta__engine"><EngineBadge engine={item.engine} /></span>}
-          <span>
+          <span className="activity-meta__time">
             {item.status === "running" && item.startedAt ? (
               <>
                 for <Elapsed since={item.startedAt} />
