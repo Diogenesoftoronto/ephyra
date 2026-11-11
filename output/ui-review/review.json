@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-11",
+  "scope": "Independent UI review while Opus implements the console changes",
+  "implementation_status": "Findings delivered to the active implementation agent; fixes not verified by this review",
+  "data": "Local /app/?demo=1 uses explicitly fictional account, work, usage and team adapters",
+  "surfaces": ["overview", "workspace", "inbox and selected quest", "runs", "usage", "team", "settings", "onboarding", "usage voice dialog"],
+  "viewports": [{"width": 390, "height": 844}, {"width": 1440, "height": 960}],
+  "themes": ["light", "dark"],
+  "findings": [
+    {
+      "id": "mobile-header-density",
+      "priority": 1,
+      "observation": "At 390px the toolbar, setup notice and separate full-width voice invocation occupy y16 through y236; the workspace identity receives only 54px and visibly truncates to Your w...",
+      "recommendation": "Prioritize workspace identity, collapse command text at narrow widths and integrate Velum invocation into the shell instead of a separate full-width row.",
+      "source": "apps/console/src/app/App.tsx",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcobbw6-6db875f7.png"
+    },
+    {
+      "id": "zero-gap-application-areas",
+      "priority": 1,
+      "observation": "The end of the payments autonomy paragraph and the beginning of the cart header share y709 at 390px. Adjacent areas have zero layout gap.",
+      "recommendation": "Repair shared layout/class composition and give each application area independent vertical spacing and a header/body relationship.",
+      "sources": ["apps/console/src/components/ApplicationMap.tsx", "apps/console/src/components/ApplicationMap.css", "apps/console/src/components/AreaCard.css"],
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcobbw6-6db875f7.png"
+    },
+    {
+      "id": "selected-quest-priority",
+      "priority": 1,
+      "observation": "A direct-linked quest at 390px follows an empty global questions panel. Quest title y754, optional unavailable Tutor y1088 through y1742, Approve spend y2474, Evidence y2628.",
+      "recommendation": "Lead with the selected quest, collapse unavailable optional explanation UI and retain evidence/review guards. Do not introduce blind sticky approval actions.",
+      "source": "apps/console/src/pages/InboxPage.tsx",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcoblnz-9d9e81a2.png"
+    },
+    {
+      "id": "mobile-run-list-priority",
+      "priority": 1,
+      "observation": "At 390px six persona filter cards occupy 804px and the actual run list begins at y1636.",
+      "recommendation": "Use compact mobile persona filters or a disclosure and prioritize active runs and errors. Preserve independent engine inspection and agent/preview handoffs.",
+      "source": "apps/console/src/pages/RunsPage.tsx",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcoc1ad-b3cd5b50.png"
+    },
+    {
+      "id": "disconnected-voice-composer",
+      "priority": 1,
+      "observation": "The Usage voice modal separates a large portrait, status, provider-unavailable banner, introductory paragraphs, text form and recording footer from the assistant conversation.",
+      "recommendation": "Share one workspace conversation/composer for typed and spoken turns, compact capability states and explicit selected context. Text must remain usable when only speech is unavailable.",
+      "sources": ["apps/console/src/voice/Voice.tsx", "apps/console/src/assistant/VelumThread.tsx"],
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcods8i-47bda73a.png"
+    },
+    {
+      "id": "page-sized-focus-outline",
+      "priority": 2,
+      "observation": "Normal route navigation focuses main and paints an orange outline around the entire page.",
+      "recommendation": "Retain skip-link/keyboard focus behavior while treating main as a navigation target rather than an interactive control.",
+      "sources": ["apps/console/src/ui/ui.css:25", "apps/console/src/theme.css:253"],
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcofn9p-441499fc.png"
+    },
+    {
+      "id": "dark-form-reading-surface",
+      "priority": 2,
+      "assessment": "In dark Settings and onboarding, detailed caustics compete with long form labels and help text.",
+      "recommendation": "Use a quieter continuous material wash behind reading content and retain the integrated atmosphere in the surrounding canvas.",
+      "source": "apps/console/src/materials.css",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcofn9p-441499fc.png"
+    }
+  ],
+  "not_verified": ["Live Not Organic profile access or writes", "Live typed or speech model responses", "Clairic forecasting", "Actual microphone hardware", "Changes from the active implementation agent"]
+}

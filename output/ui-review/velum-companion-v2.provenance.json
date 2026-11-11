@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-11",
+  "asset": "velum-companion-v2.png",
+  "sha256": "107d1479cc06522d0e66409a57c7f00a3a3e49d30647a412c89613caf00a5c22",
+  "dimensions": {"width": 1254, "height": 1254},
+  "format": "RGBA PNG",
+  "generator": "Built-in image_gen.imagegen",
+  "backend_identity": null,
+  "reference": "../../apps/console/public/personas/velum.webp",
+  "purpose": "Candidate companion portrait at conversation sizes. Preserve existing roster and motion assets.",
+  "brief": "Retain Velum's sea-glass blue shallow gelatin membrane identity. Strengthen the teal outer rim and reduce busy veining to broad concentric ripples. Transparent background, no face, symbols, text, or added props.",
+  "verification": {
+    "metadata": "PNG signature, 1254x1254, 8-bit RGBA confirmed with file",
+    "visual_review": "Compared with original at 32, 48 and 72px against light and dark interface surfaces",
+    "comparison": "velum-comparison.html",
+    "preview_console_messages": []
+  },
+  "integration_status": "Candidate delivered to Opus; application integration not verified"
+}

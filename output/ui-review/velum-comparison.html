@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velum companion asset comparison</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--foreground); font-family: var(--font-sans); }
+  .comparison { display: grid; gap: 16px; }
+  .intro { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted-foreground); }
+  .swatch { --demo-bg: #fcfaf5; --demo-ink: #30251f; --demo-line: #d8d1c5; display: grid; gap: 20px; padding: 20px; border-radius: var(--radius); background: var(--demo-bg); color: var(--demo-ink); }
+  .swatch.dark { --demo-bg: #0c1823; --demo-ink: #f0eee6; --demo-line: #394550; }
+  .heading { margin: 0; font-size: 15px; font-weight: 650; }
+  .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .option { min-width: 0; }
+  .option > p { margin: 0 0 12px; font-size: 13px; }
+  .sizes { display: flex; gap: 18px; align-items: flex-end; min-height: 92px; }
+  .specimen { display: grid; justify-items: center; gap: 6px; margin: 0; }
+  .specimen img { display: block; object-fit: contain; }
+  figcaption { font-size: 11px; opacity: .75; }
+  .companion { border-top: 1px solid var(--demo-line); padding-top: 16px; display: flex; gap: 10px; align-items: center; }
+  .companion img { width: 48px; height: 48px; object-fit: contain; }
+  .companion strong { font-size: 14px; display: block; }
+  .companion span { display: block; font-size: 12px; margin-top: 4px; }
+  @media(max-width: 440px) { .swatch { padding: 16px; } .options { gap: 16px; } .sizes { flex-wrap: wrap; gap: 12px; } }
+</style>
+</head>
+<body>
+<main class="comparison">
+  <p class="intro">Same sea-glass membrane identity, tested at conversation sizes. The refined image has a stronger rim and fewer internal details. These are asset samples, not live assistant states.</p>
+  <section class="swatch" aria-label="Light interface comparison">
+    <h2 class="heading">Light interface</h2>
+    <div class="options">
+      <div class="option"><p>Current</p><div class="sizes">
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="32" height="32" alt="Current Velum at 32 pixels"><figcaption>32 px</figcaption></figure>
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="48" height="48" alt="Current Velum at 48 pixels"><figcaption>48 px</figcaption></figure>
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="72" height="72" alt="Current Velum at 72 pixels"><figcaption>72 px</figcaption></figure>
+      </div></div>
+      <div class="option"><p>Refined companion</p><div class="sizes">
+        <figure class="specimen"><img src="velum-companion-v2.png" width="32" height="32" alt="Refined Velum at 32 pixels"><figcaption>32 px</figcaption></figure>
+        <figure class="specimen"><img src="velum-companion-v2.png" width="48" height="48" alt="Refined Velum at 48 pixels"><figcaption>48 px</figcaption></figure>
+        <figure class="specimen"><img src="velum-companion-v2.png" width="72" height="72" alt="Refined Velum at 72 pixels"><figcaption>72 px</figcaption></figure>
+      </div></div>
+    </div>
+    <div class="companion"><img src="velum-companion-v2.png" alt=""><div><strong>Velum</strong><span>Discuss your workspace by typing or speaking.</span></div></div>
+  </section>
+  <section class="swatch dark" aria-label="Dark interface comparison">
+    <h2 class="heading">Dark interface</h2>
+    <div class="options">
+      <div class="option"><p>Current</p><div class="sizes">
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="32" height="32" alt="Current Velum at 32 pixels"><figcaption>32 px</figcaption></figure>
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="48" height="48" alt="Current Velum at 48 pixels"><figcaption>48 px</figcaption></figure>
+        <figure class="specimen"><img src="../../apps/console/public/personas/velum.webp" width="72" height="72" alt="Current Velum at 72 pixels"><figcaption>72 px</figcaption></figure>
+      </div></div>
+      <div class="option"><p>Refined companion</p><div class="sizes">
+        <figure class="specimen"><img src="velum-companion-v2.png" width="32" height="32" alt="Refined Velum at 32 pixels"><figcaption>32 px</figcaption></figure>
+        <figure class="specimen"><img src="velum-companion-v2.png" width="48" height="48" alt="Refined Velum at 48 pixels"><figcaption>48 px</figcaption></figure>
+        <figure class="specimen"><img src="velum-companion-v2.png" width="72" height="72" alt="Refined Velum at 72 pixels"><figcaption>72 px</figcaption></figure>
+      </div></div>
+    </div>
+    <div class="companion"><img src="velum-companion-v2.png" alt=""><div><strong>Velum</strong><span>Discuss your workspace by typing or speaking.</span></div></div>
+  </section>
+</main>
+</body>
+</html>
