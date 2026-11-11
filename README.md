@@ -107,3 +107,31 @@ The interface calls each unit of work a **quest**. Existing API fields, `/v1/tra
 ## Not yet verified
 
 These items are flagged in 02 §8: Tangled pull/issue write payloads and service-auth NSIDs; whether Radicle and Tangled replicate custom `refs/ephyra/*`; whether Nix builds work inside Railway Sandboxes; DBOS behavior when external writes have ambiguous outcomes. No costs or cold-start times were measured in the design work. See the package READMEs for implementation and verification status.
+
+## Local development and checks
+
+Run `bun install` first. Local API startup reuses `EPHYRA_API_TOKEN` from your
+environment or `.env`. When absent, it creates a private development token in
+gitignored `.ephyra-local/dev-api-token` (mode 0600). The token is never printed.
+Local data defaults to `.ephyra-local`; `EPHYRA_DATA_DIR` overrides it.
+Production startup still requires explicit configuration. `devenv up` starts the API (3000), console
+(Vite default 5173, `/app/`), console Storybook (6006), and terminal Textbook (8008).
+To start one process use `devenv up console` or `devenv up storybook`.
+Radicle is optional via `devenv --profile forge shell`; the current pinned package
+is marked insecure by Nix, so this profile needs a secure pin before use.
+Durable state uses Convex (`CONVEX_URL` and `EPHYRA_CONVEX_SECRET`). Without
+these settings the API uses ephemeral memory; devenv does not start a database.
+API provider/account configuration is documented in `apps/server/README.md`.
+
+- `bun run check:package core` (or `server`, `console`, etc.): one workspace's typecheck and tests.
+- `bun test ./packages/core`: focused tests; append Bun test flags as needed.
+- `bun run check`: full repository typecheck and tests; run once at the end of a change.
+- `bun run dev:server`, `bun run dev:console`: individual development servers.
+- `bun run storybook`, `bun run storybook:server`, `bun run textbook`: component catalogues.
+- `bun run build:console`: production console build.
+- `bun run test:smoke`, `bun run test:interactions`: existing browser harnesses (require Playwright's browser installation; see console README).
+
+Inside `devenv shell`, equivalent helpers are `ephyra-check`,
+`ephyra-check-package core`, `ephyra-test ./packages/core`, `ephyra-smoke`,
+and `ephyra-interactions`. `devenv test` installs dependencies and runs the full check.
+Default unit tests use fakes/fixtures; passing them does not verify live integrations.
