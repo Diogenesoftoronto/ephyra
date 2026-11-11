@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import fc from "fast-check";
 import { Trail, TrailEvent } from "@ephyra/core";
-import { buildRecovery } from "./recovery.ts";
+import { buildRecovery, RECOVERY_INDEX_PATH, RECOVERY_PLAN_PATH, recoveryIndexPaths, recoveryIndexWith } from "./recovery.ts";
 
 const id = "00000000-0000-4000-8000-000000000001";
 const now = "2026-11-08T00:00:00.000Z";
@@ -119,4 +119,41 @@ test("limits remain finite and failed recovery never silently increases money or
     expect(result.artifact.maxAttempts).toBeGreaterThanOrEqual(1);
     expect(result.artifact.maxAttempts).toBeLessThanOrEqual(10);
   }), { numRuns: 50 });
+});
+
+const planPath = fc.tuple(fc.constantFrom("research", "repro", "plan", "patch"), fc.integer({ min: 1, max: 40 }), fc.integer({ min: 1, max: 9 }))
+  .map(([step, rev, attempt]) => `artefacts/recovery/${step}-${rev}-${attempt}.json`);
+const bytes = (text: string) => new TextEncoder().encode(text);
+
+test("the recovery index names every plan once, in the order first written, newest last, within its cap", () => {
+  fc.assert(fc.property(fc.array(planPath, { maxLength: 120 }), written => {
+    let index: Uint8Array | null = null;
+    for (const path of written) index = bytes(recoveryIndexWith(index, path));
+    const paths = recoveryIndexPaths(index);
+    const expected = written.filter((path, at) => written.lastIndexOf(path) === at).slice(-64);
+    expect(paths).toEqual(expected);
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(paths.every(path => RECOVERY_PLAN_PATH.test(path))).toBe(true);
+  }), { numRuns: 100 });
+});
+
+test("an index is a finding aid: anything unreadable, oversized or out of shape names no plans", () => {
+  expect(recoveryIndexPaths(null)).toEqual([]);
+  expect(recoveryIndexPaths(bytes("{broken"))).toEqual([]);
+  expect(recoveryIndexPaths(bytes(JSON.stringify({ schema: 2, paths: ["artefacts/recovery/research-1-1.json"] })))).toEqual([]);
+  expect(recoveryIndexPaths(bytes(JSON.stringify({ schema: 1, paths: "artefacts/recovery/research-1-1.json" })))).toEqual([]);
+  expect(recoveryIndexPaths(new Uint8Array(64_001))).toEqual([]);
+  fc.assert(fc.property(fc.array(fc.oneof(fc.string(), fc.integer(), fc.constant(null), planPath), { maxLength: 30 }), entries => {
+    const named = recoveryIndexPaths(bytes(JSON.stringify({ schema: 1, paths: entries })));
+    // Only plan paths survive: no traversal, no other journal file, nothing that is not a string.
+    expect(named.every(path => RECOVERY_PLAN_PATH.test(path) && !path.includes(".."))).toBe(true);
+    expect(named.every(path => entries.includes(path))).toBe(true);
+  }), { numRuns: 100 });
+});
+
+test("only a recovery plan can be added to the index", () => {
+  for (const path of ["hypothesis.md", "artefacts/recovery/../../trail.json", "artefacts/recovery/index.json", "outbox/pending.json"]) {
+    expect(() => recoveryIndexWith(null, path)).toThrow("not a recovery plan path");
+  }
+  expect(RECOVERY_PLAN_PATH.test(RECOVERY_INDEX_PATH)).toBe(false);
 });

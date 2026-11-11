@@ -1,15 +1,23 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
+import type { Effect, InboxItem, Trail, TrailEvent } from "@ephyra/core";
 import { auth, type AuthEnv, type SessionResolver } from "./auth.ts";
 
 export class StaleApproval extends Error {}
 /** The state machine refused the event (e.g. claiming a closed trail). */
 export class InvalidTransition extends Error {}
+export type TrailDetail = {
+  trail: Trail; events: TrailEvent[]; artefacts?: { path: string; content: string | null }[];
+  /**
+   * What each transition asked the engine to do, oldest first, with the event that caused it. Intent, not delivery.
+   * Absent when the journal's history cannot be read; empty for a trail journaled before the history was kept.
+   */
+  effects?: { cause: string; effect: Effect }[];
+};
 export interface HttpPort {
   inbox(): Promise<InboxItem[]>;
   trails(state?: string): Promise<Trail[]>;
-  trail(id: string): Promise<{ trail: Trail; events: TrailEvent[]; artefacts?: { path: string; content: string | null }[] } | null>;
+  trail(id: string): Promise<TrailDetail | null>;
   /** Must atomically check the bound revision, record the decision and append its audit event. */
   decide(id: string, input: DecisionInput, principal: string): Promise<void>;
   action(id: string, action: string, input: unknown, principal: string, operationKey?: string): Promise<void>;
