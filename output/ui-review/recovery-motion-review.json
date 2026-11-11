@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-11",
+  "scope": "Unhappy paths, recovery hints, motion and interaction targeting",
+  "boundary": "Original source and pre-existing local Storybook build. This is not validation of the active Opus implementation or live providers.",
+  "observed": [
+    {
+      "id": "invite-recovery-hidden-after-submit",
+      "priority": 1,
+      "scenario": "Account/Team Uncertain story at 390x844 after its fictional create-link interaction",
+      "result": "The form is disabled while the recovery status is above the viewport (top -122px) and Check saved state begins at -26px. Focus is on body.",
+      "source": "apps/console/src/pages/TeamPage.tsx:227",
+      "recovery": "Reveal/focus the recovery message beside the initiating action. Preserve label and selected role.",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcojk3b-07c7bff3.png"
+    },
+    {
+      "id": "voice-close-clears-uncertain-turn",
+      "priority": 1,
+      "scenario": "Voice Uncertain Charge fixture and source inspection of Open Usage/close",
+      "result": "The uncertainty state gates new requests, but Open Usage closes the session; close resets turns, receipts and uncertainty to EMPTY. Operation keys are generated at dispatch and not retained as a pending reference in session state.",
+      "sources": ["apps/console/src/voice/Voice.tsx:369", "apps/console/src/voice/session.ts:180"],
+      "recovery": "Keep affected text, selected context and credential-free operation reference while checking outcome; do not silently dispatch another charged request.",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcoj2l6-0b08df6d.png"
+    },
+    {
+      "id": "ambiguous-stale-recovery-label",
+      "priority": 2,
+      "scenario": "States/Load Stale fixture at 390px",
+      "result": "The message instructs Reload to see the latest version but the button says Try again, leaving the action ambiguous.",
+      "source": "apps/console/src/components/Load.tsx:16",
+      "recovery": "Name the actual recovery: Reload data, Review latest version, Check saved request or Play saved reply.",
+      "screenshot": "/home/diogenes/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mwcoky2x-4687c01a.png"
+    },
+    {
+      "id": "rate-limit-hint-missing",
+      "priority": 2,
+      "scenario": "Source inspection of describeError",
+      "result": "HTTP 429 reaches the generic server-answered-status branch.",
+      "source": "apps/console/src/lib/errors.ts",
+      "recovery": "Explain rate limiting and next action. Only show cooldown timing when supplied by the server. Preserve draft text."
+    },
+    {
+      "id": "small-standalone-usage-disclosure",
+      "priority": 2,
+      "scenario": "Voice Microphone Denied fixture target measurements at 390x844",
+      "result": "Close, recording and send buttons have 44px height; the standalone Session usage summary has only 21px height.",
+      "source": "apps/console/src/voice/voice.css",
+      "recovery": "Provide comfortable touch padding for standalone disclosure and context-removal targets without making inline text links into oversized controls."
+    }
+  ],
+  "positive_recovery_exercised": {
+    "fixture": "Account/Team Uncertain",
+    "actions": ["Fictional invitation creation loses acknowledgement", "Check saved state", "Retry same operation"],
+    "result": "Recovered invitation link is visible. Invitations remains at two links (one initial invitation plus the single newly created invitation). One invitation-link field is rendered.",
+    "boundary": "Offline fictional adapter only; no real invitation, identity or external write."
+  },
+  "additional_states_inspected": [
+    "Microphone denied: typed input remains enabled and microphone retry is available; actual browser permission denial was not exercised",
+    "Playback blocked: captions remain and Play reply is available; source unit test specifies cached-audio replay without resynthesis, but was not executed in this review"
+  ],
+  "implementation_acceptance": {
+    "recovery": [
+      "Keep unsent text and selected references on failure; keep editing available while uncertain sends are gated",
+      "Distinguish failed reads, rejected writes, stale revisions and unconfirmed effects",
+      "Make the next recovery action visible beside its initiating control and announce state changes",
+      "Keep typed conversation usable when only speech is unavailable",
+      "Retain pending-operation identity across close/reopen and Usage navigation, scoped to the exact account/workspace",
+      "Mark stale/missing selected resources and allow refresh/remove without losing typed words"
+    ],
+    "targeting": [
+      "Explicit selection mode with count, selected names, keyboard actions and Escape to finish",
+      "Visible source highlight matches a stable ID/revision/range; never a reordered row index",
+      "Selection overlays never intercept nested controls or target content behind the companion/sheet",
+      "Context chips expose remove and return-to-source separately with comfortable touch targets",
+      "Return focus predictably after selection cancellation, chip removal or panel close",
+      "Do not move click targets during hover or background list refresh"
+    ],
+    "motion": [
+      "Use brief 150-220ms feedback for actual interaction/state changes, with static reduced-motion equivalents",
+      "Only actual microphone/playback levels drive meters; permission waiting, transcription, thinking and speaking have distinct text labels",
+      "Stop capture/playback immediately on stop/close; already-dispatched requests retain honest pending status",
+      "Keep content visible before transitions and avoid layout-shifting row entrances",
+      "Do not auto-scroll a conversation away from evidence the user is reviewing",
+      "No success animation before acknowledgement; no synthetic progress or confidence"
+    ]
+  },
+  "not_executed": ["Live model requests", "Actual microphone permission flow", "Physical touch devices", "Runtime reduced-motion emulation", "Performance/frame-rate benchmark", "Post-change verification"]
+}
