@@ -172,7 +172,7 @@
   gap: var(--s3) var(--s5);
   justify-content: space-between;
   align-items: center;
-  margin: var(--s4) var(--gutter) 0;
+  margin: var(--s4) var(--gutter) var(--s5);
   padding: var(--s3) var(--s4);
   border: 1px solid color-mix(in oklab, var(--jelly-deep) 35%, var(--line));
   border-radius: var(--radius);
