@@ -45,8 +45,8 @@
 }
 .velum-panel[hidden] { display: none; }
 @media (min-width: 1180px) {
-  .ui-shell:has(~ .velum-panel[data-open]),
-  .velum-docked .ui-main { padding-inline-end: calc(26rem + var(--s5)); }
+  /* Desktop: a docked rail. The page column makes room instead of sitting underneath it. */
+  .ui-shell:has(~ .velum-panel[data-open]) .ui-main { padding-inline-end: calc(26rem + var(--s5)); }
 }
 .velum-head {
   display: grid;
@@ -200,7 +200,7 @@
   position: absolute;
   z-index: 2;
   inset-block-start: -10px;
-  inset-inline-end: -6px;
+  inset-inline-end: 4px;
   display: inline-flex;
   align-items: center;
   gap: var(--s1);
@@ -254,3 +254,14 @@
   .velum-ref[data-velum-selected]::after { outline-color: Highlight; }
   .velum-chip { border-color: CanvasText; }
 }
+/* While the rail is docked the page column is narrower: the toolbar drops secondary labels, never the workspace name. */
+.ui-shell:has(~ .velum-panel[data-open]) .command-trigger kbd,
+.ui-shell:has(~ .velum-panel[data-open]) .sound-toggle span,
+.ui-shell:has(~ .velum-panel[data-open]) .theme-toggle:not([data-labelled]) .theme-toggle__text,
+.ui-shell:has(~ .velum-panel[data-open]) .velum-invoker__label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.ui-shell:has(~ .velum-panel[data-open]) .command-trigger > span:not([aria-hidden]) {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.ui-shell:has(~ .velum-panel[data-open]) .command-trigger { min-width: 44px; justify-content: center; }

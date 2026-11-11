@@ -46,3 +46,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .theme-toggle__group button { transition: none; } }
 @media (forced-colors: active) { .theme-toggle__group button[aria-checked="true"] { border-color: Highlight; } }
+/* Phones: the toolbar keeps the workspace name, Velum and commands. Theme lives on Your account (More → Your account). */
+@media (max-width: 480px) {
+  .workspace-bar .theme-toggle:not([data-labelled]) { display: none; }
+}
