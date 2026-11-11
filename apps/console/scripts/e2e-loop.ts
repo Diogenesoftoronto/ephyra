@@ -8,7 +8,8 @@
  * What is real: the server (`compose()`), the HTTP routes, git, the journal, the local runner, the proof builder (it runs
  * the fixture repository's own tests), the policy file, landing on a trail ref, the watch loop, the built console, a browser.
  * What is scripted, and labelled as such wherever it is recorded: the coding agent (`scripted/e2e`), the decide backend
- * (`fixture/e2e-decide-1`) and the production telemetry behind the watch ("offline fixture"). No network is used.
+ * (`fixture/e2e-decide-1`), the model that words a question (`fixture/e2e-draft-1`), the one contact it can ask
+ * ("Fixture maintainer") and the production telemetry behind the watch ("offline fixture"). No network is used.
  *
  * The run exits 0 only when every act passes. A check that could not be exercised counts as a failure: this script is the
  * definition of "it works end to end", so nothing in it is allowed to pass by being skipped.
@@ -17,16 +18,18 @@ import { $ } from "bun";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { BrowserContext } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import type {
-  AgentResult, AgentTask, CodingAgent, DecideBackend, InvestigationQuestion, JudgementAnswer, JudgementRequest, JudgementResponse, Runner,
-  RunnerHandle, Trail, TrailEvent,
+  AgentResult, AgentTask, CodingAgent, DecideBackend, InvestigationQuestion, JudgementAnswer, JudgementRequest, JudgementResponse,
+  PeopleConnection, Runner, RunnerHandle, Trail, TrailEvent,
 } from "@ephyra/core";
 import type { AgentRunOptions } from "../../../packages/agent/src/index.ts";
 import { PlainGitAdapter } from "../../../packages/forge/src/index.ts";
 import { LocalRunner } from "../../../packages/runner/src/index.ts";
+import { SecretBox } from "../../server/src/auth/crypto.ts";
 import { compose, type Composed } from "../../server/src/compose.ts";
 import { readConfig } from "../../server/src/config.ts";
+import type { DraftModel } from "../../server/src/velum.ts";
 import { measureWatchBaseline } from "../../server/src/wiring/landing.ts";
 import {
   fleetView, journeyOf, parseRecovery, questView, type InboxLike, type QuestView, type RecoveryArtifact,
@@ -39,6 +42,12 @@ const root = join(import.meta.dir, "..");
 const TOKEN = "e2e-loop-offline-service-token";
 const PRINCIPAL = "e2e-operator";
 const DECIDE_MODEL = "fixture/e2e-decide-1";
+const DRAFT_MODEL = "fixture/e2e-draft-1";
+/** The one person this server can ask. They are not the operator at the console, so the operator only watches the question. */
+const MAINTAINER = "did:key:e2e-maintainer";
+const ANSWER = "An order with no parcels is charged nothing: the rate is 0.";
+/** How long a landed change is watched before its quest closes. Real seconds on the real clock: nothing is fast-forwarded. */
+const WATCH_S = 12;
 const headers = { Authorization: `Bearer ${TOKEN}`, "X-Ephyra-Principal": PRINCIPAL, "content-type": "application/json" };
 
 // ───────────────────────── The scripted parts ─────────────────────────
@@ -65,6 +74,8 @@ type Script = {
   file: string; hypothesis: string; plan: string; probe: string; patches: readonly string[];
   /** A step whose first attempt gives up, so the server has to plan a second one. */
   stumbles?: "research";
+  /** A fact the repository does not hold. The first reproduction stops on it; the second, after an answer, goes through. */
+  missing?: string;
 };
 /**
  * What the scripted agent knows about each area of the fixture repository. Where there are two patches the first is wrong
@@ -94,6 +105,13 @@ const SCRIPT: Record<string, Script> = {
       "exports.find = (items, q) => items.filter((item) => String(item).toLowerCase().includes(q));\n",
       "exports.find = (items, q) => items.filter((item) => typeof item === \"string\" && item.includes(q));\n",
     ],
+  },
+  shipping: {
+    file: "ship.js", hypothesis: "rate() divides the charge by the number of parcels, which can be zero.",
+    plan: "Charge nothing when there are no parcels.",
+    missing: "The repository does not say what an order with no parcels should be charged, so no failing probe can be written yet",
+    probe: "const {rate}=require(\"./ship.js\"); if(rate(500, 0) !== 0) process.exit(1)",
+    patches: ["exports.rate = (cents, parcels) => parcels > 0 ? cents / parcels : 0;\n"],
   },
 };
 
@@ -136,6 +154,8 @@ class ScriptedAgent implements CodingAgent {
     if (task.step === "research") return { ok: true, artefacts: { "hypothesis.md": script.hypothesis }, outputs: {}, usage, sessions: [] };
     if (task.step === "plan") return { ok: true, artefacts: { "plan.md": script.plan }, outputs: {}, usage, sessions: [] };
     if (task.step === "repro") {
+      // Reproducing needs to know what "right" is. Without that fact the turn ends with no probe, and says why.
+      if (script.missing && n === 1) return { ok: true, artefacts: {}, outputs: {}, usage, sessions: [], error: script.missing };
       const probe = `.ephyra/repro/${task.trail.short}.sh`;
       const body = `#!/bin/sh\nbun -e '${script.probe}'\n`;
       await exec(runner, handle, ["mkdir", "-p", ".ephyra/repro"]);
@@ -151,7 +171,27 @@ class ScriptedAgent implements CodingAgent {
   }
 }
 
-/** A decide backend that always answers "yes, ours, fix it", under its own identity so nothing mistakes it for a model. */
+/** Words the question a stopped quest sends. It is a fixed text under its own identity: no model writes it. */
+const fixtureDraft: DraftModel = {
+  kind: "fake", billedTo: "byok",
+  complete: async () => ({
+    text: JSON.stringify({
+      recipient: "maintainer", question: "What should an order with no parcels be charged for shipping?",
+      reason: "The reproduction needs the expected charge before it can say the current one is wrong.",
+      acceptance: "State the charge for an order with no parcels.",
+    }),
+    engine: DRAFT_MODEL, tokens: null, costMicrousd: null,
+  }),
+};
+const people = (): PeopleConnection => ({
+  enabled: true, workspaceId: "shop", webhookUrl: null, keyConfigured: false, updatedAt: new Date().toISOString(),
+  contacts: [{ id: "maintainer", alias: "Fixture maintainer", roles: ["maintainer"], areas: [], did: MAINTAINER }],
+});
+
+/**
+ * A decide backend that always answers "yes, ours, fix it" and accepts every question and answer it is asked to check,
+ * under its own identity so nothing mistakes it for a model. What a real check rejects is covered by the server's tests.
+ */
 const fixtureDecide: DecideBackend = {
   kind: "selfhosted:fixture", alias: "e2e-decide", supports: ["noul", "choice", "score"],
   async decide(request: JudgementRequest): Promise<JudgementResponse> {
@@ -161,6 +201,11 @@ const fixtureDecide: DecideBackend = {
       else if (question.type === "score") answers[key] = { type: "score", score: 1, probabilities: { "1": 0.95 }, legend: {}, confidence: 0.95 };
       else {
         const offered = Object.keys(question.criteria);
+        // A check of a question or an answer offers exactly accept and reject, and wants a probability for each.
+        if (offered.length === 2 && offered.includes("accept") && offered.includes("reject")) {
+          answers[key] = { type: "choice", choice: "accept", probabilities: { accept: 0.97, reject: 0.03 }, confidence: 0.97 };
+          continue;
+        }
         const choice = offered.includes("auto_fix") ? "auto_fix" : offered.includes("none") ? "none" : offered[0] ?? "none";
         answers[key] = { type: "choice", choice, probabilities: { [choice]: 0.95 }, confidence: 0.95 };
       }
@@ -235,20 +280,9 @@ async function until(check: () => Promise<boolean>, label: string, ms = 90_000):
   throw new Error(`timed out waiting for ${label}. ${seen.join("; ") || "no quests"}`);
 }
 
-/**
- * The recovery plans the server kept for a quest. Trail detail does not list them, so a reader has to guess each path
- * (`artefacts/recovery/<step>-<rev>-<attempt>.json`) and ask for it. That is a gap: see design/09-console-redesign.md §8.
- */
+/** The recovery plans the server kept for a quest, as it hands them out with the quest itself. */
 async function recoveryOf(trail: Trail): Promise<RecoveryArtifact[]> {
-  const paths: string[] = [];
-  for (const step of ["research", "repro", "plan", "patch"]) {
-    for (let rev = 0; rev <= trail.rev; rev++) for (let n = 1; n <= 4; n++) paths.push(`artefacts/recovery/${step}-${rev}-${n}.json`);
-  }
-  const files = await Promise.all(paths.map(async (path) => {
-    const response = await fetch(`${base}/v1/trails/${trail.id}/file?path=${encodeURIComponent(path)}`, { headers });
-    return { path, content: response.ok ? await response.text() : null };
-  }));
-  return parseRecovery(files);
+  return parseRecovery((await detail(trail.id)).artefacts);
 }
 
 /** Open questions, or none on a server that cannot ask anyone (it answers 404). */
@@ -275,16 +309,19 @@ async function fixtureRepository(): Promise<string> {
   await writeFile(join(origin, "cart.js"), "exports.total = (items) => items.reduce((a, b) => a + b, 0) / items.length;\n");
   await writeFile(join(origin, "pay.js"), "exports.split = (cents, n) => Array(n).fill(cents / n);\n");
   await writeFile(join(origin, "search.js"), "exports.find = (items, q) => items.filter((item) => item.includes(q));\n");
+  await writeFile(join(origin, "ship.js"), "exports.rate = (cents, parcels) => cents / parcels;\n");
   await writeFile(join(origin, "package.json"), JSON.stringify({ name: "shop", scripts: { test: "bun test" } }));
   await writeFile(join(origin, "shop.test.js"), [
     "const { test, expect } = require('bun:test');",
     "const { total } = require('./cart.js');",
     "const { split } = require('./pay.js');",
     "const { find } = require('./search.js');",
+    "const { rate } = require('./ship.js');",
     "test('mean of a cart', () => expect(total([2, 4])).toBe(3));",
     "test('an even split', () => expect(split(100, 4)).toEqual([25, 25, 25, 25]));",
     "test('nobody to split with', () => expect(split(100, 0)).toEqual([]));",
-    "test('search is case sensitive', () => expect(find(['Apple', 'pear'], 'a')).toEqual(['pear']));", "",
+    "test('search is case sensitive', () => expect(find(['Apple', 'pear'], 'a')).toEqual(['pear']));",
+    "test('shipping per parcel', () => expect(rate(500, 2)).toBe(250));", "",
   ].join("\n"));
   await sh(origin, "git", "add", ".");
   await sh(origin, "git", "commit", "-q", "-m", "init");
@@ -293,10 +330,11 @@ async function fixtureRepository(): Promise<string> {
   const autonomy = join(dir, "autonomy.md");
   await writeFile(autonomy, [
     "# Autonomy policy", "", "## defaults", "mode: enforce", "checkpoints: A=advisory B=advisory C=advisory",
-    "landing: trail_ref", "watch: 1m", "",
+    "landing: trail_ref", `watch: ${WATCH_S}s`, "",
     "## area: shop", "paths: cart.js", "risk: low", "The cart. Small, well tested.", "",
     "## area: payments", "paths: pay.js", "risk: low", "checkpoints: C=blocking", "Money. A person approves every landing.", "",
     "## area: search", "paths: search.js", "risk: low", "Search. Runs by itself.", "",
+    "## area: shipping", "paths: ship.js", "risk: low", "Shipping rates. Runs by itself.", "",
   ].join("\n"));
   await writeFile(join(dir, "thresholds.yaml"), `"${DECIDE_MODEL}": {}\n`);
   return autonomy;
@@ -306,6 +344,8 @@ const agent = new ScriptedAgent();
 let cart: Trail | undefined;
 let pay: Trail | undefined;
 let search: Trail | undefined;
+let ship: Trail | undefined;
+let asked: InvestigationQuestion | undefined;
 let heldSince = Date.now();
 
 try {
@@ -322,6 +362,13 @@ try {
     });
     server = await compose(config, {
       startJobs: false, agent, decide: fixtureDecide, runner: new LocalRunner(join(dir, "runner"), { trusted: true }),
+      // One fixture contact, reached through the console inbox. Nothing is sent anywhere.
+      questions: {
+        did: MAINTAINER, workspaceId: "shop", publicOrigin: "http://127.0.0.1", model: async () => fixtureDraft,
+        box: await SecretBox.fromBase64(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64")),
+        connection: async () => ({ settings: people() }),
+        fetcher: async () => { throw new Error("the end-to-end run uses no network"); },
+      },
       landing: async ({ ctx, ledger, probes, runProbe }) => ({
         adapters: [new PlainGitAdapter(ctx.repo.mirrorDir, undefined, ctx.repo.id, ctx.repo.mirrorDir, ledger)],
         watch: {
@@ -359,7 +406,8 @@ try {
       asked = Math.max(asked, (await inbox()).filter((item) => item.blocking).length);
       const first = (await trails())[0];
       // The state turns to "watching" one job before the watch itself starts; wait for the watch, not the state.
-      return first?.state === "watching" && (await detail(first.id)).events.some((event) => event.type === "watch_started");
+      return first !== undefined && ["watching", "closed"].includes(first.state)
+        && (await detail(first.id)).events.some((event) => event.type === "watch_started");
     }, "the cart quest to land and be watched");
     cart = (await trails())[0]!;
     const { events } = await detail(cart.id);
@@ -374,15 +422,17 @@ try {
   });
 
   await act("watches-then-sets", "It keeps watching production after landing, and closes the quest only when the window passes clean", async () => {
-    const clock = server!.ctx.clock;
-    const real = clock.now;
-    clock.now = () => new Date(Date.now() + 120_000);
-    try {
-      await until(async () => (await current(cart!.id)).state === "closed", "the watch window to close");
-    } finally { clock.now = real; }
+    await until(async () => (await current(cart!.id)).state === "closed", "the watch window to close");
+    const { events } = await detail(cart!.id);
+    const done = events.find((event) => event.type === "watch_completed");
+    if (done?.type !== "watch_completed" || done.data.outcome !== "clean") throw new Error("the quest closed without a clean watch on record");
+    // The window is counted from the landing, which is a moment before the first observation.
+    const landed = events.find((event) => event.type === "landing_completed")!;
+    const watched = (Date.parse(done.at) - Date.parse(landed.at)) / 1000;
+    must(watched >= WATCH_S, `the quest closed after ${watched.toFixed(1)} s, before its ${WATCH_S} s window had passed`);
     const view = await expected(await current(cart!.id));
     must(view.attention === "set", `the console model reads a closed quest as "${view.attention}"`);
-    return `${cart!.short}: closed after its watch window (the clock was moved forward 120 s; telemetry is an offline fixture)`;
+    return `${cart!.short}: watched for ${watched.toFixed(0)} s of real time, then closed clean (telemetry is an offline fixture)`;
   });
 
   await act("unsticks-itself", "When a first try goes nowhere it tries a different way, and when its first fix is wrong its own proof sends it back", async () => {
@@ -419,6 +469,34 @@ try {
     return `${pay!.short} waits at checkpoint C with ${view.retreats} retreat and ${view.attempts.length} recorded attempts`;
   });
 
+  await act("asks-a-person", "When it cannot find out by itself, it asks the one person who would know", async () => {
+    await signal("RangeError", "shipping rate is Infinity", "    at rate (ship.js:1:40)\n    at quote (ship.js:1:5)");
+    // This runs before the next act holds an agent turn open: a held turn occupies the job loop, and nothing new starts.
+    const others = () => [cart, pay].map((trail) => trail?.id);
+    await until(async () => {
+      ship = (await trails()).find((trail) => !others().includes(trail.id));
+      if (!ship || ship.state !== "parked") return false;
+      asked = (await questions()).find((question) => question.trailId === ship!.id && question.status === "awaiting_answer");
+      // The question is saved once it passes its check and again once it is delivered. Wait for the delivery.
+      return asked?.delivery.status === "sent";
+    }, "the shipping quest to stop on the missing fact and ask about it");
+    const question = asked!;
+    const { events } = await detail(ship!.id);
+    const stopped = events.find((event) => event.type === "repro_completed");
+    must(stopped?.type === "repro_completed" && !stopped.data.ok, "the journal does not record a reproduction that could not be written");
+    must(question.recipient?.did === MAINTAINER, `the question is addressed to ${question.recipient?.did ?? "nobody"}, not the fixture maintainer`);
+    must(question.delivery.status === "sent" && question.delivery.kind === "inbox", `the question's delivery reads ${question.delivery.kind}/${question.delivery.status}`);
+    const checked = question.checks.find((check) => check.phase === "question");
+    must(checked?.accepted && checked.model === DECIDE_MODEL, "the question went out without being checked first");
+    const view = await expected(await current(ship!.id));
+    must(view.attention === "asking", `the console model reads the asking quest as "${view.attention}" for someone it was not addressed to`);
+    // The operator at the console is not who was asked, so the server will not take an answer from them.
+    const refused = await fetch(`${base}/v1/questions/${ship!.id}/${question.id}/answer`, { method: "POST", headers, body: JSON.stringify({ text: ANSWER }) });
+    must(refused.status === 403, `an answer from ${PRINCIPAL}, who was not asked, was answered ${refused.status} instead of refused`);
+    must((await current(ship!.id)).state === "parked", "the refused answer moved the quest");
+    return `${view.short} stopped and asked ${question.recipient!.alias}: "${question.question}" (worded by ${DRAFT_MODEL}, checked by ${checked!.model})`;
+  }, { gate: false });
+
   await act("keeps-working", "While one quest waits for you, another keeps working on its own problem", async () => {
     // The second patch of this quest waits for the script, so a browser can look at a quest in the middle of recovering.
     const hold = agent.hold("search:patch:2");
@@ -427,7 +505,7 @@ try {
     await signal("TypeError", "Cannot read properties of null (reading 'includes')", "    at find (search.js:1:50)\n    at results (search.js:1:5)");
     await until(async () => there, "the search quest to start its second patch");
     heldSince = Date.now();
-    search = (await trails()).find((trail) => trail.id !== cart!.id && trail.id !== pay!.id)!;
+    search = (await trails()).find((trail) => ![cart!.id, pay!.id, ship?.id].includes(trail.id))!;
     must(search.state === "patching" && search.attempts.proof === 1, `expected patching after one failed proof, saw ${search.state} after ${search.attempts.proof}`);
     const view = await expected(search);
     must(view.attention === "recovering", `the console model reads it as "${view.attention}"`);
@@ -435,20 +513,33 @@ try {
     return `${search.short} is on its second patch while ${pay!.short} waits. The console should say: "${await sentenceNow()}"`;
   });
 
-  await act("asks-a-person", "When it cannot find out by itself, it asks the one person who would know", async () => {
-    const response = await fetch(`${base}/v1/questions`, { headers });
-    must(response.status !== 404, "this server has no /v1/questions. Asking people is wired only into composeApplication, so nothing here can ask anyone");
-    must(response.ok, `GET /v1/questions answered ${response.status}`);
-    const open = (await response.json() as InvestigationQuestion[]).filter((question) => question.status === "awaiting_answer");
-    must(open.length > 0, "no quest is asking anyone. Stage one: a quest that stops on a missing fact, and a fixture contact who covers its area");
-    const question = open[0]!;
-    must(question.recipient !== null, "the question is addressed to nobody in particular");
-    must(question.checks.some((check) => check.phase === "question" && check.accepted), "the question went out without being checked first");
-    const view = await expected(await current(question.trailId));
-    must(view.attention === "asking", `the console model reads the asking quest as "${view.attention}"`);
-    // Still to add here once a contact fixture exists: answer over HTTP, see the answer checked, see the quest resume.
-    return `${view.short} is asking ${question.recipient!.alias}: "${question.question}"`;
-  }, { gate: false });
+  /** The person who was asked answers. In a browser when there is one, so the console's own form is what gets used. */
+  const answerResumes = (answer: (question: InvestigationQuestion) => Promise<string>) =>
+    act("answer-resumes", "An answer from the person it asked is checked, recorded, and the quest carries on to production by itself", async () => {
+      must(ship && asked, "no quest asked anything");
+      const how = await answer(asked!);
+      const saved = (await get<InvestigationQuestion | null>(`/v1/questions/${ship!.id}/${asked!.id}`));
+      must(saved?.status === "answered" && saved.answer?.accepted === true, `the question reads "${saved?.status}" after the answer`);
+      must(saved!.answer!.text === ANSWER, "the recorded answer is not the text that was sent");
+      must(saved!.checks.some((check) => check.phase === "answer" && check.accepted && check.model === DECIDE_MODEL), "the answer was not checked before it was used");
+      await until(async () => ["watching", "closed"].includes((await current(ship!.id)).state), "the shipping quest to land after its answer");
+      const { events } = await detail(ship!.id);
+      const resumed = events.find((event) => event.type === "resumed");
+      must(resumed?.actor.kind === "system" && resumed.actor.id === `answer:${asked!.id}`, "the journal does not tie the resume to the answer");
+      const repros = events.flatMap((event) => event.type === "repro_completed" ? [event.data.ok] : []);
+      must(repros.length === 2 && repros[0] === false && repros[1] === true, `expected a reproduction that stopped, then one that worked; saw ${JSON.stringify(repros)}`);
+      must(humanDecisions(events) === 0, "a person decided a checkpoint; the answer was meant to be the only thing a person gave");
+      const landed = await sh(join(dir, "data"), "git", "--git-dir", "workspace.git", "show", `refs/heads/ephyra/${ship!.id}:ship.js`);
+      must(landed.includes("parcels > 0"), "the fix that used the answer is not on the quest's landing ref");
+      return `${ship!.short}: ${how}; reproduced, patched, proved and landed with 0 human decisions`;
+    });
+  const answerOverHttp = async (question: InvestigationQuestion) => {
+    const response = await fetch(`${base}/v1/questions/${question.trailId}/${question.id}/answer`, {
+      method: "POST", headers: { ...headers, "X-Ephyra-Principal": MAINTAINER }, body: JSON.stringify({ text: ANSWER }),
+    });
+    must(response.ok, `the maintainer's answer was answered ${response.status}`);
+    return "answered over HTTP as the fixture maintainer";
+  };
 
   const carriesOn = () => act("carries-on", "Left alone, the recovering quest finishes its second fix and lands it by itself", async () => {
     must(search, "the search quest never started");
@@ -465,16 +556,18 @@ try {
     const hold = Number(args.find((arg) => arg.startsWith("--hold="))?.slice(7) ?? 0);
     if (hold > 0 && !broken) await Bun.sleep(hold * 1000);
     await carriesOn();
+    await answerResumes(answerOverHttp);
   }
 
   if (!args.includes("--server-only")) {
     const browser = await launch();
     const loop = `${base}/app/#/loop`;
-    const prepare = async (context: BrowserContext) => {
+    const signedInAs = (principal: string) => async (context: BrowserContext) => {
       await context.route("**/*", (route) => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
       await context.addInitScript(([key, value]) => sessionStorage.setItem(key!, value!),
-        ["ephyra.connection", JSON.stringify({ token: TOKEN, principal: PRINCIPAL })]);
+        ["ephyra.connection", JSON.stringify({ token: TOKEN, principal })]);
     };
+    const prepare = signedInAs(PRINCIPAL);
     try {
       await act("console-agrees", "The console shows the same quests, in the same stage and state, that the server holds", async () => {
         const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
@@ -500,6 +593,29 @@ try {
         } finally { await context.close(); }
       });
 
+      // Pictures of the real page at this moment, for people. Nothing is asserted here; the checks below do that.
+      if (!broken) {
+        const picture = async (name: string, size: { width: number; height: number }, scheme: "light" | "dark", keys: string[] = []) => {
+          const context = await browser.newContext({ viewport: size, reducedMotion: "reduce", colorScheme: scheme });
+          await prepare(context);
+          const page = await context.newPage();
+          try {
+            await page.goto(loop);
+            await page.waitForSelector("[data-detail]", { timeout: 10_000 });
+            await page.locator("body").click({ position: { x: 2, y: 2 } });
+            for (const key of keys) { await page.keyboard.press(key); await page.waitForTimeout(250); }
+            await page.waitForTimeout(400);
+            await page.screenshot({ path: join(root, ".screens", "e2e", `${name}.png`) });
+          } catch { /* A missing picture fails nothing. */ } finally { await context.close(); }
+        };
+        await picture("loop-dark", { width: 1440, height: 900 }, "dark");
+        await picture("loop-phone", { width: 390, height: 844 }, "light");
+        await picture("loop-phone-dark", { width: 390, height: 844 }, "dark");
+        await picture("loop-recovering", { width: 1440, height: 900 }, "light", ["j"]);
+        await picture("loop-asking", { width: 1440, height: 900 }, "light", ["j", "j"]);
+        await picture("loop-hood-effects", { width: 1440, height: 900 }, "light", ["j", "i", "Tab", "Tab", "ArrowRight"]);
+      }
+
       if (!broken) {
         for (const outcome of await runAcceptance({ target: "console", url: loop, browser, prepare })) {
           results.push({ id: `ui:${outcome.id}`, promise: outcome.promise, status: outcome.status, detail: outcome.detail });
@@ -520,38 +636,68 @@ try {
         const decided = lastDecision(events);
         if (decided?.by !== "human" || decided.verdict !== "approve") throw new Error("the journal holds no human approval for the landing");
         must(decided.who === PRINCIPAL, `the approval is recorded as "${decided.who}", not "${PRINCIPAL}"`);
-        await until(async () => (await current(pay!.id)).state === "watching", "the payments quest to land");
+        await until(async () => ["watching", "closed"].includes((await current(pay!.id)).state), "the payments quest to land");
         const landed = await sh(join(dir, "data"), "git", "--git-dir", "workspace.git", "show", `refs/heads/ephyra/${pay!.id}:pay.js`);
         must(landed.includes("Math.floor"), "the proven patch is not what landed");
-        return `${pay!.short}: approved by ${decided.who}, landed, watching`;
+        return `${pay!.short}: approved by ${decided.who}, landed, ${(await current(pay!.id)).state}`;
       });
 
-      await act("stays-live", "The page follows the loop by itself: no reload between watching and set", async () => {
+      // A page the operator leaves open from here on. It is never reloaded; "stays-live" checks what it ends up showing.
+      let live: { context: BrowserContext; page: Page; before: string | null } | null = null;
+      if (!broken && ship) {
         const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
         await prepare(context);
         const page = await context.newPage();
-        const clock = server!.ctx.clock;
-        const real = clock.now;
+        await page.goto(loop);
+        const row = page.locator(`[data-quest="${ship.short}"]`).first();
+        await row.waitFor({ timeout: 10_000 }).catch(() => {});
+        await page.evaluate(() => { (window as unknown as { e2eMark: number }).e2eMark = 1; });
+        live = { context, page, before: await row.getAttribute("data-attention").catch(() => null) };
+      }
+
+      await answerResumes(async (question) => {
+        // The same console, opened by the person who was asked. For them the quest is the one thing that needs them.
+        const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+        await signedInAs(MAINTAINER)(context);
+        const page = await context.newPage();
         try {
           await page.goto(loop);
-          await page.waitForSelector(`[data-quest="${pay!.short}"][data-stage="watch"]`, { timeout: 10_000 });
-          await page.evaluate(() => { (window as unknown as { e2eMark: number }).e2eMark = 1; });
-          clock.now = () => new Date(Date.now() + 120_000);
-          await until(async () => (await trails()).every((trail) => trail.state === "closed"), "every quest to close");
-          await page.waitForSelector(`[data-quest="${pay!.short}"][data-attention="set"]`, { timeout: 10_000 }).catch(() => {
-            throw new Error("the server closed the quest but the open page never showed it");
+          const strip = page.locator(`[data-needs-you="${ship!.short}"]`);
+          await strip.waitFor({ timeout: 10_000 }).catch(() => {
+            throw new Error("the console does not tell the person who was asked that a quest is waiting on them");
           });
-          must(await page.evaluate(() => (window as unknown as { e2eMark?: number }).e2eMark === 1), "the page reloaded to catch up");
-          const sentence = (await page.locator("[data-loop-fleet]").innerText()).replace(/\s+/g, " ").trim();
-          const wanted = await sentenceNow();
-          must(sentence === wanted, `the page ends on "${sentence}", the server's state says "${wanted}"`);
-          await page.screenshot({ path: join(root, ".screens", "e2e", "loop-finished.png") });
-          return `"${sentence}"`;
-        } finally {
-          clock.now = real;
-          await context.close();
-        }
+          await strip.locator("[data-primary]").click();
+          const box = page.locator(`[data-detail="${ship!.short}"] [data-answer] textarea`);
+          await box.waitFor({ timeout: 5_000 }).catch(() => { throw new Error("the console offers no way to answer the question"); });
+          must(await box.evaluate((el) => el === document.activeElement), "pressing the action did not put the cursor in the answer");
+          must((await page.locator(`[data-detail="${ship!.short}"] [data-question]`).innerText()).includes(question.question),
+            "the question is not shown beside the place to answer it");
+          await box.fill(ANSWER);
+          await page.locator(`[data-detail="${ship!.short}"] [data-answer] button[type="submit"]`).click();
+          await page.waitForFunction(() => (document.querySelector("[data-toast]")?.textContent ?? "").length > 0, null, { timeout: 10_000 });
+          await page.waitForSelector(`[data-needs-you="${ship!.short}"]`, { state: "detached", timeout: 10_000 }).catch(() => {
+            throw new Error("the quest still says it needs the person after they answered");
+          });
+          await page.screenshot({ path: join(root, ".screens", "e2e", "loop-answered.png") });
+          return "answered in the console by the fixture maintainer";
+        } finally { await context.close(); }
       });
+
+      await act("stays-live", "An open page follows the loop by itself: from asking a person to set, with no reload", async () => {
+        must(live, "no page was left open to watch");
+        must(live!.before === "asking", `the page was opened while ${ship!.short} read "${live!.before}", not while it was asking`);
+        await until(async () => (await trails()).every((trail) => trail.state === "closed"), "every quest to close");
+        await live!.page.waitForSelector(`[data-quest="${ship!.short}"][data-attention="set"]`, { timeout: 10_000 }).catch(() => {
+          throw new Error("the server closed the quest but the open page never showed it");
+        });
+        must(await live!.page.evaluate(() => (window as unknown as { e2eMark?: number }).e2eMark === 1), "the page reloaded to catch up");
+        const sentence = (await live!.page.locator("[data-loop-fleet]").innerText()).replace(/\s+/g, " ").trim();
+        const wanted = await sentenceNow();
+        must(sentence === wanted, `the page ends on "${sentence}", the server's state says "${wanted}"`);
+        await live!.page.screenshot({ path: join(root, ".screens", "e2e", "loop-finished.png") });
+        return `${ship!.short} went asking → set on a page opened before the answer; it ends on "${sentence}"`;
+      });
+      await live?.context.close();
     } finally { await browser.close(); }
   }
 } finally {
