@@ -22,6 +22,10 @@
 .lp-board-empty { margin: 0; color: var(--muted); }
 .lp-board-note { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.5; }
 .lp-board-note[data-tone="warn"] { color: var(--ink); }
+.lp-board-note[data-tone="bad"] { color: var(--cherry); font-weight: 500; }
+.lp-board-note .lp-quiet { min-block-size: 1.5rem; }
+.lp-board-notes { display: grid; gap: var(--s2); }
+.lp-board-notes:empty { display: none; }
 
 .lp-toast {
   position: fixed;
@@ -171,7 +175,8 @@
 }
 @media (max-width: 720px) {
   .lp-groups h2 { padding-inline: var(--s2); }
-  .lp-scene-field { --pad: 2.25rem; --edge: 1.5rem; block-size: 15rem; border-radius: 1rem; }
+  /* Room at each end for a specimen and the badge on its shoulder. */
+  .lp-scene-field { --pad: 2.25rem; --edge: 2.25rem; block-size: 15rem; border-radius: 1rem; }
   .lp-scene-tag { position: absolute; inset-block-start: -2px; inset-inline-end: -8px; min-block-size: 1rem; padding: 0 3px; }
   .lp-stages li[data-current] span { white-space: nowrap; }
   .lp-scene[data-compact] .lp-scene-field { --pad: 2rem; block-size: 11.5rem; }
@@ -225,4 +230,9 @@
   .lp-row[data-variant="strip"] .lp-row-meter { grid-area: 1 / 4 / 3 / 5; }
   .lp-row[data-variant="strip"] .lp-row-who { grid-area: 1 / 5 / 3 / 6; }
   .lp-row[data-variant="strip"] .lp-row-headline { grid-area: 2 / 3 / 3 / 4; white-space: normal; text-wrap: pretty; }
+}
+
+/* Where the hood is a column, the board gives it the room instead of sitting under it. */
+@media (min-width: 1900px) {
+  .lp-page[data-hood="column"] { margin-inline-end: 37rem; }
 }

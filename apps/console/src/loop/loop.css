@@ -245,8 +245,11 @@
   align-items: center;
   padding: var(--s3) var(--s4);
   border-radius: 1.125rem;
-  background: color-mix(in oklch, var(--jelly) 20%, var(--surface));
+  /* Mixed in oklab like the other tints: an oklch mix swings through purple on the dark surface. */
+  background: color-mix(in oklab, var(--jelly) 20%, var(--surface));
 }
+.lp-needs-warn { flex-basis: 100%; color: var(--ink); font-size: var(--fs-small); }
+.lp-quiet[data-danger] { color: var(--cherry); font-weight: 600; }
 .lp-needs-what { display: grid; gap: 2px; min-inline-size: 0; }
 .lp-needs-title { margin: 0; font: 600 1.0625rem / 1.3 var(--font-body); }
 .lp-needs-why { margin: 0; color: var(--ink); font-size: var(--fs-small); line-height: 1.4; opacity: 0.82; }
@@ -271,7 +274,12 @@
 
 /* ── Quest detail ── */
 .lp-detail { display: grid; gap: var(--s5); align-content: start; min-inline-size: 0; }
-.lp-detail > header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s3); align-items: center; }
+.lp-detail > header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s1) var(--s3); align-items: center; }
+/* The way under the hood sits with the heading, so a long history can never push it out of sight. */
+.lp-detail > header > [data-open-hood] { grid-column: 2; justify-self: start; margin-inline-start: calc(var(--s3) * -1); }
+.lp-detail-state { display: grid; gap: var(--s1); }
+.lp-detail-state .lp-detail-why { margin: 0; }
+.lp-detail-pending { margin: 0; color: var(--muted); font-size: var(--fs-small); }
 .lp-detail h2 { margin: var(--s1) 0 0; font: 600 var(--fs-h3) / 1.2 var(--font-display); text-wrap: balance; }
 .lp-detail h3 { margin: 0 0 var(--s3); color: var(--muted); font: 500 var(--fs-label) / 1.4 var(--font-mono); letter-spacing: 0.02em; }
 .lp-detail-headline { display: flex; gap: var(--s2); align-items: baseline; margin: 0; font: 600 1.0625rem / 1.35 var(--font-body); }
@@ -322,8 +330,11 @@
 .lp-hood-who { display: inline-grid; inline-size: 24px; block-size: 24px; }
 .lp-hood-meta { color: var(--muted); font-size: var(--fs-small); }
 .lp-hood code, .lp-hood pre { font: 500 var(--fs-label) / 1.5 var(--font-mono); overflow-wrap: anywhere; }
-/* A key is for copying and comparing, not reading: one line, the rest in the title. */
-.lp-hood [data-idempotency-key] { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A key is for comparing and copying, so it is shown whole, wrapped, with a way to copy it. */
+.lp-hood-key { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s2); align-items: start; color: var(--muted); font-size: var(--fs-small); }
+.lp-hood-key > span { grid-column: 1 / -1; }
+.lp-hood-key .lp-quiet { min-block-size: 1.5rem; font-size: var(--fs-label); }
+.lp-hood [data-idempotency-key] { color: var(--ink); overflow-wrap: anywhere; user-select: all; }
 .lp-hood details { margin-block-start: 2px; }
 .lp-hood summary { display: inline-flex; gap: var(--s2); align-items: center; min-block-size: 1.5rem; color: var(--muted); font-size: var(--fs-small); cursor: pointer; }
 .lp-hood pre { max-block-size: 16rem; margin: var(--s2) 0 0; padding: var(--s3); border-radius: var(--radius-sm); background: var(--surface-2); overflow: auto; white-space: pre-wrap; }
@@ -414,3 +425,16 @@
 @keyframes lp-bob { 50% { transform: translateY(-4px); } }
 @keyframes lp-bell { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.22, 1.5); } }
 @keyframes lp-slide { from { opacity: 0; transform: translateX(32px); } }
+
+/* ── Under the hood as a modal: it covers the page, so it holds the keyboard and the page behind is inert ── */
+dialog.lp-hood {
+  inset-inline-start: auto;
+  block-size: 100dvh;
+  max-block-size: none;
+  max-inline-size: 100vw;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+}
+dialog.lp-hood::backdrop { background: oklch(0.2 0.03 60 / 0.32); }

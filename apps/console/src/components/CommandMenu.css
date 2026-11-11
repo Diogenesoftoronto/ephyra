@@ -175,6 +175,9 @@
   font-size: 0.875rem;
 }
 @media (max-width: 640px) {
+  /* On a phone the workspace's name matters more than the word "Commands": the trigger becomes an icon. */
+  .command-trigger > span:not([aria-hidden]) { display: none; }
+  .command-trigger { min-inline-size: 2.75rem; min-block-size: 2.75rem; justify-content: center; padding-inline: 0; }
   .command-trigger kbd,
   .workspace-bar__repo small {
     display: none;

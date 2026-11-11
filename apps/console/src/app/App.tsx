@@ -2,6 +2,7 @@ import { SoundToggle } from "../components/SoundToggle.tsx";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiProvider } from "./ApiContext.tsx";
 import { useAsync } from "./useAsync.ts";
+import { useWaiting } from "./waiting.ts";
 import type { ConsoleApi, SessionInfo } from "../api.ts";
 import { Shell, type NavItem } from "../kit.ts";
 import { ThemeToggle } from "../components/ThemeToggle.tsx";
@@ -208,10 +209,11 @@ function Frame({
   workspace?: WorkspaceContext;
 }) {
   const inbox = useAsync(() => api.inbox(), `nav:${route.page}`);
-  const waiting =
-    inbox.state.status === "ready"
-      ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
-      : 0;
+  // A page that polls publishes its own count, so the badge cannot contradict what that page is showing.
+  const live = useWaiting();
+  const waiting = live ?? (inbox.state.status === "ready"
+    ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
+    : 0);
   const nav: NavItem[] = (Object.keys(LABEL) as PageId[])
     .filter((id) => id !== "onboarding" && (id !== "team" || team))
     .map((id) => ({
