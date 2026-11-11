@@ -14,7 +14,10 @@ import {
   type VoiceCapabilities, type VoiceAudioInput, type VoiceReplyInput, type VoiceSpeech, type VoiceTranscript, type VoiceReply,
   type TutorCapabilities, type TutorInput, type TutorReply,
   type InvestigationQuestion, type InvestigationAnswer,
+  type OwnProfile, type TeamPeople, type UsageForecast, type UsageForecastCapability, type UsageForecastInput,
 } from "@ephyra/core";
+import { FIXTURE_PEOPLE, fixtureForecast, fixtureOwnProfile, fixturePeople, fixtureReply, forecastCapability, forecastFailure,
+  type ConversationMode, type ForecastMode } from "./assist.ts";
 import {
   ApiError,
   VoiceRequestError,
@@ -79,6 +82,12 @@ export type FakeOptions = {
   streamIntervalMs?: number;
   questions?: InvestigationQuestion[];
   rejectQuestionAnswers?: boolean;
+  /** Forecast fixture behaviour. Default "unavailable": the demo never pretends a provider is configured. */
+  forecast?: ForecastMode;
+  /** Velum conversation fixture behaviour. Default "unavailable". */
+  conversation?: ConversationMode;
+  /** Profiles: "fixture" serves labelled fictional identities; "unavailable" answers as if Not Organic is down. */
+  profiles?: "fixture" | "unavailable" | "hang";
 };
 
 const BILLING: AreaForm = {
@@ -111,8 +120,44 @@ export class FakeApi implements ConsoleApi {
   async speak(_text: string, _op: string, _signal: AbortSignal): Promise<VoiceSpeech> {
     throw new VoiceRequestError("demo", "Demo mode does not generate speech.");
   }
-  async voiceReply(_input: VoiceReplyInput, _op: string, _signal: AbortSignal): Promise<VoiceReply> {
-    throw new VoiceRequestError("demo", "This demo has no voice model. Explore the Voice stories for interaction fixtures.");
+  async voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal): Promise<VoiceReply> {
+    const mode = this.options.conversation ?? "unavailable";
+    if (mode === "unavailable") throw new VoiceRequestError("demo", "This demo has no Velum model. Explore the Velum stories for interaction fixtures.");
+    this.writes.push(["voiceReply", { references: input.references ?? [], op }]);
+    if (mode === "hang") await new Promise((_, reject) => signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))));
+    return fixtureReply(input, mode, op);
+  }
+  async forecastCapability(): Promise<UsageForecastCapability> {
+    await this.gate("forecastCapability");
+    return forecastCapability(this.options.forecast ?? "unavailable");
+  }
+  private forecasts = new Map<string, UsageForecast>();
+  async forecast(input: UsageForecastInput, op: string, signal: AbortSignal): Promise<UsageForecast> {
+    const mode = this.options.forecast ?? "unavailable";
+    if (mode === "unavailable") throw new VoiceRequestError("unavailable", forecastCapability(mode).reason, op);
+    const seen = this.forecasts.get(op);
+    if (seen) return structuredClone(seen);
+    this.writes.push(["forecast", { input, op }]);
+    if (mode === "hang") await new Promise((_, reject) => signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))));
+    const failure = forecastFailure(mode, op);
+    if (failure) throw failure;
+    const value = fixtureForecast(this.usageRows, input, this.now, mode, op);
+    this.forecasts.set(op, value);
+    return structuredClone(value);
+  }
+  async profile(fresh = false): Promise<OwnProfile> {
+    void fresh;
+    await this.gate("profile");
+    if (this.options.profiles === "hang") await new Promise(() => undefined);
+    const did = this.options.principal ?? ME;
+    return this.options.profiles === "unavailable" ? { ...fixtureOwnProfile(did), status: "unavailable", handle: null, displayName: null } : fixtureOwnProfile(did);
+  }
+  async profiles(): Promise<TeamPeople> {
+    await this.gate("profiles");
+    if (this.options.profiles === "hang") await new Promise(() => undefined);
+    const dids = [this.options.principal ?? ME, ...Object.keys(FIXTURE_PEOPLE)];
+    const people = fixturePeople("demo", dids);
+    return this.options.profiles === "unavailable" ? { ...people, people: people.people.map((p) => ({ ...p, status: "unavailable", handle: null, displayName: null })) } : people;
   }
   readonly now: number;
   private trails: Trail[];

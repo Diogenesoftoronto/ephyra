@@ -16,6 +16,12 @@ import {
   type Persona,
   InvestigationQuestion, type InvestigationAnswer,
   PolicyActivationReceipt,
+  VelumResolvedReference,
+  UsageForecast,
+  UsageForecastCapability,
+  OwnProfile,
+  TeamPeople,
+  type UsageForecastInput,
 } from "@ephyra/core";
 import { z } from "zod";
 
@@ -24,6 +30,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly detail?: string,
+    /** Seconds from the server's Retry-After header, only when it actually sent one. */
+    readonly retryAfterSeconds?: number,
   ) {
     super(
       status === 409 ? "This item changed. Refresh before trying again." : `API request failed (${status})`,
@@ -39,7 +47,20 @@ export class UnknownWriteOutcome extends Error {
 }
 
 export class VoiceRequestError extends Error {
-  constructor(readonly code: string, message: string, readonly operationKey?: string) { super(message); }
+  constructor(readonly code: string, message: string, readonly operationKey?: string,
+    /** Per-reference status when the server refused changed or missing references. */
+    readonly references?: VelumResolvedReference[],
+    readonly retryAfterSeconds?: number) { super(message); }
+}
+
+/** Retry-After as whole seconds, only when the server sent a parseable value. */
+export function retryAfter(res: Response): number | undefined {
+  const value = res.headers.get("Retry-After");
+  if (value === null) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds);
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - Date.now()) / 1000));
 }
 
 // `InboxItem` is a type in core (ports.ts) with no schema, so the console validates the wire shape itself.
@@ -115,6 +136,14 @@ export interface ConsoleApi {
   transcribe(input: VoiceAudioInput, op: string, signal: AbortSignal): Promise<VoiceTranscript>;
   speak(text: string, op: string, signal: AbortSignal): Promise<VoiceSpeech>;
   voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal): Promise<VoiceReply>;
+  /** Free: describes the configured forecast route. */
+  forecastCapability(): Promise<UsageForecastCapability>;
+  /** Metered: one Clairic forecast. Only on an explicit request, never on page load. */
+  forecast(input: UsageForecastInput, op: string, signal: AbortSignal): Promise<UsageForecast>;
+  /** The signed-in person's identity from Not Organic. Optional for deployments without sign-in. */
+  profile?(fresh?: boolean): Promise<OwnProfile>;
+  profiles?(): Promise<TeamPeople>;
+  avatarUrl?(did: string): string;
   identity(): Promise<SessionInfo>;
   personas(): Promise<Persona[]>;
   activity(limit?: number): Promise<ActivityItem[]>;
@@ -270,14 +299,23 @@ export class ConsoleClient implements ConsoleApi {
     } catch { throw new VoiceRequestError("reconciliation_required",
       "The connection ended before the model request finished. Check Usage before trying again.", operationKey); }
     const json = await res.json().catch(() => null);
-    if (!res.ok) throw new VoiceRequestError(typeof json?.code === "string" ? json.code : res.status >= 500 ? "reconciliation_required" : "unavailable",
-      typeof json?.error === "string" ? json.error.slice(0, 500) : `Model request failed (HTTP ${res.status}).`, operationKey);
+    if (!res.ok) {
+      const references = z.array(VelumResolvedReference).max(12).safeParse(json?.references);
+      throw new VoiceRequestError(typeof json?.code === "string" ? json.code : res.status === 429 ? "rate_limited" : res.status >= 500 ? "reconciliation_required" : "unavailable",
+        typeof json?.error === "string" ? json.error.slice(0, 500) : `Model request failed (HTTP ${res.status}).`, operationKey,
+        references.success ? references.data : undefined, retryAfter(res));
+    }
     const parsed = schema.safeParse(json);
     if (!parsed.success) throw new VoiceRequestError("reconciliation_required",
       "The model response could not be read. Check Usage before trying again.", operationKey);
     return parsed.data;
   }
   transcribe(input: VoiceAudioInput, op: string, signal: AbortSignal) { return this.voiceRequest("transcribe", VoiceTranscript, input, op, signal); }
+  forecastCapability() { return this.request("/v1/usage/forecast", UsageForecastCapability); }
+  forecast(input: UsageForecastInput, op: string, signal: AbortSignal) { return this.voiceRequest("/v1/usage/forecast", UsageForecast, input, op, signal); }
+  profile(fresh = false) { return this.request(`/v1/profile${fresh ? "?fresh=1" : ""}`, OwnProfile); }
+  profiles() { return this.request("/v1/profiles", TeamPeople); }
+  avatarUrl(did: string) { return new URL(`/v1/profiles/${encodeURIComponent(did)}/avatar`, this.baseUrl).href; }
   speak(text: string, op: string, signal: AbortSignal) { return this.voiceRequest("speak", VoiceSpeech, { text }, op, signal); }
   voiceReply(input: VoiceReplyInput, op: string, signal: AbortSignal) { return this.voiceRequest("reply", VoiceReply, input, op, signal); }
 
@@ -309,6 +347,7 @@ export class ConsoleClient implements ConsoleApi {
       throw new ApiError(
         response.status,
         typeof body?.error === "string" ? body.error.slice(0, 300) : undefined,
+        retryAfter(response),
       );
     }
     try {
