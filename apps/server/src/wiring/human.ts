@@ -5,6 +5,11 @@ import { z } from 'zod';
 import { InvalidTransition, StaleApproval, type DecisionInput, type HttpPort } from "../http/app.ts";
 import type { AuditEvent, AuditInput } from "../audit.ts";
 import type { HandlerSlice, ServerContext } from "./context.ts";
+import { readEffectHistory } from "./effect-outbox.ts";
+import { RECOVERY_INDEX_PATH, recoveryIndexPaths } from "./recovery.ts";
+
+/** Recovery plans returned with a trail: the newest ones, enough for every attempt of a long quest's current work. */
+const MAX_PLANS = 16;
 
 export type AuditSink = { append(input: AuditInput): Promise<AuditEvent> };
 
@@ -118,7 +123,19 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
       const after = await ctx.journal.read(trail.id);
       // A moved journal cannot supply the text for the reviewed revision. The caller can reload.
       if (before?.head !== after?.head) for (const a of artefacts) a.content = null;
-      return { trail, events, artefacts: artefacts.filter((a) => a.path === "hypothesis.md" || a.path === "plan.md" || a.content !== null) };
+      // Recovery plans are written once per attempt and never revised, so a moving journal does not make them stale.
+      const plans = recoveryIndexPaths(await ctx.journal.readFile(trail.id, RECOVERY_INDEX_PATH)).slice(-MAX_PLANS);
+      const recovery = await Promise.all(plans.map(async (path) => {
+        const bytes = await ctx.journal.readFile(trail.id, path);
+        return { path, content: bytes && bytes.length <= 100_000 ? new TextDecoder().decode(bytes) : null };
+      }));
+      const effects = await readEffectHistory(ctx.journal, trail.id).catch(() => null);
+      return {
+        trail, events,
+        artefacts: [...artefacts.filter((a) => a.path === "hypothesis.md" || a.path === "plan.md" || a.content !== null),
+          ...recovery.filter((a) => a.content !== null)],
+        ...(effects ? { effects } : {}),
+      };
     },
     async operationStatus(id, action, key, principal) {
       if (!z.uuid().safeParse(id).success) return null;
