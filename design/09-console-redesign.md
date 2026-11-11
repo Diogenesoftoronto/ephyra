@@ -204,8 +204,9 @@ production signal to production", not "from a new account".
 ### What closed the gaps
 
 1. **The loop view.** `#/loop` is the console's home: layout H from the loop kit (`pages/LoopPage.tsx`), over
-   `app/useLoop.ts`, which polls quests, the inbox and questions every two seconds and reads journals for the selected
-   quest, changed quests and working quests in turn. The lab and the page draw the same board (`loop/board.tsx`).
+   `app/useLoop.ts`, which polls quests, the inbox and questions (every two seconds while anything is moving by itself,
+   every five when nothing is, never while the tab is hidden) and reads journals for the selected quest, changed quests
+   and working quests in turn. The lab and the page draw the same board (`loop/board.tsx`).
 2. **Recovery plans come with the quest.** The journal cannot list a directory, so the server keeps an index
    (`artefacts/recovery/index.json`) and returns the plans with the trail detail. The plan for an attempt is journaled
    *before* the agent starts, so the page can show what is being tried while it is tried.
@@ -215,6 +216,38 @@ production signal to production", not "from a new account".
    question; only the principal it was addressed to can answer; the answer is still checked before the quest resumes.
 5. **Quests are named for what went wrong** ("TypeError: amount must be whole cents"), not only for the kind of error.
 6. **A watch window in seconds is honoured.** The policy grammar accepted `12s`; the server read it as two hours.
+
+### What the two reviews changed
+
+A UI/UX review (Astra) and an independent end-to-end driver (written by Sonnet, `apps/console/scripts/independent-e2e.ts`)
+looked at the real page after it first passed. What changed because of them:
+
+- **A failed write no longer costs what was typed.** A note or an answer stays in its form until the server has taken it,
+  and the failure stays on screen until it is dismissed. An unconfirmed write says it may or may not have happened.
+- **Dropping is its own confirmation.** The button becomes "Confirm drop" with "Keep it" beside it and says nothing lands.
+- **Under the hood holds the keyboard.** Below 1900 px it is a modal dialog: the page behind is inert and its keys do
+  nothing. At 1900 px and wider it is a column and the board makes room. Focus returns to whatever opened it.
+- **Operation keys are shown whole** with a copy button, and the effects tab says it records requests, not delivery.
+- **The page says what it could not refresh**: questions, runs, transcripts, or one quest's journal.
+- **The inbox badge follows the live board**, so it cannot say 1 while the page says everything is finished.
+- **On a phone the quest names come first**, then the scene. The workspace name is no longer cut short by "Commands".
+- **Words**: "Finished" for a set quest, "Landed on the quest's own ref", "went back" for a retreat, seconds for a short watch.
+- **`a` then `Enter` works however fast it is typed.** Focus used to move a frame later, so a quick Enter did nothing.
+- **An address that names an unknown quest says so** instead of quietly showing a different quest.
+- **With several quests waiting on you**, the strip shows the one you picked rather than always the first in line.
+
+The independent driver ends at **21 of 21**. It first failed for four reasons, two in the page (the slow `a` then
+`Enter`, the silent fallback for an unknown address) and two in the driver itself (a contact role the server does not
+have, so no question was ever asked; a helper that waited 30 seconds for an element that was simply absent).
+
+Small things added last: the browser tab says the same thing as the sentence ("1 needs you · Ephyra"); a watched
+quest counts its window down; a quest that moves leaves one ripple where it now is; a changed part of the sentence comes
+in again; a dot beats each time the server answers; the keys are written down under the board; the selected row carries
+its status colour down its edge; and, with sound switched on, one cue when a quest starts to need you and a softer one
+when a quest finishes. All of the motion is off under reduced motion.
+
+Not taken from the review: the phone still scrolls to the selected quest rather than opening a bottom sheet, the scene is
+not collapsible, and the approval strip's proof line is not yet expandable.
 
 ### Gaps that remain, in the order to close them
 

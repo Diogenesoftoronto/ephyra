@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { PERSONAS, proofDigest, type AgentRun, type AgentRunEvent, type Effect, type TrailEvent } from "@ephyra/core";
 import { EngineBadge } from "../components/EngineBadge.tsx";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
+import { playFeedback } from "../lib/feedback.ts";
 import { describeEffect, effectPersona, narrate, type QuestView } from "./model.ts";
 import { AttemptLadder, QuestionCard } from "./parts.tsx";
 
@@ -53,6 +54,7 @@ function OperationKey({ value }: { value: string }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
+      playFeedback("copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch { /* No clipboard here. The key is on screen in full and can be selected. */ }

@@ -86,6 +86,20 @@ export function detailPlan({ trails, known, selected, cursor, budget = 8 }: Plan
   return { ids, cursor: working.length ? next % working.length : 0 };
 }
 
+/** Quests that can change at any moment without anyone touching them. */
+const MOVING = new Set<QuestView["attention"]>(["self", "recovering", "reverted"]);
+export const POLL_BUSY_MS = 2000;
+export const POLL_QUIET_MS = 5000;
+
+/**
+ * How long to wait before asking the server again. While something is moving by itself the board keeps close step.
+ * When every quest is finished, stopped, or waiting on a person, nothing changes until someone acts, so it asks less
+ * often. An action taken on the page asks again at once, whatever the pace.
+ */
+export function pollDelay(views: readonly Pick<QuestView, "attention">[]): number {
+  return views.some((view) => MOVING.has(view.attention)) ? POLL_BUSY_MS : POLL_QUIET_MS;
+}
+
 /** What the running agent is doing right now, as one line: its last tool call, or the last thing it said. */
 export function runNow(events: readonly AgentRunEvent[]): string | null {
   const last = lastOf(events, (event) => event.type === "tool_call" || event.type === "message" || event.type === "status");

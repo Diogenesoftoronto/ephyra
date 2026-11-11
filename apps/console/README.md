@@ -250,8 +250,9 @@ production deployment and cloud/forge writes. Storybook/demo fixtures are not ev
 `design/09-console-redesign.md` is the decision record. `#/loop` is the console's home page: every quest the server
 holds, where each one is, and the one thing (if any) that needs a person.
 
-- `src/pages/LoopPage.tsx` is the page. `src/app/useLoop.ts` polls quests, the inbox and questions every two seconds
-  and reads journals for the selected quest, changed quests and working quests in turn. `src/loop/live.ts` holds the
+- `src/pages/LoopPage.tsx` is the page. `src/app/useLoop.ts` polls quests, the inbox and questions (every two seconds
+  while anything is moving by itself, every five when nothing is, never while the tab is hidden) and reads journals for
+  the selected quest, changed quests and working quests in turn. `src/loop/live.ts` holds the
   pure parts of that (which journals to read, how a board is assembled).
 - `src/loop/model.ts` turns server shapes into what the screen says. `src/loop/parts.tsx`, `board.tsx` and
   `Inspector.tsx` are the components, shared by the page and the lab.
@@ -264,6 +265,7 @@ holds, where each one is, and the one thing (if any) that needs a person.
 
 ```sh
 bun run --filter @ephyra/console loop:e2e           # the real server, then the built console in a browser
+bun run --filter @ephyra/console loop:independent   # a second driver with its own scenario and its own checks (needs a build)
 bun run --filter @ephyra/console loop:accept        # the acceptance contract against the lab's layouts
 bun run --filter @ephyra/console build:lab          # then open dist-lab/lab.html through any static server
 bun run --filter @ephyra/console lab:shots          # screenshots and metrics.json in .screens/lab
@@ -277,6 +279,10 @@ checkpoint; stops on a missing fact and asks one person, and refuses an answer f
 lands a quest from one approval in the browser, takes the asked person's answer, and follows a quest from asking to set
 without a reload. The coding agent, decide backend, question-wording model, contact and production telemetry in that run
 are fixtures and are recorded as fixtures. Pictures from the last run are in `.screens/e2e/`.
+
+`loop:independent` is a second driver, written separately with its own fixture repository and assertions (21 of 21): it
+also covers sending a quest back with a note, dropping one, a stale approval, a server outage and recovery, a reload
+mid-quest, direct links, and a page kept open through eight quests without a reload.
 
 Not verified: sign in, connecting a repository and automatic setup are not part of that script, so the run begins at a
 server that already has its repository. The page polls; there is no stream for quests. Nothing here was run against a

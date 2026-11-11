@@ -426,9 +426,11 @@ try {
     const { events } = await detail(cart!.id);
     const done = events.find((event) => event.type === "watch_completed");
     if (done?.type !== "watch_completed" || done.data.outcome !== "clean") throw new Error("the quest closed without a clean watch on record");
-    // The window is counted from the landing, which is a moment before the first observation.
-    const landed = events.find((event) => event.type === "landing_completed")!;
-    const watched = (Date.parse(done.at) - Date.parse(landed.at)) / 1000;
+    // The server counts the window from the landing receipt (or the deployment, if later), not from the moment the
+    // landing was journaled a few milliseconds after it. Measure from the same place.
+    const landed = events.find((event) => event.type === "landing_completed");
+    if (landed?.type !== "landing_completed") throw new Error("the quest closed with no landing on record");
+    const watched = (Date.parse(done.at) - Date.parse(landed.data.receipt.at)) / 1000;
     must(watched >= WATCH_S, `the quest closed after ${watched.toFixed(1)} s, before its ${WATCH_S} s window had passed`);
     const view = await expected(await current(cart!.id));
     must(view.attention === "set", `the console model reads a closed quest as "${view.attention}"`);
@@ -637,6 +639,16 @@ try {
         if (decided?.by !== "human" || decided.verdict !== "approve") throw new Error("the journal holds no human approval for the landing");
         must(decided.who === PRINCIPAL, `the approval is recorded as "${decided.who}", not "${PRINCIPAL}"`);
         await until(async () => ["watching", "closed"].includes((await current(pay!.id)).state), "the payments quest to land");
+        // A picture of the watch counting down, for people. A missing picture fails nothing.
+        const snap = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+        try {
+          await prepare(snap);
+          const page = await snap.newPage();
+          // The search quest landed a moment ago, so its window is still counting down.
+          await page.goto(`${loop}/${(search ?? pay!).short}`);
+          await page.waitForSelector("[data-watch]", { timeout: 6000 });
+          await page.screenshot({ path: join(root, ".screens", "e2e", "loop-watching.png") });
+        } catch { /* The window may already have passed. */ } finally { await snap.close(); }
         const landed = await sh(join(dir, "data"), "git", "--git-dir", "workspace.git", "show", `refs/heads/ephyra/${pay!.id}:pay.js`);
         must(landed.includes("Math.floor"), "the proven patch is not what landed");
         return `${pay!.short}: approved by ${decided.who}, landed, ${(await current(pay!.id)).state}`;

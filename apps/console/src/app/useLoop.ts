@@ -1,12 +1,11 @@
 // Keeps the loop board in step with the server by polling. Every piece of state the board shows comes from here, so a
-// reload is never needed. A stream would be cheaper; until the server has one for quests, this asks every two seconds.
+// reload is never needed. A stream would be cheaper; until the server has one for quests, this asks every two seconds
+// while something is moving by itself and every five when nothing is, and not at all while the tab is hidden.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentRun, AgentRunEvent, InvestigationQuestion, Trail } from "@ephyra/core";
 import { ApiError, type ConsoleApi, type InboxEntry, type TrailDetail } from "../api.ts";
-import { assemble, detailPlan, mergeRunEvents, type LiveBoard } from "../loop/live.ts";
+import { POLL_BUSY_MS, assemble, detailPlan, mergeRunEvents, pollDelay, type LiveBoard } from "../loop/live.ts";
 import { lastOf } from "../loop/model.ts";
-
-const POLL_MS = 2000;
 
 type Snapshot = {
   trails: Trail[];
@@ -59,6 +58,7 @@ export function useLoop(api: ConsoleApi, opts: { viewer?: string; selected: stri
   const cursor = useRef(0);
   const asking = useRef(true);
   const live = useRef(true);
+  const pace = useRef(POLL_BUSY_MS);
 
   const poll = useCallback(async () => {
     if (busy.current) { again.current = true; return; }
@@ -123,7 +123,7 @@ export function useLoop(api: ConsoleApi, opts: { viewer?: string; selected: stri
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {
       if (typeof document === "undefined" || !document.hidden) void poll();
-      timer = setTimeout(tick, POLL_MS);
+      timer = setTimeout(tick, pace.current);
     };
     tick();
     const onVisible = () => { if (!document.hidden) void poll(); };
@@ -142,6 +142,7 @@ export function useLoop(api: ConsoleApi, opts: { viewer?: string; selected: stri
     trails: snapshot?.trails ?? [], details: snapshot?.details ?? EMPTY.details, inbox: snapshot?.inbox ?? [],
     questions: snapshot?.questions ?? [], runs: snapshot?.runs ?? [], viewer: opts.viewer,
   }), [snapshot, opts.viewer]);
+  pace.current = pollDelay(board.views);
   const runEvents = useCallback((runId: string) => snapshot?.runEvents.get(runId) ?? [], [snapshot]);
   const stale = useCallback((questId: string) => snapshot?.stale.has(questId) ?? false, [snapshot]);
   const refresh = useCallback(() => { void poll(); }, [poll]);

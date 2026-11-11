@@ -1,6 +1,6 @@
 // The loop: every quest the server holds, where each one is, and the one thing (if any) that needs a person.
 // Nothing here is simulated. The board is polled from the server and every action is a real write.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { InvestigationQuestion } from "@ephyra/core";
 import { ApiError, UnknownWriteOutcome, type ConsoleApi } from "../api.ts";
 import { useApi } from "../app/ApiContext.tsx";
@@ -12,13 +12,16 @@ import { playFeedback } from "../lib/feedback.ts";
 import { useMediaQuery } from "../lib/hooks.ts";
 import { LoopScene, QuestGroups, sceneViews } from "../loop/board.tsx";
 import { Inspector, type HoodTab } from "../loop/Inspector.tsx";
-import { runNow, type LiveQuest } from "../loop/live.ts";
-import { byAttention, journeyOf, lastOf, type QuestView } from "../loop/model.ts";
+import { pollDelay, runNow, type LiveQuest } from "../loop/live.ts";
+import { byAttention, journeyOf, lastOf, watchProgress, type QuestView } from "../loop/model.ts";
 import { FleetSentence, NeedsYou, QuestDetail, proofLine } from "../loop/parts.tsx";
 
 const typing = (target: EventTarget | null) => target instanceof Element
   && Boolean(target.closest("input,textarea,select,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=combobox]"));
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+/** Time left, in the unit a person would say it in. */
+const left = (seconds: number) => (seconds < 90 ? `${Math.max(0, Math.ceil(seconds))} s`
+  : seconds < 5400 ? `${Math.round(seconds / 60)} min` : `${Math.round(seconds / 3600)} h`);
 const list = (words: readonly string[]) => (words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0] ?? "");
 
 /** Why a write did not go through, in words a person can act on. Server text is shown as text. */
@@ -52,7 +55,10 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
   const [tab, setTab] = useState<HoodTab>("events");
   const [toast, setToast] = useState("");
   /** A write that did not go through. It stays on screen until it is dismissed or the next write succeeds. */
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<{ text: string; quest?: string; was?: string; at: number } | null>(null);
+  const fail = useCallback((text: string, about?: QuestView) => {
+    setProblem({ text, quest: about?.id, was: about ? `${about.state}:${about.attention}` : undefined, at: Date.now() });
+  }, []);
   const [busy, setBusy] = useState(false);
   const narrow = useMediaQuery("(max-width: 720px)");
   // Where there is room for the board and the machinery side by side, the hood is a column and the board stays usable.
@@ -69,7 +75,9 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     ?? board.quests.find((quest) => quest.id === (board.fleet.focus ?? order[0]?.id)) ?? null;
   // The docked strip is for a quest that is waiting on this person. A quest that merely can be resumed is not that.
   const waiting = order.filter((view) => view.attention === "needs_you" && view.action !== null);
-  const needs = board.quests.find((quest) => quest.id === waiting[0]?.id) ?? null;
+  // When several wait, the strip shows the one you picked; otherwise the first in line. Still one action on the page.
+  const front = waiting.find((view) => view.id === selected?.id) ?? waiting[0];
+  const needs = board.quests.find((quest) => quest.id === front?.id) ?? null;
   const steps = useMemo(() => (selected ? journeyOf(selected.events, selected.trail) : []), [selected]);
   const running = lastOf(loop.runs, (run) => run.status === "running" && run.trailId === selected?.id) ?? null;
   const now = running ? runNow(loop.runEvents(running.id)) : null;
@@ -81,6 +89,42 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     publishWaiting(loop.status === "ready" ? loop.inbox.filter((item) => item.kind === "checkpoint" || item.kind === "spend").length : null);
   }, [loop.status, loop.inbox]);
   useEffect(() => () => publishWaiting(null), []);
+
+  // The browser tab says the same thing as the sentence, so the answer is there even when the page is not in front.
+  const titleWas = useRef<string | null>(null);
+  useEffect(() => {
+    if (loop.status !== "ready") return;
+    titleWas.current ??= document.title;
+    const { you, stopped, self } = board.fleet.groups;
+    const say = you ? `${you} ${you === 1 ? "needs" : "need"} you` : stopped ? `${stopped} stopped` : self ? `${self} moving` : "Quiet";
+    document.title = `${say} · Ephyra`;
+  }, [loop.status, board]);
+  useEffect(() => () => { if (titleWas.current !== null) document.title = titleWas.current; }, []);
+
+  // With sound switched on: one cue when a quest starts to need you, a softer one when a quest finishes.
+  // Nothing sounds for what was already so when the page opened.
+  const heard = useRef<{ needs: Set<string>; done: Set<string> } | null>(null);
+  useEffect(() => {
+    if (loop.status !== "ready") return;
+    const ids = (attention: QuestView["attention"]) => new Set(board.views.filter((view) => view.attention === attention).map((view) => view.id));
+    const was = heard.current;
+    const now = { needs: ids("needs_you"), done: ids("set") };
+    heard.current = now;
+    if (!was) return;
+    if ([...now.needs].some((id) => !was.needs.has(id))) playFeedback("attention");
+    else if ([...now.done].some((id) => !was.done.has(id))) playFeedback("message");
+  }, [loop.status, board]);
+
+  // A quest being watched after its landing counts its window down, second by second.
+  const watching = selected?.trail.state === "watching";
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!watching) return;
+    setClockNow(Date.now());
+    const timer = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [watching, selected?.id]);
+  const watch = selected && watching ? watchProgress(selected.trail, selected.events, new Date(clockNow).toISOString()) : null;
 
   // An announcement stays up while its write is still in flight, then leaves by itself.
   useEffect(() => {
@@ -106,7 +150,7 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
    */
   const refresh = loop.refresh;
   const write = useCallback(async <T,>(
-    what: string, doing: string, done: string | ((result: T) => string), work: (op: string) => Promise<T>,
+    about: QuestView, what: string, doing: string, done: string | ((result: T) => string), work: (op: string) => Promise<T>,
   ): Promise<boolean> => {
     if (writing.current) return false;
     writing.current = true;
@@ -120,14 +164,24 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
       return true;
     } catch (error) {
       setToast("");
-      setProblem(explain(what, error));
+      fail(explain(what, error), about);
       return false;
     } finally {
       writing.current = false;
       setBusy(false);
       refresh();
     }
-  }, [refresh]);
+  }, [refresh, fail]);
+
+  // A failure stays until it is dismissed while the quest is as it was. Once that quest has moved on, the note has
+  // said what it had to say and leaves by itself a little later.
+  useEffect(() => {
+    if (!problem?.quest) return;
+    const now = board.quests.find((quest) => quest.id === problem.quest)?.view;
+    if (now && `${now.state}:${now.attention}` === problem.was) return;
+    const timer = setTimeout(() => setProblem(null), Math.max(0, problem.at + 15_000 - Date.now()));
+    return () => clearTimeout(timer);
+  }, [problem, board]);
 
   const gateOf = useCallback((quest: QuestView) => {
     const action = quest.action;
@@ -141,16 +195,16 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     }
     return null;
   }, [loop.inbox]);
-  const closed = useCallback(() => {
-    setProblem("That request is no longer open. The board has been read again.");
+  const closed = useCallback((about: QuestView) => {
+    fail("That request is no longer open. The board has been read again.", about);
     refresh();
     return Promise.resolve(false);
-  }, [refresh]);
+  }, [refresh, fail]);
 
   const act = useCallback((quest: QuestView) => {
     const action = quest.action;
     if (!action) return;
-    if (!canAct) { setProblem("You can follow this workspace but not change it."); return; }
+    if (!canAct) { fail("You can follow this workspace but not change it."); return; }
     if (action.kind === "answer") {
       setPicked(quest.id);
       requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-answer] textarea")?.focus());
@@ -158,22 +212,22 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     }
     if (action.kind === "resume" || action.kind === "release") {
       const done = action.kind === "resume" ? `Resumed ${quest.short}.` : `Released ${quest.short}. It carries on by itself.`;
-      void write(action.kind, action.kind === "resume" ? `Resuming ${quest.short}.` : `Releasing ${quest.short}.`, done,
+      void write(quest, action.kind, action.kind === "resume" ? `Resuming ${quest.short}.` : `Releasing ${quest.short}.`, done,
         (op) => api.trailAction(quest.id, action.kind, {}, op));
       return;
     }
     const gate = gateOf(quest);
-    if (!gate) { void closed(); return; }
+    if (!gate) { void closed(quest); return; }
     playFeedback("connected");
-    void write("approve", `Approving ${quest.short}.`,
+    void write(quest, "approve", `Approving ${quest.short}.`,
       action.kind === "spend" ? `Approved the spend. ${quest.short} carries on.` : `Approved. ${quest.short} moves on by itself.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "approve" }, op));
-  }, [api, canAct, gateOf, write, closed]);
+  }, [api, canAct, gateOf, write, closed, fail]);
 
   const revise = useCallback((quest: QuestView, note: string) => {
     const gate = gateOf(quest);
-    if (!canAct || !gate) return closed();
-    return write("send it back", `Sending ${quest.short} back.`,
+    if (!canAct || !gate) return closed(quest);
+    return write(quest, "send it back", `Sending ${quest.short} back.`,
       `Sent ${quest.short} back with your note. It becomes the next attempt's first observation.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "revise", note }, op));
   }, [api, canAct, gateOf, write, closed]);
@@ -181,15 +235,15 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
   // Dropping ends a quest. The strip asks for a second, explicit press before this is called.
   const drop = useCallback((quest: QuestView) => {
     const gate = gateOf(quest);
-    if (!canAct || !gate) return closed();
-    return write("drop it", `Dropping ${quest.short}.`, `Dropped ${quest.short}. Nothing lands.`,
+    if (!canAct || !gate) return closed(quest);
+    return write(quest, "drop it", `Dropping ${quest.short}.`, `Dropped ${quest.short}. Nothing lands.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "reject" }, op));
   }, [api, canAct, gateOf, write, closed]);
 
   const answer = useCallback((quest: QuestView, text: string) => {
     if (quest.action?.kind !== "answer") return Promise.resolve(false);
     const question = quest.action.questionId;
-    return write<InvestigationQuestion>("send your answer", `Sending your answer. It is checked before ${quest.short} carries on.`,
+    return write<InvestigationQuestion>(quest, "send your answer", `Sending your answer. It is checked before ${quest.short} carries on.`,
       (saved) => saved.status === "answered" ? `Answer accepted as evidence. ${quest.short} carries on by itself.`
         : `The check did not accept that answer as evidence, so ${quest.short} stays stopped.`,
       (op) => api.answerQuestion(quest.id, question, { text }, op));
@@ -232,11 +286,15 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
         case "j": move(1); break;
         case "k": move(-1); break;
         // Two deliberate keys to approve: `a` brings you to the action, Enter presses it. Never one stray keystroke.
-        case "a":
+        case "a": {
           if (!needs) return;
           setPicked(needs.id);
-          requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-primary]")?.focus());
+          // Focus moves in the same keystroke, so `a` then `Enter` works however fast they are typed.
+          const primary = document.querySelector<HTMLElement>("[data-primary]");
+          if (primary) primary.focus();
+          else requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-primary]")?.focus());
           break;
+        }
         case "i":
           if (!selected) return;
           if (hood) setHood(false); else openHood();
@@ -254,6 +312,9 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
 
   const view = selected?.view ?? null;
   const lost = loop.error !== null && loop.heardAt !== null;
+  // An address can name a quest this server does not have. Say so, instead of quietly showing a different one.
+  const unknown = picked !== null && !board.quests.some((quest) => quest.view.short === picked || quest.id === picked)
+    ? picked.slice(0, 40) : null;
   const hoodNotes = [
     selected?.effects === null ? "This server keeps no record of effects for this quest, so that tab is empty." : null,
     loop.unavailable.includes("runs") || loop.unavailable.includes("transcripts")
@@ -284,9 +345,14 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
               </p>
             )}
           </div>
+          {unknown && (
+            <p className="lp-board-note" data-tone="warn" data-unknown-quest>
+              There is no quest called “{unknown}” here.{view ? ` Showing ${view.short} instead.` : ""}
+            </p>
+          )}
           {problem && (
             <p className="lp-board-note" data-tone="bad" data-problem role="alert">
-              {problem}{" "}
+              {problem.text}{" "}
               <button type="button" className="lp-quiet" onClick={() => setProblem(null)}>Dismiss</button>
             </p>
           )}
@@ -296,11 +362,32 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
           )}
           {/* On a phone the names come first: the scene has no room for them there, so it follows the list. */}
           {narrow ? <>{bench}{scene}</> : <>{scene}{bench}</>}
+          <p className="lp-foot">
+            {/* The dot beats each time the server answers, so "live" is something you can see, not a claim. */}
+            <span className="lp-live" data-live={lost ? "lost" : "ok"}>
+              <i key={loop.heardAt ?? 0} aria-hidden="true" />
+              {lost ? "Out of touch with the server" : `Live. Checking every ${pollDelay(board.views) / 1000} s`}
+            </span>
+            {!narrow && board.quests.length > 0 && (
+              <span className="lp-keys" data-keys>
+                <span><kbd>j</kbd><kbd>k</kbd>walk the quests</span>
+                {needs?.view.action && <span><kbd>a</kbd>then<kbd>Enter</kbd>to {needs.view.action.label.toLowerCase()}</span>}
+                <span><kbd>i</kbd>under the hood</span>
+              </span>
+            )}
+          </p>
         </div>
         <aside className="lp-board-aside" aria-label="Selected quest" ref={aside}>
           {selected && view ? (
             <QuestDetail quest={view} steps={steps} now={now} run={running} onInspect={openHood}
               pending={selected.loaded ? null : "Reading this quest's journal."}>
+              {watch && (
+                <div className="lp-watch" data-watch>
+                  <span>Watch window</span>
+                  <span>{watch.ratio >= 1 ? "Passed. Closing." : `${left(watch.windowS - watch.elapsedS)} left of ${left(watch.windowS)}`}</span>
+                  <i aria-hidden="true" style={{ "--ratio": watch.ratio.toFixed(3) } as CSSProperties} />
+                </div>
+              )}
               {selected.loaded && loop.stale(selected.id) && (
                 <p className="lp-board-note" data-tone="warn" data-stale-quest>
                   Could not refresh this quest's evidence just now. Showing what was last read.
