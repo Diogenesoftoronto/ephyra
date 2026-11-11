@@ -196,14 +196,28 @@ describe("any history the machine accepts can be shown", () => {
     }), { numRuns: 120 });
   });
 
-  test("a failed proof, a revision and a rollback each show as a step back", () => {
+  test("a failed proof shows as a step back, or as a stop when it was the last one allowed", () => {
+    // Three failed proofs in a row: the first two send the quest back to patching, the third stops it where it is.
+    const exhausted = [-1, -1, -1, -180, -1, 0, -311, -1, -329, 0, 0, 0, -1, -488, -1];
     fc.assert(fc.property(guided, (raw) => {
-      const last = guidedWalk(raw, true).at(-1);
+      const history = guidedWalk(raw, true);
+      const last = history.at(-1);
       if (!last) return;
-      const failedProofs = last.events.filter((event) => event.type === "proof_completed" && !event.data.bundle.passed).length;
-      const rollbacks = last.events.filter((event) => event.type === "rollback_completed").length;
-      expect(last.view.retreats).toBeGreaterThanOrEqual(failedProofs + rollbacks);
-    }), { numRuns: 80 });
+      const steps = new Map(journeyOf(last.events, last.trail).map((step) => [step.event, step.kind]));
+      let back = 0;
+      for (const { trail, events } of history) {
+        const event = events.at(-1)!;
+        if (event.type === "rollback_completed") {
+          expect(steps.get(event.id)).toBe("retreat");
+          back++;
+        }
+        if (event.type !== "proof_completed" || event.data.bundle.passed) continue;
+        const stopped = trail.state === "parked";
+        expect(steps.get(event.id)).toBe(stopped ? "hold" : "retreat");
+        if (!stopped) back++;
+      }
+      expect(last.view.retreats).toBeGreaterThanOrEqual(back);
+    }), { numRuns: 200, examples: [[exhausted]] });
   });
 
   test("random walks really do reach the far end of the loop", () => {
