@@ -2,11 +2,23 @@
   "name": "ephyra",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
-    "check": "bun run typecheck && bun test"
+    "check": "bun run typecheck && bun test",
+    "dev:server": "bun run --cwd apps/server start",
+    "dev:console": "bun run --cwd apps/console dev",
+    "storybook": "bun run --cwd apps/console storybook",
+    "storybook:server": "bun run --cwd apps/server storybook --port 6007",
+    "textbook": "bun run --cwd apps/cli textbook",
+    "build:console": "bun run --cwd apps/console build",
+    "test:smoke": "bun run --cwd apps/console smoke",
+    "test:interactions": "bun run --cwd apps/console interactions",
+    "check:package": "bun scripts/check-package.ts"
   },
   "devDependencies": {
     "@types/bun": "1.4.4",
