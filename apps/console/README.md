@@ -245,34 +245,42 @@ repository with a fake model, unit/property tests, app/Storybook builds, and the
 Unverified: live provider replies, hosted sign-in with a real account, live agent/orb streams,
 production deployment and cloud/forge writes. Storybook/demo fixtures are not evidence for those.
 
-## Loop view prototype and design lab
+## The loop view and the design lab
 
-`design/09-console-redesign.md` is the decision record. The code is a prototype: nothing in `src/loop` or
-`src/lab` is reachable from the console's routes yet.
+`design/09-console-redesign.md` is the decision record. `#/loop` is the console's home page: every quest the server
+holds, where each one is, and the one thing (if any) that needs a person.
 
-- `src/loop/model.ts` turns server shapes into what the screen says. `src/loop/scenario.ts` replays a
-  simulated hour of seven quests through the real state machine. `src/loop/parts.tsx` and `Inspector.tsx`
-  are the components.
-- `lab.html` compares seven layouts and has three benches (components, alignment, motion). It always
-  shows "Simulated quests. No agent ran."
+- `src/pages/LoopPage.tsx` is the page. `src/app/useLoop.ts` polls quests, the inbox and questions every two seconds
+  and reads journals for the selected quest, changed quests and working quests in turn. `src/loop/live.ts` holds the
+  pure parts of that (which journals to read, how a board is assembled).
+- `src/loop/model.ts` turns server shapes into what the screen says. `src/loop/parts.tsx`, `board.tsx` and
+  `Inspector.tsx` are the components, shared by the page and the lab.
+- Keys on the page: `j`/`k` walk the quests, `a` then `Enter` does the one waiting action, `i` opens under the hood,
+  `Esc` closes it. Approving, sending back, dropping (two presses), resuming and answering a question are real writes,
+  each with its own operation key.
+- `lab.html` compares seven layouts over a simulated hour (`src/loop/scenario.ts`) and has three benches. It always
+  shows "Simulated quests. No agent ran." The real page never shows that label and never predicts a recovery plan: it
+  reads the server's.
 
 ```sh
+bun run --filter @ephyra/console loop:e2e           # the real server, then the built console in a browser
+bun run --filter @ephyra/console loop:accept        # the acceptance contract against the lab's layouts
 bun run --filter @ephyra/console build:lab          # then open dist-lab/lab.html through any static server
 bun run --filter @ephyra/console lab:shots          # screenshots and metrics.json in .screens/lab
-bun run --filter @ephyra/console loop:accept        # 13 promises, checked through data attributes
-bun run --filter @ephyra/console loop:e2e           # the real server, then the built console in a browser
 bun run --filter @ephyra/console typecheck:scripts
 ```
 
-Verified locally: the view model (44 tests, property tests included); the acceptance contract on all seven
-lab layouts; and, with `loop:e2e`, that the real server takes a signal to a landed and watched fix with no
-person deciding, recovers from a failed first reading and a failed proof, stops only at a blocking
-checkpoint, and keeps another quest working meanwhile. The coding agent, decide backend and production
-telemetry in that run are fixtures and are recorded as fixtures.
+Verified locally with `loop:e2e` (24 of 24 on 10 November 2026): the real server takes a signal to a landed and watched
+fix with no person deciding; recovers from a failed first reading and a failed proof; stops only at a blocking
+checkpoint; stops on a missing fact and asks one person, and refuses an answer from anyone else; the console at
+`#/loop` shows the same quests in the same state as the server, passes the twelve checks of the acceptance contract,
+lands a quest from one approval in the browser, takes the asked person's answer, and follows a quest from asking to set
+without a reload. The coding agent, decide backend, question-wording model, contact and production telemetry in that run
+are fixtures and are recorded as fixtures. Pictures from the last run are in `.screens/e2e/`.
 
-Not verified, and failing in `loop:e2e` today: the console showing any of it (there is no `#/loop` view),
-approving from the browser, live updates, and asking a person. Sign in, connecting a repository and
-automatic setup are not part of that script yet.
+Not verified: sign in, connecting a repository and automatic setup are not part of that script, so the run begins at a
+server that already has its repository. The page polls; there is no stream for quests. Nothing here was run against a
+real coding agent, a real decide backend or real production telemetry.
 
 ## Voice
 
