@@ -65,6 +65,11 @@ export interface ServerContext {
   emit(input: EmitInput): Promise<void>;
   /** Seed a newly created trail (from core createTrail) and dispatch its initial effects. */
   start(trail: Trail, initial: TrailEvent, effects?: Effect[]): Promise<void>;
+  /**
+   * Journal files for work in flight, with no event, queued behind the trail's transitions. False when the trail has
+   * moved on from `expected`. Optional: a context without it keeps such files until the event that ends the work.
+   */
+  attach?(trail: string, files: JournalFiles, expected?: { rev: number; state: Trail["state"]; generation?: number }): Promise<boolean>;
   trails: {
     get(id: string): Promise<Trail | null>;
     list(filter?: { states?: Trail["state"][] }): Promise<Trail[]>;
@@ -131,6 +136,8 @@ export class FakeContext implements ServerContext {
     }
   }
 
+  attached: { trail: string; files: JournalFiles }[] = [];
+  async attach(trail: string, files: JournalFiles): Promise<boolean> { this.attached.push({ trail, files }); return true; }
   async emit(input: EmitInput): Promise<void> { this.emitted.push(input); }
   async start(trail: Trail, initial: TrailEvent, effects: Effect[] = []): Promise<void> {
     this.started.push({ trail, initial, effects });
