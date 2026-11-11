@@ -86,7 +86,7 @@ Invite people with a single-use link and choose **Viewer** or **Approver** for e
 | `?` | Open it and see every shortcut |
 | `g` then `l` `o` `i` `r` `u` `w` `p` `t` `s` | Go to Loop, Overview, Inbox, Runs, Usage, Workspace, Personas, Team, Settings |
 
-The **?** button in the top bar opens help for the screen you are on: what it is for, a few tips, the matching page here, and a brief you can copy for your coding agent.
+The **Help** button in the top bar opens help for the screen you are on: what it is for, a few tips, the matching page here, and a brief you can copy for your coding agent. A one-line tip also appears above each screen; **Got it** moves to the next, and **Hide tips** in the help menu turns them off.
 
 ## Tutor and voice
 

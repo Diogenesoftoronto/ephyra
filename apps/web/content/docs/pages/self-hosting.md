@@ -43,7 +43,7 @@ Durable state lives in [Convex](https://convex.dev): signals, quests, events, th
 3. **Point the server at it** with `CONVEX_URL`.
 4. **Persist `EPHYRA_DATA_DIR`** (default `/data`). It holds Git journals, repository mirrors and local operation records. On a container platform this is a volume.
 
-`ephyra status` then reports the store as durable instead of `memory`.
+`ephyra status` then reports the mode as `convex` instead of `memory`.
 
 ## Stage 3: let people sign in
 

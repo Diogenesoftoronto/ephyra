@@ -1,6 +1,6 @@
 ---
 title: Policy and checkpoints
-summary: Set how far Ephyra may go, separately for each part of your code. It starts by only watching.
+summary: Set how far Ephyra may go, separately for each part of your code, from only watching to landing by itself.
 ---
 
 The fear with an autonomous system is that it does too much, somewhere you did not expect. Ephyra's answer is that authority is not global. You divide your repository into **areas**, and each area gets its own ceiling. Your docs can land by themselves while your billing code stops and asks at every step.
@@ -17,10 +17,22 @@ Each area sits at one of five levels. Higher levels ask you less.
 | **Patch** | Writes and proves the fix. | At C, before landing. |
 | **Auto-land** | Lands proven small fixes, watches them, rolls back on regression. | Only when something needs you. |
 
-New workspaces start at **Watch**, which is shadow mode: Ephyra shows you what it *would* have decided, and does nothing. Leave an area there until its decisions look right to you, then raise it one step.
+**Watch** is shadow mode: Ephyra records what it *would* have decided, and does nothing. It is the safest way to find out whether you agree with it.
+
+### Where you start
+
+It depends on how the policy was created:
+
+| How | Starting policy |
+|---|---|
+| Setup in the app, **Supervised** | One area covering the whole repository, with every checkpoint blocking and quest-ref landing. That is the Research level. |
+| Setup in the app, **Autonomous** (the default) | One area covering the whole repository, with every checkpoint advisory and auto-land. That is the Auto-land level. |
+| `ephyra init`, or a self-hosted server with no policy file | Shadow-mode templates. That is the Watch level. |
+
+In both setup modes the generated area is rated **medium** risk and **user-facing**, so a change there still needs the proof that rating requires before it can land. See [Proof](./proof#what-risk-and-scope-add).
 
 > [!TIP]
-> Start with one narrow area whose tests you trust, and raise only that. A level is easy to raise later and awkward to regret.
+> One area for the whole repository is a starting point. Split out the parts you trust least (payments, auth, migrations), give them a higher risk and a lower level, and let the rest run. A level is easy to raise later and awkward to regret.
 
 ## Risk overrides the level
 
@@ -90,7 +102,7 @@ How the levels map onto these settings:
 | Patch | enforce | advisory / advisory / blocking | trail_ref |
 | Auto-land | enforce | advisory / advisory / advisory | trail_ref, auto_land |
 
-`ephyra init` writes a shadow-mode template into `ephyra/` in a checkout, and `ephyra policy` shows which policy the server has in effect, with any warnings.
+`ephyra init` writes a shadow-mode template into `ephyra/` in a checkout. `ephyra policy` shows which policy the server has in effect, with any warnings.
 
 ## Other policy documents
 

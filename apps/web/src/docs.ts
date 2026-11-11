@@ -227,7 +227,7 @@ export function docsBody(page: DocsPage, context: DocsContext): string {
 <a class="docs-skip" href="#docs-article">Skip to the page</a>
 <div class="docs-layout"><aside class="docs-sidebar" aria-label="Documentation">
 <div class="docs-search" hidden><label for="docs-search">Search the docs</label><div class="docs-search-field"><input id="docs-search"
-type="search" placeholder="A problem, a command, a word…" autocomplete="off" spellcheck="false" aria-controls="docs-results"><kbd
+type="search" placeholder="Search the docs…" autocomplete="off" spellcheck="false" aria-controls="docs-results"><kbd
 aria-hidden="true">/</kbd></div>
 <div id="docs-results" hidden><p id="docs-result-status" role="status" aria-live="polite"></p><ul></ul></div></div>
 <details class="docs-menu" open><summary>${escape(page.group)} · ${escape(page.title)} <span aria-hidden="true">⌄</span></summary>
@@ -238,7 +238,7 @@ datetime="${DOCS_UPDATED}">${updatedLabel}</time></span></p></aside>
 <p class="docs-label">${escape(page.group)}</p><h1>${escape(page.title)}</h1>
 <p class="docs-summary">${escape(page.summary)}</p>
 <div class="docs-actions" aria-label="Use this page with an agent">
-<button type="button" class="docs-action" data-copy-markdown="${escape(`${context.linkBase}/${page.slug}.md`)}" hidden>Copy page for an agent</button>
+<button type="button" class="docs-action" data-primary data-copy-markdown="${escape(`${context.linkBase}/${page.slug}.md`)}" hidden>Copy page for an agent</button>
 <button type="button" class="docs-action" data-copy-text="${escape(prompt)}" hidden>Copy a prompt</button>
 <a class="docs-action" href="${escape(ask("https://claude.ai/new?q="))}" rel="noopener">Ask Claude <span aria-hidden="true">↗</span></a>
 <a class="docs-action" href="${escape(ask("https://chatgpt.com/?q="))}" rel="noopener">Ask ChatGPT <span aria-hidden="true">↗</span></a>

@@ -40,7 +40,7 @@ Some providers answer a request without saying what it cost. Ephyra records that
 ## What a budget does not cover
 
 - **Sandbox resources are separate.** A model allowance does not cap what a cloud VM costs.
-- **CLI agents report after the fact.** Agent CLIs that expose no token cap cannot be held to one mid-run; their usage is recorded when the step ends, and the next step is refused if the quest is over.
+- **CLI agents report after the fact.** An agent CLI that exposes no token cap cannot be held to one mid-run. Its usage is recorded when the step ends.
 - **A step has its own timeout**, 30 minutes by default (`EPHYRA_STEP_TIMEOUT_S`).
 
 ## Stopping a quest

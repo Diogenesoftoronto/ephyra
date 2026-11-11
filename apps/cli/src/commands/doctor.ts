@@ -116,7 +116,8 @@ export async function doctor(input: DoctorInput): Promise<DoctorReport> {
 			: { name: "repository", status: "warn", detail: "No `origin` remote.", fix: "Ephyra works on a repository it can fetch over HTTPS. Add a remote, or pass --remote to `ephyra init`." });
 		if (repo.url && /^(git@|ssh:)/.test(repo.url))
 			checks.push({ name: "remote URL", status: "warn", detail: "The remote uses SSH.", fix: "Hosted setup needs the HTTPS URL of the same repository (and a scoped token if it is private)." });
-		checks.push(repo.refspecs.fetch && repo.refspecs.push
+		// Refspecs belong to a remote; without one there is nothing to check yet.
+		if (repo.url) checks.push(repo.refspecs.fetch && repo.refspecs.push
 			? { name: "journal refs", status: "ok", detail: "refs/ephyra/* is fetched and pushed, so quest journals travel with the repository." }
 			: { name: "journal refs", status: "warn", detail: "refs/ephyra/* is not in this remote's refspecs.", fix: "`ephyra init` adds it. Without it `git fetch` will not bring quest journals to your machine." });
 		checks.push(repo.templates.length === TEMPLATES.length

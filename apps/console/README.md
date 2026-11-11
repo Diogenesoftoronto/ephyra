@@ -245,6 +245,14 @@ repository with a fake model, unit/property tests, app/Storybook builds, and the
 Unverified: live provider replies, hosted sign-in with a real account, live agent/orb streams,
 production deployment and cloud/forge writes. Storybook/demo fixtures are not evidence for those.
 
+## Help and tips
+
+The **Help** button in the workspace bar opens help for the current screen: what it is for, a few things worth knowing, links to the matching page of the public guide, and **Copy a brief for your agent**. The brief names the server, the connected repository (with any credentials removed) and the screen; it never contains a token. If the clipboard is unavailable the brief is shown selected instead of claiming it was copied.
+
+Above every screen except the loop, one tip is shown at a time. **Got it** moves to the next; when a screen's tips have all been seen, nothing is shown. **Hide tips** in the help menu turns them off, and **Show tips** starts them again. Both are remembered in `localStorage` (`ephyra.tips.dismissed`, `ephyra.tips.off`); blocked storage only means tips reappear. The loop page keeps its layout contract, so its tips are in the help menu only.
+
+`src/lib/help.ts` holds the table. `src/lib/help.test.ts` checks that every screen has help and that every link names a published docs page and a heading on it, by reading `apps/web/content/docs/pages`. `VITE_EPHYRA_DOCS_URL` points the links at another copy of the guide. Checked in a headless browser against the demo (`/app/?demo=1`) at 1440×900 light and dark and 390×844: tips advance, the brief reaches the clipboard, the panel is not covered, Escape and an outside click close it and focus returns. Not checked: a signed-in account with a real repository, and a screen reader.
+
 ## The loop view and the design lab
 
 `design/09-console-redesign.md` is the decision record. `#/loop` is the console's home page: every quest the server

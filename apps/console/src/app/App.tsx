@@ -26,6 +26,8 @@ import type { SetupApi } from "../setup-api.ts";
 import { SettingsPage } from "../pages/SettingsPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { CommandMenu } from "../components/CommandMenu.tsx";
+import { HelpMenu, PageTip } from "../components/HelpMenu.tsx";
+import { agentBrief } from "../lib/help.ts";
 import type { TeamApi } from "../team-api.ts";
 import { TeamPage } from "../pages/TeamPage.tsx";
 
@@ -236,6 +238,7 @@ function Frame({
             : { kind: "overview" };
   // The loop page is the answer to "am I needed?". Nothing sits between the top of the page and that answer.
   const plain = route.page === "loop";
+  const helpPage: PageId = route.page === "not-found" ? "loop" : route.page;
   const voiceLabel =
     voiceContext.kind === "usage"
       ? "Usage, last 7 days"
@@ -280,6 +283,13 @@ function Frame({
           <div className="workspace-bar__actions">
             <span className="entry-preferences"><SoundToggle /><ThemeToggle /></span>
             <CommandMenu />
+            <HelpMenu
+              page={helpPage}
+              brief={() => agentBrief({
+                server: location.origin, page: helpPage, demo,
+                repository: account?.settings.repository?.url, branch: account?.settings.repository?.branch,
+              })}
+            />
           </div>
         </div>
         {workspace && workspace.role !== "owner" && (
@@ -303,6 +313,8 @@ function Frame({
             <VoiceLauncher />
           </div>
         )}
+        {/* The loop is a full-bleed board with its own layout contract; its tips live in the help menu. */}
+        {!plain && route.page !== "not-found" && <PageTip page={helpPage} />}
         <Suspense fallback={<Skeleton block />}>
           <Page
             key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}

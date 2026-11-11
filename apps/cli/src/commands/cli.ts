@@ -13,7 +13,7 @@ import {
 	activityView, agentsView, doctorView, policyView, questionsView, runEventsView, runView, runsView, setupView, usageView,
 } from "./views";
 
-export const CLI_VERSION = "0.0.0";
+export const CLI_VERSION = "0.1.0-prealpha";
 
 /** A usage mistake: the message already says how to call the command, so main.ts prints it as is. */
 export class UsageError extends Error {}

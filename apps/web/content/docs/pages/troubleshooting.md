@@ -37,7 +37,7 @@ With no decision model (`EPHYRA_DECIDE=none`, the default), every signal is rout
 
 ### Everything is "would have"
 
-The area is in **shadow mode** (level *Watch*). Decisions are recorded and nothing advances. Raise the area's level in **Workspace** when its decisions look right. See [Policy](./policy#five-levels).
+The area is in **shadow mode** (level *Watch*). Decisions are recorded and nothing advances. This is what `ephyra init` and a server with no policy file give you. Raise the area's level in **Workspace** when its decisions look right. See [Policy](./policy#where-you-start).
 
 ### The inbox is empty but I expected something
 
@@ -84,9 +84,9 @@ You are signed in, and not an approver in this workspace. The owner can change y
 
 If you are using a service token: once sign-in is configured, the token can read but cannot make a human decision. Use `ephyra login`.
 
-### "A person holds this review"
+### Someone has claimed the review
 
-Someone claimed it. They release it (`u` in the terminal, `ephyra release`), then it can be decided.
+The quest shows as `handed_off` and decisions are refused while it is held. They release it (`u` in the terminal, `ephyra release`), then it can be decided.
 
 ## A quest will not land
 
