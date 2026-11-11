@@ -55,6 +55,7 @@ import { landingHandlers, type Git } from "./wiring/landing.ts";
 import { checkpointHandlers } from "./wiring/checkpoints.ts";
 import { AutomaticSetup, setupGit, type SetupOptions } from "./setup/automation.ts";
 import { setupRoutes } from "./http/setup.ts";
+import { questionRoutes } from "./http/questions.ts";
 import { InvestigationQuestions, type QuestionOptions } from "./setup/questions.ts";
 import { registerPostHogPolling } from "./setup/telemetry.ts";
 import { telemetryCoverage } from "./setup/bootstrap-coverage.ts";
@@ -329,6 +330,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
     jobs: { register: (k, r) => jobs.register(k, r), enqueue: (k, key, p, o) => jobs.enqueue(k, key, p, o) },
     emit: async (input) => { await engine.emit(input); },
+    attach: (trail, files, expected) => engine.attach(trail, files, expected),
     start: async (trail, initial, effects) => {
       await activation?.restore();
       const current = await activation?.current();
@@ -696,8 +698,12 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     config.EPHYRA_API_TOKEN, port, ingest,
     signIn ? (token) => signIn!.authenticate(token) : undefined,
     { requireSignIn: Boolean(signIn), approvers, resolveApprover: opts.resolveApprover, ...(signIn ? { browserOrigin: signIn.config.publicOrigin } : {}) },
-    (approval) => consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice))
-      .route("/", tutorRoutes(tutor)).route("/", setupRoutes(setup)),
+    (approval) => {
+      const routes = consoleRoutes(consolePort, approval).route("/", voiceRoutes(voice))
+        .route("/", tutorRoutes(tutor)).route("/", setupRoutes(setup));
+      // The hosted application serves the same paths per account. A self-hosted server answers them here.
+      return questions && !opts.workspace ? routes.route("/", questionRoutes(questions)) : routes;
+    },
   );
   const mode = client ? "convex" as const : "memory" as const;
   const health = async () => {
