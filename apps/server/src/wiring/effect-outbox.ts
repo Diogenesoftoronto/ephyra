@@ -49,6 +49,45 @@ export function appendEffects(pending: PendingEffect[], eventId: string, trail: 
   return entries;
 }
 
+export const EFFECT_HISTORY_PATH = "outbox/history.json";
+const MAX_HISTORY = 500;
+
+/**
+ * Every effect a transition asked for, with the event that caused it. It records intent, in order, so a reader can see
+ * what the engine set in motion. It says nothing about delivery: the operation ledger is the only record of that.
+ */
+export type RecordedEffect = { cause: string; effect: Effect };
+
+/** The newest `MAX_HISTORY` effects, one entry per operation key. */
+export function recordEffects(history: readonly RecordedEffect[], cause: string, effects: readonly Effect[]): RecordedEffect[] {
+  const entries = [...history];
+  const keys = new Set(entries.map(entry => entry.effect.key));
+  for (const raw of effects) {
+    const effect = EffectSchema.parse(raw);
+    if (keys.has(effect.key)) continue;
+    keys.add(effect.key);
+    entries.push({ cause, effect });
+  }
+  return entries.slice(-MAX_HISTORY);
+}
+
+export const effectHistory = (entries: readonly RecordedEffect[]): string => canonicalJson({ schema: 1, effects: entries });
+
+/** Journals written before the history existed read as empty. Past effects are never re-derived from events. */
+export async function readEffectHistory(journal: Journal, trailId: string): Promise<RecordedEffect[]> {
+  const bytes = await journal.readFile(trailId, EFFECT_HISTORY_PATH);
+  if (!bytes) return [];
+  try {
+    if (bytes.byteLength > MAX_BYTES) throw new Error();
+    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (value?.schema !== 1 || !Array.isArray(value.effects) || value.effects.length > MAX_HISTORY) throw new Error();
+    return value.effects.map((entry: RecordedEffect) => {
+      if (!entry || typeof entry.cause !== "string" || entry.cause.length > 64) throw new Error();
+      return { cause: entry.cause, effect: EffectSchema.parse(entry.effect) };
+    });
+  } catch { throw new Unverified("corrupt effect history"); }
+}
+
 const WORK_EFFECTS = new Set<Effect["type"]>([
   "run_triage", "start_agent", "run_proof", "request_checkpoint", "request_spend", "land", "rebase", "start_watch", "rollback", "stop_agent",
 ]);
