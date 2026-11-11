@@ -19,7 +19,7 @@ export function voiceRoutes(service: VoiceService) {
         504,
       );
     if (e instanceof VoiceError)
-      return c.json({ error: e.message, code: e.code, operationKey: c.req.header("Idempotency-Key") }, e.status);
+      return c.json({ error: e.message, code: e.code, operationKey: c.req.header("Idempotency-Key"), ...(e.references ? { references: e.references } : {}) }, e.status);
     return c.json(
       { error: "Voice could not finish. Check Usage before trying again.", code: "reconciliation_required" },
       504,

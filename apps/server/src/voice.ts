@@ -27,6 +27,8 @@ type Deps = {
   ledger: OperationLedger;
   usage: UsageRecorder;
   context: (context: VoiceContext) => Promise<VoiceSnapshot>;
+  /** Resolves explicit references; without it, a request carrying references is refused rather than ignored. */
+  references?: (refs: readonly import("@ephyra/core").VelumReference[]) => Promise<import("./voice-context.ts").ResolvedReferences>;
   secrets?: string[];
 };
 const SYSTEM = `You are Velum, Ephyra's scribe. You are having a spoken conversation with the operator.
@@ -202,17 +204,32 @@ export class VoiceService {
     if (input.messages.at(-1)?.role !== "user")
       throw new VoiceError(400, "A conversation turn must end with your message.");
     const requestedModel = model.requestedModel ?? "not reported";
+    // References resolve before the operation is claimed: a changed source is refused without spending or using the key.
+    let refs: import("./voice-context.ts").ResolvedReferences | null = null;
+    if (input.references?.length) {
+      if (!this.deps.references) throw new VoiceError(503, "This deployment cannot read referenced items yet. Remove them to continue.", "references_unavailable");
+      refs = await this.deps.references(input.references);
+      const stale = refs.resolved.filter((r) => r.status !== "current");
+      if (stale.length)
+        throw new VoiceError(409, stale.some((r) => r.status === "missing")
+          ? "Something you referred to is no longer available. Remove it, then send again."
+          : "Something you referred to changed after you selected it. Refresh it, then send again.", "reference_changed", refs.resolved);
+    }
     return this.once(principal, key, "reply", input, requestedModel, model.billedTo, signal, async (op) => {
       const snapshot = await this.deps.context(input.context);
       signal.throwIfAborted();
-      const context = this.wrap("console_snapshot", this.clean(JSON.stringify(snapshot.data), 40_000));
+      const referenced = refs?.data.length
+        ? this.wrap("referenced_records", this.clean(JSON.stringify(refs.data), 30_000)) + "\n"
+        : "";
+      const context = referenced + this.wrap("console_snapshot", this.clean(JSON.stringify(snapshot.data), refs?.data.length ? 20_000 : 40_000));
       const conversation = this.wrap("conversation", this.clean(JSON.stringify(input.messages), 30_000));
       const result = await model.complete({
         system: SYSTEM,
         messages: [
           {
             role: "user",
-            content: `${context}\n${conversation}\nAnswer the operator's latest message in the conversation using the recorded snapshot.`,
+            content: `${context}\n${conversation}\nAnswer the operator's latest message in the conversation using the recorded snapshot.` +
+              (refs?.data.length ? " The operator explicitly referred to the referenced records; answer about those first and name them." : ""),
           },
         ],
         idempotencyKey: op,
@@ -223,6 +240,7 @@ export class VoiceService {
       return {
         text: this.clean(result.text, 6000),
         contextLabel: snapshot.label,
+        ...(refs ? { references: refs.resolved } : {}),
         receipt: {
           operationKey: key,
           engine: result.engine,

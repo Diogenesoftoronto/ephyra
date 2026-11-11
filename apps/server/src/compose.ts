@@ -33,7 +33,7 @@ import { tutorRoutes } from "./http/tutor.ts";
 import { AmpersandDraftModel, TUTOR_MODEL } from "./humans.ts";
 import { TutorService, NotOrganicTutorBackend, DirectTutorBackend, type TutorBackend } from "./tutor.ts";
 import { VoiceService } from "./voice.ts";
-import { voiceContext } from "./voice-context.ts";
+import { voiceContext, voiceReferences } from "./voice-context.ts";
 import { CompatibleSpeechProvider, type SpeechProvider } from "./voice-provider.ts";
 import { consoleStatic, hasConsole } from "./http/static.ts";
 import { activity } from "./activity.ts";
@@ -691,7 +691,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       return { authorization: `DPoP ${creds.token}`, dpop: await dpopProof(url, creds.token, creds.keys) };
     },
   }));
-  const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), secrets: knownSecrets(config) });
+  const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), references: voiceReferences(consolePort, port), secrets: knownSecrets(config) });
   const forecastRoute: ForecastRoute | null = opts.forecastRoute !== undefined ? opts.forecastRoute
     : config.EPHYRA_FORECAST === "notorganic" && signIn && billingDid
       ? { backend: new HostedForecast(signIn, billingDid), provider: "notorganic", billedTo: "notorganic" }
