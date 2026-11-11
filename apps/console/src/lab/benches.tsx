@@ -208,8 +208,8 @@ function Glide({ from, to, tone }: { from: StageId; to: StageId; tone: QuestView
   const where = moved ? to : from;
   const point = at(where);
   return (
-    <div className="lab-scene lab-mini-scene">
-      <div className="lab-scene-field" style={vars({ "--pitch": "0px" })}>
+    <div className="lp-scene lab-mini-scene">
+      <div className="lp-scene-field" style={vars({ "--pitch": "0px" })}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <polyline points={Array.from({ length: 33 }, (_, i) => {
             const p = loopPoint(i / 32);
