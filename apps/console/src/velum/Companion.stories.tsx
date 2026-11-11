@@ -6,7 +6,17 @@ import { ActivityFeed } from "../components/ActivityFeed.tsx";
 import { CompanionPanel, VelumInvoker } from "./CompanionPanel.tsx";
 import { Referable, VelumProvider, useVelum } from "./VelumProvider.tsx";
 
-const meta: Meta = { title: "Velum/Companion", parameters: { docs: { description: { component: "One workspace conversation for typed and spoken turns. Fixture replies only; no model is contacted." } } } };
+const meta: Meta = {
+  title: "Velum/Companion",
+  parameters: {
+    docs: {
+      description: {
+        component:
+          "One workspace conversation for typed and spoken turns. Fixture replies only; no model is contacted.",
+      },
+    },
+  },
+};
 export default meta;
 const TRAIL = "3a77e1aa-5b1e-4c3a-9d2f-000000000003";
 function Open({ select, refer }: { select?: boolean; refer?: boolean }) {

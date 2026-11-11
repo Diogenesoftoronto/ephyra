@@ -6,13 +6,33 @@ import { CompanionVoice } from "./voice.ts";
 
 const caps = { provider: "compatible" as const, transcriptionModel: "stt", speechModel: "tts", voice: "v", conversation: true,
   maxRecordingMs: 60000, maxAudioBytes: 4000000, maxSpeechChars: 3000, maxCostMicrousd: null };
-const clip: VoiceSpeech = { audio: "AQID", mime: "audio/mpeg", receipt: { operationKey: "k", engine: "tts", requestedModel: "tts", tokens: null, costMicrousd: null, billedTo: "local" } } as VoiceSpeech;
+const clip: VoiceSpeech = {
+  audio: "AQID",
+  mime: "audio/mpeg",
+  receipt: {
+    operationKey: "k",
+    engine: "tts",
+    requestedModel: "tts",
+    tokens: null,
+    costMicrousd: null,
+    billedTo: "local",
+  },
+} as VoiceSpeech;
 function audio(levels: number[] = [0.4]): VoiceAudio & { plays: number; recorded: number } {
   return {
-    plays: 0, recorded: 0,
-    prime() {}, stop() {}, dispose() {},
-    async record(level) { this.recorded++; for (const l of levels) level(l); return { stop: async () => new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm" }), cancel() {} }; },
-    async play() { this.plays++; },
+    plays: 0,
+    recorded: 0,
+    prime() {},
+    stop() {},
+    dispose() {},
+    async record(level) {
+      this.recorded++;
+      for (const l of levels) level(l);
+      return { stop: async () => new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm" }), cancel() {} };
+    },
+    async play() {
+      this.plays++;
+    },
   };
 }
 function api(over: Partial<{ transcribe: () => Promise<{ text: string }>; speak: () => Promise<VoiceSpeech> }> = {}) {
@@ -92,5 +112,46 @@ describe("companion voice", () => {
     await done;
     expect(text).toBe("");
     expect(v.getSnapshot().issue).toMatchObject({ kind: "uncertain" });
+    expect(v.getSnapshot().issue).toMatchObject({ operationKey: a.calls[0]!.slice(2) });
+  });
+  test("cancelled synthesis retains its exact operation and cannot be generated again before acknowledgement", async () => {
+    let release!: () => void;
+    const a = api({ speak: () => new Promise((resolve) => { release = () => resolve(clip); }) });
+    const v = new CompanionVoice(a, audio(), key);
+    await v.check();
+    const pending = v.play("reply", "Please explain.");
+    v.cancel();
+    expect(v.getSnapshot().issue).toMatchObject({ kind: "uncertain", step: "speak", operationKey: a.calls[0]!.slice(2) });
+    await v.play("reply", "Please explain.");
+    await v.record(() => {});
+    expect(a.calls).toHaveLength(1);
+    release();
+    await pending;
+    expect(v.getSnapshot().saved).toEqual([]);
+  });
+  test("an unknown synthesis cannot be silently retried as new audio", async () => {
+    const a = api({ speak: async () => { throw new VoiceRequestError("reconciliation_required", "lost"); } });
+    const v = new CompanionVoice(a, audio(), key);
+    await v.check();
+    await v.play("reply", "Please explain.");
+    await v.play("reply", "Please explain.");
+    expect(v.getSnapshot().issue).toMatchObject({ kind: "uncertain", step: "speak" });
+    expect(a.calls).toHaveLength(1);
+  });
+  test("a rejected later narration chunk does not regenerate earlier paid chunks", async () => {
+    let request = 0;
+    const a = api({ speak: async () => {
+      if (++request === 2) throw new VoiceRequestError("rate_limited", "busy");
+      return clip;
+    } });
+    a.voiceCapabilities = async () => ({ ...caps, maxSpeechChars: 12 });
+    const v = new CompanionVoice(a, audio(), key);
+    await v.check();
+    const text = "First part. Second part.";
+    await v.play("reply", text);
+    expect(a.calls).toHaveLength(2);
+    await v.play("reply", text);
+    expect(a.calls).toHaveLength(3);
+    expect(v.getSnapshot().saved).toEqual(["reply"]);
   });
 });

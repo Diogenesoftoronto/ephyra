@@ -104,7 +104,7 @@ function WorkspaceSession({ identity, token, settings, accountApi, onChange, onD
     <App api={api} identity={{ ...current, alias: identity.alias }} approver={current.approver}
       account={access.role === "owner" ? { api: accountApi, settings, onChange, automation } : undefined}
       team={access.role === "owner" ? { api: team, onChanged: onTeamChanged } : undefined}
-      workspace={{ name: access.name, role: access.role, switcher }}
+      workspace={{ id: access.workspaceId, name: access.name, role: access.role, switcher }}
       onDisconnect={onDisconnect} disconnectLabel={disconnectLabel} />
   )}</Load>;
 }

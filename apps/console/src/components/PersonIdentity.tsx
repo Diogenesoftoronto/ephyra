@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { personLabel, type PersonProfile } from "@ephyra/core";
 import "./PersonIdentity.css";
 
@@ -19,6 +19,9 @@ export function PersonIdentity({
   details?: boolean;
 }) {
   const [broken, setBroken] = useState(false);
+  const imageUrl = avatarUrl && profile?.checkedAt
+    ? `${avatarUrl}${avatarUrl.includes("?") ? "&" : "?"}checked=${encodeURIComponent(profile.checkedAt)}` : avatarUrl;
+  useEffect(() => setBroken(false), [did, imageUrl]);
   const verified = profile?.status === "verified";
   const label = loading ? "Loading identity…" : verified ? personLabel(profile) : invitedAs ? invitedAs : "Unverified account";
   const initial = verified ? personLabel(profile).replace(/^@/, "").charAt(0).toUpperCase() : "";
@@ -26,7 +29,7 @@ export function PersonIdentity({
   return (
     <span className="person" data-verified={verified ? "" : undefined} data-loading={loading ? "" : undefined}>
       <span className="person-avatar" style={{ width: size, height: size }} aria-hidden="true">
-        {showImage ? <img src={avatarUrl!} alt="" width={size} height={size} loading="lazy" onError={() => setBroken(true)} />
+        {showImage ? <img src={imageUrl!} alt="" width={size} height={size} loading="lazy" onError={() => setBroken(true)} />
           : <span className="person-avatar__mark">{initial || "·"}</span>}
       </span>
       <span className="person-text">

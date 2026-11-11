@@ -151,7 +151,7 @@ function AssistantMessage() {
             {speaking ? (
               <button type="button" className="ui-button ui-button--sm" onClick={() => env.voice.cancel()}>Stop playback</button>
             ) : (
-              <button type="button" className="ui-button ui-button--sm ui-button--ghost" disabled={voice.phase !== "idle"}
+              <button type="button" className="ui-button ui-button--sm ui-button--ghost" disabled={voice.phase !== "idle" || env.voice.blocked}
                 onClick={() => void env.voice.play(id, turn.text)}>
                 <MicIcon sound /> {saved ? "Play saved reply" : "Read aloud"}
               </button>
@@ -215,9 +215,15 @@ function VoiceLine() {
       <p className="velum-voice-line" role="status" aria-live="polite">
         {status ? (
           <>
-            <span className="velum-voice-dot" data-phase={voice.phase} style={{ "--level": voice.level } as CSSProperties} aria-hidden="true" />
+            <span
+              className="velum-voice-dot"
+              data-phase={voice.phase}
+              style={{ "--level": voice.level } as CSSProperties}
+              aria-hidden="true"
+            />
             {status}
-            {voice.phase === "listening" && ` · ${Math.floor(voice.elapsedMs / 1000)}s of ${Math.round((voice.capabilities?.maxRecordingMs ?? 60000) / 1000)}s. Microphone on.`}
+            {voice.phase === "listening" &&
+              ` · ${Math.floor(voice.elapsedMs / 1000)}s of ${Math.round((voice.capabilities?.maxRecordingMs ?? 60000) / 1000)}s. Microphone on.`}
           </>
         ) : voice.capabilities && !voice.capabilities.provider ? (
           "Voice is not connected on this deployment. Typing works."
@@ -229,18 +235,34 @@ function VoiceLine() {
           <div className="velum-turn-actions">
             {issue.kind === "uncertain" ? (
               <>
-                <a className="ui-button ui-button--sm" href="#/usage">Check Usage</a>
-                <button type="button" className="ui-button ui-button--sm ui-button--ghost" onClick={() => env.voice.acknowledge()}>
+                <a className="ui-button ui-button--sm" href="#/usage">
+                  Check Usage
+                </a>
+                <button
+                  type="button"
+                  className="ui-button ui-button--sm ui-button--ghost"
+                  onClick={() => env.voice.acknowledge()}
+                >
                   I checked, continue
                 </button>
               </>
             ) : issue.kind === "playback-blocked" ? (
-              <button type="button" className="ui-button ui-button--sm" onClick={() => {
-                const turn = env.companion.getSnapshot().turns.find((t) => t.id === issue.replyId);
-                if (turn) void env.voice.play(issue.replyId, turn.text);
-              }}>Play saved reply</button>
+              <button
+                type="button"
+                className="ui-button ui-button--sm"
+                onClick={() => {
+                  const turn = env.companion.getSnapshot().turns.find((t) => t.id === issue.replyId);
+                  if (turn) void env.voice.play(issue.replyId, turn.text);
+                }}
+              >
+                Play saved reply
+              </button>
             ) : (
-              <button type="button" className="ui-button ui-button--sm ui-button--ghost" onClick={() => env.voice.dismiss()}>
+              <button
+                type="button"
+                className="ui-button ui-button--sm ui-button--ghost"
+                onClick={() => env.voice.dismiss()}
+              >
                 {issue.kind === "microphone" ? "Keep typing" : "Dismiss"}
               </button>
             )}
@@ -264,7 +286,7 @@ export function CompanionPanel() {
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages,
     isRunning: Boolean(state?.sending),
-    isDisabled: !env?.canSpend || Boolean(env?.companion.blocked),
+    isDisabled: !env?.canSpend,
     convertMessage: (m) => m,
     onNew: async (message) => {
       if (!env) return;
@@ -304,9 +326,16 @@ export function CompanionPanel() {
         <PersonaAvatar persona="velum" size={32} />
         <div>
           <h2>Velum</h2>
-          <p>Looking at {env.contextLabel}. Velum reads recorded data and cannot approve or change anything.</p>
+          <p>
+            Looking at {env.contextLabel}.{" "}
+            <span className="velum-capability">Velum reads recorded data and cannot approve or change anything.</span>
+          </p>
         </div>
-        <button type="button" className="ui-button ui-button--ghost ui-button--sm velum-close" onClick={() => env.setOpen(false)}>
+        <button
+          type="button"
+          className="ui-button ui-button--ghost ui-button--sm velum-close"
+          onClick={() => env.setOpen(false)}
+        >
           Close
         </button>
       </header>
@@ -314,9 +343,15 @@ export function CompanionPanel() {
         <div className="velum-selecting-bar" role="status" id={hintId}>
           <p>
             <strong>Choose an area, quest, or chart.</strong> Esc to finish.
-            {chips.length > 0 ? ` ${chips.length} selected: ${chips.map((c) => c.label).join(", ")}.` : " Nothing selected yet."}
+            {chips.length > 0
+              ? ` ${chips.length} selected: ${chips.map((c) => c.label).join(", ")}.`
+              : " Nothing selected yet."}
           </p>
-          <button type="button" className="ui-button ui-button--sm ui-button--primary" onClick={() => env.setSelecting(false)}>
+          <button
+            type="button"
+            className="ui-button ui-button--sm ui-button--primary"
+            onClick={() => env.setSelecting(false)}
+          >
             Done
           </button>
         </div>
@@ -327,35 +362,59 @@ export function CompanionPanel() {
             <ThreadPrimitive.Empty>
               <div className="velum-empty">
                 <p>Ask about recorded work, spend, evidence or policy on any page.</p>
-                <p className="muted">Use <strong>Refer to something</strong> to point at an area, quest, run or chart. Velum reads that record at the revision you saw.</p>
+                <p className="muted">
+                  Use <strong>Refer to something</strong> to point at an area, quest, run or chart. Your message lists
+                  the records Velum reads.
+                </p>
               </div>
             </ThreadPrimitive.Empty>
             <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
             {state.sending && (
               <p className="velum-thinking" role="status">
-                <span className="velum-voice-dot" data-phase="thinking" aria-hidden="true" /> Velum is reading and answering…{" "}
-                <button type="button" className="ui-button ui-button--sm ui-button--ghost" onClick={() => env.companion.stop()}>Stop waiting</button>
+                <span className="velum-voice-dot" data-phase="thinking" aria-hidden="true" /> Velum is reading and
+                answering…{" "}
+                <button
+                  type="button"
+                  className="ui-button ui-button--sm ui-button--ghost"
+                  onClick={() => env.companion.stop()}
+                >
+                  Stop waiting
+                </button>
               </p>
             )}
           </ThreadPrimitive.Viewport>
           <ComposerPrimitive.Root className="velum-composer">
-            {state.notice && <p className="velum-notice" role="status">{state.notice}</p>}
+            {state.notice && (
+              <p className="velum-notice" role="status">
+                {state.notice}
+              </p>
+            )}
             {chips.length > 0 && (
               <div className="velum-chips-wrap">
                 <p className="velum-chips-title">
                   Velum will see {chips.length === 1 ? "this" : `these ${chips.length}`}
-                  <button type="button" className="velum-link" onClick={() => env.companion.clear()}>Clear all</button>
+                  <button type="button" className="velum-link" onClick={() => env.companion.clear()}>
+                    Clear all
+                  </button>
                 </p>
                 <ul className="velum-chips" aria-label="Referenced in your next message">
-                  {chips.map((c) => <ChipView key={c.key} chip={c} />)}
+                  {chips.map((c) => (
+                    <ChipView key={c.key} chip={c} />
+                  ))}
                 </ul>
-                {staleChips.length > 0 && <p className="velum-notice">Changed items are not sent. Use the latest version or remove them.</p>}
+                {staleChips.length > 0 && (
+                  <p className="velum-notice">Changed items are not sent. Use the latest version or remove them.</p>
+                )}
               </div>
             )}
-            <label className="velum-composer-label" htmlFor="velum-input">Message Velum</label>
+            <label className="velum-composer-label" htmlFor="velum-input">
+              Message Velum
+            </label>
             <ComposerPrimitive.Input
               id="velum-input"
-              ref={(el) => { env.composerRef.current = el; }}
+              ref={(el) => {
+                env.composerRef.current = el;
+              }}
               rows={2}
               maxLength={6000}
               submitMode="enter"
@@ -363,9 +422,12 @@ export function CompanionPanel() {
               aria-describedby={env.selecting ? hintId : undefined}
             />
             <p className="velum-composer-hint">
-              {!env.canSpend ? (env.readOnlyReason ?? "Only approvers can use this workspace's models. You can still read the conversation.")
-                : blocked ? "Sending is paused until the unconfirmed message is checked or left unresolved. You can keep editing."
-                : "Enter sends. Shift+Enter adds a line. Selecting things never sends or spends."}
+              {!env.canSpend
+                ? (env.readOnlyReason ??
+                  "Only approvers can use this workspace's models. You can still read the conversation.")
+                : blocked
+                  ? "Sending is paused until the unconfirmed message is checked or left unresolved. You can keep editing."
+                  : "Enter sends. Shift+Enter adds a line. Selecting things never sends or spends."}
             </p>
             <div className="velum-composer-row">
               <button
@@ -378,7 +440,11 @@ export function CompanionPanel() {
               </button>
               <VoiceControls />
               <ComposerPrimitive.Send asChild>
-                <button type="button" className="ui-button ui-button--primary velum-send" disabled={!env.canSpend || Boolean(blocked) || staleChips.length > 0}>
+                <button
+                  type="button"
+                  className="ui-button ui-button--primary velum-send"
+                  disabled={!env.canSpend || Boolean(blocked) || staleChips.length > 0}
+                >
                   Send
                 </button>
               </ComposerPrimitive.Send>

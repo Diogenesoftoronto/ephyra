@@ -13,18 +13,11 @@ export function paceSeries(days: UsageSummary["byDay"], today: string): PacePoin
 
 export type ForecastPoint = { day: string; median: number; low: number | null; high: number | null };
 /**
- * Continue the cumulative line with a forecast. The forecast starts after its own history end (`asOf`); recorded spend
- * after `asOf` (e.g. today's partial day) is NOT added to it, so the two are never mixed.
+ * Preserve the provider's daily distribution. Daily quantiles cannot be added to obtain a cumulative quantile without
+ * knowing the joint distribution, so the forecast is drawn per day, separately from the recorded running total.
  */
-export function forecastCumulative(pace: PacePoint[], forecast: Extract<UsageForecast, { status: "ok" }>): ForecastPoint[] {
-  const base = pace.filter((p) => p.day <= forecast.basis.to).at(-1)?.cumulative ?? 0;
-  let median = base, low: number | null = base, high: number | null = base;
-  return forecast.days.map((d) => {
-    median += d.median;
-    low = low === null || d.p10 === null ? null : low + d.p10;
-    high = high === null || d.p90 === null ? null : high + d.p90;
-    return { day: d.day, median, low, high };
-  });
+export function forecastDaily(forecast: Extract<UsageForecast, { status: "ok" }>): ForecastPoint[] {
+  return forecast.days.map((d) => ({ day: d.day, median: d.median, low: d.p10, high: d.p90 }));
 }
 
 export type Driver = { key: string; cost: number; share: number; unknown: number; entries: number };

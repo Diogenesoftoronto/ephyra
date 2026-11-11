@@ -301,9 +301,19 @@ export class ConsoleClient implements ConsoleApi {
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       const references = z.array(VelumResolvedReference).max(12).safeParse(json?.references);
-      throw new VoiceRequestError(typeof json?.code === "string" ? json.code : res.status === 429 ? "rate_limited" : res.status >= 500 ? "reconciliation_required" : "unavailable",
-        typeof json?.error === "string" ? json.error.slice(0, 500) : `Model request failed (HTTP ${res.status}).`, operationKey,
-        references.success ? references.data : undefined, retryAfter(res));
+      throw new VoiceRequestError(
+        typeof json?.code === "string"
+          ? json.code
+          : res.status === 429
+            ? "rate_limited"
+            : res.status >= 500
+              ? "reconciliation_required"
+              : "unavailable",
+        typeof json?.error === "string" ? json.error.slice(0, 500) : `Model request failed (HTTP ${res.status}).`,
+        operationKey,
+        references.success ? references.data : undefined,
+        retryAfter(res),
+      );
     }
     const parsed = schema.safeParse(json);
     if (!parsed.success) throw new VoiceRequestError("reconciliation_required",

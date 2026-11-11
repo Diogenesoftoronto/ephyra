@@ -58,6 +58,7 @@ export class VelumCompanion {
   private listeners = new Set<() => void>();
   private generation = 0;
   private abort = new AbortController();
+  private disposed = false;
   constructor(
     readonly scope: string,
     private readonly api: Pick<ConsoleApi, "voiceReply">,
@@ -73,8 +74,15 @@ export class VelumCompanion {
     this.state = { ...this.state, ...patch };
     for (const f of this.listeners) f();
   }
+  /** React may replay an effect's setup after cleanup. Reactivate without reviving the previous request generation. */
+  activate() {
+    if (!this.disposed) return;
+    this.disposed = false;
+    this.abort = new AbortController();
+  }
   /** Stop listening for in-flight results. Called on scope change and unmount. */
   dispose() {
+    this.disposed = true;
     this.generation++;
     this.abort.abort();
     this.listeners.clear();
@@ -131,6 +139,7 @@ export class VelumCompanion {
     return this.state.turns.find((t) => t.role === "user" && t.status === "unconfirmed") ?? null;
   }
   async send(text: string, context: VoiceContext, asked: string, via: "typed" | "spoken" = "typed"): Promise<SendOutcome> {
+    if (this.disposed) return { kind: "discarded" };
     if (text.length > 6000) { this.set({ notice: "Messages can be up to 6,000 characters. Shorten it and send again." }); return { kind: "kept", text }; }
     const trimmed = text.trim();
     if (!trimmed || this.state.sending || this.blocked) return { kind: "kept", text };
@@ -149,6 +158,7 @@ export class VelumCompanion {
    * that it is still unresolved, or reports the stored error; it never runs the model a second time for that key.
    */
   async checkSaved(turnId: string): Promise<SendOutcome> {
+    if (this.disposed) return { kind: "discarded" };
     const turn = this.state.turns.find((t) => t.id === turnId);
     if (!turn || turn.role !== "user" || turn.status !== "unconfirmed" || this.state.sending) return { kind: "discarded" };
     this.set({ sending: turn.id, notice: null });

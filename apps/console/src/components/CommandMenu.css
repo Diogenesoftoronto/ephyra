@@ -194,9 +194,10 @@
   .command-trigger > span:not([aria-hidden]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .command-trigger { min-width: 44px; justify-content: center; padding-inline: var(--s2); }
   .command-menu footer { flex-wrap: wrap; }
-  .workspace-setup-note { margin-inline: var(--s4); }
+  .workspace-setup-note { margin-inline: 0; padding: var(--s3); gap: var(--s2); }
+  .workspace-setup-note > p span { display: none; }
   .workspace-setup-note__actions { width: 100%; }
-  .workspace-setup-note__actions .ui-button { flex: 1 1 10rem; justify-content: center; min-height: 44px; }
+  .workspace-setup-note__actions .ui-button { flex: 1 1 0; justify-content: center; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .command-trigger {

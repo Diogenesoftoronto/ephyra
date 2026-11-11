@@ -1,5 +1,7 @@
 .forecast { display: grid; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--rule); }
 .forecast--off > summary { display: flex; gap: var(--s3); align-items: center; min-height: 44px; }
+.forecast--off > summary::before { content: "›"; font-size: 1.25em; }
+.forecast--off[open] > summary::before { transform: rotate(90deg); }
 .forecast--off > p { font-size: var(--fs-small); margin-top: var(--s2); }
 .forecast__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s3) var(--s5); align-items: end; }
 .forecast__head h3 { font-size: var(--fs-body); }

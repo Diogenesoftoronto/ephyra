@@ -150,14 +150,21 @@ export class FakeApi implements ConsoleApi {
     await this.gate("profile");
     if (this.options.profiles === "hang") await new Promise(() => undefined);
     const did = this.options.principal ?? ME;
-    return this.options.profiles === "unavailable" ? { ...fixtureOwnProfile(did), status: "unavailable", handle: null, displayName: null } : fixtureOwnProfile(did);
+    return this.options.profiles === "unavailable"
+      ? { ...fixtureOwnProfile(did), status: "unavailable", handle: null, displayName: null }
+      : fixtureOwnProfile(did);
   }
   async profiles(): Promise<TeamPeople> {
     await this.gate("profiles");
     if (this.options.profiles === "hang") await new Promise(() => undefined);
     const dids = [this.options.principal ?? ME, ...Object.keys(FIXTURE_PEOPLE)];
     const people = fixturePeople("demo", dids);
-    return this.options.profiles === "unavailable" ? { ...people, people: people.people.map((p) => ({ ...p, status: "unavailable", handle: null, displayName: null })) } : people;
+    return this.options.profiles === "unavailable"
+      ? {
+          ...people,
+          people: people.people.map((p) => ({ ...p, status: "unavailable", handle: null, displayName: null })),
+        }
+      : people;
   }
   readonly now: number;
   private trails: Trail[];
