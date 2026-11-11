@@ -6,16 +6,43 @@ import { VelumCompanion } from "./companion.ts";
 
 const TRAIL = "3a77e1aa-5b1e-4c3a-9d2f-000000000003";
 const ctx = { kind: "overview" as const };
-const reply = (text: string, op: string) => ({ text, contextLabel: "Overview", receipt: { operationKey: op, engine: "fixture/velum", requestedModel: "f", tokens: null, costMicrousd: null, billedTo: "local" as const } });
+const reply = (text: string, op: string) => ({
+  text,
+  contextLabel: "Overview",
+  receipt: {
+    operationKey: op,
+    engine: "fixture/velum",
+    requestedModel: "f",
+    tokens: null,
+    costMicrousd: null,
+    billedTo: "local" as const,
+  },
+});
 
 function api(script: (input: VoiceReplyInput, op: string, signal: AbortSignal) => Promise<ReturnType<typeof reply>>) {
   const calls: { input: VoiceReplyInput; op: string }[] = [];
-  return { calls, voiceReply: async (input: VoiceReplyInput, op: string, signal: AbortSignal) => { calls.push({ input, op }); return script(input, op, signal); } };
+  return {
+    calls,
+    voiceReply: async (input: VoiceReplyInput, op: string, signal: AbortSignal) => {
+      calls.push({ input, op });
+      return script(input, op, signal);
+    },
+  };
 }
 let n = 0;
 const keys = () => `velum-op-${n++}`;
 
 describe("Velum companion", () => {
+  test("effect cleanup and reactivation do not leave subsequent requests permanently aborted", async () => {
+    const a = api(async (_i, op, signal) => { expect(signal.aborted).toBe(false); return reply("ok", op); });
+    const c = new VelumCompanion("strict-mode", a, keys);
+    c.dispose();
+    expect(await c.send("old scope", ctx, "Overview")).toEqual({ kind: "discarded" });
+    expect(a.calls).toHaveLength(0);
+    c.activate();
+    expect(await c.send("hello", ctx, "Overview")).toEqual({ kind: "sent" });
+    expect(a.calls).toHaveLength(1);
+  });
   test("selected references are sent with the turn and stay for the follow-up", async () => {
     const a = api(async (_i, op) => reply("ok", op));
     const c = new VelumCompanion("acct:w1", a, keys);
@@ -57,7 +84,11 @@ describe("Velum companion", () => {
     expect(a.calls[1]!.op).not.toBe(a.calls[0]!.op);
   });
   test("a changed reference is refused, the turn is withdrawn and the chip asks for refresh", async () => {
-    const a = api(async (input, op) => { throw new VoiceRequestError("reference_changed", "changed", op, [{ key: `trail:${TRAIL}@3`, label: "q", status: "changed", current: "4" }]); });
+    const a = api(async (input, op) => {
+      throw new VoiceRequestError("reference_changed", "changed", op, [
+        { key: `trail:${TRAIL}@3`, label: "q", status: "changed", current: "4" },
+      ]);
+    });
     const c = new VelumCompanion("s", a, keys);
     c.add({ kind: "trail", id: TRAIL, rev: 3 }, "T-3a77e1", "trail:x");
     expect(await c.send("what now", ctx, "Overview")).toEqual({ kind: "kept", text: "what now" });
@@ -92,18 +123,33 @@ describe("Velum companion", () => {
     expect(d.getSnapshot().turns.filter((t) => t.role === "assistant")).toHaveLength(0);
   });
   test("chip operations never exceed the limit or duplicate a key", () => {
-    fc.assert(fc.property(fc.array(fc.tuple(fc.constantFrom("add", "toggle", "remove", "clear"), fc.integer({ min: 0, max: 9 }), fc.integer({ min: 1, max: 3 }))), (ops) => {
-      const c = new VelumCompanion("p", api(async (_i, op) => reply("", op)), keys);
-      for (const [op, i, rev] of ops) {
-        const ref = { kind: "area" as const, name: `a${i}`, revision: `r${rev}` };
-        if (op === "add") c.add(ref, `a${i}`, `area:a${i}`);
-        else if (op === "toggle") c.toggle(ref, `a${i}`, `area:a${i}`);
-        else if (op === "remove") c.remove(`area:a${i}@r${rev}`);
-        else c.clear();
-        const keysNow = c.getSnapshot().chips.map((x) => x.key);
-        expect(new Set(keysNow).size).toBe(keysNow.length);
-        expect(keysNow.length).toBeLessThanOrEqual(6);
-      }
-    }));
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.tuple(
+            fc.constantFrom("add", "toggle", "remove", "clear"),
+            fc.integer({ min: 0, max: 9 }),
+            fc.integer({ min: 1, max: 3 }),
+          ),
+        ),
+        (ops) => {
+          const c = new VelumCompanion(
+            "p",
+            api(async (_i, op) => reply("", op)),
+            keys,
+          );
+          for (const [op, i, rev] of ops) {
+            const ref = { kind: "area" as const, name: `a${i}`, revision: `r${rev}` };
+            if (op === "add") c.add(ref, `a${i}`, `area:a${i}`);
+            else if (op === "toggle") c.toggle(ref, `a${i}`, `area:a${i}`);
+            else if (op === "remove") c.remove(`area:a${i}@r${rev}`);
+            else c.clear();
+            const keysNow = c.getSnapshot().chips.map((x) => x.key);
+            expect(new Set(keysNow).size).toBe(keysNow.length);
+            expect(keysNow.length).toBeLessThanOrEqual(6);
+          }
+        },
+      ),
+    );
   });
 });

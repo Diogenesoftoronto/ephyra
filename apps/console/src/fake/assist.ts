@@ -10,10 +10,34 @@ export type ForecastMode = "unavailable" | "ok" | "insufficient" | "uncertain" |
 export type ConversationMode = "unavailable" | "fixture" | "uncertain" | "rate-limited" | "hang" | "stale-reference";
 
 export const FIXTURE_PEOPLE: Record<string, Omit<PersonProfile, "did">> = {
-  "did:web:alex.example": { status: "verified", handle: "alex.fixture.test", displayName: "Alex (fixture)", avatar: false, checkedAt: "2026-11-07T14:00:00.000Z" },
-  "did:plc:storybook-owner": { status: "verified", handle: "owner.fixture.test", displayName: "Rowan (fixture)", avatar: false, checkedAt: "2026-11-07T14:00:00.000Z" },
-  "did:plc:storybook-viewer": { status: "verified", handle: "viewer.fixture.test", displayName: null, avatar: false, checkedAt: "2026-11-07T14:00:00.000Z" },
-  "did:plc:storybook-approver": { status: "unavailable", handle: null, displayName: null, avatar: false, checkedAt: null },
+  "did:web:alex.example": {
+    status: "verified",
+    handle: "alex.fixture.test",
+    displayName: "Alex (fixture)",
+    avatar: false,
+    checkedAt: "2026-11-07T14:00:00.000Z",
+  },
+  "did:plc:storybook-owner": {
+    status: "verified",
+    handle: "owner.fixture.test",
+    displayName: "Rowan (fixture)",
+    avatar: false,
+    checkedAt: "2026-11-07T14:00:00.000Z",
+  },
+  "did:plc:storybook-viewer": {
+    status: "verified",
+    handle: "viewer.fixture.test",
+    displayName: null,
+    avatar: false,
+    checkedAt: "2026-11-07T14:00:00.000Z",
+  },
+  "did:plc:storybook-approver": {
+    status: "unavailable",
+    handle: null,
+    displayName: null,
+    avatar: false,
+    checkedAt: null,
+  },
 };
 export function fixtureProfile(did: string): PersonProfile {
   return { did, ...(FIXTURE_PEOPLE[did] ?? { status: "unavailable", handle: null, displayName: null, avatar: false, checkedAt: null }) };
@@ -27,8 +51,20 @@ export function fixturePeople(workspaceId: string, dids: string[]): TeamPeople {
 
 export function forecastCapability(mode: ForecastMode): UsageForecastCapability {
   return mode === "unavailable"
-    ? { available: false, provider: null, requestedModel: null, minCompleteDays: 7, reason: "No verified Clairic forecast route is configured. Set EPHYRA_FORECAST to notorganic or workers-ai." }
-    : { available: true, provider: "notorganic", requestedModel: "extraction", minCompleteDays: 7, reason: "Fixture route. Runs only when you ask; no provider is contacted in Storybook." };
+    ? {
+        available: false,
+        provider: null,
+        requestedModel: null,
+        minCompleteDays: 7,
+        reason: "No verified Clairic forecast route is configured. Set EPHYRA_FORECAST to notorganic or workers-ai.",
+      }
+    : {
+        available: true,
+        provider: "notorganic",
+        requestedModel: "extraction",
+        minCompleteDays: 7,
+        reason: "Fixture route. Runs only when you ask; no provider is contacted in Storybook.",
+      };
 }
 
 const DAY = 86_400_000;
@@ -57,7 +93,12 @@ export function fixtureForecast(rows: UsageEntry[], input: UsageForecastInput, n
   };
 }
 export function forecastFailure(mode: ForecastMode, op: string): Error | null {
-  if (mode === "uncertain") return new VoiceRequestError("reconciliation_required", "The forecast request may have been billed. Check Usage before asking again.", op);
+  if (mode === "uncertain")
+    return new VoiceRequestError(
+      "reconciliation_required",
+      "The forecast request may have been billed. Check Usage before asking again.",
+      op,
+    );
   if (mode === "rate-limited") return new VoiceRequestError("rate_limited", "The forecast provider is rate limited.", op, undefined, 30);
   if (mode === "rate-limited-unknown") return new VoiceRequestError("rate_limited", "The forecast provider is rate limited.", op);
   if (mode === "error") return new VoiceRequestError("malformed", "The forecast came back incomplete. Nothing was drawn.", op);
@@ -69,16 +110,45 @@ export function fixtureReply(input: VoiceReplyInput, mode: ConversationMode, op:
   const parsed = VoiceReplyInput.parse(input);
   const refs = parsed.references ?? [];
   if (mode === "stale-reference" && refs.length)
-    throw new VoiceRequestError("reference_changed", "Something you referred to changed after you selected it. Refresh it, then send again.", op,
-      refs.map((r, i) => ({ key: referenceKey(r), label: r.kind, status: i === 0 ? "changed" as const : "current" as const, ...(i === 0 ? { current: "newer" } : {}) })));
-  if (mode === "uncertain") throw new VoiceRequestError("reconciliation_required", "The connection ended before the reply finished. Check Usage before trying again.", op);
+    throw new VoiceRequestError(
+      "reference_changed",
+      "Something you referred to changed after you selected it. Refresh it, then send again.",
+      op,
+      refs.map((r, i) => ({
+        key: referenceKey(r),
+        label: r.kind,
+        status: i === 0 ? ("changed" as const) : ("current" as const),
+        ...(i === 0 ? { current: "newer" } : {}),
+      })),
+    );
+  if (mode === "uncertain")
+    throw new VoiceRequestError(
+      "reconciliation_required",
+      "The connection ended before the reply finished. Check Usage before trying again.",
+      op,
+    );
   if (mode === "rate-limited") throw new VoiceRequestError("rate_limited", "Velum is rate limited by its provider.", op);
   const last = parsed.messages.at(-1)!.text;
   const named = refs.map((r) => referenceKey(r).split("@")[0]).join(", ");
   return {
-    text: `Fixture reply, not a live model. You asked: “${last.slice(0, 120)}”.` + (refs.length ? ` I read ${refs.length} referenced item${refs.length === 1 ? "" : "s"}: ${named}.` : " No references were attached."),
+    text:
+      `Fixture reply, not a live model. You asked: “${last.slice(0, 120)}”.` +
+      (refs.length
+        ? ` I read ${refs.length} referenced item${refs.length === 1 ? "" : "s"}: ${named}.`
+        : " No references were attached."),
     contextLabel: parsed.context.kind,
-    references: refs.map((r) => ({ key: referenceKey(r), label: referenceKey(r).split("@")[0]!, status: "current" as const })),
-    receipt: { operationKey: op, engine: "fixture/velum (not a live model)", requestedModel: "fixture", tokens: null, costMicrousd: null, billedTo: "local" },
+    references: refs.map((r) => ({
+      key: referenceKey(r),
+      label: referenceKey(r).split("@")[0]!,
+      status: "current" as const,
+    })),
+    receipt: {
+      operationKey: op,
+      engine: "fixture/velum (not a live model)",
+      requestedModel: "fixture",
+      tokens: null,
+      costMicrousd: null,
+      billedTo: "local",
+    },
   };
 }

@@ -74,8 +74,8 @@ not proof of account access or actual spending. Missing metadata stays unknown; 
 **⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/T/S navigates to
 Overview/Inbox/Runs/Usage/Workspace/Personas/Team/Settings. Letter shortcuts are disabled while typing or using a modal.
 Menus, recessed inputs, active controls and hover/focus states share console tokens and reduced-motion behavior.
-The light/dark switch sits beside Commands. It follows the system color preference until toggled;
-an explicit choice is remembered in this browser. There is no separate Auto control.
+The Auto / Light / Dark radio group sits beside Commands. Auto follows the device's color preference;
+an explicit choice is remembered in this browser. These preferences also appear on Your account.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
 Welcome and invitation acceptance use an amber specimen; each persona has its own short generated greeting.
@@ -251,6 +251,8 @@ One workspace conversation for typed and spoken turns, built on the existing ass
 **Ask Velum** button in the workspace bar opens a docked rail on wide screens and a sheet on phones. Opening it never
 starts the microphone. **Speak** records only after you click it, transcribes into the same composer as editable text,
 and never sends anything automatically. Replies can be read aloud, and a reply's audio is reused when you play it again.
+Stopping an in-flight speech request retains its exact operation key and reports the uncertain outcome. A failed later
+narration chunk does not regenerate earlier successful chunks.
 
 **Refer to something** starts a short selection mode ("Choose an area, quest, or chart. Esc to finish."). Referable
 regions are application-map areas, quest headers, quest documents, run rows and the three Usage charts. Each region also
@@ -266,11 +268,15 @@ the words back in the composer and show the provider's Retry-After only if the p
 refused before any model call. If the microphone is denied, the message is **Keep typing**. If the browser blocks
 playback, **Play saved reply** reuses the saved clip. Switching account or workspace starts an empty conversation, and
 late results from the old scope are dropped. The unsent draft and references survive closing the companion and moving
-between pages within a scope. Document drafts keep their own reviewable Velum conversation.
+between pages within a scope. Unsent map questions are stored separately per account/workspace in this tab.
+Document drafts keep their own reviewable Velum conversation.
 
 Verified: controller and voice logic (`src/velum/*.test.ts`, fixture API), Storybook states (`Velum/Companion`,
 `Velum/Workspace ask`), and local browser checks at 1440, 390 and 320 px in both themes. Unverified: live model replies
 and live speech, because no paid provider calls were made.
+After building console and Storybook, `env -u LD_LIBRARY_PATH bun apps/console/scripts/velum-motion.ts` checks coarse
+touch selection, phone composer bounds, 44px controls and reduced-motion forecast states at 320/390px. It uses local
+fixtures and writes measured evidence to `apps/console/artifacts/velum-motion/`.
 
 ## Usage charts and forecast
 
@@ -280,9 +286,10 @@ and outcomes and price coverage. Each chart has a keyboard cursor, a tooltip and
 remain available.
 
 The spend forecast runs only when you select **Forecast spend**. It uses the server's configured Clairic route over 28
-complete UTC days (today is excluded) and is drawn dashed in a separate validated colour with its p10–p90 band. It is
+complete UTC days (today is excluded) and is drawn dashed with the provider's daily p10–p90 band. Daily quantiles are
+never added into a cumulative probability interval. It is
 labelled as a forecast with the provider's exact model id, and it never changes budgets. States: not configured,
-pending, unconfirmed (**Check saved forecast** reuses the same key, and the key survives navigation within the tab),
+pending, unconfirmed (**Check saved forecast** keeps the original key, dates and horizon across navigation and UTC midnight),
 rate limited, insufficient history, and malformed answer. When no route is configured, the panel says so rather than
 showing an average. Verified with fixture adapters only; no live forecast was made.
 
@@ -294,13 +301,11 @@ this page re-reads your profile when you return to the tab. Team lists show veri
 labels are marked as unverified, and DIDs appear only under *Technical details*. If Not Organic cannot be read, people
 appear as "Unverified account" with a neutral mark; Ephyra never guesses a name.
 
-## Voice
+## Document voice tools
 
-**Talk with Velum** is available in the work screens; onboarding and Settings keep the focus on setup.
-Overview and Usage conversations use a fresh server snapshot;
-opening a quest or run supplies that resource's recorded context. These conversations explain the evidence and have
-no mutation tools. In an open document, spoken and typed turns use the same saved Velum thread, generated forms and
-reviewable proposals. Dirty, closed and read-only drafts retain their existing guards.
+Work screens use the companion described above. Document drafts retain their existing voice dialog: spoken and typed
+turns use the same saved draft thread, generated forms and reviewable proposals. Dirty, closed and read-only drafts
+retain their existing guards.
 
 **Dictate** records up to one minute, transcribes it and presents editable text. **Insert text** appends to the
 existing composer without sending. **Read aloud** narrates journal documents, recorded proof summaries and Velum
@@ -321,8 +326,7 @@ Speech uses the [server's voice configuration](../server/README.md#voice). No pr
 Session usage shows returned receipts, including unknown costs and unreported backend identities. The ledger uses
 Velum's existing `draft` category with `voice.transcribe`, `voice.reply` and `voice.speak` steps. Draft replies keep their
 existing `draft` step. Audio is transient; generated audio has a bounded two-minute server replay cache. Idempotency
-records retain completed text results and receipts, not audio. Draft messages persist with the draft; the general
-conversation display clears when closed.
+records retain completed text results and receipts, not audio. Draft messages persist with the draft.
 
 `Voice/Conversation` contains 19 stories, including interactive drafting/dictation, loading, recording, permission
 denial, unavailable speech, uncertain charge, blocked playback, read-only controls and dark mode. The browser-audio

@@ -57,7 +57,10 @@ export function VelumProvider({
 }) {
   const companion = useMemo(() => new VelumCompanion(scope, api), [scope, api]);
   const voice = useMemo(() => new CompanionVoice(api, audio), [scope, api, audio]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => companion.dispose(), [companion]);
+  useEffect(() => {
+    companion.activate();
+    return () => companion.dispose();
+  }, [companion]);
   useEffect(() => () => voice.dispose(), [voice]);
   const [open, setOpenState] = useState(false);
   const [selecting, setSelectingState] = useState(false);
@@ -79,7 +82,7 @@ export function VelumProvider({
     setOpenState(next);
     if (!next) {
       setSelectingState(false);
-      if (voice.getSnapshot().phase === "listening" || voice.getSnapshot().phase === "requesting") voice.cancel();
+      if (voice.getSnapshot().phase !== "idle") voice.cancel();
       if (focus) requestAnimationFrame(() => invokerRef.current?.focus());
     } else {
       void voice.check();

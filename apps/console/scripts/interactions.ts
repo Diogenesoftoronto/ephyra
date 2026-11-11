@@ -100,7 +100,7 @@ cases.push({
       return cells.length > 0 && cells.every((e) => e.textContent?.includes("unknown"));
     });
     await p.getByRole("radio", { name: "14 days", exact: true }).check();
-    await p.getByRole("heading", { name: "Recorded spend by day", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Spending pace", exact: true }).waitFor();
     await shot(p, "usage-desktop-light");
   },
 });

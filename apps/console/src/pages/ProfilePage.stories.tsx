@@ -9,7 +9,9 @@ const page = (api: FakeApi, extra: Partial<Parameters<typeof ProfilePage>[0]> = 
   <ApiProvider api={api}><ProfilePage principal="did:web:alex.example" onDisconnect={() => {}} {...extra} /></ApiProvider>
 );
 export const Verified: StoryObj = { render: () => page(new FakeApi({ profiles: "fixture" })) };
-export const SharedViewerWorkspace: StoryObj = { render: () => page(new FakeApi({ profiles: "fixture" }), { workspaceName: "Observatory", workspaceRole: "viewer" }) };
+export const SharedViewerWorkspace: StoryObj = {
+  render: () => page(new FakeApi({ profiles: "fixture" }), { workspaceName: "Observatory", workspaceRole: "viewer" }),
+};
 export const NotOrganicUnavailable: StoryObj = { render: () => page(new FakeApi({ profiles: "unavailable" })) };
 export const Loading: StoryObj = { render: () => page(new FakeApi({ profiles: "hang" })) };
 export const ReadFailed: StoryObj = { render: () => page(new FakeApi({ fail: { profile: new Error("offline") } })) };

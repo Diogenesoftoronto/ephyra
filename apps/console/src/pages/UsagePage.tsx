@@ -105,29 +105,63 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
         {(u) => (
           <>
             <UsageStats totals={u.totals} />
-            <Referable id="usage:spend" refData={{ kind: "usage", facet: forecast ? "forecast" : "cumulative", ...span }}
-              label={`Spending pace, ${days} days${forecast ? " with forecast" : ""}`} href="#/usage">
-              <Card tone="quiet" title="Spending pace" meta={`Last ${days} UTC days · recorded spend and running total`}>
+            <Referable
+              id="usage:spend"
+              refData={{ kind: "usage", facet: forecast ? "forecast" : "cumulative", ...span }}
+              label={`Spending pace, ${days} days${forecast ? " with forecast" : ""}`}
+              href="#/usage"
+            >
+              <Card
+                tone="quiet"
+                title="Spending pace"
+                meta={`Last ${days} UTC days · recorded spend and running total`}
+              >
                 <SpendPace days={u.byDay} today={today} forecast={forecast} />
                 <ForecastPanel now={now} scope={scope} onForecast={setForecast} />
               </Card>
             </Referable>
             <div className="usage-breakdowns">
-              <Referable id="usage:drivers" refData={{ kind: "usage", facet: "drivers", ...span }} label={`Cost drivers, ${days} days`} href="#/usage">
-                <Card tone="quiet" title="What drove cost" meta="Largest recorded cost first. Select one to filter the ledger.">
+              <Referable
+                id="usage:drivers"
+                refData={{ kind: "usage", facet: "drivers", ...span }}
+                label={`Cost drivers, ${days} days`}
+                href="#/usage"
+              >
+                <Card
+                  tone="quiet"
+                  title="What drove cost"
+                  meta="Largest recorded cost first. Select one to filter the ledger."
+                >
                   <div className="usage-drivers">
                     <h3>By persona</h3>
-                    <CostDrivers title="Persona" groups={u.byPersona.map((g) => ({ key: g.key ?? "unattributed", totals: g.totals }))}
+                    <CostDrivers
+                      title="Persona"
+                      groups={u.byPersona.map((g) => ({ key: g.key ?? "unattributed", totals: g.totals }))}
                       render={(k) => <PersonaLabel persona={k === "unattributed" ? null : (k as never)} />}
-                      selected={filters.persona || null} onSelect={(k) => setFilters({ ...filters, persona: k ?? "" })} />
+                      selected={filters.persona || null}
+                      onSelect={(k) => setFilters({ ...filters, persona: k ?? "" })}
+                    />
                     <h3>By engine</h3>
-                    <CostDrivers title="Engine" groups={u.byEngine} selected={filters.engine || null}
-                      onSelect={(k) => setFilters({ ...filters, engine: k ?? "" })} />
+                    <CostDrivers
+                      title="Engine"
+                      groups={u.byEngine}
+                      selected={filters.engine || null}
+                      onSelect={(k) => setFilters({ ...filters, engine: k ?? "" })}
+                    />
                   </div>
                 </Card>
               </Referable>
-              <Referable id="usage:outcomes" refData={{ kind: "usage", facet: "outcomes", ...span }} label={`Outcomes and cost coverage, ${days} days`} href="#/usage">
-                <Card tone="quiet" title="Outcomes and coverage" meta="Failed and unavailable work, and how much had a price">
+              <Referable
+                id="usage:outcomes"
+                refData={{ kind: "usage", facet: "outcomes", ...span }}
+                label={`Outcomes and cost coverage, ${days} days`}
+                href="#/usage"
+              >
+                <Card
+                  tone="quiet"
+                  title="Outcomes and coverage"
+                  meta="Failed and unavailable work, and how much had a price"
+                >
                   <OutcomesCoverage days={u.byDay} totals={u.totals} today={today} />
                 </Card>
               </Referable>
@@ -135,42 +169,42 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
             <details className="usage-tables">
               <summary>Breakdown tables: persona, engine and quest</summary>
               <div className="usage-breakdowns">
-              <Card tone="quiet" title="By persona">
-                <BreakdownTable
-                  title="Persona"
-                  selected={filters.persona || null}
-                  onSelect={(k) => setFilters({ ...filters, persona: k ?? "" })}
-                  rows={u.byPersona.map((g) => ({
-                    key: g.key ?? "unattributed",
-                    totals: g.totals,
-                    label: <PersonaLabel persona={g.key} />,
-                  }))}
-                />
-              </Card>
-              <Card tone="quiet" title="By engine">
-                <BreakdownTable
-                  title="Engine"
-                  selected={filters.engine || null}
-                  onSelect={(k) => setFilters({ ...filters, engine: k ?? "" })}
-                  rows={u.byEngine.map((g) => ({ key: g.key, totals: g.totals, label: <Tag>{g.key}</Tag> }))}
-                />
-              </Card>
-              <Card tone="quiet" title="By quest">
-                <BreakdownTable
-                  title="Quest"
-                  selected={filters.trail || null}
-                  onSelect={(k) => setFilters({ ...filters, trail: k ?? "" })}
-                  rows={u.byTrail.map((t) => ({
-                    key: t.trailId,
-                    totals: t.totals,
-                    label: (
-                      <span>
-                        <span className="mono">{t.short}</span> {t.title}
-                      </span>
-                    ),
-                  }))}
-                />
-              </Card>
+                <Card tone="quiet" title="By persona">
+                  <BreakdownTable
+                    title="Persona"
+                    selected={filters.persona || null}
+                    onSelect={(k) => setFilters({ ...filters, persona: k ?? "" })}
+                    rows={u.byPersona.map((g) => ({
+                      key: g.key ?? "unattributed",
+                      totals: g.totals,
+                      label: <PersonaLabel persona={g.key} />,
+                    }))}
+                  />
+                </Card>
+                <Card tone="quiet" title="By engine">
+                  <BreakdownTable
+                    title="Engine"
+                    selected={filters.engine || null}
+                    onSelect={(k) => setFilters({ ...filters, engine: k ?? "" })}
+                    rows={u.byEngine.map((g) => ({ key: g.key, totals: g.totals, label: <Tag>{g.key}</Tag> }))}
+                  />
+                </Card>
+                <Card tone="quiet" title="By quest">
+                  <BreakdownTable
+                    title="Quest"
+                    selected={filters.trail || null}
+                    onSelect={(k) => setFilters({ ...filters, trail: k ?? "" })}
+                    rows={u.byTrail.map((t) => ({
+                      key: t.trailId,
+                      totals: t.totals,
+                      label: (
+                        <span>
+                          <span className="mono">{t.short}</span> {t.title}
+                        </span>
+                      ),
+                    }))}
+                  />
+                </Card>
               </div>
             </details>
             <Card tone="quiet" title="Quest budgets">
@@ -190,10 +224,7 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
           {ledger === "loading" ? (
             <Skeleton lines={5} />
           ) : typeof ledger === "object" ? (
-            <Load
-              state={{ status: "error", error: ledger.error }}
-              retry={() => setReloadLedger((n) => n + 1)}
-            >
+            <Load state={{ status: "error", error: ledger.error }} retry={() => setReloadLedger((n) => n + 1)}>
               {() => null}
             </Load>
           ) : (
@@ -207,8 +238,7 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
         </div>
       </Card>
       <p className="muted usage-foot">
-        Personas: {PERSONAS.map((p) => p.name).join(", ")}. Cost shows “unknown” when an engine did not report
-        one.
+        Personas: {PERSONAS.map((p) => p.name).join(", ")}. Cost shows “unknown” when an engine did not report one.
       </p>
     </div>
   );

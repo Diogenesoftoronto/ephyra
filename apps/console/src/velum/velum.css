@@ -38,12 +38,13 @@
   inset-inline-end: 0;
   width: min(26rem, 100vw);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--surface);
   border-inline-start: 1px solid var(--rule);
   box-shadow: var(--shadow-popover);
 }
 .velum-panel[hidden] { display: none; }
+.velum-panel[data-selecting] { grid-template-rows: auto auto minmax(0, 1fr); }
 @media (min-width: 1180px) {
   /* Desktop: a docked rail. The page column makes room instead of sitting underneath it. */
   .ui-shell:has(~ .velum-panel[data-open]) .ui-main { padding-inline-end: calc(26rem + var(--s5)); }
@@ -237,14 +238,16 @@
     inset-inline: 0;
     width: 100%;
     max-height: min(78dvh, 40rem);
+    height: min(78dvh, 40rem);
     border-inline-start: 0;
     border-top: 1px solid var(--rule);
     border-radius: 16px 16px 0 0;
   }
-  .velum-panel[data-selecting] { grid-template-rows: auto auto; max-height: none; }
+  .velum-panel[data-selecting] { grid-template-rows: auto; height: auto; max-height: none; }
   .velum-panel[data-selecting] .velum-thread,
   .velum-panel[data-selecting] .velum-head { display: none; }
-  .velum-composer { padding-bottom: var(--s3); }
+  .velum-head .velum-capability { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .velum-composer { padding-bottom: var(--s3); max-height: min(42dvh, 22rem); overflow-y: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .velum-invoker, .velum-ref::after, .velum-ref-action, .velum-mic[data-live], .velum-voice-dot { transition: none; }

@@ -69,37 +69,63 @@ function RunsBody({
   const [wide] = useState(() => typeof matchMedia !== "function" || matchMedia("(min-width: 761px)").matches);
   return (
     <>
-      <p className="account-hint">Showing the latest 100 runs. Refreshes every five seconds while this page is visible.</p>
+      <p className="account-hint">
+        Showing the latest 100 runs. Refreshes every five seconds while this page is visible.
+      </p>
       <div className="runs-summary">
         <Status state="running">{running} running</Status>
         <Status state="failed">{all.filter((r) => r.status === "failed").length} failed</Status>
         <Status state="stale">{all.filter((r) => r.status === "unavailable").length} unavailable</Status>
       </div>
-            <details className="run-roster-wrap" open={wide || Boolean(filters.persona)}>
+      <details className="run-roster-wrap" open={wide || Boolean(filters.persona)}>
         <summary>
           <span>Filter by persona</span>
-          <span className="muted">{filters.persona ? `Showing ${PERSONAS.find((p) => p.id === filters.persona)?.name}` : `${running} running across ${PERSONAS.length} personas`}</span>
+          <span className="muted">
+            {filters.persona
+              ? `Showing ${PERSONAS.find((p) => p.id === filters.persona)?.name}`
+              : `${running} running across ${PERSONAS.length} personas`}
+          </span>
         </summary>
-      <section className="run-roster" aria-label="Agent activity in the latest 100 runs">
-        {PERSONAS.map((persona) => {
-          const own = all.filter((run) => run.persona === persona.id);
-          const working = own.filter((run) => run.status === "running");
-          const latest = [...own].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
-          return <div key={persona.id} className="run-roster__agent" data-persona={persona.id} data-selected={filters.persona === persona.id}>
-            <button type="button" className="run-roster__filter"
-              aria-pressed={filters.persona === persona.id} aria-label={`Filter runs by ${persona.name}`}
-              onClick={() => setFilters({ ...filters, persona: filters.persona === persona.id ? "" : persona.id })}>
-              <PersonaAvatar persona={persona.id} size={48} live={working.length > 0} />
-              <span className="run-roster__identity"><strong>{persona.name}</strong><small>{persona.role}</small></span>
-              <span className="run-roster__status">{working.length ? `${working.length} running`
-                : latest ? `Last run ${latest.status}` : "No recent run"}</span>
-            </button>
-            <span className="run-roster__engine"><EngineBadge engine={latest?.engine} executor={latest?.executor} />
-              {latest && <RunAccess run={latest} compact />}
-            </span>
-          </div>;
-        })}
-      </section>
+        <section className="run-roster" aria-label="Agent activity in the latest 100 runs">
+          {PERSONAS.map((persona) => {
+            const own = all.filter((run) => run.persona === persona.id);
+            const working = own.filter((run) => run.status === "running");
+            const latest = [...own].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+            return (
+              <div
+                key={persona.id}
+                className="run-roster__agent"
+                data-persona={persona.id}
+                data-selected={filters.persona === persona.id}
+              >
+                <button
+                  type="button"
+                  className="run-roster__filter"
+                  aria-pressed={filters.persona === persona.id}
+                  aria-label={`Filter runs by ${persona.name}`}
+                  onClick={() => setFilters({ ...filters, persona: filters.persona === persona.id ? "" : persona.id })}
+                >
+                  <PersonaAvatar persona={persona.id} size={48} live={working.length > 0} />
+                  <span className="run-roster__identity">
+                    <strong>{persona.name}</strong>
+                    <small>{persona.role}</small>
+                  </span>
+                  <span className="run-roster__status">
+                    {working.length
+                      ? `${working.length} running`
+                      : latest
+                        ? `Last run ${latest.status}`
+                        : "No recent run"}
+                  </span>
+                </button>
+                <span className="run-roster__engine">
+                  <EngineBadge engine={latest?.engine} executor={latest?.executor} />
+                  {latest && <RunAccess run={latest} compact />}
+                </span>
+              </div>
+            );
+          })}
+        </section>
       </details>
 
       <Card tone="quiet">

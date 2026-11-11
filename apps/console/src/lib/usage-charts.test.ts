@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import type { UsageSummary } from "@ephyra/core";
-import { coverage, drivers, forecastCumulative, lastCompleteDay, outcomes, paceSeries } from "./usage-charts.ts";
+import { coverage, drivers, forecastDaily, lastCompleteDay, outcomes, paceSeries } from "./usage-charts.ts";
 
 const totals = fc.record({
   entries: fc.integer({ min: 0, max: 50 }), costMicrousd: fc.integer({ min: 0, max: 5_000_000 }),
@@ -21,15 +21,32 @@ describe("usage charts", () => {
       expect(pace.filter((p) => p.partial)).toHaveLength(1);
     }));
   });
-  test("forecast continues from its own history end, never from today's partial spend", () => {
-    const pace = paceSeries([{ key: day(0), totals: { entries: 1, costMicrousd: 100, unknownCost: 0, tokens: 0, wallMs: 0, failed: 0, unavailable: 0 } },
-      { key: day(1), totals: { entries: 1, costMicrousd: 900, unknownCost: 0, tokens: 0, wallMs: 0, failed: 0, unavailable: 0 } }], day(1));
-    const out = forecastCumulative(pace, { status: "ok", engine: "e", requestedModel: "m", operationKey: "k", pNull: null, receipt: { tokens: null, costMicrousd: null },
-      basis: { from: day(0), to: day(0), completeDays: 7, daysWithPricedSpend: 3, pricedEntries: 1, unknownCostEntries: 0, failedEntries: 0, excludedPartialDay: day(1) },
-      days: [{ day: day(1), median: 50, p10: 10, p90: null }, { day: day(2), median: 50, p10: 10, p90: 90 }] });
-    expect(out.map((p) => p.median)).toEqual([150, 200]);
-    expect(out.map((p) => p.low)).toEqual([110, 120]);
-    expect(out.map((p) => p.high)).toEqual([null, null]);
+  test("daily forecast keeps exact provider quantiles and gaps without adding partial spend or other days", () => {
+    const out = forecastDaily({
+      status: "ok",
+      engine: "e",
+      requestedModel: "m",
+      operationKey: "k",
+      pNull: null,
+      receipt: { tokens: null, costMicrousd: null },
+      basis: {
+        from: day(0),
+        to: day(0),
+        completeDays: 7,
+        daysWithPricedSpend: 3,
+        pricedEntries: 1,
+        unknownCostEntries: 0,
+        failedEntries: 0,
+        excludedPartialDay: day(1),
+      },
+      days: [
+        { day: day(1), median: 50, p10: 10, p90: null },
+        { day: day(2), median: 50, p10: 10, p90: 90 },
+      ],
+    });
+    expect(out.map((p) => p.median)).toEqual([50, 50]);
+    expect(out.map((p) => p.low)).toEqual([10, 10]);
+    expect(out.map((p) => p.high)).toEqual([null, 90]);
   });
   test("drivers keep every group's cost and unknown count", () => {
     fc.assert(fc.property(fc.array(fc.tuple(fc.string({ maxLength: 6 }), totals), { maxLength: 12 }), fc.integer({ min: 2, max: 8 }), (rows, limit) => {

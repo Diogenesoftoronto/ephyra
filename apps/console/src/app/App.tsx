@@ -31,7 +31,7 @@ import type { TeamApi } from "../team-api.ts";
 import { TeamPage } from "../pages/TeamPage.tsx";
 
 export type TeamContext = { api: TeamApi; onChanged?: () => void };
-export type WorkspaceContext = { name: string; role: "owner" | "viewer" | "approver"; switcher: ReactNode };
+export type WorkspaceContext = { id?: string; name: string; role: "owner" | "viewer" | "approver"; switcher: ReactNode };
 
 export type AccountContext = {
   automation?: SetupApi;
@@ -89,7 +89,9 @@ function Page({
     case "overview":
       return <OverviewPage />;
     case "usage":
-      return <UsagePage scope={`${principal ?? "deployment"}::${account?.settings.workspaceId ?? workspace?.name ?? "deployment"}`} />;
+      return <UsagePage scope={JSON.stringify([
+        principal ?? "deployment", workspace?.id ?? account?.settings.workspaceId ?? workspace?.name ?? "deployment",
+      ])} />;
     case "inbox":
       return <InboxPage trailId={route.id} canAct={approver} principal={principal}
         questionWorkspace={account?.settings.workspaceId} setupApi={account?.automation} />;
@@ -243,7 +245,11 @@ function Frame({
         ? route.page === "overview" ? "Application overview" : `${LABEL[route.page as PageId] ?? "This page"} (overview data)`
         : `${voiceContext.kind === "trail" ? "Quest" : voiceContext.kind === "run" ? "Run" : "Document"} ${voiceContext.id.slice(0, 12)}`;
   // One Velum conversation per signed-in account and workspace. Switching either starts an empty one.
-  const velumScope = `${identity?.principal ?? (demo ? "demo" : "deployment")}::${workspace?.name ?? account?.settings.workspaceId ?? "deployment"}::${workspace?.role ?? "owner"}`;
+  const velumScope = JSON.stringify([
+    identity?.principal ?? (demo ? "demo" : "deployment"),
+    workspace?.id ?? account?.settings.workspaceId ?? workspace?.name ?? "deployment",
+    workspace?.role ?? "owner",
+  ]);
   const companionContext: VoiceContext = voiceContext.kind === "draft" ? { kind: "overview" } : voiceContext;
   return (
     <VelumProvider
@@ -311,12 +317,12 @@ function Frame({
             <aside className="workspace-setup-note" aria-label="Automatic setup">
               <p>
                 <strong>Ephyra can automagically set itself up.</strong>{" "}
-                <span>It reads your repository and drafts autonomy documents for you to review. Nothing lands without you.</span>
+                <span>It reads your repository, prepares autonomy documents, and checks what it needs to run.</span>
               </p>
               <div className="workspace-setup-note__actions">
-                <a href="#/onboarding" className="ui-button ui-button--sm ui-button--ghost">Learn about automatic setup</a>
+                <a href="#/onboarding" className="ui-button ui-button--sm ui-button--ghost" aria-label="Learn about automatic setup">Learn more</a>
                 <a href="#/onboarding" className="ui-button ui-button--sm ui-button--primary"
-                  data-account-action="try-setup">Try automatic setup</a>
+                  data-account-action="try-setup" aria-label="Try automatic setup">Try it</a>
               </div>
             </aside>
           )}
