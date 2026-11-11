@@ -25,7 +25,10 @@ const readable = (path: string) =>
 	!path.includes("..") && (NAMES.has(path) || ARTEFACT.test(path));
 
 /** Commands that change a trail on the server; the list is refreshed after each. */
+/** A refusal the server was clear about. Anything else may have happened, so it is reported as unknown. */
+const DEFINITE = new Set([401, 403, 404, 409]);
 const CHANGES = new Set([
+	"release",
 	"approve",
 	"revise",
 	"kill",
@@ -53,6 +56,8 @@ export async function execute(client: Client, cmd: Command) {
 			checkpoint: item.checkpoint,
 			verdict: action === "approve" ? "approve" : "revise",
 			...(note ? { note } : {}),
+			// What was on screen when the key was pressed: a quest that moved on refuses the decision as stale.
+			bound: item.bound,
 		});
 	if (action === "open") {
 		if (!item.landingUrl) throw new Error("Landing URL unavailable");
@@ -142,7 +147,11 @@ function prune(state: InboxState): InboxState {
 }
 
 export async function terminal(client: Client) {
-	let state: InboxState = { items: await client.inbox(), selected: 0 };
+	let state: InboxState = {
+		items: await client.inbox(),
+		selected: 0,
+		...(process.env.EPHYRA_TIPS === "0" ? { tips: false } : {}),
+	};
 	if (process.env.EPHYRA_ANSI === "1") return ansiTerminal(client, state);
 	let tui: typeof import("@opentui/core");
 	try {
@@ -206,6 +215,12 @@ export async function terminal(client: Client) {
 		if (key.name === "q" && !state.modal) {
 			clearInterval(timer);
 			renderer.destroy();
+			return;
+		}
+		if (key.sequence === "R" && !state.modal) {
+			await refresh();
+			if (!state.error) state = { ...state, notice: "Refreshed" };
+			draw();
 			return;
 		}
 		const name = key.name === "enter" ? "return" : key.name;
@@ -290,6 +305,12 @@ async function ansiTerminal(
 					return;
 				}
 				if (busy) return;
+				if (text === "R" && !state.modal) {
+					await refresh();
+					if (!state.error) state = { ...state, notice: "Refreshed" };
+					draw();
+					return;
+				}
 				const input = ["return", "escape", "backspace", "up", "down"].includes(
 					key.name,
 				)
@@ -323,7 +344,7 @@ export async function runCommand(
 ): Promise<InboxState> {
 	const before = state;
 	if (
-		["approve", "revise", "kill", "park", "resume", "claim", "land"].includes(
+		["approve", "revise", "kill", "park", "resume", "claim", "release", "land"].includes(
 			cmd.action,
 		)
 	) {
@@ -350,7 +371,8 @@ export async function runCommand(
 			kill: "Killed",
 			park: "Parked",
 			resume: "Resumed",
-			claim: "Review claimed; use ephyra release <quest> before deciding",
+			claim: "Review claimed; press u to release it before deciding",
+			release: "Review released",
 			land: "Landing requested",
 			comment: "Comment posted",
 		};
@@ -362,7 +384,7 @@ export async function runCommand(
 		};
 	} catch (error) {
 		const message =
-			error instanceof ApiError && error.status === 409
+			error instanceof ApiError && DEFINITE.has(error.status)
 				? error.message
 				: cmd.action === "open"
 					? "Couldn't open the landing"

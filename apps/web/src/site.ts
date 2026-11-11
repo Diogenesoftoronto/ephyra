@@ -6,7 +6,10 @@ import {
 } from "./standard.ts";
 import { LEGAL_DOCS, OPERATOR, legalBody, legalIndex, securityTxt, type Operator } from "./legal.ts";
 import { pricingBody, pricingSummary } from "./pricing.ts";
-import { DOCS_DESCRIPTION, DOCS_UPDATED, docsBody, docsPlainText } from "./docs.ts";
+import {
+  DOCS_DESCRIPTION, DOCS_PAGES, DOCS_UPDATED, agentBrief, docsBody, docsLlms, docsMarkdown, docsPageFor, docsPath, docsPlainText,
+  docsSearchIndex, type DocsContext,
+} from "./docs.ts";
 
 export type SiteConfig = {
   /** Canonical origin of the public site, e.g. https://ephyra.dev */
@@ -21,6 +24,8 @@ export type SiteConfig = {
   publicationUri?: string;
   /** The control-plane origin for the console, agent instructions and owner access management. */
   apiOrigin?: string;
+  /** A host of its own for the documentation, e.g. https://docs.ephyra.dev. Without it the docs live under /docs. */
+  docsOrigin?: string;
   fetcher?: Fetcher;
   /** Seconds to cache the publication read. */
   cacheS?: number;
@@ -72,6 +77,13 @@ export function createSite(config: SiteConfig) {
     throw new Error("apiOrigin must be an HTTP(S) origin without credentials");
   }
   if (apiOrigin?.origin === origin) throw new Error("apiOrigin must point to the control-plane server, not this public site");
+  const docsOrigin = config.docsOrigin ? new URL(config.docsOrigin).origin : null;
+  if (docsOrigin === origin) throw new Error("docsOrigin must be a different host from the public site");
+  const docsHost = docsOrigin ? new URL(docsOrigin).host : null;
+  /** On its own host the documentation sits at the root; otherwise under /docs on the public site. */
+  const docsOnHost: DocsContext = { docsBase: docsOrigin ?? `${origin}/docs`, linkBase: "", site: origin, api: apiOrigin?.origin ?? null };
+  const docsOnSite: DocsContext = { ...docsOnHost, docsBase: docsOrigin ?? `${origin}/docs`, linkBase: "/docs" };
+  const docsHome = docsOrigin ?? `${origin}/docs`;
   const fetcher = config.fetcher ?? fetch;
   const cacheMs = (config.cacheS ?? 60) * 1000;
   const contentDir = config.contentDir ?? join(import.meta.dir, "../content/legal");
@@ -175,7 +187,8 @@ export function createSite(config: SiteConfig) {
   async function sitemap(): Promise<string> {
     const posts = await postsOrEmpty();
     const urls = [
-      ...PAGES.map((p) => `<url><loc>${xml(origin + p.path)}</loc></url>`),
+      ...PAGES.map((p) => `<url><loc>${xml(p.path === "/docs" ? docsHome : origin + p.path)}</loc></url>`),
+      ...(docsOrigin ? [] : DOCS_PAGES.filter((p) => p.slug !== "index").map((p) => `<url><loc>${xml(`${origin}/docs/${p.slug}`)}</loc></url>`)),
       ...posts.map((p) => `<url><loc>${xml(origin + "/blog" + p.value.path)}</loc><lastmod>${new Date(p.value.publishedAt).toISOString()}</lastmod></url>`),
     ];
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>\n`;
@@ -196,9 +209,12 @@ export function createSite(config: SiteConfig) {
       "Email service_auth and external provider ID-JAG assertions are unsupported by this DID-bound profile.",
       `- [Agent setup instructions](${origin}/auth.md): Authoritative control-plane registration, claim, token and bootstrap instructions.`,
       `- [Owner agent access](${origin}/agent/access): Review and revoke agent registrations after signing in.`,
-      `- [Agent setup guide](${origin}/docs#agent-setup): Observation coverage and proactive owner questions.`, "",
+      `- [Agent setup guide](${docsHome}/agent-setup.md): Observation coverage and proactive owner questions.`,
+      `- [Brief for a coding agent](${docsHome}/agent.md): What Ephyra is, the rules, and a map of every documentation page as Markdown.`, "",
       "## Pages",
-      ...PAGES.map((p) => `- [${p.title}](${origin}${p.path}): ${p.summary}`), "",
+      ...PAGES.map((p) => `- [${p.title}](${p.path === "/docs" ? docsHome : origin + p.path}): ${p.summary}`), "",
+      "## Documentation",
+      ...DOCS_PAGES.map((p) => `- [${p.title}](${docsHome}/${p.slug}.md): ${p.summary}`), "",
       "## Pricing",
       ...pricingSummary(),
       `- [Pricing](${origin}/pricing)`, "",
@@ -210,7 +226,7 @@ export function createSite(config: SiteConfig) {
       ...(config.apiOrigin ? [`- [Control plane API health](${config.apiOrigin}/healthz)`] : []),
       `- [Full text for LLMs](${origin}/llms-full.txt)`, "",
     ];
-    if (full) lines.push("## Documentation", "", docsPlainText(), "");
+    if (full) lines.push("## Documentation text", "", docsPlainText(docsOrigin ? docsOnHost : docsOnSite), "");
     if (full && posts.length) {
       lines.push("## Article text", "");
       for (const p of posts) {
@@ -237,12 +253,16 @@ export function createSite(config: SiteConfig) {
    * Every page that is not a landing cut: journal, pricing, legal, security. It wears cut E's look (the main site):
    * the same tokens and type, water at the top of the page where production is, and the seabed under the footer.
    */
-  function page(title: string, description: string, path: string, body: string, head = "", type = "website", wide = false, bodyClass = ""): Response {
-    const url = origin + path;
+  function page(title: string, description: string, path: string, body: string, head = "", type = "website", wide = false, bodyClass = "",
+    /** `canonical` replaces origin + path; `base` prefixes the shell's links when the page is served from another host. */
+    shell: { canonical?: string; base?: string; section?: string } = {}): Response {
+    const url = shell.canonical ?? origin + path;
+    const base = shell.base ?? "";
+    const section = shell.section ?? path;
     const nav = ([["/docs", "Docs"], ["/blog/", "Journal"], ["/pricing", "Pricing"], ["/security", "Security"]] as const).map(([href, label]) => {
-      const current = path === href ? ' aria-current="page"' : href === "/blog/" && path.startsWith("/blog/") ? ' aria-current="true"' : "";
-      return `<a href="${href}"${current}>${label}</a>`;
-    }).join("") + '<a href="/app/">Open app ↗</a>';
+      const current = section === href ? ' aria-current="page"' : href === "/blog/" && section.startsWith("/blog/") ? ' aria-current="true"' : "";
+      return `<a href="${href === "/docs" ? esc(docsOrigin ?? "/docs") : base + href}"${current}>${label}</a>`;
+    }).join("") + `<a href="${base}/app/">Open app ↗</a>`;
     return text(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(url)}">
@@ -311,13 +331,13 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
 .foot p{margin:.25rem 0}
 @media (max-width:24rem){.logo span{display:none}}
 </style></head><body id="top" class="${[wide ? "wide" : "", bodyClass].filter(Boolean).map(esc).join(" ")}"><header class="bar">
-<a class="logo" href="/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span aria-hidden="true">ephyra</span></a>
+<a class="logo" href="${base}/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span aria-hidden="true">ephyra</span></a>
 <nav aria-label="Site">${nav}</nav></header><main>${body}</main>
-<footer class="foot"><nav aria-label="Site and legal"><a href="/docs">Docs</a><a href="/blog/">Journal</a>
-<a href="/pricing">Pricing</a><a href="/security">Security</a>
-<a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a><a href="/legal/acceptable-use">Acceptable use</a>
-<a href="/legal/providers">Service providers</a></nav>
-<p>The journal is published with <a href="https://standard.site">Standard.site</a> on AT Protocol. <a href="/blog/feed.xml">RSS</a></p>
+<footer class="foot"><nav aria-label="Site and legal"><a href="${esc(docsOrigin ?? "/docs")}">Docs</a><a href="${base}/blog/">Journal</a>
+<a href="${base}/pricing">Pricing</a><a href="${base}/security">Security</a>
+<a href="${base}/legal/terms">Terms</a><a href="${base}/legal/privacy">Privacy</a><a href="${base}/legal/acceptable-use">Acceptable use</a>
+<a href="${base}/legal/providers">Service providers</a></nav>
+<p>The journal is published with <a href="https://standard.site">Standard.site</a> on AT Protocol. <a href="${base}/blog/feed.xml">RSS</a></p>
 <p>“Jellyware” is <a href="https://ampcode.com/podcast/season-02/episode-02" rel="noopener">Amp’s word</a>.</p>
 </footer></body></html>`, "text/html");
   }
@@ -372,10 +392,77 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     return doc ? page(`${doc.title} · ${NAME}`, doc.summary, path, await legalBody(doc, contentDir, operator)) : null;
   }
 
+  const docsAsset = (path: string) => new Response(Bun.file(join(import.meta.dir, "../content", path.slice(1))), { headers: {
+    "content-type": path.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
+    "cache-control": "public, max-age=300", "x-content-type-options": "nosniff",
+  } });
+  const markdown = (body: string) => text(body, "text/markdown", { "x-content-type-options": "nosniff" });
+
+  /** One documentation page in the site shell. */
+  function docsPage(slug: string, context: DocsContext): Response | null {
+    const doc = docsPageFor(slug);
+    if (!doc) return null;
+    const canonical = slug === "index" ? context.docsBase : `${context.docsBase}/${slug}`;
+    const title = slug === "index" ? `Documentation · ${NAME}` : `${doc.title} · ${NAME} docs`;
+    const schema = { "@context": "https://schema.org", "@type": "TechArticle", headline: slug === "index" ? "Ephyra documentation" : doc.title,
+      description: doc.summary, dateModified: DOCS_UPDATED, url: canonical, inLanguage: "en",
+      isPartOf: { "@type": "WebSite", name: `${NAME} documentation`, url: context.docsBase },
+      publisher: { "@type": "Organization", name: NAME, url: origin } };
+    return page(title, slug === "index" ? DOCS_DESCRIPTION : doc.summary, docsPath(slug, context), docsBody(doc, context),
+      `<link rel="stylesheet" href="${context.linkBase}/_docs/styles.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500&display=swap">`
+      + `<link rel="alternate" type="text/markdown" href="${esc(`${context.docsBase}/${slug}.md`)}">`
+      + `<script type="module" src="${context.linkBase}/_docs/client.js"></script><script type="application/ld+json">${ldJson(schema)}</script>`,
+      "article", true, "docs-page", { canonical, section: "/docs", ...(context.linkBase ? {} : { base: origin }) });
+  }
+
+  /**
+   * The documentation under `context.linkBase`: pages, their Markdown, the agent brief, the text exports and the search index.
+   * On the public site, with a docs host configured, every one of these redirects there so each page has one address.
+   */
+  async function docsRoute(path: string, url: URL, context: DocsContext): Promise<Response | null> {
+    const base = context.linkBase;
+    if (base && path !== base && !path.startsWith(`${base}/`) && path !== "/docs.txt") return null;
+    const rest = path === "/docs.txt" && base ? "/docs.txt" : path.slice(base.length) || "/";
+    if (base && docsOrigin) return Response.redirect(`${docsOrigin}${rest === "/" ? "" : rest}${url.search}`, 308);
+    if (rest === "/_docs/styles.css" || rest === "/_docs/client.js") return docsAsset(`/docs/${rest.slice(7)}`);
+    if (rest === "/search.json") return Response.json(docsSearchIndex(context), { headers: { "cache-control": "public, max-age=300" } });
+    if (rest === "/agent.md") return markdown(agentBrief(context));
+    if (rest === "/docs.txt") return text(docsPlainText(context), "text/plain");
+    if (rest === "/llms-full.txt" && !base) return text(`${agentBrief(context)}\n---\n\n${docsPlainText(context)}`, "text/plain");
+    if (rest === "/llms.txt" && !base) return text(docsLlms(context), "text/plain");
+    if (rest === "/index" || (rest === "/" && base && path.endsWith("/"))) return Response.redirect(`${context.docsBase}${url.search}`, 308);
+    const slug = rest === "/" ? "index" : rest.slice(1);
+    if (slug.endsWith(".md")) {
+      const doc = docsPageFor(slug.slice(0, -3));
+      // On the docs host an unknown .md (auth.md, for one) belongs to the public site.
+      return doc ? markdown(docsMarkdown(doc, context)) : base ? notFound() : null;
+    }
+    if (slug.endsWith("/") && docsPageFor(slug.slice(0, -1))) return Response.redirect(`${context.docsBase}/${slug.slice(0, -1)}${url.search}`, 308);
+    return docsPage(slug, context) ?? (base ? notFound() : null);
+  }
+
+  /** The documentation host: the docs at the root, shared assets, and everything else sent back to the public site. */
+  async function docsHostRoute(path: string, url: URL): Promise<Response> {
+    if (path === "/healthz") return Response.json({ ok: true, docs: true }, { headers: { "x-robots-tag": "noindex" } });
+    if (path === "/robots.txt") return text(["User-agent: *", "Allow: /", "", `Sitemap: ${docsOrigin}/sitemap.xml`, "",
+      "# For agents", `# ${docsOrigin}/agent.md`, `# ${docsOrigin}/llms.txt`, `# ${docsOrigin}/llms-full.txt`, ""].join("\n"), "text/plain");
+    if (path === "/sitemap.xml") return text(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`
+      + DOCS_PAGES.map((p) => `<url><loc>${xml(p.slug === "index" ? `${docsOrigin}/` : `${docsOrigin}/${p.slug}`)}</loc><lastmod>${DOCS_UPDATED}</lastmod></url>`).join("")
+      + `</urlset>\n`, "application/xml");
+    // Old links to the docs under /docs keep working on this host.
+    if (path === "/docs" || path.startsWith("/docs/")) return Response.redirect(`${docsOrigin}${path.slice(5)}${url.search}`, 308);
+    if (path.startsWith("/assets/")) return (await staticFile(path.slice(1))) ?? notFound();
+    const docs = await docsRoute(path, url, docsOnHost);
+    if (docs) return docs;
+    // Pricing, the journal, the app and the agent instructions live on the public site.
+    return Response.redirect(`${origin}${path}${url.search}`, 302);
+  }
+
   async function route(req: Request): Promise<Response> {
     if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     const url = new URL(req.url);
     const path = url.pathname;
+    if (docsHost && url.host === docsHost) return docsHostRoute(path, url);
     if (path !== "/healthz" && redirectHosts.has(url.host)) {
       return Response.redirect(`${origin}${path}${url.search}`, 308);
     }
@@ -395,24 +482,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path === "/healthz") return Response.json({ ok: true, blog: Boolean(config.publicationUri) }, { headers: { "x-robots-tag": "noindex" } });
     // The actual app components share their public asset paths with the isolated walkthrough build.
     if (path.startsWith("/app/")) return (await staticFile(`e/app/${path.slice(5)}`)) ?? notFound();
-    if (path === "/docs/") return Response.redirect(`${origin}/docs${url.search}`, 308);
-    if (path === "/docs") {
-      const schema = { "@context": "https://schema.org", "@type": "TechArticle", headline: "Ephyra documentation",
-        description: DOCS_DESCRIPTION, dateModified: DOCS_UPDATED, url: `${origin}/docs`, inLanguage: "en",
-        publisher: { "@type": "Organization", name: NAME, url: origin } };
-      return page(`Documentation · ${NAME}`, DOCS_DESCRIPTION, path, docsBody(),
-        `<link rel="stylesheet" href="/docs/styles.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500&display=swap">`
-        + `<script type="module" src="/docs/client.js"></script><script type="application/ld+json">${ldJson(schema)}</script>`,
-        "website", true, "docs-page");
-    }
-    if (path === "/docs.txt") return text(docsPlainText(), "text/plain");
-    if (path === "/docs/styles.css" || path === "/docs/client.js") {
-      return new Response(Bun.file(join(import.meta.dir, "../content", path.slice(1))), { headers: {
-        "content-type": path.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
-        "cache-control": "public, max-age=300", "x-content-type-options": "nosniff",
-      } });
-    }
-    if (path.startsWith("/docs/")) return notFound();
+    const docs = await docsRoute(path, url, docsOnSite);
+    if (docs) return docs;
     if (path === "/robots.txt") return text(robots(), "text/plain");
     if (path === "/sitemap.xml") return text(await sitemap(), "application/xml");
     if (path === "/llms.txt") return text(await llms(false), "text/plain");
