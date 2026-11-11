@@ -1,8 +1,8 @@
-import { JudgementResponse, ExtractionResponse, type DecideBackend, type ExtractBackend } from "@ephyra/core";
+import { JudgementResponse, ExtractionResponse, ExtractionForecastRequest, ExtractionForecastResponse, type DecideBackend, type ExtractBackend, type ForecastBackend } from "@ephyra/core";
 import type { JudgementRequest, ExtractionRequest } from "@ephyra/core";
 import { dpopProof } from "./dpop.ts";
 import { postJson, type HttpOptions } from "./http.ts";
-import { recordUsage, type UsageHook } from "./usage.ts";
+import { recordUsage, UnexpectedIdentity, type UsageHook } from "./usage.ts";
 import type { Purpose, AccessTokenProvider } from "./registry.ts";
 
 export type NotOrganicOptions = {
@@ -39,6 +39,21 @@ export class NotOrganicExtract extends NotOrganicClient implements ExtractBacken
   async extract(req: ExtractionRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
     const result = ExtractionResponse.parse(await this.send("/v1/extraction", req, opts));
     await recordUsage(this.options, result, opts.idempotencyKey);
+    return result;
+  }
+}
+
+/**
+ * Clairic forecast through Not Organic `/v1/extraction` (contract v1: `forecast` fields with horizon/interval).
+ * Usage is recorded by the caller, which owns the ledger entry for the whole forecast operation.
+ */
+export class NotOrganicForecast extends NotOrganicClient implements ForecastBackend {
+  readonly requestedModel = "extraction";
+  async forecast(req: ExtractionForecastRequest, opts: { idempotencyKey: string; signal?: AbortSignal }) {
+    const body = ExtractionForecastRequest.parse({ model: this.requestedModel, ...req });
+    const result = ExtractionForecastResponse.parse(await this.send("/v1/extraction", body, opts));
+    if (this.options.expectedIdentities?.length && !this.options.expectedIdentities.includes(result.model))
+      throw new UnexpectedIdentity(result.model);
     return result;
   }
 }
