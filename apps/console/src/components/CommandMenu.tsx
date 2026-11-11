@@ -4,6 +4,7 @@ import { Icon } from "../ui/icons.tsx";
 import "./CommandMenu.css";
 
 export const COMMANDS = [
+  { id: "loop", label: "Go to the loop", key: "l", detail: "Every quest, and whether you are needed" },
   { id: "overview", label: "Go to overview", key: "o", detail: "Workspace activity and next steps" },
   { id: "inbox", label: "Open inbox", key: "i", detail: "Quests waiting for your review" },
   { id: "runs", label: "Open runs", key: "r", detail: "Agent work and execution records" },
