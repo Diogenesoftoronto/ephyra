@@ -1,6 +1,6 @@
 // Under the hood: the same quest, with nothing summarised away. Every event the journal holds, every effect the state
 // machine asked for (with the key that makes it safe to retry), every attempt, question, agent run and receipt.
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { PERSONAS, proofDigest, type AgentRun, type AgentRunEvent, type Effect, type TrailEvent } from "@ephyra/core";
 import { EngineBadge } from "../components/EngineBadge.tsx";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
@@ -47,30 +47,52 @@ function Events({ events }: { events: readonly TrailEvent[] }) {
   );
 }
 
+/** An operation key is for comparing and copying, so it is shown whole and can be copied without selecting it. */
+function OperationKey({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* No clipboard here. The key is on screen in full and can be selected. */ }
+  };
+  return (
+    <p className="lp-hood-key">
+      <span>operation key</span>
+      <code data-idempotency-key>{value}</code>
+      <button type="button" className="lp-quiet" onClick={copy} aria-label={`Copy operation key ${value}`}>
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </p>
+  );
+}
+
 function Effects({ hood }: { hood: HoodInput }) {
   const cause = new Map(hood.events.map((event) => [event.id, event]));
   if (!hood.effects.length) return <p className="lp-hood-empty">The state machine has not asked for anything yet.</p>;
   return (
-    <ol className="lp-hood-list" data-hood-effects>
-      {hood.effects.map(({ cause: id, effect }, i) => {
-        const persona = effectPersona(effect);
-        const from = cause.get(id);
-        return (
-          <li key={`${effect.key}-${i}`} data-type={effect.type}>
-            <span className="lp-hood-who">{persona ? <PersonaAvatar persona={persona} size={24} /> : null}</span>
-            <div>
-              <p>{describeEffect(effect)}</p>
-              <p className="lp-hood-meta">
-                <span>because: {from ? narrate(from) : "an earlier event"}</span>
-              </p>
-              <p className="lp-hood-meta">
-                <span>runs once, keyed by</span> <code data-idempotency-key title={effect.key}>{effect.key}</code>
-              </p>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <>
+      <p className="lp-hood-meta">
+        What the engine asked for, oldest first. This is a record of each request, not of its delivery.
+      </p>
+      <ol className="lp-hood-list" data-hood-effects>
+        {hood.effects.map(({ cause: id, effect }, i) => {
+          const persona = effectPersona(effect);
+          const from = cause.get(id);
+          return (
+            <li key={`${effect.key}-${i}`} data-type={effect.type}>
+              <span className="lp-hood-who">{persona ? <PersonaAvatar persona={persona} size={24} /> : null}</span>
+              <div>
+                <p>{describeEffect(effect)}</p>
+                <p className="lp-hood-meta"><span>because: {from ? narrate(from) : "an earlier event"}</span></p>
+                <OperationKey value={effect.key} />
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </>
   );
 }
 
@@ -178,12 +200,25 @@ function Receipts({ events }: { events: readonly TrailEvent[] }) {
   );
 }
 
-type Props = { hood: HoodInput; tab: HoodTab; onTab: (tab: HoodTab) => void; onClose: () => void; note?: string };
+type Props = {
+  hood: HoodInput; tab: HoodTab; onTab: (tab: HoodTab) => void; onClose: () => void; note?: string;
+  /**
+   * `modal` (the default) covers the page: focus stays inside, the page behind is inert and its keys do nothing.
+   * `column` sits beside the board where there is room for both, and the board stays usable.
+   */
+  mode?: "modal" | "column";
+};
 
-export function Inspector({ hood, tab, onTab, onClose, note }: Props) {
+export function Inspector({ hood, tab, onTab, onClose, note, mode = "modal" }: Props) {
   const tabs = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { heading.current?.focus(); }, []);
+  const dialog = useRef<HTMLDialogElement>(null);
+  // Open as a modal before the first paint, so the panel is never on screen without holding focus.
+  useLayoutEffect(() => {
+    const el = dialog.current;
+    if (el && !el.open) el.showModal();
+    heading.current?.focus();
+  }, []);
   const counts: Record<HoodTab, number> = {
     events: hood.events.length, effects: hood.effects.length, attempts: hood.view.attempts.length,
     questions: hood.view.questions.length, runs: hood.runs.length,
@@ -197,8 +232,9 @@ export function Inspector({ hood, tab, onTab, onClose, note }: Props) {
     onTab(next);
     tabs.current?.querySelector<HTMLElement>(`[data-tab="${next}"]`)?.focus();
   };
-  return (
-    <aside className="lp-hood" data-inspector aria-label={`Under the hood: ${hood.view.short}`}>
+  const label = `Under the hood: ${hood.view.short}`;
+  const body: ReactNode = (
+    <>
       <header>
         <div>
           <p className="lp-eyebrow"><span>Under the hood</span><span>{hood.view.short}</span></p>
@@ -225,6 +261,24 @@ export function Inspector({ hood, tab, onTab, onClose, note }: Props) {
         {tab === "runs" && <Runs hood={hood} />}
         {tab === "receipts" && <Receipts events={hood.events} />}
       </div>
-    </aside>
+    </>
+  );
+  if (mode === "column") return <aside className="lp-hood" data-inspector data-mode="column" aria-label={label}>{body}</aside>;
+  // The page's own keys are off while this is open, so the one that opened it is honoured here: `i` closes it again.
+  const keys = (event: KeyboardEvent) => {
+    // Escape is the dialog's own: it arrives as `cancel`. Every other key stops here, so the page behind does not act on it.
+    if (event.key === "Escape") return;
+    event.stopPropagation();
+    if (event.key !== "i" || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable]")) return;
+    event.preventDefault();
+    onClose();
+  };
+  return (
+    <dialog ref={dialog} className="lp-hood" data-inspector data-mode="modal" aria-label={label} onKeyDown={keys}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onClick={(event) => { if (event.target === dialog.current) onClose(); }}>
+      {body}
+    </dialog>
   );
 }

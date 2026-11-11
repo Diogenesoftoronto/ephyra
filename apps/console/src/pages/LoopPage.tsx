@@ -5,6 +5,7 @@ import type { InvestigationQuestion } from "@ephyra/core";
 import { ApiError, UnknownWriteOutcome, type ConsoleApi } from "../api.ts";
 import { useApi } from "../app/ApiContext.tsx";
 import { useLoop } from "../app/useLoop.ts";
+import { publishWaiting } from "../app/waiting.ts";
 import { ErrorState } from "../components/Load.tsx";
 import { Skeleton } from "../kit.ts";
 import { playFeedback } from "../lib/feedback.ts";
@@ -18,12 +19,15 @@ import { FleetSentence, NeedsYou, QuestDetail, proofLine } from "../loop/parts.t
 const typing = (target: EventTarget | null) => target instanceof Element
   && Boolean(target.closest("input,textarea,select,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=combobox]"));
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const list = (words: readonly string[]) => (words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0] ?? "");
 
 /** Why a write did not go through, in words a person can act on. Server text is shown as text. */
 function explain(what: string, error: unknown): string {
-  if (error instanceof UnknownWriteOutcome) return `The server did not confirm. Look at the quest again before you ${what} a second time.`;
+  if (error instanceof UnknownWriteOutcome) {
+    return `The server did not confirm, so this may or may not have happened. The board has been read again: check the quest before you ${what} a second time.`;
+  }
   if (error instanceof ApiError) {
-    if (error.status === 409) return "This quest moved on while you were looking. It has been refreshed. Look again before deciding.";
+    if (error.status === 409) return "This quest moved on while you were looking. The board has been read again. Look at it before deciding.";
     if (error.status === 403) return error.detail ?? "You do not have permission to do that here.";
     return `Could not ${what}. ${error.detail ?? `The server answered ${error.status}.`}`;
   }
@@ -47,12 +51,16 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
   const [hood, setHood] = useState(false);
   const [tab, setTab] = useState<HoodTab>("events");
   const [toast, setToast] = useState("");
+  /** A write that did not go through. It stays on screen until it is dismissed or the next write succeeds. */
+  const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dropping, setDropping] = useState<string | null>(null);
   const narrow = useMediaQuery("(max-width: 720px)");
+  // Where there is room for the board and the machinery side by side, the hood is a column and the board stays usable.
+  const roomy = useMediaQuery("(min-width: 1900px)");
   const aside = useRef<HTMLElement>(null);
   const writing = useRef(false);
   const prefix = useRef(0);
+  const opener = useRef<HTMLElement | null>(null);
 
   const loop = useLoop(api, { viewer: principal, selected: selectedId, transcripts: hood });
   const { board } = loop;
@@ -68,18 +76,18 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
 
   useEffect(() => { setSelectedId(selected?.id ?? null); }, [selected?.id]);
 
+  // The navigation's inbox badge counts what this page just heard, so the two cannot disagree.
+  useEffect(() => {
+    publishWaiting(loop.status === "ready" ? loop.inbox.filter((item) => item.kind === "checkpoint" || item.kind === "spend").length : null);
+  }, [loop.status, loop.inbox]);
+  useEffect(() => () => publishWaiting(null), []);
+
   // An announcement stays up while its write is still in flight, then leaves by itself.
   useEffect(() => {
     if (!toast || busy) return;
     const timer = setTimeout(() => setToast(""), 4200);
     return () => clearTimeout(timer);
   }, [toast, busy]);
-
-  useEffect(() => {
-    if (!dropping) return;
-    const timer = setTimeout(() => setDropping(null), 5000);
-    return () => clearTimeout(timer);
-  }, [dropping]);
 
   const select = useCallback((id: string) => {
     setPicked(id);
@@ -92,24 +100,34 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     }
   }, [board]);
 
-  /** One write at a time, each under its own operation key. The board is read again whatever the outcome. */
-  const write = useCallback(async <T,>(what: string, doing: string, done: string | ((result: T) => string), work: (op: string) => Promise<T>) => {
-    if (writing.current) return;
+  /**
+   * One write at a time, each under its own operation key. It answers whether the write went through, so a form can
+   * keep what was typed when it did not. The board is read again whatever the outcome.
+   */
+  const refresh = loop.refresh;
+  const write = useCallback(async <T,>(
+    what: string, doing: string, done: string | ((result: T) => string), work: (op: string) => Promise<T>,
+  ): Promise<boolean> => {
+    if (writing.current) return false;
     writing.current = true;
     setBusy(true);
+    setProblem(null);
     // Say so at once. The server may take a moment (an approval lands the change before it answers).
     setToast(doing);
     try {
       const result = await work(crypto.randomUUID());
       setToast(typeof done === "string" ? done : done(result));
+      return true;
     } catch (error) {
-      setToast(explain(what, error));
+      setToast("");
+      setProblem(explain(what, error));
+      return false;
     } finally {
       writing.current = false;
       setBusy(false);
-      loop.refresh();
+      refresh();
     }
-  }, [loop.refresh]);
+  }, [refresh]);
 
   const gateOf = useCallback((quest: QuestView) => {
     const action = quest.action;
@@ -123,11 +141,16 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
     }
     return null;
   }, [loop.inbox]);
+  const closed = useCallback(() => {
+    setProblem("That request is no longer open. The board has been read again.");
+    refresh();
+    return Promise.resolve(false);
+  }, [refresh]);
 
   const act = useCallback((quest: QuestView) => {
     const action = quest.action;
     if (!action) return;
-    if (!canAct) { setToast("You can follow this workspace but not change it."); return; }
+    if (!canAct) { setProblem("You can follow this workspace but not change it."); return; }
     if (action.kind === "answer") {
       setPicked(quest.id);
       requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-answer] textarea")?.focus());
@@ -140,47 +163,57 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
       return;
     }
     const gate = gateOf(quest);
-    if (!gate) { setToast("That request is no longer open. The board has been refreshed."); loop.refresh(); return; }
+    if (!gate) { void closed(); return; }
     playFeedback("connected");
     void write("approve", `Approving ${quest.short}.`,
       action.kind === "spend" ? `Approved the spend. ${quest.short} carries on.` : `Approved. ${quest.short} moves on by itself.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "approve" }, op));
-  }, [api, canAct, gateOf, write, loop.refresh]);
+  }, [api, canAct, gateOf, write, closed]);
 
   const revise = useCallback((quest: QuestView, note: string) => {
     const gate = gateOf(quest);
-    if (!canAct || !gate) return;
-    void write("send it back", `Sending ${quest.short} back.`,
+    if (!canAct || !gate) return closed();
+    return write("send it back", `Sending ${quest.short} back.`,
       `Sent ${quest.short} back with your note. It becomes the next attempt's first observation.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "revise", note }, op));
-  }, [api, canAct, gateOf, write]);
+  }, [api, canAct, gateOf, write, closed]);
 
-  // Dropping ends a quest, so it takes two presses.
+  // Dropping ends a quest. The strip asks for a second, explicit press before this is called.
   const drop = useCallback((quest: QuestView) => {
     const gate = gateOf(quest);
-    if (!canAct || !gate) return;
-    if (dropping !== quest.id) {
-      setDropping(quest.id);
-      setToast(`Drop ${quest.short}? Nothing lands and the quest ends. Press Drop again to confirm.`);
-      return;
-    }
-    setDropping(null);
-    void write("drop it", `Dropping ${quest.short}.`, `Dropped ${quest.short}. Nothing lands.`,
+    if (!canAct || !gate) return closed();
+    return write("drop it", `Dropping ${quest.short}.`, `Dropped ${quest.short}. Nothing lands.`,
       (op) => api.decide(quest.id, { ...gate, verdict: "reject" }, op));
-  }, [api, canAct, dropping, gateOf, write]);
+  }, [api, canAct, gateOf, write, closed]);
 
   const answer = useCallback((quest: QuestView, text: string) => {
-    if (quest.action?.kind !== "answer") return;
+    if (quest.action?.kind !== "answer") return Promise.resolve(false);
     const question = quest.action.questionId;
-    void write<InvestigationQuestion>("send your answer", `Sending your answer. It is checked before ${quest.short} carries on.`,
+    return write<InvestigationQuestion>("send your answer", `Sending your answer. It is checked before ${quest.short} carries on.`,
       (saved) => saved.status === "answered" ? `Answer accepted as evidence. ${quest.short} carries on by itself.`
         : `The check did not accept that answer as evidence, so ${quest.short} stays stopped.`,
       (op) => api.answerQuestion(quest.id, question, { text }, op));
   }, [api, write]);
 
+  // Whatever had focus when the hood opened gets it back when the hood closes.
+  const openHood = useCallback(() => {
+    const active = document.activeElement;
+    opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    setHood(true);
+  }, []);
+  const hoodWas = useRef(hood);
+  useEffect(() => {
+    if (hoodWas.current && !hood) {
+      const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>("[data-open-hood]");
+      back?.focus();
+    }
+    hoodWas.current = hood;
+  }, [hood]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+      // A modal owns the keyboard: the hood below the wide breakpoint, the command menu, any dialog.
       if (document.querySelector("dialog:modal")) return;
       if (event.key === "Escape") {
         if (hood) { event.preventDefault(); setHood(false); }
@@ -204,49 +237,75 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
           setPicked(needs.id);
           requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-primary]")?.focus());
           break;
-        case "i": if (selected) setHood((open) => !open); break;
+        case "i":
+          if (!selected) return;
+          if (hood) setHood(false); else openHood();
+          break;
         default: return;
       }
       event.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [order, selected, needs, hood, select]);
-
-  // Closing the hood hands focus back to the control that opened it.
-  const hoodWas = useRef(hood);
-  useEffect(() => {
-    if (hoodWas.current && !hood) document.querySelector<HTMLElement>("[data-open-hood]")?.focus();
-    hoodWas.current = hood;
-  }, [hood]);
+  }, [order, selected, needs, hood, select, openHood]);
 
   if (loop.status === "loading") return <Skeleton block />;
   if (loop.status === "error") return <ErrorState error={loop.error} onRetry={loop.refresh} />;
 
   const view = selected?.view ?? null;
-  const scene = sceneViews(board.views);
+  const lost = loop.error !== null && loop.heardAt !== null;
+  const hoodNotes = [
+    selected?.effects === null ? "This server keeps no record of effects for this quest, so that tab is empty." : null,
+    loop.unavailable.includes("runs") || loop.unavailable.includes("transcripts")
+      ? "Agent runs could not be read just now. What is listed may be out of date." : null,
+  ].filter(Boolean).join(" ");
+  const scene = (
+    <LoopScene views={sceneViews(board.views)} selected={selected?.id} current={view?.stage.id} narrow={narrow} compact onSelect={select} />
+  );
+  const bench = board.quests.length === 0
+    ? <p className="lp-board-note">No quests yet. Ephyra opens one by itself when a signal arrives from production.</p>
+    : <QuestGroups views={board.views} selected={selected?.id} narrow={narrow} finished={5} onSelect={select} />;
   return (
-    <div className="lp-page" data-loop-page data-busy={busy || undefined}>
+    <div className="lp-page" data-loop-page data-busy={busy || undefined} data-hood={hood ? (roomy ? "column" : "modal") : undefined}>
       <div className="lp-board" data-layout="h">
         <div className="lp-board-main">
           <FleetSentence fleet={board.fleet} />
-          {loop.error !== null && loop.heardAt !== null && (
-            <p className="lp-board-note" data-tone="warn" data-stale>
-              Lost contact with the server. This is what it last reported, at {clock(loop.heardAt)}. Trying again.
+          {/* Always present, so a change in how fresh the board is gets announced rather than only drawn. */}
+          <div className="lp-board-notes" aria-live="polite">
+            {lost && (
+              <p className="lp-board-note" data-tone="warn" data-stale>
+                Lost contact with the server. This is what it last reported, at {clock(loop.heardAt!)}. Trying again.
+              </p>
+            )}
+            {!lost && loop.unavailable.length > 0 && (
+              <p className="lp-board-note" data-tone="warn" data-partial>
+                Could not refresh {list(loop.unavailable)} just now. Showing what was last read.{" "}
+                <button type="button" className="lp-quiet" onClick={loop.refresh}>Try again</button>
+              </p>
+            )}
+          </div>
+          {problem && (
+            <p className="lp-board-note" data-tone="bad" data-problem role="alert">
+              {problem}{" "}
+              <button type="button" className="lp-quiet" onClick={() => setProblem(null)}>Dismiss</button>
             </p>
           )}
           {needs && (
-            <NeedsYou quest={needs.view} proof={proofLine(needs.events)} more={Math.max(0, waiting.length - 1)} onAct={act}
+            <NeedsYou quest={needs.view} proof={proofLine(needs.events)} more={Math.max(0, waiting.length - 1)} busy={busy} onAct={act}
               onRevise={canAct ? revise : undefined} onDrop={canAct ? drop : undefined} />
           )}
-          <LoopScene views={scene} selected={selected?.id} current={view?.stage.id} narrow={narrow} compact onSelect={select} />
-          {board.quests.length === 0
-            ? <p className="lp-board-note">No quests yet. Ephyra opens one by itself when a signal arrives from production.</p>
-            : <QuestGroups views={board.views} selected={selected?.id} narrow={narrow} finished={5} onSelect={select} />}
+          {/* On a phone the names come first: the scene has no room for them there, so it follows the list. */}
+          {narrow ? <>{bench}{scene}</> : <>{scene}{bench}</>}
         </div>
         <aside className="lp-board-aside" aria-label="Selected quest" ref={aside}>
           {selected && view ? (
-            <QuestDetail quest={view} steps={steps} now={now} run={running} onInspect={() => setHood(true)}>
+            <QuestDetail quest={view} steps={steps} now={now} run={running} onInspect={openHood}
+              pending={selected.loaded ? null : "Reading this quest's journal."}>
+              {selected.loaded && loop.stale(selected.id) && (
+                <p className="lp-board-note" data-tone="warn" data-stale-quest>
+                  Could not refresh this quest's evidence just now. Showing what was last read.
+                </p>
+              )}
               {view.action?.kind === "answer" && canAct && <AnswerForm key={view.action.questionId} quest={view} busy={busy} onAnswer={answer} />}
               {view.attention !== "needs_you" && (view.action?.kind === "resume" || view.action?.kind === "release") && canAct && (
                 <p className="lp-detail-act">
@@ -261,8 +320,8 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
       </div>
 
       {hood && selected && (
-        <Inspector tab={tab} onTab={setTab} onClose={() => setHood(false)}
-          note={selected.effects === null ? "This server keeps no record of effects for this quest, so that tab is empty." : undefined}
+        <Inspector key={roomy ? "column" : "modal"} mode={roomy ? "column" : "modal"} tab={tab} onTab={setTab} onClose={() => setHood(false)}
+          note={hoodNotes || undefined}
           hood={{ view: selected.view, events: selected.events, effects: selected.effects ?? [], runs: loop.runs, runEvents: loop.runEvents }} />
       )}
 
@@ -271,12 +330,15 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
   );
 }
 
-/** The answer to a question that was addressed to this person. It is checked by the server before the quest resumes. */
-function AnswerForm({ quest, busy, onAnswer }: { quest: QuestView; busy: boolean; onAnswer: (quest: QuestView, text: string) => void }) {
+/**
+ * The answer to a question that was addressed to this person. The server checks it before the quest resumes. What was
+ * typed stays in the box until the server has taken it.
+ */
+function AnswerForm({ quest, busy, onAnswer }: { quest: QuestView; busy: boolean; onAnswer: (quest: QuestView, text: string) => Promise<boolean> }) {
   const [text, setText] = useState("");
   const send = (event: FormEvent) => {
     event.preventDefault();
-    if (text.trim()) onAnswer(quest, text.trim());
+    if (text.trim() && !busy) void onAnswer(quest, text.trim());
   };
   return (
     <form className="lp-answer" data-answer onSubmit={send}>

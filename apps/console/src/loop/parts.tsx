@@ -78,7 +78,7 @@ const LOOP_TRACE = trace(1);
 type Metered = Pick<QuestView, "stage" | "progress" | "attention" | "retreats">;
 
 export function LoopMeter({ quest, variant = "path" }: { quest: Metered; variant?: MeterVariant }) {
-  const sank = quest.retreats ? `, sank back ${quest.retreats} ${quest.retreats === 1 ? "time" : "times"}` : "";
+  const sank = quest.retreats ? `, went back ${quest.retreats} ${quest.retreats === 1 ? "time" : "times"}` : "";
   const label = `Stage ${quest.stage.index + 1} of ${LOOP_STAGES.length}: ${quest.stage.label}${sank}`;
   if (variant === "strip") {
     return (
@@ -254,7 +254,7 @@ export function DiveProfile({ steps, width = 320, height = 96 }: { steps: readon
   const retreats = moves.filter((step) => step.kind === "retreat").length;
   const lap = moves.at(-1)?.lap ?? 1;
   const summary = `${moves.length} moves through the loop`
-    + (retreats ? `, sank back ${retreats} ${retreats === 1 ? "time" : "times"}` : ", no retreats");
+    + (retreats ? `, went back to an earlier stage ${retreats} ${retreats === 1 ? "time" : "times"}` : ", never went back");
   return (
     <figure className="lp-dive" data-path data-retreats={retreats}>
       <div className="lp-dive-plot">
@@ -275,7 +275,10 @@ export function DiveProfile({ steps, width = 320, height = 96 }: { steps: readon
         <span data-level="surface" aria-hidden="true">production</span>
         <span data-level="seabed" aria-hidden="true">git</span>
       </div>
-      <figcaption>{moves.length} moves{retreats ? `, sank back ${retreats}×` : ", no retreats"}{lap > 1 ? `, lap ${lap}` : ""}</figcaption>
+      <figcaption>
+        {moves.length} moves{retreats ? `, went back ${retreats === 1 ? "once" : `${retreats} times`}` : ", never went back"}
+        {lap > 1 ? `, lap ${lap}` : ""}
+      </figcaption>
     </figure>
   );
 }
@@ -328,24 +331,34 @@ export function proofLine(events: readonly TrailEvent[]): string | null {
   return bundle.passed ? `Proof passed: ${kinds}.` : `Proof failed. Missing: ${bundle.missing.join(", ")}.`;
 }
 
+/** A handler may answer with whether the write went through. Saying nothing counts as done. */
+type Outcome = void | boolean | Promise<void | boolean>;
 type NeedsYouProps = {
   quest: QuestView; proof?: string | null; more?: number;
+  /** A write is in flight: the controls wait for it. */
+  busy?: boolean;
   onAct: (quest: QuestView) => void;
-  onRevise?: (quest: QuestView, note: string) => void;
-  onDrop?: (quest: QuestView) => void;
+  onRevise?: (quest: QuestView, note: string) => Outcome;
+  onDrop?: (quest: QuestView) => Outcome;
 };
 
 /** The docked strip: the single primary action of the view, with its two ways out kept quiet beside it. */
-export function NeedsYou({ quest, proof, more = 0, onAct, onRevise, onDrop }: NeedsYouProps) {
+export function NeedsYou({ quest, proof, more = 0, busy = false, onAct, onRevise, onDrop }: NeedsYouProps) {
   const [noting, setNoting] = useState(false);
   const [note, setNote] = useState("");
+  const [dropping, setDropping] = useState(false);
   if (!quest.action) return null;
-  const send = (event: FormEvent) => {
+  // The note is someone's careful correction. It leaves the form only once the server has taken it.
+  const send = async (event: FormEvent) => {
     event.preventDefault();
-    if (!note.trim()) return;
-    onRevise?.(quest, note.trim());
+    if (!note.trim() || busy) return;
+    if (await onRevise?.(quest, note.trim()) === false) return;
     setNoting(false);
     setNote("");
+  };
+  const confirmDrop = async () => {
+    if (busy) return;
+    if (await onDrop?.(quest) !== false) setDropping(false);
   };
   return (
     <section className="lp-needs" data-needs-you={quest.short} aria-label="Needs you">
@@ -364,21 +377,30 @@ export function NeedsYou({ quest, proof, more = 0, onAct, onRevise, onDrop }: Ne
         <form className="lp-needs-note" onSubmit={send}>
           <label htmlFor={`note-${quest.short}`}>What should change?</label>
           <input id={`note-${quest.short}`} value={note} onChange={(event) => setNote(event.target.value)} autoFocus
-            placeholder="It becomes the next attempt's first observation" />
-          <button type="submit" className="lp-primary" data-primary disabled={!note.trim()}>Send back</button>
-          <button type="button" className="lp-quiet" onClick={() => setNoting(false)}>Cancel</button>
+            maxLength={4000} placeholder="It becomes the next attempt's first observation" />
+          <button type="submit" className="lp-primary" data-primary disabled={busy || !note.trim()}>Send back</button>
+          <button type="button" className="lp-quiet" disabled={busy} onClick={() => setNoting(false)}>Cancel</button>
         </form>
       ) : (
         <div className="lp-needs-actions">
-          <button type="button" className="lp-primary" data-primary onClick={() => onAct(quest)}>
+          <button type="button" className="lp-primary" data-primary disabled={busy} onClick={() => onAct(quest)}>
             {quest.action.label}<kbd aria-hidden="true">a</kbd>
           </button>
-          {quest.action.kind === "decide" && onRevise && (
-            <button type="button" className="lp-quiet" onClick={() => setNoting(true)}>Send back</button>
+          {quest.action.kind === "decide" && onRevise && !dropping && (
+            <button type="button" className="lp-quiet" disabled={busy} onClick={() => setNoting(true)}>Send back</button>
           )}
-          {quest.action.kind === "decide" && onDrop && (
-            <button type="button" className="lp-quiet" onClick={() => onDrop(quest)}>Drop</button>
-          )}
+          {/* Dropping ends a quest, so the button changes into its own confirmation and says what it will do. */}
+          {quest.action.kind === "decide" && onDrop && (dropping ? (
+            <>
+              <button type="button" className="lp-quiet" data-danger data-confirm-drop disabled={busy} autoFocus onClick={confirmDrop}>
+                Confirm drop
+              </button>
+              <button type="button" className="lp-quiet" disabled={busy} onClick={() => setDropping(false)}>Keep it</button>
+              <span className="lp-needs-warn" role="status">Nothing lands and the quest ends.</span>
+            </>
+          ) : (
+            <button type="button" className="lp-quiet" disabled={busy} onClick={() => setDropping(true)}>Drop</button>
+          ))}
         </div>
       )}
     </section>
@@ -389,12 +411,18 @@ export function NeedsYou({ quest, proof, more = 0, onAct, onRevise, onDrop }: Ne
 
 type DetailProps = {
   quest: QuestView; steps: readonly JourneyStep[]; now?: string | null; run?: AgentRun | null;
-  onInspect?: () => void; children?: ReactNode;
+  onInspect?: () => void;
+  /** Said in place of the path while the quest's journal has not been read yet. */
+  pending?: string | null;
+  /** What a person can do about this quest. It follows the question, so the question is read before it is answered. */
+  children?: ReactNode;
 };
 
 /** Everything worth knowing about one quest before opening the hood: where, why, what it tried, who it asked. */
-export function QuestDetail({ quest, steps, now, run, onInspect, children }: DetailProps) {
+export function QuestDetail({ quest, steps, now, run, onInspect, pending, children }: DetailProps) {
   const who = personaName(quest.persona);
+  // An asking quest's second line is the question itself, which the card below already says in full.
+  const why = quest.detail && quest.detail !== quest.question?.question ? quest.detail : null;
   return (
     <article className="lp-detail" data-detail={quest.short} data-attention={quest.attention} data-stage={quest.stage.id}>
       <header>
@@ -403,9 +431,14 @@ export function QuestDetail({ quest, steps, now, run, onInspect, children }: Det
           <p className="lp-eyebrow"><span>{quest.short}</span><span>{quest.area} · {quest.risk} risk · rev {quest.rev}</span></p>
           <h2>{quest.title}</h2>
         </div>
+        {onInspect && (
+          <button type="button" className="lp-quiet" data-open-hood onClick={onInspect}>Under the hood<kbd aria-hidden="true">i</kbd></button>
+        )}
       </header>
-      <p className="lp-detail-headline"><AttentionMark attention={quest.attention} label={false} />{quest.headline}</p>
-      {quest.detail && <p className="lp-detail-why">{quest.detail}</p>}
+      <div className="lp-detail-state">
+        <p className="lp-detail-headline"><AttentionMark attention={quest.attention} label={false} />{quest.headline}</p>
+        {why && <p className="lp-detail-why">{why}</p>}
+      </div>
       {now && quest.persona && (
         <p className="lp-now" data-now>
           <PersonaAvatar persona={quest.persona} size={24} live />
@@ -413,7 +446,6 @@ export function QuestDetail({ quest, steps, now, run, onInspect, children }: Det
           {run && <EngineBadge engine={run.engine} executor={run.executor} />}
         </p>
       )}
-      {children}
       {quest.ladder.length > 1 && (
         <section>
           <h3>What it has tried</h3>
@@ -421,15 +453,17 @@ export function QuestDetail({ quest, steps, now, run, onInspect, children }: Det
         </section>
       )}
       {quest.question && <QuestionCard question={quest.question} />}
+      {children}
       <section>
         <h3>Path through the loop</h3>
-        <DiveProfile steps={steps} />
-        <JourneyList steps={steps} limit={4} />
+        {pending ? <p className="lp-detail-pending" data-pending>{pending}</p> : (
+          <>
+            <DiveProfile steps={steps} />
+            <JourneyList steps={steps} limit={4} />
+          </>
+        )}
       </section>
       <BudgetBars budget={quest.budget} />
-      {onInspect && (
-        <button type="button" className="lp-quiet" data-open-hood onClick={onInspect}>Under the hood<kbd aria-hidden="true">i</kbd></button>
-      )}
     </article>
   );
 }

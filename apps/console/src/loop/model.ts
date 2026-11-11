@@ -1,7 +1,7 @@
 // The loop view-model: everything the console needs to show a quest as a position in the self-driving loop.
 // Pure functions over core shapes. No React, no fetch, no clock. design/09-console-redesign.md explains the choices.
 import {
-  budgetBlocker, personaFor, type AgentRun, type Budget, type Effect, type InvestigationQuestion, type PersonaId,
+  budgetBlocker, personaFor, type AgentRun, type Budget, type Effect, type InvestigationQuestion, type LandingMode, type PersonaId,
   type Risk, type Trail, type TrailEvent, type TrailState,
 } from "@ephyra/core";
 import { z } from "zod";
@@ -184,7 +184,7 @@ export const ATTENTION_GROUP: Record<Attention, AttentionGroup> = {
 };
 export const ATTENTION_LABEL: Record<Attention, string> = {
   self: "By itself", recovering: "Recovering", asking: "Asking", needs_you: "Needs you", held: "Stopped",
-  reverted: "Rolling back", set: "Set", dropped: "Dropped",
+  reverted: "Rolling back", set: "Finished", dropped: "Dropped",
 };
 
 export type InboxLike = {
@@ -394,7 +394,7 @@ export function questView(input: QuestInput): QuestView {
 
   if (trail.state === "closed") {
     attention = "set";
-    headline = "Set. Proven, landed and watched clean.";
+    headline = "Finished. Proven, landed and watched clean.";
   } else if (trail.state === "abandoned") {
     attention = "dropped";
     headline = "Dropped";
@@ -615,6 +615,18 @@ export function journeyOf(
 // Every event and effect has wording. A raw type name is never shown as the only description of what happened.
 
 const GATE_NAME: Record<Gate, string> = { A: "the hypothesis", B: "the plan", C: "the landing" };
+/** Where a change lands, in words. The exact mode and target stay in the receipt under the hood. */
+const LANDING_WORDS: Record<LandingMode, string> = {
+  trail_ref: "on the quest's own ref", devenv_live: "in the live development environment", radicle_patch: "as a Radicle patch",
+  tangled_pull: "as a Tangled pull request", auto_land: "on the base branch",
+};
+/** A length of time in the unit a person would say it in. */
+const span = (seconds: number): string => {
+  const say = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  if (seconds < 120) return say(Math.round(seconds), "second");
+  if (seconds < 7200) return say(Math.round(seconds / 60), "minute");
+  return say(Math.round(seconds / 3600), "hour");
+};
 
 export function narrate(event: TrailEvent): string {
   switch (event.type) {
@@ -643,11 +655,11 @@ export function narrate(event: TrailEvent): string {
       return event.data.bundle.passed ? "Proof passed."
         : `Proof failed. Missing: ${event.data.bundle.missing.join(", ") || "nothing named"}.`;
     case "land_requested": return "Landing was requested.";
-    case "landing_completed": return `Landed by ${event.data.receipt.mode} on ${event.data.receipt.target}.`;
+    case "landing_completed": return `Landed ${LANDING_WORDS[event.data.receipt.mode]}.`;
     case "landing_failed":
       return event.data.baseMoved ? "Landing lost a race: the base moved. Rebasing the patch." : `Landing failed: ${event.data.reason}`;
     case "base_moved": return `The base moved to ${event.data.newSha.slice(0, 8)}. Rebasing the patch.`;
-    case "watch_started": return `Watching production for ${Math.round(event.data.config.windowS / 60)} minutes.`;
+    case "watch_started": return `Watching production for ${span(event.data.config.windowS)}.`;
     case "watch_completed": return "Watch finished clean. The fix is set.";
     case "probe_regressed_after_landing": return `Production regressed after landing: ${event.data.criterion}.`;
     case "rollback_completed": return "Rolled the change back. Starting the investigation again with what was learned.";
@@ -685,7 +697,7 @@ export function describeEffect(effect: Effect): string {
     case "request_checkpoint":
       return `Checkpoint ${effect.checkpoint}: ${effect.blocking ? "wait for a person" : "ask policy to decide"}`;
     case "request_spend": return `Ask to spend ${money(effect.microusd)}`;
-    case "land": return `Land by ${effect.modes.join(", ") || "the configured mode"}`;
+    case "land": return effect.modes.length ? `Land ${effect.modes.map((mode) => LANDING_WORDS[mode]).join(", or ")}` : "Land by the configured mode";
     case "rebase": return `Rebase onto ${effect.onto.slice(0, 8)}`;
     case "start_watch": return "Start watching production";
     case "rollback": return `Roll back: ${effect.criterion}`;
