@@ -1,7 +1,8 @@
 import { ReconciliationRequired } from "@ephyra/core";
 
 export class HttpError extends Error {
-  constructor(readonly status: number) {
+  /** Seconds from the provider's own Retry-After header; undefined when it sent none. Never invented. */
+  constructor(readonly status: number, readonly retryAfterSeconds?: number) {
     super(`Model request failed with HTTP ${status}`);
     this.name = "HttpError";
   }
@@ -56,6 +57,6 @@ export async function postJson(
       await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(delay);
       continue;
     }
-    throw new HttpError(response.status);
+    throw new HttpError(response.status, Number.isFinite(delay) && value !== null ? Math.ceil(delay / 1000) : undefined);
   }
 }
