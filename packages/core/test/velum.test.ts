@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import {
   addReference, ExtractionForecastAnswer, forecastPoints, personLabel, referenceKey, referenceSource,
-  VELUM_MAX_REFERENCES, VelumReference, VoiceReplyInput, type VelumReference as Ref,
+  VELUM_MAX_REFERENCES, VelumReference, VoiceReplyInput, UsageForecastInput, type VelumReference as Ref,
 } from "../src/index.ts";
 
 const uuid = "3a77e1aa-5b1e-4c3a-9d2f-000000000003";
@@ -12,6 +12,11 @@ const usage = fc.record({ kind: fc.constant("usage" as const), facet: fc.constan
 const ref: fc.Arbitrary<Ref> = fc.oneof(area, trail, usage);
 
 describe("Velum references", () => {
+  test("forecast and usage dates name real calendar days", () => {
+    for (const asOf of ["2026-02-29", "2026-02-30", "2026-13-01", "2026-00-01"])
+      expect(UsageForecastInput.safeParse({ asOf, historyDays: 28, horizonDays: 7 }).success).toBe(false);
+    expect(UsageForecastInput.safeParse({ asOf: "2024-02-29", historyDays: 28, horizonDays: 7 }).success).toBe(true);
+  });
   test("adding keeps one entry per source, bounded, newest revision wins", () => {
     fc.assert(fc.property(fc.array(ref, { maxLength: 30 }), (refs) => {
       let list: { ref: Ref }[] = [];
@@ -26,6 +31,13 @@ describe("Velum references", () => {
     const a = addReference([], { ref: { kind: "trail", id: uuid, rev: 1 } }).list;
     const b = addReference(a, { ref: { kind: "trail", id: uuid, rev: 2 } }).list;
     expect(b.map((x) => referenceKey(x.ref))).toEqual([`trail:${uuid}@2`]);
+  });
+  test("a changed run status is a newer reference to the same source", () => {
+    const running: Ref = { kind: "run", id: "run-1", status: "running" };
+    const complete: Ref = { ...running, status: "complete" };
+    expect(referenceSource(running)).toBe(referenceSource(complete));
+    expect(referenceKey(running)).not.toBe(referenceKey(complete));
+    expect(addReference([{ ref: running }], { ref: complete }).list).toEqual([{ ref: complete }]);
   });
   test("a full list reports the dropped reference instead of silently evicting", () => {
     let list: { ref: Ref }[] = [];

@@ -64,4 +64,16 @@ describe("profiles", () => {
     const huge = stub(async () => body({ avatarUrl: AVATAR }), async () => new Response(new Uint8Array(1_000_001), { headers: { "content-type": "image/png" } }));
     expect(await new ProfileDirectory(huge.signIn).avatar(DID)).toBeNull();
   });
+  test("an oversized streaming avatar is cancelled before reading the rest of its body", async () => {
+    let chunks = 0;
+    let cancelled = false;
+    const image = new ReadableStream<Uint8Array>({
+      pull(controller) { chunks++; controller.enqueue(new Uint8Array(600_000)); },
+      cancel() { cancelled = true; },
+    }, { highWaterMark: 0 });
+    const f = stub(async () => body({ avatarUrl: AVATAR }), async () => new Response(image, { headers: { "content-type": "image/png" } }));
+    expect(await new ProfileDirectory(f.signIn).avatar(DID)).toBeNull();
+    expect(chunks).toBe(2);
+    expect(cancelled).toBe(true);
+  });
 });

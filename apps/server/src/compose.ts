@@ -691,14 +691,31 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       return { authorization: `DPoP ${creds.token}`, dpop: await dpopProof(url, creds.token, creds.keys) };
     },
   }));
-  const voice = new VoiceService({ speech, model: draftModel, usage, ledger, context: voiceContext(consolePort, port), references: voiceReferences(consolePort, port), secrets: knownSecrets(config) });
-  const forecastRoute: ForecastRoute | null = opts.forecastRoute !== undefined ? opts.forecastRoute
-    : config.EPHYRA_FORECAST === "notorganic" && signIn && billingDid
-      ? { backend: new HostedForecast(signIn, billingDid), provider: "notorganic", billedTo: "notorganic" }
-      : config.EPHYRA_FORECAST === "workers-ai"
-        ? { backend: new WorkersAiClairicForecast({ alias: "clairic-forecast", accountId: config.CLOUDFLARE_ACCOUNT_ID!, credential: config.CLOUDFLARE_AI_API_TOKEN! }),
-          provider: "byok:cloudflare", billedTo: "byok" }
-        : null;
+  const voice = new VoiceService({
+    speech,
+    model: draftModel,
+    usage,
+    ledger,
+    context: voiceContext(consolePort, port),
+    references: voiceReferences(consolePort, port),
+    secrets: knownSecrets(config),
+  });
+  const forecastRoute: ForecastRoute | null =
+    opts.forecastRoute !== undefined
+      ? opts.forecastRoute
+      : config.EPHYRA_FORECAST === "notorganic" && signIn && billingDid
+        ? { backend: new HostedForecast(signIn, billingDid), provider: "notorganic", billedTo: "notorganic" }
+        : config.EPHYRA_FORECAST === "workers-ai"
+          ? {
+              backend: new WorkersAiClairicForecast({
+                alias: "clairic-forecast",
+                accountId: config.CLOUDFLARE_ACCOUNT_ID!,
+                credential: config.CLOUDFLARE_AI_API_TOKEN!,
+              }),
+              provider: "byok:cloudflare",
+              billedTo: "byok",
+            }
+          : null;
   const forecast = new UsageForecastService({ route: forecastRoute, ledger, usage, entries: () => usageStore.list(), now });
   const tutorBackend = opts.tutorBackend ?? (config.EPHYRA_TUTOR === "notorganic"
     ? new NotOrganicTutorBackend(signIn!, billingDid!, config.EPHYRA_TUTOR_MAX_COST_MICROUSD)

@@ -13,7 +13,15 @@ export function usageForecastRoutes(service: UsageForecastService) {
     if (e instanceof ReconciliationRequired) return c.json({ error: e.message, code: "reconciliation_required", operationKey }, 504);
     if (e instanceof ForecastError) {
       if (e.retryAfterSeconds !== undefined) c.header("Retry-After", String(e.retryAfterSeconds));
-      return c.json({ error: e.message, code: e.code, operationKey, ...(e.retryAfterSeconds !== undefined ? { retryAfterSeconds: e.retryAfterSeconds } : {}) }, e.status);
+      return c.json(
+        {
+          error: e.message,
+          code: e.code,
+          operationKey,
+          ...(e.retryAfterSeconds !== undefined ? { retryAfterSeconds: e.retryAfterSeconds } : {}),
+        },
+        e.status,
+      );
     }
     return c.json({ error: "The forecast could not finish. Check Usage before asking again.", code: "reconciliation_required", operationKey }, 502);
   });

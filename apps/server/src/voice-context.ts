@@ -87,6 +87,10 @@ export function voiceReferences(console: ConsolePort, port: HttpPort) {
           const run = await console.runs.get(ref.id);
           if (!run) { resolved.push({ key, label: "Run", status: "missing" }); break; }
           const label = `Run ${run.id.slice(0, 12)}`;
+          if (ref.status !== undefined && ref.status !== run.status) {
+            resolved.push({ key, label, status: "changed", current: run.status });
+            break;
+          }
           resolved.push({ key, label, status: "current" });
           data.push({ key, label: `${label} (${run.status})`, record: { run, events: await console.runs.events(run.id, undefined, 40) } });
           break;
@@ -115,7 +119,15 @@ export function voiceReferences(console: ConsolePort, port: HttpPort) {
           const content = artefact?.content ?? (bytes ? new TextDecoder().decode(bytes) : null);
           if (content === null) { resolved.push({ key, label, status: "missing" }); break; }
           resolved.push({ key, label, status: "current" });
-          data.push({ key, label: `${label} at revision ${ref.rev}`, record: { path: ref.path, truncated: content.length > MAX_EVIDENCE_CHARS, content: content.slice(0, MAX_EVIDENCE_CHARS) } });
+          data.push({
+            key,
+            label: `${label} at revision ${ref.rev}`,
+            record: {
+              path: ref.path,
+              truncated: content.length > MAX_EVIDENCE_CHARS,
+              content: content.slice(0, MAX_EVIDENCE_CHARS),
+            },
+          });
           break;
         }
       }

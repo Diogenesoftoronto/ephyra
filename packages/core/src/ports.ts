@@ -190,5 +190,8 @@ export interface ForecastBackend {
   readonly alias: string;
   /** The model id requested from the provider; the response's `model` is recorded as the identity. */
   readonly requestedModel: string;
-  forecast(req: import("./contracts.ts").ExtractionForecastRequest, opts: { idempotencyKey: string; signal?: AbortSignal }): Promise<import("./contracts.ts").ExtractionForecastResponse>;
+  forecast(
+    req: import("./contracts.ts").ExtractionForecastRequest,
+    opts: { idempotencyKey: string; signal?: AbortSignal },
+  ): Promise<import("./contracts.ts").ExtractionForecastResponse>;
 }

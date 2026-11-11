@@ -97,7 +97,14 @@ export const ExtractionForecastRequest = z.object({
   fields: z.record(z.string(), ExtractionForecastField),
 });
 export type ExtractionForecastRequest = z.infer<typeof ExtractionForecastRequest>;
-const ForecastStep = z.object({ value: z.number().nullable().optional(), median: z.number().optional(), p10: z.number().optional(), p90: z.number().optional() }).passthrough();
+const ForecastStep = z
+  .object({
+    value: z.number().nullable().optional(),
+    median: z.number().optional(),
+    p10: z.number().optional(),
+    p90: z.number().optional(),
+  })
+  .passthrough();
 /** Both published answer forms: per-step estimates, or parallel median/p10/p90 arrays. */
 export const ExtractionForecastAnswer = z.object({
   type: z.literal("forecast"),

@@ -154,9 +154,12 @@ test("cancellation while loading context cannot dispatch a model request afterwa
   const controller = new AbortController();
   let resolve!: () => void;
   const ready = new Promise<void>(r => { resolve = r; });
+  let entered!: () => void;
+  const contextStarted = new Promise<void>(r => { entered = r; });
   const service = new VoiceService({ speech: f.speech, model: f.model, ledger: f.ledger, usage: new UsageRecorder(f.store),
-    context: async () => { await ready; return { label: "overview", data: {} }; } });
+    context: async () => { entered(); await ready; return { label: "overview", data: {} }; } });
   const pending = service.reply("alice", "cancel-context-001", { context: { kind: "overview" }, messages: [{ role: "user", text: "Explain this" }] }, controller.signal);
+  await contextStarted;
   controller.abort(); resolve();
   await expect(pending).rejects.toBeInstanceOf(ReconciliationRequired);
   expect(f.model.calls).toEqual([]);
