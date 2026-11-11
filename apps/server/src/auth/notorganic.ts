@@ -191,6 +191,19 @@ export class NotOrganicSignIn {
   }
 
   /** Scope metadata comes from the issuer's sealed grant, never from a browser claim. */
+  /**
+   * Reads the account authority's own record for `did` with that account's session. Read-only; the portal owns edits.
+   * Throws SignInError(401) when Ephyra holds no session for the account.
+   */
+  async account(did: string): Promise<{ account?: Record<string, unknown> }> {
+    const creds = await this.credentialsFor(did);
+    return this.get("/v1/account", creds.token, creds.keys, creds.publicJwk);
+  }
+  /** Fetches a validated avatar blob from the account's PDS. No credentials are sent. */
+  async fetchPublic(url: string, signal?: AbortSignal): Promise<Response> {
+    return this.fetcher(url, { redirect: "error", ...(signal ? { signal } : {}) } as RequestInit);
+  }
+
   async hasScope(did: string, scope: string): Promise<boolean> {
     const record = await this.store.latestSessionFor(did, Date.now());
     if (!record) return false;

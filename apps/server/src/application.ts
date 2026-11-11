@@ -17,6 +17,8 @@ import {
   type AccountStore,
 } from "./setup/account-store.ts";
 import { Teams } from "./setup/team.ts";
+import { ProfileDirectory, portalProfileUrl } from "./auth/profiles.ts";
+import { OwnProfile, TeamPeople } from "@ephyra/core";
 import { forwardSharedRequest } from "./setup/team-stream.ts";
 import { ForgeRepositoryConnector } from "./setup/forge-repository.ts";
 import { NotOrganicEvidence } from "./setup/knowledge-evidence.ts";
@@ -40,6 +42,8 @@ export type ApplicationOptions = ComposeOverrides & {
   agentStore?: AgentStore;
   repository?: AccountOptions["repository"];
   providerFetch?: AccountOptions["fetcher"];
+  /** Test seam for the Not Organic profile reader. */
+  profiles?: ProfileDirectory;
   /** The host provisions these for this account/workspace. Deployment CLI credentials are never inherited. */
   workspaceAutomation?: (scope: { did: string; workspaceId: string; directory: string }) => Promise<
     Pick<ComposeOverrides, "agent" | "runner" | "decide" | "evidenceSources" | "automationReadiness" | "profile"
@@ -232,6 +236,41 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     "/v1/*",
     auth(config.EPHYRA_API_TOKEN, (token) => signIn.authenticate(token), config.EPHYRA_PUBLIC_ORIGIN),
   );
+  // Personal profile: available in every workspace, including shared viewer workspaces. Read-only; Not Organic owns edits.
+  const profiles = opts.profiles ?? new ProfileDirectory(signIn, { portalUrl: portalProfileUrl(config.NOTORGANIC_AUTHORIZATION_URL) });
+  /** People this principal may see: themself, owners of workspaces shared with them, and members of their own team. */
+  async function visiblePeople(did: string): Promise<string[]> {
+    const own = await teams.team(did);
+    const shared = (await teams.workspaces(did)).filter((w) => w.role !== "owner").map((w) => w.ownerDid);
+    return [did, ...shared, ...own.invitations.filter((i) => i.acceptedBy && !i.revokedAt).map((i) => i.acceptedBy!)];
+  }
+  app.get("/v1/profile", async (c) => {
+    if (c.get("principalKind") !== "human") return c.json({ error: "Sign in with Not Organic to see your profile." }, 403);
+    c.header("Cache-Control", "no-store");
+    return c.json(OwnProfile.parse(await profiles.own(c.get("principal"), c.req.query("fresh") === "1")));
+  });
+  app.get("/v1/profiles", async (c) => {
+    if (c.get("principalKind") !== "human") return c.json({ error: "Sign in with Not Organic to see team members." }, 403);
+    const did = c.get("principal");
+    const workspace = c.req.header("X-Ephyra-Workspace") ?? (await account.record(did)).settings.workspaceId;
+    const owned = (await account.record(did)).settings.workspaceId === workspace;
+    const shared = owned ? null : await teams.shared(did, workspace);
+    if (!owned && !shared) return c.json({ error: "Your workspace changed or access is unavailable. Reload before continuing." }, 409);
+    // In a shared workspace the person sees themself and the owner only; the owner's team list stays with the owner.
+    const people = owned ? await visiblePeople(did) : [did, shared!.record.settings.did];
+    c.header("Cache-Control", "no-store");
+    return c.json(TeamPeople.parse({ workspaceId: workspace, people: await profiles.many(people) }));
+  });
+  app.get("/v1/profiles/:did/avatar", async (c) => {
+    if (c.get("principalKind") !== "human") return c.body(null, 403);
+    const target = c.req.param("did");
+    const allowed = new Set(await visiblePeople(c.get("principal")));
+    if (!allowed.has(target)) return c.body(null, 404);
+    const image = await profiles.avatar(target);
+    if (!image) return c.body(null, 404);
+    return c.body(image.bytes.slice().buffer, 200, { "Content-Type": image.type, "Cache-Control": "private, max-age=600",
+      "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; sandbox" });
+  });
   app.use(
     "/v1/account/*",
     bodyLimit({ maxSize: 24_000, onError: (c) => c.json({ error: "The settings request is too large." }, 413) }),
