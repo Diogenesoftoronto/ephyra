@@ -171,10 +171,12 @@ to the previous or next change, space plays, `g` draws the alignment rails, and 
 ## 8. End to end: what works today and what does not
 
 `bun run loop:e2e` boots the real server in one process and drives it over HTTP, then runs the built console in a
-browser. The coding agent, the decide backend and production telemetry are fixtures, named as fixtures in everything
-they record (`scripted/e2e`, `fixture/e2e-decide-1`, "offline fixture"). No network is used.
+browser. The coding agent, the decide backend, the model that words a question, the one contact it can ask and
+production telemetry are fixtures, named as fixtures in everything they record (`scripted/e2e`, `fixture/e2e-decide-1`,
+`fixture/e2e-draft-1`, "Fixture maintainer", "offline fixture"). No network is used and no clock is moved: the watch
+runs a real 12-second window.
 
-Result on 10 November 2026: **7 of 23 pass, 2 fail, 14 are not reached.**
+Result on 10 November 2026: **24 of 24 pass.** (The first run of this script, earlier the same day, was 7 of 23.)
 
 | Act | Promise | Today |
 | --- | --- | --- |
@@ -183,48 +185,58 @@ Result on 10 November 2026: **7 of 23 pass, 2 fail, 14 are not reached.**
 | watches-then-sets | It watches after landing and closes only when the window passes clean | pass |
 | unsticks-itself | A failed first try gets a different approach; a failed proof sends it back | pass |
 | stops-where-told | It stops only where policy says a person decides | pass |
+| asks-a-person | It stops on a missing fact and asks the one person who would know; nobody else can answer | pass |
 | keeps-working | While one quest waits for you, another keeps working | pass |
+| console-agrees | The console at `#/loop` shows what the server holds | pass |
+| ui:* (12 checks) | The acceptance contract in §9, against the real console | pass |
 | carries-on | Left alone, the recovering quest lands by itself | pass |
-| asks-a-person | It asks the one person who would know | **fail**: this server has no `/v1/questions` |
-| console-agrees | The console shows what the server holds | **fail**: the console has no `#/loop` |
-| ui:* (12 checks) | The acceptance contract in §9, against the real console | not reached |
-| approval-lands | One approval in the browser lands the quest | not reached |
-| stays-live | The page follows the loop with no reload | not reached |
+| approval-lands | One approval in the browser lands the quest | pass |
+| answer-resumes | The person asked answers in the console; the answer is checked and the quest lands by itself | pass |
+| stays-live | A page opened while a quest was asking shows it set, with no reload | pass |
 
-So the engine drives itself, and the console cannot show it. That is the gap in one line.
+Pictures of the real page from the last run are in `apps/console/.screens/e2e/`.
 
-The browser checks run while one quest's agent turn is deliberately held open. A separate run
-(`--server-only --hold=170`) held that turn for 177 seconds, after which the quest patched, proved and landed by itself,
-so the browser half has about three minutes before the hold itself becomes the thing under test.
+**Not covered by this script: sign in, connecting a repository, and automatic setup.** The run starts from a server that
+was already given its repository link. `scripts/automatic-setup.ts` and `scripts/signin.ts` cover parts of those
+separately, against a fake API. Until one run goes from sign-in to a quest that is set, "end to end" here means "from a
+production signal to production", not "from a new account".
 
-Not in the script yet: sign in, connecting a repository, and automatic setup. `scripts/automatic-setup.ts` and
-`scripts/signin.ts` cover parts of those separately, against a fake API.
+### What closed the gaps
 
-### Gaps, in the order to close them
+1. **The loop view.** `#/loop` is the console's home: layout H from the loop kit (`pages/LoopPage.tsx`), over
+   `app/useLoop.ts`, which polls quests, the inbox and questions every two seconds and reads journals for the selected
+   quest, changed quests and working quests in turn. The lab and the page draw the same board (`loop/board.tsx`).
+2. **Recovery plans come with the quest.** The journal cannot list a directory, so the server keeps an index
+   (`artefacts/recovery/index.json`) and returns the plans with the trail detail. The plan for an attempt is journaled
+   *before* the agent starts, so the page can show what is being tried while it is tried.
+3. **Effects are kept.** `outbox/history.json` records every effect a transition asked for, with the event that caused
+   it and its operation key. It records intent; the operation ledger remains the only record of delivery.
+4. **A self-hosted server can ask a person.** `/v1/questions` is served by `compose()`. Anyone signed in can read a
+   question; only the principal it was addressed to can answer; the answer is still checked before the quest resumes.
+5. **Quests are named for what went wrong** ("TypeError: amount must be whole cents"), not only for the kind of error.
+6. **A watch window in seconds is honoured.** The policy grammar accepted `12s`; the server read it as two hours.
 
-1. **No loop view.** Add `#/loop` as the home route, built from the loop kit, in layout H.
-2. **No list of quests in the client.** Add `trails()` to `ConsoleClient` (`GET /v1/trails` exists).
-3. **Recovery plans are not listed.** Trail detail omits `artefacts/recovery/*`. The e2e script has to guess each file's
-   name (`<step>-<rev>-<attempt>.json`) and ask for it. Return the plans with the trail detail.
-4. **Effects have no per-quest route.** They are visible only in `/v1/ops`. The hood's effects tab needs them, with their
-   idempotency keys, per quest.
-5. **Questions exist only in `composeApplication` and only for signed-in people.** A self-hosted server started with
-   `compose()` cannot ask anyone. Wire questions into `compose()` and let a reader see them.
-6. **Nothing is live.** Only run events stream; quests are polled every 2 s per open quest. Add one stream for quest and
-   inbox changes, and have the loop view follow it.
-7. **A turn that dies without reporting usage parks the quest** with "Token usage is unknown". The scripted agent has to
-   report usage before it throws. Decide whether an agent crash should cost a quest its autonomy.
-8. **A probe that still fails after the patch is not a failed proof.** `buildProof` throws `Unverified("probe outcome")`
-   and the quest parks, non-retryable. Only a broken test sends it back to patch. A fix that does not fix is the most
-   common failure there is; it should go back to patching with that observation.
-9. **Defaults stop everything.** With no decide backend every signal parks at triage; the default policy is `shadow`,
-   which blocks all three checkpoints; without a watch source, landing parks. Automatic setup has to leave a new
-   workspace in a state where the first low-risk signal can run by itself, and say plainly when it cannot.
-10. **The console duplicates server logic.** `planRecovery` in `scenario.ts` mirrors `wiring/recovery.ts`. Once (3) lands,
-    the console reads plans and stops predicting them.
-11. **No way to give a stopped quest a lead.** A quest whose recovery is spent can only be resumed into the same wall.
-12. **Fixtures are private to test files.** The scripted agent, decide backend and watch source live inline in
-    `compose.test.ts` and now in `e2e-loop.ts`. Move one copy to a shared, labelled fixture module.
+### Gaps that remain, in the order to close them
+
+1. **Sign in → connect a repository → automatic setup is not in the end-to-end run.** See above.
+2. **Nothing streams.** The page polls. Only run events have a stream. One stream for quest and inbox changes would
+   make the page cheaper and faster than two seconds.
+3. **A held agent turn occupies the job loop.** While one turn runs in this single-process server, no new quest starts.
+   The end-to-end run has to order its acts around that. It is an engine limit, not a console one.
+4. **A turn that dies without reporting usage parks the quest** with "Token usage is unknown". Decide whether an agent
+   crash should cost a quest its autonomy.
+5. **A probe that still fails after the patch is not a failed proof.** `buildProof` throws `Unverified("probe outcome")`
+   and the quest parks, non-retryable. A fix that does not fix should go back to patching with that observation.
+6. **Defaults stop everything.** With no decide backend every signal parks at triage; the default policy is `shadow`;
+   without a watch source, landing parks. Automatic setup has to leave a new workspace able to run its first low-risk
+   signal by itself, and say plainly when it cannot.
+7. **No way to give a stopped quest a lead.** A quest whose recovery is spent can only be resumed into the same wall.
+8. **Layout H's measured costs are unpaid**: too many left edges at wide widths, more than one screen tall, and the hood
+   covers the board instead of taking its own column on very wide screens.
+9. **The lab still predicts recovery** (`planRecovery` in `scenario.ts`) for its simulated quests. The real page never
+   does: it reads the server's plans.
+10. **Fixtures are private to test files.** The scripted agent, decide backend and watch source live inline in
+    `compose.test.ts` and `e2e-loop.ts`. Move one copy to a shared, labelled fixture module.
 
 ## 9. The acceptance contract
 
