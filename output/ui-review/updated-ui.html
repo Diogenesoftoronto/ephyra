@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ephyra UI review</title>
+<style>
+:root { color-scheme: light dark; font-family: var(--font-sans,system-ui,sans-serif); }
+body { margin:0; color:var(--foreground); }
+p { margin:0 0 12px; line-height:1.5; }
+nav { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+button { min-height:44px; padding:8px 13px; border:1px solid var(--border); border-radius:var(--radius,8px); color:var(--foreground); background:var(--secondary); cursor:pointer; font:inherit; }
+button[aria-pressed=true] { color:var(--primary-foreground); background:var(--primary); border-color:var(--primary); }
+button:focus-visible { outline:2px solid var(--ring); outline-offset:3px; }
+figure { margin:0; }
+figure[hidden] { display:none; }
+img { display:block; width:100%; height:auto; border:1px solid var(--border); border-radius:var(--radius,8px); }
+figure.phone img { max-width:320px; margin:auto; }
+figcaption { margin-top:10px; color:var(--muted-foreground); font-size:13px; line-height:1.5; }
+details { margin-top:16px; border-top:1px solid var(--border); padding-top:8px; font-size:14px; }
+summary { min-height:44px; align-content:center; cursor:pointer; }
+</style>
+<p>Actual browser renders with fictional data. Select a view to inspect the changes.</p>
+<nav aria-label="Reviewed views">
+<button type="button" aria-pressed="true" data-view="light">Velum · light</button>
+<button type="button" aria-pressed="false" data-view="dark">Velum · dark</button>
+<button type="button" aria-pressed="false" data-view="usage">Usage</button>
+<button type="button" aria-pressed="false" data-view="forecast">Forecast fixture</button>
+<button type="button" aria-pressed="false" data-view="phone">320px layout</button>
+</nav>
+<figure id="light">
+<img src="/home/diogenes/.t3/scratch/2026-11-07-big-idea-macroscope-s-feature-821e0049/output/ui-review/screens/context-light.png" alt="Light mode workspace with payments selected and its reference chip in the docked Velum conversation">
+<figcaption>One companion beside the application. Selecting a region names exactly what the next message refers to; the composer stays at the bottom.</figcaption>
+</figure>
+<figure id="dark" hidden>
+<img src="/home/diogenes/.t3/scratch/2026-11-07-big-idea-macroscope-s-feature-821e0049/output/ui-review/screens/context-dark.png" alt="The same workspace and selected payments reference in dark mode">
+<figcaption>The same layout and reference state in dark mode.</figcaption>
+</figure>
+<figure id="usage" hidden>
+<img src="/home/diogenes/.t3/scratch/2026-11-07-big-idea-macroscope-s-feature-821e0049/output/ui-review/screens/usage-light.png" alt="Usage page showing recorded spending pace, ranked cost drivers and outcomes with price coverage">
+<figcaption>Recorded daily spend, running total, cost drivers, outcomes and price coverage answer different questions. Unknown costs stay visible. This demo has forecasting unconfigured.</figcaption>
+</figure>
+<figure id="forecast" hidden>
+<img src="/home/diogenes/.t3/scratch/2026-11-07-big-idea-macroscope-s-feature-821e0049/output/ui-review/screens/forecast-fixture.png" alt="Storybook fixture showing daily forecast medians and daily probability ranges alongside recorded spend">
+<figcaption>Forecast rendering fixture only: no live Clairic call. Dashed teal shows daily medians and the provider's daily p10–p90 interval. Daily quantiles are not added into a cumulative interval.</figcaption>
+</figure>
+<figure id="phone" class="phone" hidden>
+<img src="/home/diogenes/.t3/scratch/2026-11-07-big-idea-macroscope-s-feature-821e0049/output/ui-review/screens/workspace-320.png" alt="320 pixel workspace with compact setup invitation and a full width application title, description and edit action">
+<figcaption>320 CSS pixels with a visible scrollbar: no horizontal overflow. The setup invitation is compact and card actions have room below their titles.</figcaption>
+</figure>
+<details><summary>Verification and limits</summary>
+<p>Repository typecheck, console production build and Storybook build passed. The full test run had 1,333 passes and two failures; both were fixed and pass the focused 67-test rerun. Console tests: 212 passed.</p>
+<p>Four local browser contexts checked touch selection, 44px controls and reduced motion at 320/390px. Live speech, model replies, Clairic forecasts and Not Organic profile calls remain unverified. Document drafts retain their existing saved conversation and voice dialog.</p>
+</details>
+<script>
+for (const button of document.querySelectorAll("button[data-view]")) {
+  button.addEventListener("click", () => {
+    for (const other of document.querySelectorAll("button[data-view]")) other.setAttribute("aria-pressed", String(other === button));
+    for (const figure of document.querySelectorAll("figure")) figure.hidden = figure.id !== button.dataset.view;
+  });
+}
+</script>
+</html>

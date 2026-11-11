@@ -1,0 +1,95 @@
+{
+  "scope": "Ephyra UI, contextual Velum, spend forecasting and Not Organic profiles",
+  "dataBoundary": "All UI evidence uses explicit fictional demo or Storybook data. No live model, speech, forecast, profile or portal edit was performed.",
+  "checks": {
+    "repositoryTypecheck": {
+      "command": "bun run typecheck",
+      "status": "passed",
+      "packages": 15
+    },
+    "repositoryTests": {
+      "command": "bun test --isolate --max-concurrency=1",
+      "passed": 1333,
+      "failed": 2,
+      "files": 176,
+      "seconds": 107.67,
+      "failures": [
+        {
+          "name": "source lines are at most 160 characters",
+          "resolution": "Formatted new source; guard passes."
+        },
+        {
+          "name": "cancellation while loading context cannot dispatch a model request afterwards",
+          "resolution": "Wait for context loading to start before cancelling; model dispatch remains zero and the test passes."
+        }
+      ],
+      "fullSuiteRepeated": false
+    },
+    "focusedRecovery": {
+      "command": "bun test test/style.test.ts apps/server/test/voice.test.ts apps/server/test/voice-references.test.ts apps/server/test/usage-forecast.test.ts apps/server/test/profiles.test.ts apps/console/src/velum apps/console/src/lib/forecast-operation.test.ts apps/console/src/lib/usage-charts.test.ts packages/core/test/velum.test.ts",
+      "passed": 67,
+      "failed": 0,
+      "files": 10
+    },
+    "console": {
+      "tests": 212,
+      "failed": 0,
+      "files": 39,
+      "typecheck": "passed",
+      "productionBuild": "passed",
+      "storybookBuild": "passed"
+    },
+    "touchAndMotion": {
+      "command": "env -u LD_LIBRARY_PATH bun apps/console/scripts/velum-motion.ts",
+      "contexts": 4,
+      "widths": [
+        320,
+        390
+      ],
+      "motion": [
+        "no-preference",
+        "reduce"
+      ],
+      "status": "passed",
+      "details": "Coarse touch selects an area, chips and composer controls have 44px targets, conversation remains visible, no horizontal overflow, forecast loading animates only without reduced motion."
+    }
+  },
+  "browserEvidence": [
+    "Light and dark desktop workspace: selecting payments adds its reference chip; done returns focus to the composer.",
+    "Unavailable Velum reply retains the question and its references in an editable composer.",
+    "Unconfirmed reply pauses Send while the next draft remains editable.",
+    "Fictional account B sees an empty map composer; switching back restores only account A's unsent question.",
+    "Lost forecast acknowledgement recovers the original 14-day request after navigating across UTC midnight; dates and operation key stay unchanged.",
+    "Theme arrow keys move selected state and keyboard focus from Dark to Light.",
+    "Usage chart Home then ArrowRight reads Nov 6 recorded spend and unknown-cost count; eight table rows include the header and seven days.",
+    "At 320 CSS px, root clientWidth and scrollWidth both measure 305 px with the scrollbar; the old 320px body minimum caused the 15px overflow.",
+    "Daily forecast dots and interval band use the forecast colour; daily quantiles are never summed into a cumulative probability interval.",
+    "Team names and handles render as primary identity; DIDs remain inside closed Technical details."
+  ],
+  "reviewFixes": [
+    "Forecast recovery persists the exact original input per account and stable workspace ID.",
+    "Server replays saved forecasts and Velum replies before re-reading mutable history or source revisions.",
+    "Stopping speech retains the actual operation key; successful narration chunks are reused after a later chunk is rejected.",
+    "Companion controllers reactivate correctly after React effect cleanup.",
+    "Map drafts are scoped per account and workspace; fresh words are not overwritten by a failed send.",
+    "Avatar reads are bounded while streaming, time out, and invalidate after a verified profile image changes.",
+    "Mobile setup invitation and tray headers fit the reading column; the companion composer stays within its sheet."
+  ],
+  "coreChanges": "The implementation adds Velum reference, profile and forecast contracts and optional voice references. Review fixes validate real calendar days and distinguish run references when status changes.",
+  "unverified": [
+    "Live Velum inference and speech",
+    "Live Clairic forecast contract and settlement",
+    "Live Not Organic profile and portal editing",
+    "Physical microphone hardware and mobile Safari"
+  ],
+  "knownLimits": [
+    "Clairic forecasting requires EPHYRA_FORECAST configuration.",
+    "Team profile details require an available Not Organic account session; missing identities are labelled unverified.",
+    "Document drafts retain their existing saved conversation and voice dialog.",
+    "The optional generated Velum asset remains a study rather than replacing production artwork."
+  ],
+  "delegation": {
+    "implementation": "Opus high",
+    "fableConsultation": "Unavailable due to rate limit"
+  }
+}
