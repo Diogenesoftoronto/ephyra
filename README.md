@@ -110,8 +110,11 @@ These items are flagged in 02 §8: Tangled pull/issue write payloads and service
 
 ## Local development and checks
 
-Run `bun install` first. Set `EPHYRA_API_TOKEN` to a private token of at least
-16 characters in your environment or gitignored `.env` before starting the API. `devenv up` starts the API (3000), console
+Run `bun install` first. Local API startup reuses `EPHYRA_API_TOKEN` from your
+environment or `.env`. When absent, it creates a private development token in
+gitignored `.ephyra-local/dev-api-token` (mode 0600). The token is never printed.
+Local data defaults to `.ephyra-local`; `EPHYRA_DATA_DIR` overrides it.
+Production startup still requires explicit configuration. `devenv up` starts the API (3000), console
 (Vite default 5173, `/app/`), console Storybook (6006), and terminal Textbook (8008).
 To start one process use `devenv up console` or `devenv up storybook`.
 Radicle is optional via `devenv --profile forge shell`; the current pinned package
