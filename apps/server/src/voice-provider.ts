@@ -4,7 +4,9 @@ import { ReconciliationRequired, type VoiceAudioInput } from "@ephyra/core";
 
 export class VoiceError extends Error {
   constructor(readonly status: 400 | 404 | 409 | 413 | 422 | 503 | 504, message: string,
-    readonly code = "voice_unavailable") { super(message); }
+    readonly code = "voice_unavailable",
+    /** Additive: per-reference status when a referenced source changed or disappeared. */
+    readonly references?: import("@ephyra/core").VelumResolvedReference[]) { super(message); }
 }
 export type SpeechResult = {
   engine: string | null; tokens: number | null; costMicrousd: number | null;
