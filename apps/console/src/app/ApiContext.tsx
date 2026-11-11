@@ -12,3 +12,8 @@ export function useApi(): ConsoleApi {
   if (!api) throw new Error("useApi needs an ApiProvider");
   return api;
 }
+
+/** For components that also render outside the console (Storybook, setup screens). */
+export function useOptionalApi(): ConsoleApi | null {
+  return useContext(ApiContext);
+}

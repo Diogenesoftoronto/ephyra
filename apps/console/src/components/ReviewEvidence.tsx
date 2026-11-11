@@ -2,7 +2,20 @@ import { InvestigationQuestion, type ProofBundle } from "@ephyra/core";
 import { Badge, Card, Hash } from "../kit.ts";
 import type { TrailDetail } from "../api.ts";
 import { ReadAloudButton } from "../voice/Voice.tsx";
+import { Referable } from "../velum/VelumProvider.tsx";
+import type { ReactNode } from "react";
 import { QuestionRecord } from "./InvestigationQuestions.tsx";
+
+/** A quest document Velum can be referred to, bound to the revision under review. Unavailable documents are not referable. */
+function ArtefactFrame({ trail, path, available, children }: { trail?: { id: string; rev: number }; path: string; available: boolean; children: ReactNode }) {
+  if (!trail || !available) return <>{children}</>;
+  return (
+    <Referable id={`evidence:${trail.id}:${path}`} refData={{ kind: "evidence", trailId: trail.id, rev: trail.rev, path }}
+      label={`${path} (revision ${trail.rev})`} href={`#/inbox/${trail.id}`}>
+      {children}
+    </Referable>
+  );
+}
 
 function RecordedQuestion({ content }: { content: string | null }) {
   let value: unknown;
@@ -16,9 +29,12 @@ function RecordedQuestion({ content }: { content: string | null }) {
 export function ReviewEvidence({
   artefacts,
   proof,
+  trail,
 }: {
   artefacts?: TrailDetail["artefacts"];
   proof?: ProofBundle;
+  /** With the quest id and revision, each document can be referred to Velum at that revision. */
+  trail?: { id: string; rev: number };
 }) {
   return (
     <section className="stack" aria-label="Review evidence">
@@ -32,7 +48,8 @@ export function ReviewEvidence({
           <pre className="review-document">{a.content}</pre>
         </details>
       ) : (
-        <Card key={a.path} tone="quiet" title={a.path} meta={a.content ? <ReadAloudButton text={a.content} label={a.path} /> : undefined}>
+        <ArtefactFrame key={a.path} trail={trail} path={a.path} available={a.content !== null}>
+        <Card tone="quiet" title={a.path} meta={a.content ? <ReadAloudButton text={a.content} label={a.path} /> : undefined}>
           {a.content === null ? (
             <p className="muted">
               No document is available for this revision. Reload after the journal catches up.
@@ -41,6 +58,7 @@ export function ReviewEvidence({
             <pre className="review-document">{a.content}</pre>
           )}
         </Card>
+        </ArtefactFrame>
       ))}
       {proof && (
         <Card

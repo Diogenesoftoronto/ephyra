@@ -1,9 +1,14 @@
 .usage-breakdowns {
   display: grid;
-  gap: 1rem;
+  gap: var(--s5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
   align-items: start;
 }
 .usage-foot {
   margin: 0;
 }
+.usage-drivers { display: grid; gap: var(--s2); }
+.usage-drivers h3 { font-size: var(--fs-small); color: var(--muted); font-weight: 600; margin-top: var(--s2); }
+.usage-drivers h3:first-child { margin-top: 0; }
+.usage-tables > summary { min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.usage-tables[open] > summary { margin-bottom: var(--s3); }

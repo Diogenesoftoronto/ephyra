@@ -8,7 +8,10 @@ import { Ledger, matchesOutcome, noFilters, type LedgerFilterValue } from "../co
 import { LedgerFilters } from "../components/LedgerFilters.tsx";
 import { Load } from "../components/Load.tsx";
 import { PersonaLabel } from "../components/PersonaLabel.tsx";
-import { SpendByDay } from "../components/SpendByDay.tsx";
+import { CostDrivers, OutcomesCoverage, SpendPace } from "../components/UsageCharts.tsx";
+import { ForecastPanel } from "../components/ForecastPanel.tsx";
+import { Referable } from "../velum/VelumProvider.tsx";
+import type { UsageForecast } from "@ephyra/core";
 import { TrailBudgets } from "../components/TrailBudgets.tsx";
 import { UsageStats } from "../components/UsageStats.tsx";
 import { useNow } from "../lib/clock.tsx";
@@ -20,7 +23,7 @@ const DAY = 86_400_000;
  * Where the money and time went: totals, spend by day, by persona, by engine and by trail, trail budgets, and a ledger of
  * every unit of work. Unknown costs are counted, never added as zero; failed and unavailable work is listed.
  */
-export function UsagePage() {
+export function UsagePage({ scope = "deployment" }: { scope?: string }) {
   const api = useApi();
   const now = useNow(60_000);
   const [days, setDays] = useState<7 | 14>(7);
@@ -30,6 +33,9 @@ export function UsagePage() {
     return { from: new Date(start).toISOString(), to: new Date(now).toISOString() };
   }, [days, Math.floor(now / DAY)]); // eslint-disable-line react-hooks/exhaustive-deps
   const usage = useAsync(() => api.usage(range), `usage:${range.from}`);
+  const [forecast, setForecast] = useState<Extract<UsageForecast, { status: "ok" }> | null>(null);
+  const today = new Date(now).toISOString().slice(0, 10);
+  const span = { from: range.from.slice(0, 10), to: today };
   const query = {
     ...range,
     ...(filters.persona ? { persona: filters.persona as never } : {}),
@@ -99,10 +105,36 @@ export function UsagePage() {
         {(u) => (
           <>
             <UsageStats totals={u.totals} />
-            <Card tone="quiet" title="Recorded spend by day">
-              <SpendByDay days={u.byDay} />
-            </Card>
+            <Referable id="usage:spend" refData={{ kind: "usage", facet: forecast ? "forecast" : "cumulative", ...span }}
+              label={`Spending pace, ${days} days${forecast ? " with forecast" : ""}`} href="#/usage">
+              <Card tone="quiet" title="Spending pace" meta={`Last ${days} UTC days · recorded spend and running total`}>
+                <SpendPace days={u.byDay} today={today} forecast={forecast} />
+                <ForecastPanel now={now} scope={scope} onForecast={setForecast} />
+              </Card>
+            </Referable>
             <div className="usage-breakdowns">
+              <Referable id="usage:drivers" refData={{ kind: "usage", facet: "drivers", ...span }} label={`Cost drivers, ${days} days`} href="#/usage">
+                <Card tone="quiet" title="What drove cost" meta="Largest recorded cost first. Select one to filter the ledger.">
+                  <div className="usage-drivers">
+                    <h3>By persona</h3>
+                    <CostDrivers title="Persona" groups={u.byPersona.map((g) => ({ key: g.key ?? "unattributed", totals: g.totals }))}
+                      render={(k) => <PersonaLabel persona={k === "unattributed" ? null : (k as never)} />}
+                      selected={filters.persona || null} onSelect={(k) => setFilters({ ...filters, persona: k ?? "" })} />
+                    <h3>By engine</h3>
+                    <CostDrivers title="Engine" groups={u.byEngine} selected={filters.engine || null}
+                      onSelect={(k) => setFilters({ ...filters, engine: k ?? "" })} />
+                  </div>
+                </Card>
+              </Referable>
+              <Referable id="usage:outcomes" refData={{ kind: "usage", facet: "outcomes", ...span }} label={`Outcomes and cost coverage, ${days} days`} href="#/usage">
+                <Card tone="quiet" title="Outcomes and coverage" meta="Failed and unavailable work, and how much had a price">
+                  <OutcomesCoverage days={u.byDay} totals={u.totals} today={today} />
+                </Card>
+              </Referable>
+            </div>
+            <details className="usage-tables">
+              <summary>Breakdown tables: persona, engine and quest</summary>
+              <div className="usage-breakdowns">
               <Card tone="quiet" title="By persona">
                 <BreakdownTable
                   title="Persona"
@@ -139,7 +171,8 @@ export function UsagePage() {
                   }))}
                 />
               </Card>
-            </div>
+              </div>
+            </details>
             <Card tone="quiet" title="Quest budgets">
               <TrailBudgets trails={u.byTrail} />
             </Card>

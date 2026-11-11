@@ -65,8 +65,21 @@ function RunsBody({
       (!filters.executor || r.executor.kind === filters.executor),
   );
   const running = all.filter((r) => r.status === "running").length;
+  // Wide screens show the roster open; phones collapse it so live runs and failures come first.
+  const [wide] = useState(() => typeof matchMedia !== "function" || matchMedia("(min-width: 761px)").matches);
   return (
     <>
+      <p className="account-hint">Showing the latest 100 runs. Refreshes every five seconds while this page is visible.</p>
+      <div className="runs-summary">
+        <Status state="running">{running} running</Status>
+        <Status state="failed">{all.filter((r) => r.status === "failed").length} failed</Status>
+        <Status state="stale">{all.filter((r) => r.status === "unavailable").length} unavailable</Status>
+      </div>
+            <details className="run-roster-wrap" open={wide || Boolean(filters.persona)}>
+        <summary>
+          <span>Filter by persona</span>
+          <span className="muted">{filters.persona ? `Showing ${PERSONAS.find((p) => p.id === filters.persona)?.name}` : `${running} running across ${PERSONAS.length} personas`}</span>
+        </summary>
       <section className="run-roster" aria-label="Agent activity in the latest 100 runs">
         {PERSONAS.map((persona) => {
           const own = all.filter((run) => run.persona === persona.id);
@@ -87,12 +100,8 @@ function RunsBody({
           </div>;
         })}
       </section>
-      <p className="account-hint">Showing the latest 100 runs. Refreshes every five seconds while this page is visible.</p>
-      <div className="runs-summary">
-        <Status state="running">{running} running</Status>
-        <Status state="failed">{all.filter((r) => r.status === "failed").length} failed</Status>
-        <Status state="stale">{all.filter((r) => r.status === "unavailable").length} unavailable</Status>
-      </div>
+      </details>
+
       <Card tone="quiet">
         <RunFilters value={filters} trails={trails} onChange={setFilters} />
       </Card>

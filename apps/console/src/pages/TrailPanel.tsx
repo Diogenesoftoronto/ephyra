@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Trail } from "@ephyra/core";
 import { useApi } from "../app/ApiContext.tsx";
 import { useAsync } from "../app/useAsync.ts";
@@ -31,12 +31,15 @@ export function TrailPanel({
   canAct = true,
   principal,
   onChanged,
+  questions,
 }: {
   trailId: string;
   items: InboxEntry[];
   canAct?: boolean;
   principal?: string;
   onChanged?: () => void;
+  /** This quest's investigation questions, shown after its header. */
+  questions?: ReactNode;
 }) {
   const api = useApi();
   const { state, reload, status } = useTrail(api, trailId, { onChanged });
@@ -116,8 +119,10 @@ export function TrailPanel({
           return (
             <>
               <TrailHeader trail={trail} />
+              {questions}
               <TutorPanel trail={trail} events={events} canSpend={canAct} />
               <ReviewEvidence
+                trail={{ id: trail.id, rev: trail.rev }}
                 artefacts={artefacts}
                 proof={proof?.type === "proof_completed" ? proof.data.bundle : undefined}
               />
