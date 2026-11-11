@@ -5,7 +5,7 @@
   profiles.forge.module.packages = [ pkgs.radicle-node ];
 
   # Durable state uses Convex; without CONVEX_URL the API uses ephemeral memory.
-  processes.server.exec = "bun run apps/server/src/main.ts";
+  processes.server.exec = "bun run dev:server";
   processes.console.exec = "bun run dev:console";
   processes.storybook.exec = "bun run storybook --no-open --host 127.0.0.1";
   processes.textbook.exec = "bun run --cwd apps/cli textbook";

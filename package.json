@@ -10,7 +10,7 @@
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
     "check": "bun run typecheck && bun test",
-    "dev:server": "bun run --cwd apps/server start",
+    "dev:server": "bun scripts/dev-server.ts",
     "dev:console": "bun run --cwd apps/console dev",
     "storybook": "bun run --cwd apps/console storybook",
     "storybook:server": "bun run --cwd apps/server storybook --port 6007",
