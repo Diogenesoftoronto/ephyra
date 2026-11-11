@@ -178,3 +178,22 @@ describe("signed-in shared workspace authority", () => {
     expect(TeamState.parse(await (await f.request(ALICE, "/v1/account/team")).json()).invitations).toEqual([]);
   });
 });
+
+describe("profiles from the Not Organic authority", () => {
+  test("own profile works in a shared viewer workspace; people are limited to the workspace's relations", async () => {
+    const f = await fixture();
+    const invitation = await f.invite(BOB, "viewer");
+    const workspace = invitation.team.workspaceId;
+    const own = await f.request(BOB, "/v1/profile", { workspace });
+    expect(own.status).toBe(200);
+    expect(await own.json()).toMatchObject({ did: BOB, status: "verified", handle: "approver.test", manageUrl: "https://id.notorganic.test/?view=profile" });
+    const shared = await (await f.request(BOB, "/v1/profiles", { workspace })).json() as { people: { did: string }[] };
+    expect(shared.people.map((p) => p.did).sort()).toEqual([ALICE, BOB].sort());
+    const team = await (await f.request(ALICE, "/v1/profiles", { workspace })).json() as { people: { did: string; status: string }[] };
+    expect(team.people.map((p) => p.did).sort()).toEqual([ALICE, BOB].sort());
+    expect((await f.request(CAROL, "/v1/profiles", { workspace })).status).toBe(409);
+    expect((await f.request(CAROL, `/v1/profiles/${encodeURIComponent(ALICE)}/avatar`)).status).toBe(404);
+    // The fixture authority publishes no avatar, so even a permitted request has nothing to proxy.
+    expect((await f.request(BOB, `/v1/profiles/${encodeURIComponent(ALICE)}/avatar`)).status).toBe(404);
+  });
+});
