@@ -22,7 +22,7 @@ function fixture(rev = 3, digest = "d1") {
   const model = new FakeDraftModel(() => "Payments is critical.");
   const service = new VoiceService({ speech: null, model, ledger: new MemoryOperationLedger(), usage: new UsageRecorder(new MemoryUsageStore()),
     context: async () => ({ label: "Overview", data: {} }), references: voiceReferences(consolePort, port) });
-  return { service, model };
+  return { service, model, move: () => { rev++; digest = "d2"; } };
 }
 const signal = () => new AbortController().signal;
 const messages = [{ role: "user" as const, text: "What does this mean?" }];
@@ -49,6 +49,9 @@ describe("Velum references", () => {
       references: [{ kind: "trail", id: TRAIL, rev: 3 }, { kind: "area", name: "payments", revision: "d1" }] }, signal()).catch((e) => e);
     expect(changed).toMatchObject({ status: 409, code: "reference_changed" });
     expect(changed.references.map((r: { status: string; current?: string }) => [r.status, r.current])).toEqual([["changed", "4"], ["changed", "d2"]]);
+    const runChanged = await f.service.reply("did:a", "reference-run-changed", { context: { kind: "overview" }, messages,
+      references: [{ kind: "run", id: "run-1", status: "finished" }] }, signal()).catch((e) => e);
+    expect(runChanged).toMatchObject({ code: "reference_changed", references: [{ status: "changed", current: "running" }] });
     const missing = await f.service.reply("did:a", "reference-0003", { context: { kind: "overview" }, messages,
       references: [{ kind: "run", id: "gone" }] }, signal()).catch((e) => e);
     expect(missing).toMatchObject({ code: "reference_changed" });
@@ -59,6 +62,15 @@ describe("Velum references", () => {
     const input = { context: { kind: "overview" as const }, messages, references: [{ kind: "trail" as const, id: TRAIL, rev: 3 }] };
     const first = await f.service.reply("did:a", "reference-0004", input, signal());
     expect(await f.service.reply("did:a", "reference-0004", input, signal())).toEqual(first);
+    expect(f.model.calls).toHaveLength(1);
+  });
+  test("a saved reply can be recovered after its referenced records advance", async () => {
+    const f = fixture();
+    const input = { context: { kind: "overview" as const }, messages, references: [{ kind: "trail" as const, id: TRAIL, rev: 3 }] };
+    const first = await f.service.reply("did:a", "reference-recovery", input, signal());
+    f.move();
+    expect(await f.service.reply("did:a", "reference-recovery", input, signal())).toEqual(first);
+    await expect(f.service.reply("did:a", "reference-new-turn", input, signal())).rejects.toMatchObject({ code: "reference_changed" });
     expect(f.model.calls).toHaveLength(1);
   });
 });

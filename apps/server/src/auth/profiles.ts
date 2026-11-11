@@ -29,7 +29,14 @@ export function profileFromAccount(did: string, body: unknown, checkedAt: string
   const handle = text(account.handle);
   const avatarUrl = validAvatarUrl(account.avatarUrl, did);
   return {
-    profile: { did, status: "verified", handle: handle && HANDLE.test(handle) ? handle : null, displayName: text(account.displayName), avatar: avatarUrl !== null, checkedAt },
+    profile: {
+      did,
+      status: "verified",
+      handle: handle && HANDLE.test(handle) ? handle : null,
+      displayName: text(account.displayName),
+      avatar: avatarUrl !== null,
+      checkedAt,
+    },
     avatarUrl,
   };
 }
@@ -50,6 +57,7 @@ export class ProfileDirectory {
     if (hit && !fresh && this.now() - hit.at < TTL_MS) return hit.profile;
     try {
       const parsed = profileFromAccount(did, await this.signIn.account(did), new Date(this.now()).toISOString());
+      if (hit?.avatarUrl !== parsed.avatarUrl) this.avatars.delete(did);
       this.cache.set(did, { at: this.now(), ...parsed });
       return parsed.profile;
     } catch (error) {
@@ -71,11 +79,33 @@ export class ProfileDirectory {
     await this.get(did);
     const url = this.cache.get(did)?.avatarUrl;
     if (!url) return null;
-    const res = await this.signIn.fetchPublic(url).catch(() => null);
+    const res = await this.signIn.fetchPublic(url, AbortSignal.timeout(10_000)).catch(() => null);
     const type = res?.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
-    if (!res?.ok || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(type)) return null;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (!bytes.byteLength || bytes.byteLength > MAX_AVATAR_BYTES) return null;
+    if (!res?.ok || !res.body || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(type)) return null;
+    if (Number(res.headers.get("content-length")) > MAX_AVATAR_BYTES) {
+      await res.body.cancel().catch(() => undefined);
+      return null;
+    }
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_AVATAR_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          return null;
+        }
+        chunks.push(value);
+      }
+    } catch { return null; }
+    finally { reader.releaseLock(); }
+    if (!size) return null;
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
     const value = { at: this.now(), bytes, type };
     this.avatars.set(did, value);
     return value;

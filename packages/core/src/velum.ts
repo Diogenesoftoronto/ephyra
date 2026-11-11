@@ -2,7 +2,10 @@
 // revision or range the person saw. The server reads the bounded record itself; display labels are never trusted.
 import { z } from "zod";
 
-const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+}, "Choose a valid UTC calendar day.");
 export const USAGE_FACETS = ["spend", "cumulative", "drivers", "outcomes", "forecast"] as const;
 export const VelumReference = z.discriminatedUnion("kind", [
   /** An area of the application map, as published in autonomy.md at `revision` (the document digest or commit). */
@@ -32,7 +35,7 @@ export function referenceKey(ref: VelumReference): string {
   switch (ref.kind) {
     case "area": return `area:${ref.name}@${ref.revision}`;
     case "trail": return `trail:${ref.id}@${ref.rev}`;
-    case "run": return `run:${ref.id}`;
+    case "run": return `run:${ref.id}${ref.status === undefined ? "" : `@${ref.status}`}`;
     case "usage": return `usage:${ref.facet}:${ref.from}..${ref.to}`;
     case "evidence": return `evidence:${ref.trailId}@${ref.rev}:${ref.path}`;
   }

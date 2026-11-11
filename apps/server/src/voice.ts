@@ -204,10 +204,17 @@ export class VoiceService {
     if (input.messages.at(-1)?.role !== "user")
       throw new VoiceError(400, "A conversation turn must end with your message.");
     const requestedModel = model.requestedModel ?? "not reported";
-    // References resolve before the operation is claimed: a changed source is refused without spending or using the key.
+    // Recover a saved operation before re-reading mutable sources. A saved reply belongs to the references originally
+    // sent, even if the quest has since advanced; only a new request must resolve them again.
+    const previous = await this.deps.ledger.get(`voice:${sha256Hex(principal).slice(0, 24)}:${key}`);
     let refs: import("./voice-context.ts").ResolvedReferences | null = null;
-    if (input.references?.length) {
-      if (!this.deps.references) throw new VoiceError(503, "This deployment cannot read referenced items yet. Remove them to continue.", "references_unavailable");
+    if (!previous && input.references?.length) {
+      if (!this.deps.references)
+        throw new VoiceError(
+          503,
+          "This deployment cannot read referenced items yet. Remove them to continue.",
+          "references_unavailable",
+        );
       refs = await this.deps.references(input.references);
       const stale = refs.resolved.filter((r) => r.status !== "current");
       if (stale.length)

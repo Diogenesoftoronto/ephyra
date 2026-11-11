@@ -79,6 +79,28 @@ describe("usage forecast", () => {
     await f.service.forecast("did:a", "w2", "forecast-op-0003", input, signal());
     expect(calls).toHaveLength(3);
   });
+  test("a saved forecast recovers its original snapshot after history changes or is unavailable", async () => {
+    const entries = history(14);
+    const calls: ExtractionForecastRequest[] = [];
+    const f = fixture(entries, ok, calls);
+    const first = await f.service.forecast("did:a", "w1", "forecast-recover-01", input, signal());
+    entries.push(entry("2026-11-10", 2_000_000, 100));
+    expect(await f.service.forecast("did:a", "w1", "forecast-recover-01", input, signal())).toEqual(first);
+    entries.splice(0);
+    expect(await f.service.forecast("did:a", "w1", "forecast-recover-01", input, signal())).toEqual(first);
+    await expect(f.service.forecast("did:a", "w1", "forecast-recover-01", { ...input, horizonDays: 7 }, signal()))
+      .rejects.toMatchObject({ code: "operation_conflict" });
+    expect(calls).toHaveLength(1);
+  });
+  test("an ambiguous forecast remains ambiguous when new usage arrives", async () => {
+    const entries = history(14);
+    const calls: ExtractionForecastRequest[] = [];
+    const f = fixture(entries, new ReconciliationRequired("k", "lost"), calls);
+    await expect(f.service.forecast("did:a", "w1", "forecast-recover-02", input, signal())).rejects.toBeInstanceOf(ReconciliationRequired);
+    entries.push(entry("2026-11-10", 2_000_000, 101));
+    await expect(f.service.forecast("did:a", "w1", "forecast-recover-02", input, signal())).rejects.toBeInstanceOf(ReconciliationRequired);
+    expect(calls).toHaveLength(1);
+  });
   test("malformed answers are errors, not drawn forecasts", async () => {
     const f = fixture(history(14), { type: "forecast", value: [0.5, 0.6], median: [0.5, 0.6], p10: [0.2], p90: [0.8, 0.9] });
     await expect(f.service.forecast("did:a", "w1", "forecast-op-0004", input, signal())).rejects.toMatchObject({ code: "malformed" });

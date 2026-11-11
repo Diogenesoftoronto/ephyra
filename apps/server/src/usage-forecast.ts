@@ -71,13 +71,20 @@ export class UsageForecastService {
       throw new ForecastError(400, "Supply a valid Idempotency-Key.", "invalid_operation_key");
     const route = this.deps.route;
     if (!route) throw new ForecastError(503, this.capability().reason, "unavailable");
+    // Principal and workspace are part of the key: one person's key can never replay another scope's forecast.
+    const key = `forecast:${sha256Hex(`${principal}\n${workspace}`).slice(0, 24)}:${operationKey}`;
+    // Recovery binds to the original request, not a ledger snapshot that changes while the reply is in flight.
+    const digest = sha256Hex(canonicalJson({ input, provider: route.provider, model: route.backend.requestedModel }));
+    const previous = await this.deps.ledger.get(key);
+    if (previous && previous.planDigest !== digest)
+      throw new ForecastError(409, "This operation key belongs to a different forecast. Start a new forecast.", "operation_conflict");
+    if (previous) return this.replay(key, previous);
+
     const { basis, days, today } = forecastBasis(await this.deps.entries(), input, this.deps.now());
     if (input.asOf >= today) throw new ForecastError(400, "Forecasts use complete days only. Choose a day before today (UTC).", "partial_day");
     if (basis.completeDays < MIN_COMPLETE_DAYS || basis.daysWithPricedSpend < MIN_PRICED_DAYS)
       return { status: "insufficient_history", basis, required: MIN_COMPLETE_DAYS };
 
-    // Principal and workspace are part of the key: one person's key can never replay another scope's forecast.
-    const key = `forecast:${sha256Hex(`${principal}\n${workspace}`).slice(0, 24)}:${operationKey}`;
     const history = days.map((d) => ({ day: d.day, priced_usd: +(d.spend / 1e6).toFixed(6), priced_entries: d.priced, unknown_cost_entries: d.unknown }));
     const maxDay = Math.max(...days.map((d) => d.spend));
     const request = {
@@ -90,18 +97,8 @@ export class UsageForecastService {
         instructions: `Forecast priced spend for each of the next ${input.horizonDays} UTC days after ${input.asOf}.`,
       } },
     };
-    const digest = sha256Hex(canonicalJson({ request, provider: route.provider, model: route.backend.requestedModel }));
-    const previous = await this.deps.ledger.get(key);
-    if (previous && previous.planDigest !== digest)
-      throw new ForecastError(409, "This operation key belongs to a different forecast. Start a new forecast.", "operation_conflict");
     const claim = await this.deps.ledger.begin(key, digest);
-    if (!claim.fresh) {
-      if (claim.record.status !== "done")
-        throw new ReconciliationRequired(key, "A forecast with this key may still be billed. Check Usage before asking again.");
-      const stored = claim.record.result as { value?: UsageForecast; error?: { status: ForecastError["status"]; message: string; code: string } };
-      if (stored.error) throw new ForecastError(stored.error.status, stored.error.message, stored.error.code);
-      return UsageForecast.parse(stored.value);
-    }
+    if (!claim.fresh) return this.replay(key, claim.record);
     const started = Date.now();
     const record = (outcome: "ok" | "failed" | "unavailable", engine: string, tokens: number | null, cost: number | null, note?: string) =>
       this.deps.usage.record({
@@ -155,8 +152,19 @@ export class UsageForecastService {
       await record(error.code === "rate_limited" || error.code === "payment_required" ? "unavailable" : "failed",
         `unreported (${route.backend.requestedModel})`, null, null, error.message);
       // A rejected request did not run; the next attempt may use a new key. Rate limits stay unresolved for this key.
-      await this.deps.ledger.complete(key, { error: { status: error.status, message: error.message, code: error.code } });
+      await this.deps.ledger.complete(key, { error });
       throw new ForecastError(error.status, error.message, error.code, "retryAfterSeconds" in error ? error.retryAfterSeconds : undefined);
     }
+  }
+
+  private replay(key: string, record: { status: string; result?: unknown }): UsageForecast {
+    if (record.status !== "done")
+      throw new ReconciliationRequired(key, "A forecast with this key may still be billed. Check Usage before asking again.");
+    const stored = record.result as {
+      value?: UsageForecast;
+      error?: { status: ForecastError["status"]; message: string; code: string; retryAfterSeconds?: number };
+    };
+    if (stored.error) throw new ForecastError(stored.error.status, stored.error.message, stored.error.code, stored.error.retryAfterSeconds);
+    return UsageForecast.parse(stored.value);
   }
 }
