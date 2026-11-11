@@ -22,6 +22,22 @@ test("SSE run snapshots preserve new links, ignore another run, and do not inter
 });
 
 describe("console HTTP client", () => {
+  test("lists and validates quests from the authenticated trail endpoint", async () => {
+    const fixtures = await new FakeApi().trails();
+    let path = "";
+    let auth = "";
+    const client = new ConsoleClient("https://example.test", "session", async (url, init) => {
+      path = new URL(String(url)).pathname;
+      auth = new Headers(init?.headers).get("Authorization") ?? "";
+      return Response.json(fixtures);
+    });
+    expect(await client.trails()).toEqual(fixtures);
+    expect(path).toBe("/v1/trails");
+    expect(auth).toBe("Bearer session");
+    const invalid = new ConsoleClient("https://example.test", "", async () => Response.json([{ id: "invalid" }]));
+    await expect(invalid.trails()).rejects.toThrow();
+  });
+
   test("browser sessions use same-origin cookies across reads, writes, streams and voice without an empty bearer header", async () => {
     const requests: RequestInit[] = [];
     const client = new ConsoleClient("https://example.test", "", async (url, init) => {

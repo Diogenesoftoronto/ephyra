@@ -121,6 +121,7 @@ export interface ConsoleApi {
   usage(query?: UsageQuery): Promise<UsageSummary>;
   entries(query?: EntriesQuery): Promise<EntriesPage>;
   inbox(): Promise<InboxEntry[]>;
+  trails(): Promise<Trail[]>;
   questions(): Promise<InvestigationQuestion[]>;
   question(trailId: string, questionId: string): Promise<InvestigationQuestion | null>;
   answerQuestion(trailId: string, questionId: string, input: InvestigationAnswer, operationKey: string): Promise<InvestigationQuestion>;
@@ -339,6 +340,9 @@ export class ConsoleClient implements ConsoleApi {
   }
   inbox() {
     return this.request("/v1/inbox", z.array(InboxItemSchema));
+  }
+  trails() {
+    return this.request("/v1/trails", z.array(Trail));
   }
   async questions() {
     const questions = await this.request("/v1/questions", z.array(InvestigationQuestion));

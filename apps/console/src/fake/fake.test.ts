@@ -22,6 +22,7 @@ describe("FakeApi fixtures", () => {
     z.array(PolicyDoc).parse(await api.docs());
     z.array(Draft).parse(await api.drafts());
     z.array(InboxItemSchema).parse(await api.inbox());
+    z.array(Trail).parse(await api.trails());
     for (const item of await api.inbox()) {
       const detail = await api.trail(item.trailId);
       Trail.parse(detail.trail);
