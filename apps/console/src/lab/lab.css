@@ -118,7 +118,7 @@ body { background: var(--bg); }
 }
 
 /* Small headings that label a group without shouting over the fleet sentence. */
-.lab-groups h2, .lab-log h2, .lab-log-now h2 {
+.lab-log h2, .lab-log-now h2 {
   display: flex;
   gap: var(--s2);
   align-items: baseline;
@@ -129,27 +129,10 @@ body { background: var(--bg); }
   font-stretch: normal;
   letter-spacing: 0.02em;
 }
-.lab-groups h2 span { opacity: 0.75; }
-.lab-groups { display: grid; gap: var(--s5); }
-.lab-groups [data-group="you"] h2 { color: var(--ink); }
 
 /* ── Scene: the water column ── */
-.lab-scene { display: grid; gap: var(--s2); min-inline-size: 0; }
-.lab-stages { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
-.lab-stages li {
-  position: relative;
-  display: grid;
-  gap: 2px;
-  justify-items: center;
-  color: var(--muted);
-  font: 500 0.6875rem / 1.3 var(--font-mono);
-  text-align: center;
-}
-.lab-stages li > :first-child { opacity: 0.45; }
-.lab-stages li[data-busy] { color: var(--ink); }
-.lab-stages li[data-busy] > :first-child { opacity: 1; }
-.lab-stages li[data-current] span { color: var(--ink); font-weight: 600; }
-.lab-stages abbr, .lab-lane abbr {
+
+.lab-lane abbr {
   display: grid;
   place-items: center;
   inline-size: 1.125rem;
@@ -161,87 +144,6 @@ body { background: var(--bg); }
   text-decoration: none;
   cursor: help;
 }
-.lab-stages abbr { position: absolute; inset-block-start: 3px; inset-inline-end: 0; transform: translateX(50%); }
-
-.lab-scene-field {
-  --pad: 3rem;
-  /* Half a specimen and its tag: nothing drifts out of the water at either end of the loop. */
-  --edge: 2.5rem;
-  position: relative;
-  container-type: size;
-  block-size: clamp(17rem, 40vh, 24rem);
-  border-radius: 1.25rem;
-  background: var(--water-top) url("/app/loop/depth-light.webp") center / cover;
-  overflow: hidden;
-}
-[data-theme="dark"] .lab-scene-field { background-image: url("/app/loop/depth-dark.webp"); }
-.lab-scene[data-compact] .lab-scene-field { --pad: 2.5rem; block-size: clamp(12.5rem, 27vh, 15rem); }
-.lab-scene-level {
-  position: absolute;
-  z-index: 1;
-  color: color-mix(in oklch, var(--ink) 62%, transparent);
-  font: 500 0.6875rem / 1 var(--font-mono);
-  letter-spacing: 0.04em;
-}
-.lab-scene-level[data-level="surface"] { inset-block-start: 0.5rem; inset-inline-start: 50%; transform: translateX(-50%); }
-.lab-scene-level[data-level="seabed"] { inset-block-end: 0.5rem; inset-inline-start: 0.75rem; }
-.lab-scene-field > svg { position: absolute; inset: var(--pad) 0; inline-size: 100%; block-size: calc(100% - 2 * var(--pad)); overflow: visible; }
-.lab-scene-field polyline {
-  fill: none;
-  stroke: color-mix(in oklch, var(--ink) 34%, transparent);
-  stroke-width: 1.5;
-  stroke-dasharray: 2 7;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-.lab-scene-field ul { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
-.lab-scene-field li {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  transform: translate(
-    calc(clamp(var(--edge), var(--x) * 100cqw, 100cqw - var(--edge)) - 50%),
-    calc(var(--pad) + var(--y) * (100cqh - 2 * var(--pad)) - 50% + var(--slot) * var(--pitch))
-  );
-}
-.lab-scene-field li[data-selected] { z-index: 2; }
-.lab-scene-field button {
-  position: relative;
-  display: grid;
-  gap: 2px;
-  justify-items: center;
-  padding: 2px;
-  border: 0;
-  border-radius: 14px;
-  background: none;
-  color: var(--ink);
-  cursor: pointer;
-}
-.lab-scene-field button::before {
-  content: "";
-  position: absolute;
-  inset: -8px -8px 6px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in oklch, var(--tone) 46%, transparent), transparent);
-  opacity: 0;
-}
-.lab-scene-field li[data-selected] button::before { opacity: 1; }
-.lab-scene-field .lp-specimen { position: relative; }
-.lab-scene-tag {
-  position: relative;
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  min-block-size: 1.125rem;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in oklch, var(--surface) 82%, transparent);
-  font: 500 0.6875rem / 1 var(--font-mono);
-}
-.lab-scene-tag .lp-mark { gap: 0; }
-.lab-scene-field li[data-selected] .lab-scene-tag { background: var(--ink); color: var(--bg); }
-.lab-scene-field li[data-selected] .lab-scene-tag :is(.lp-mark, svg) { color: inherit; }
-@media (hover: hover) { .lab-scene-field li:not([data-selected]) button:hover::before { opacity: 0.55; } }
 
 /* ── B · Loop dial ── */
 .lab-dial { position: relative; container-type: inline-size; inline-size: min(100%, 30rem); aspect-ratio: 1; margin-inline: auto; }
@@ -427,7 +329,7 @@ body { background: var(--bg); }
 .lab-motion dt { color: var(--muted); font: 500 var(--fs-label) / 1.6 var(--font-mono); }
 .lab-motion dd { margin: 0; font-size: var(--fs-small); line-height: 1.4; }
 .lab-mini-scene { inline-size: 100%; }
-.lab-mini-scene .lab-scene-field { --pad: 2.25rem; block-size: 9rem; border-radius: var(--radius); }
+.lab-mini-scene .lp-scene-field { --pad: 2.25rem; block-size: 9rem; border-radius: var(--radius); }
 .lab-demo-needs { display: inline-grid; grid-template-columns: auto; padding: var(--s4) var(--s5); }
 .lab-demo-rows { display: grid; inline-size: 100%; }
 .lab-demo-rows .lp-row { display: flex; font-weight: 600; }
@@ -444,14 +346,14 @@ body { background: var(--bg); }
   .lab-brand span, .lab-idea { display: none; }
   .lab-stage { padding-block-start: var(--s3); }
   .lab-main { gap: var(--s4); }
-  .lab-groups h2, .lab-log h2, .lab-log-now h2, .lab-pool h2 { padding-inline: var(--s2); }
+  .lab-log h2, .lab-log-now h2, .lab-pool h2 { padding-inline: var(--s2); }
   .lp-row { padding-inline: var(--s2); }
-  .lab-scene-field { --pad: 2.25rem; --edge: 1.5rem; block-size: 15rem; border-radius: 1rem; }
+  
   /* No room for ids here: the status glyph rides on the specimen's shoulder. */
-  .lab-scene-tag { position: absolute; inset-block-start: -2px; inset-inline-end: -8px; min-block-size: 1rem; padding: 0 3px; }
-  .lab-stages li[data-current] span { white-space: nowrap; }
-  .lab-scene[data-compact] .lab-scene-field { --pad: 2rem; block-size: 11.5rem; }
-  .lab-scene-tag { min-block-size: 1rem; padding: 0 3px; }
+  
+  
+  
+  
   .lab-log li { grid-template-columns: 3rem minmax(0, 1fr); gap: 0 var(--s2); padding-inline: var(--s2); padding-block: var(--s1); }
   .lab-log time { grid-area: 1 / 1 / 3 / 2; align-self: start; line-height: 1.25rem; }
   .lab-log-id { grid-area: 1 / 2; line-height: 1.25rem; }
@@ -469,11 +371,8 @@ body { background: var(--bg); }
 
 /* ── Motion. The lab reads the same with this block removed. ── */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduced"]) .lab-scene-field li,
   :root:not([data-motion="reduced"]) .lab-dial ul li { transition: transform 900ms var(--ease-out); }
-  :root:not([data-motion="reduced"])[data-scrub] .lab-scene-field li,
   :root:not([data-motion="reduced"])[data-scrub] .lab-dial ul li { transition-duration: 120ms; }
-  :root:not([data-motion="reduced"]) .lab-scene-field button::before,
   :root:not([data-motion="reduced"]) .lab-dial li button::before { transition: opacity 150ms var(--ease-out); }
   :root:not([data-motion="reduced"]) .lab-toast { animation: lp-enter 300ms var(--ease-out) both; }
   :root:not([data-motion="reduced"]) .lab-help[open] { animation: lp-enter 300ms var(--ease-out) both; }

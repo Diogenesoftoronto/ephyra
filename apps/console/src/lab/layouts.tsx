@@ -3,10 +3,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { PERSONAS } from "@ephyra/core";
 import { PersonaAvatar } from "../components/PersonaAvatar.tsx";
-import {
-  ATTENTION_LABEL, LOOP_STAGES, byAttention, lastOf, loopPoint, narrate, type AttentionGroup, type JourneyStep, type QuestView,
-  type StageId,
-} from "../loop/model.ts";
+import { LoopScene, QuestGroups, slots } from "../loop/board.tsx";
+import { ATTENTION_LABEL, LOOP_STAGES, byAttention, lastOf, narrate, type JourneyStep, type QuestView } from "../loop/model.ts";
 import {
   AttentionMark, FleetSentence, NeedsYou, QuestDetail, QuestRow, Specimen, personaName, proofLine, type MeterVariant, type RowVariant,
 } from "../loop/parts.tsx";
@@ -32,7 +30,6 @@ export type LayoutProps = {
 
 const vars = (values: Record<string, string | number>) => values as CSSProperties;
 const clock = (iso: string): string => iso.slice(11, 16);
-const oldestFirst = (a: QuestView, b: QuestView) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
 
 function Needs(p: LayoutProps) {
   if (!p.needs) return null;
@@ -57,104 +54,13 @@ function Frame({ p, id, children, aside = true }: { p: LayoutProps; id: string; 
   );
 }
 
-/** Which of the quests sharing a stage this one is, oldest first, and how many share it. */
-function slots(views: readonly QuestView[]): Map<string, { slot: number; of: number }> {
-  const count = new Map<StageId, number>();
-  const out = new Map<string, { slot: number; of: number }>();
-  for (const view of [...views].sort(oldestFirst)) {
-    const slot = count.get(view.stage.id) ?? 0;
-    count.set(view.stage.id, slot + 1);
-    out.set(view.id, { slot, of: 0 });
-  }
-  for (const view of views) out.get(view.id)!.of = count.get(view.stage.id)!;
-  return out;
-}
-
-const LOOP_PATH = Array.from({ length: 65 }, (_, i) => {
-  const point = loopPoint(i / 64);
-  return `${(point.x * 100).toFixed(2)},${(point.depth * 100).toFixed(2)}`;
-}).join(" ");
-
-function StageHeads({ views, narrow, current }: { views: readonly QuestView[]; narrow: boolean; current?: StageId }) {
-  return (
-    <ol className="lab-stages" aria-label="The loop, stage by stage">
-      {LOOP_STAGES.map((s) => {
-        const here = views.filter((view) => view.stage.id === s.id).length;
-        return (
-          <li key={s.id} data-stage-head={s.id} data-busy={here > 0 || undefined} data-current={s.id === current || undefined}>
-            <PersonaAvatar persona={s.persona} size={24} />
-            {/* A phone has room for one name: the stage of the quest you are looking at. */}
-            <span className={narrow && s.id !== current ? "sr-only" : undefined}>{s.label}</span>
-            {s.gate && !narrow && <abbr title={`Checkpoint ${s.gate}`}>{s.gate}</abbr>}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-/** The water column: left to right is progress, top to bottom is distance from production. */
-function Scene({ p, compact }: { p: LayoutProps; compact?: boolean }) {
-  const at = slots(p.world.views);
-  const size = p.narrow ? 36 : compact ? 48 : 56;
-  return (
-    <section className="lab-scene" data-compact={compact || undefined} aria-label="Every quest, by where it is in the loop">
-      <StageHeads views={p.world.views} narrow={p.narrow} current={p.selected?.view.stage.id} />
-      <div className="lab-scene-field" data-plot style={vars({ "--pitch": `${size + (p.narrow ? 8 : 20)}px` })}>
-        <span className="lab-scene-level" data-level="surface">production</span>
-        <span className="lab-scene-level" data-level="seabed">git</span>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points={LOOP_PATH} /></svg>
-        <ul>
-          {p.world.views.map((view) => {
-            const point = loopPoint(view.progress);
-            const slot = at.get(view.id)!.slot * (point.depth > 0.5 ? -1 : 1);
-            const picked = view.id === p.selected?.id;
-            return (
-              <li key={view.id} data-quest={view.short} data-stage={view.stage.id} data-attention={view.attention} data-retreats={view.retreats}
-                data-selected={picked || undefined} style={vars({ "--x": point.x.toFixed(4), "--y": point.depth.toFixed(4), "--slot": slot })}>
-                <button type="button" aria-pressed={picked} onClick={() => p.select(view.id)}
-                  aria-label={`${view.short}, ${ATTENTION_LABEL[view.attention]}, ${view.stage.label}. ${view.title}. ${view.headline}`}>
-                  <Specimen quest={view} size={size} />
-                  <span className="lab-scene-tag"><AttentionMark attention={view.attention} label={false} />{!p.narrow && view.short}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-const GROUPS: [AttentionGroup, string][] = [
-  ["you", "Needs you"], ["self", "Moving by itself"], ["stopped", "Stopped"], ["finished", "Finished"],
-];
-
-/** The bench: quests grouped by who holds the next move. */
-function Groups({ p }: { p: LayoutProps }) {
-  const variant = p.row ?? (p.narrow ? "sentence" : "strip");
-  const sorted = [...p.world.views].sort(byAttention);
-  let index = 0;
-  return (
-    <div className="lab-groups">
-      {GROUPS.map(([group, label]) => {
-        const mine = sorted.filter((view) => view.group === group);
-        if (!mine.length) return null;
-        return (
-          <section key={group} data-group={group}>
-            <h2>{label}<span>{mine.length}</span></h2>
-            <ul className="lp-rows" data-variant={variant}>
-              {mine.map((view) => (
-                <QuestRow key={view.id} quest={view} variant={variant} meter={p.meter} index={index++} selected={view.id === p.selected?.id}
-                  onSelect={p.select} />
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-    </div>
-  );
-}
+const Scene = ({ p, compact }: { p: LayoutProps; compact?: boolean }) => (
+  <LoopScene views={p.world.views} selected={p.selected?.id} current={p.selected?.view.stage.id} narrow={p.narrow} compact={compact}
+    onSelect={p.select} />
+);
+const Groups = ({ p }: { p: LayoutProps }) => (
+  <QuestGroups views={p.world.views} selected={p.selected?.id} narrow={p.narrow} row={p.row} meter={p.meter} onSelect={p.select} />
+);
 
 // ───────────────────────── A · Water column ─────────────────────────
 function WaterColumn(p: LayoutProps) {
