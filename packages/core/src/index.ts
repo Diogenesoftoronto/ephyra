@@ -19,3 +19,4 @@ export * from "./team.ts";
 export * from "./bootstrap.ts";
 export * from "./knowledge.ts";
 export * from "./connections.ts";
+export * from "./velum.ts";

@@ -183,3 +183,12 @@ export interface OperationLedger {
   markAmbiguous(key: string, note: string): Promise<void>;
   get(key: string): Promise<OperationRecord | null>;
 }
+
+/** Additive: an extraction backend that also accepts Clairic forecast fields. Only verified routes implement it. */
+export interface ForecastBackend {
+  readonly kind: BackendKind;
+  readonly alias: string;
+  /** The model id requested from the provider; the response's `model` is recorded as the identity. */
+  readonly requestedModel: string;
+  forecast(req: import("./contracts.ts").ExtractionForecastRequest, opts: { idempotencyKey: string; signal?: AbortSignal }): Promise<import("./contracts.ts").ExtractionForecastResponse>;
+}

@@ -1,6 +1,7 @@
 // Additive voice contracts. Audio is transient; these schemas grant no trail or policy capabilities.
 import { z } from "zod";
 import { BilledTo } from "./console.ts";
+import { VelumReference, VelumResolvedReference, VELUM_MAX_REFERENCES } from "./velum.ts";
 
 export const VOICE_MAX_AUDIO_BYTES = 4_000_000;
 export const VOICE_MAX_RECORDING_MS = 60_000;
@@ -15,7 +16,11 @@ export const VoiceContext = z.discriminatedUnion("kind", [
 export type VoiceContext = z.infer<typeof VoiceContext>;
 export const VoiceMessage = z.object({ role: z.enum(["user", "assistant"]), text: z.string().min(1).max(6000) });
 export type VoiceMessage = z.infer<typeof VoiceMessage>;
-export const VoiceReplyInput = z.object({ context: VoiceContext, messages: z.array(VoiceMessage).min(1).max(20) });
+export const VoiceReplyInput = z.object({
+  context: VoiceContext, messages: z.array(VoiceMessage).min(1).max(20),
+  /** Additive: parts of the console the person explicitly referred to. Resolved and bounded on the server. */
+  references: z.array(VelumReference).max(VELUM_MAX_REFERENCES).optional(),
+});
 export type VoiceReplyInput = z.infer<typeof VoiceReplyInput>;
 export const VoiceCapabilities = z.object({
   provider: z.enum(["notorganic", "compatible"]).nullable(),
@@ -34,7 +39,11 @@ export const VoiceTranscript = z.object({ text: z.string().max(6000), receipt: V
 export type VoiceTranscript = z.infer<typeof VoiceTranscript>;
 export const VoiceSpeech = z.object({ audio: z.string().max(11_000_000), mime: z.string(), receipt: VoiceReceipt });
 export type VoiceSpeech = z.infer<typeof VoiceSpeech>;
-export const VoiceReply = z.object({ text: z.string().max(6000), contextLabel: z.string(), receipt: VoiceReceipt });
+export const VoiceReply = z.object({
+  text: z.string().max(6000), contextLabel: z.string(), receipt: VoiceReceipt,
+  /** Additive: what the server read for each reference. */
+  references: z.array(VelumResolvedReference).optional(),
+});
 export type VoiceReply = z.infer<typeof VoiceReply>;
 export const VoiceAudioInput = z.object({
   audio: z.string().min(4).max(Math.ceil(VOICE_MAX_AUDIO_BYTES / 3) * 4).regex(/^[A-Za-z0-9+/]+={0,2}$/),

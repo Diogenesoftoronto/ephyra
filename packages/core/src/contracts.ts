@@ -75,3 +75,67 @@ export const ExtractionResponse = z.object({
   usage: z.object({ input_tokens: z.number().optional(), cost_microusd: z.number().nullable().optional() }).optional(),
 });
 export type ExtractionResponse = z.infer<typeof ExtractionResponse>;
+
+// ── Forecast extraction (additive) ──
+// Clairic's `forecast` field as published in the Not Organic extraction contract v1 and Cloudflare's model page.
+// Separate from ExtractionAnswer so existing consumers keep their scalar p10/p90 shape.
+export const EXTRACTION_FORECAST_INTERVALS = ["step", "minute", "hour", "day", "week", "month", "quarter", "year"] as const;
+export const ExtractionForecastField = z.object({
+  type: z.literal("forecast"),
+  instructions: z.string().optional(),
+  unit: z.string().max(40).optional(),
+  min: z.number(),
+  max: z.number(),
+  horizon: z.number().int().min(1).max(64),
+  interval: z.enum(EXTRACTION_FORECAST_INTERVALS),
+}).refine((f) => f.max > f.min, { message: "max must exceed min" });
+export type ExtractionForecastField = z.infer<typeof ExtractionForecastField>;
+export const ExtractionForecastRequest = z.object({
+  model: z.string().optional(),
+  state: z.string().min(1),
+  reference_date: z.string().optional(),
+  fields: z.record(z.string(), ExtractionForecastField),
+});
+export type ExtractionForecastRequest = z.infer<typeof ExtractionForecastRequest>;
+const ForecastStep = z.object({ value: z.number().nullable().optional(), median: z.number().optional(), p10: z.number().optional(), p90: z.number().optional() }).passthrough();
+/** Both published answer forms: per-step estimates, or parallel median/p10/p90 arrays. */
+export const ExtractionForecastAnswer = z.object({
+  type: z.literal("forecast"),
+  value: z.array(z.number()).nullable(),
+  p_null: z.number().optional(),
+  confidence: z.number().optional(),
+  steps: z.array(ForecastStep).optional(),
+  median: z.array(z.number()).optional(),
+  p10: z.array(z.number()).optional(),
+  p90: z.array(z.number()).optional(),
+  mean: z.array(z.number()).optional(),
+}).passthrough();
+export type ExtractionForecastAnswer = z.infer<typeof ExtractionForecastAnswer>;
+export const ExtractionForecastResponse = z.object({
+  model: z.string(),
+  answers: z.record(z.string(), ExtractionForecastAnswer),
+  truncated: z.boolean().optional(),
+  usage: z.object({ input_tokens: z.number().optional(), cost_microusd: z.number().nullable().optional() }).optional(),
+});
+export type ExtractionForecastResponse = z.infer<typeof ExtractionForecastResponse>;
+export type ForecastPoint = { median: number; p10: number | null; p90: number | null };
+/**
+ * Normalise one forecast answer to `horizon` points. Returns null when the answer is malformed or incomplete
+ * (wrong length, partial arrays, inverted intervals); a caller must then report an error, never fill gaps.
+ */
+export function forecastPoints(answer: ExtractionForecastAnswer, horizon: number): ForecastPoint[] | null {
+  if (!answer.value || answer.value.length !== horizon) return null;
+  let points: ForecastPoint[];
+  if (answer.steps) {
+    if (answer.steps.length !== horizon) return null;
+    points = answer.steps.map((s, i) => ({ median: s.median ?? s.value ?? answer.value![i]!, p10: s.p10 ?? null, p90: s.p90 ?? null }));
+  } else {
+    for (const a of [answer.median, answer.p10, answer.p90]) if (a && a.length !== horizon) return null;
+    points = answer.value.map((v, i) => ({ median: answer.median?.[i] ?? v, p10: answer.p10?.[i] ?? null, p90: answer.p90?.[i] ?? null }));
+  }
+  for (const p of points) {
+    if (!Number.isFinite(p.median)) return null;
+    if (p.p10 !== null && p.p90 !== null && (p.p10 > p.median || p.median > p.p90)) return null;
+  }
+  return points;
+}
