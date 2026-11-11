@@ -351,6 +351,26 @@ and restart protection, grounding/redaction, stale bindings, spending permission
 interactions. Unverified: live Humans& access, provider quality/latency, actual account settlement, hosted durability and
 any improvement in operator understanding. No paid model calls were made during these checks.
 
+## Usage forecast, Velum references and profiles
+
+- `GET /v1/usage/forecast` is free and describes the route. `POST /v1/usage/forecast` (`Idempotency-Key` required) sends
+  one Clairic `forecast` extraction over complete UTC days. Configure it with `EPHYRA_FORECAST=notorganic` (billing
+  account wallet) or `workers-ai` (BYOK `CLOUDFLARE_*`); the default is `none`. The key is scoped to principal and
+  workspace. With fewer than 7 complete days or fewer than 3 priced days, the call returns `insufficient_history`
+  without contacting the provider. Usage is recorded once as `usage.forecast` with the provider's model id. A lost
+  response returns `reconciliation_required`, and the same key never calls the provider again. 429 passes the
+  provider's Retry-After only when it was supplied. Verified against the Not Organic extraction contract v1 fixture
+  answers. Unverified: no live forecast call was made.
+- `POST /v1/voice/reply` accepts optional `references` (`VelumReference[]`, at most 6). Each one is read from server
+  records at the given revision or range and wrapped as `<untrusted_referenced_records>`. A changed or missing source
+  is refused with HTTP 409 `reference_changed`, which reports per-reference status, before the operation is claimed or
+  a model is called.
+- `GET /v1/profile` (any signed-in workspace) and `GET /v1/profiles` (only people related to this workspace) read Not
+  Organic `/v1/account` using each account's own DPoP session. `GET /v1/profiles/:did/avatar` proxies the avatar only
+  after the same `com.atproto.sync.getBlob` validation the gateway applies, so no DID is sent to a third-party avatar
+  service. Profiles are read-only; edits link to the portal. If Ephyra holds no session for a member, that member
+  appears as `unavailable`. Unverified against a live gateway.
+
 ## Tests
 
 `bun test apps/server`: unit tests, Convex function tests (convex-test), and an end-to-end test that drives

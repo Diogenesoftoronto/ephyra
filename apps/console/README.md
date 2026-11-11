@@ -245,6 +245,55 @@ repository with a fake model, unit/property tests, app/Storybook builds, and the
 Unverified: live provider replies, hosted sign-in with a real account, live agent/orb streams,
 production deployment and cloud/forge writes. Storybook/demo fixtures are not evidence for those.
 
+## Velum companion
+
+One workspace conversation for typed and spoken turns, built on the existing assistant-ui composer (`src/velum/`). The
+**Ask Velum** button in the workspace bar opens a docked rail on wide screens and a sheet on phones. Opening it never
+starts the microphone. **Speak** records only after you click it, transcribes into the same composer as editable text,
+and never sends anything automatically. Replies can be read aloud, and a reply's audio is reused when you play it again.
+
+**Refer to something** starts a short selection mode ("Choose an area, quest, or chart. Esc to finish."). Referable
+regions are application-map areas, quest headers, quest documents, run rows and the three Usage charts. Each region also
+has a keyboard-reachable **Velum** button. Selected regions show as removable chips; clicking a chip scrolls back to its
+source, or navigates there if it is on another page. A chip carries the stable id plus the revision or day range
+(`VelumReference` in core), not page text. The server reads the record itself. When the page shows a newer revision,
+the chip is marked *changed* and is not sent until you pick **Use latest** or remove it.
+
+Unhappy paths, each with its own action: an unknown outcome keeps the turn on its own message with **Check saved
+reply**, which resends with the same operation key and context, so the server can only replay or report it, plus
+**Leave unresolved**. New sends are paused while that turn is unresolved, but the text stays editable. Rate limits put
+the words back in the composer and show the provider's Retry-After only if the provider sent one. A changed reference is
+refused before any model call. If the microphone is denied, the message is **Keep typing**. If the browser blocks
+playback, **Play saved reply** reuses the saved clip. Switching account or workspace starts an empty conversation, and
+late results from the old scope are dropped. The unsent draft and references survive closing the companion and moving
+between pages within a scope. Document drafts keep their own reviewable Velum conversation.
+
+Verified: controller and voice logic (`src/velum/*.test.ts`, fixture API), Storybook states (`Velum/Companion`,
+`Velum/Workspace ask`), and local browser checks at 1440, 390 and 320 px in both themes. Unverified: live model replies
+and live speech, because no paid provider calls were made.
+
+## Usage charts and forecast
+
+Usage shows spending pace (bars for each day's recorded spend plus a running-total line, today marked as partial), what
+drove cost (persona and engine, largest first; unknown-cost counts stay visible; selecting a row filters the ledger),
+and outcomes and price coverage. Each chart has a keyboard cursor, a tooltip and a table view. The breakdown tables
+remain available.
+
+The spend forecast runs only when you select **Forecast spend**. It uses the server's configured Clairic route over 28
+complete UTC days (today is excluded) and is drawn dashed in a separate validated colour with its p10–p90 band. It is
+labelled as a forecast with the provider's exact model id, and it never changes budgets. States: not configured,
+pending, unconfirmed (**Check saved forecast** reuses the same key, and the key survives navigation within the tab),
+rate limited, insufficient history, and malformed answer. When no route is configured, the panel says so rather than
+showing an average. Verified with fixture adapters only; no live forecast was made.
+
+## Your account and identities
+
+`#/account` (the rail footer link, or **More** on phones) shows your Not Organic display name, handle and avatar. It
+works in every workspace, including shared viewer ones. Edits happen in the Not Organic portal (`/?view=profile`), and
+this page re-reads your profile when you return to the tab. Team lists show verified names and handles. Invitation
+labels are marked as unverified, and DIDs appear only under *Technical details*. If Not Organic cannot be read, people
+appear as "Unverified account" with a neutral mark; Ephyra never guesses a name.
+
 ## Voice
 
 **Talk with Velum** is available in the work screens; onboarding and Settings keep the focus on setup.
