@@ -8,20 +8,18 @@ export const DarkSelected: StoryObj = {
   ...Default,
   parameters: { theme: "dark" },
   play: async ({ canvasElement }) => {
-    const control = canvasElement.querySelector<HTMLButtonElement>('[role="switch"]');
-    if (control?.getAttribute("aria-checked") === "false") control.click();
+    canvasElement.querySelector<HTMLButtonElement>('[data-choice="dark"]')?.click();
   },
 };
 export const LightSelected: StoryObj = {
   ...Default,
   parameters: { theme: "light" },
   play: async ({ canvasElement }) => {
-    const control = canvasElement.querySelector<HTMLButtonElement>('[role="switch"]');
-    if (control?.getAttribute("aria-checked") === "true") control.click();
+    canvasElement.querySelector<HTMLButtonElement>('[data-choice="light"]')?.click();
   },
 };
 export const KeyboardFocus: StoryObj = {
   ...Default,
-  play: async ({ canvasElement }) => canvasElement.querySelector<HTMLButtonElement>('[role="switch"]')?.focus(),
+  play: async ({ canvasElement }) => canvasElement.querySelector<HTMLButtonElement>('[role="radio"][aria-checked="true"]')?.focus(),
 };
 export const Phone: StoryObj = { ...Default, globals: { viewport: { value: "phone" } } };

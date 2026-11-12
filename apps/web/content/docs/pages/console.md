@@ -85,7 +85,7 @@ Names, handles and pictures come from Not Organic when that identity can be veri
 
 Open **Your account** from the sidebar footer, or **More** on a phone. It is available in shared workspaces too. Your name, handle and picture come from Not Organic; **Edit name, handle and picture in Not Organic** opens its profile editor. Return to Ephyra to refresh them.
 
-Appearance and sound preferences are saved in this browser. **Auto** follows your device's theme; **Light** and **Dark** keep an explicit selection. Sound starts off. This page also shows your current session and sign-out action.
+Appearance and sound preferences are saved in this browser. Choose **Light** with the sun or **Dark** with the moon. The selected icon is outlined. Sound starts off. This page also shows your current session and sign-out action.
 
 ## Settings and Setup
 

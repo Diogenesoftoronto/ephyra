@@ -1,52 +1,55 @@
-.theme-toggle { display: inline-flex; align-items: center; gap: var(--s2); flex: none; }
+.theme-toggle { display: inline-flex; align-items: center; gap: var(--s3); flex: none; }
 .theme-toggle__legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .theme-toggle[data-labelled] .theme-toggle__legend { position: static; width: auto; height: auto; clip-path: none; font-weight: 600; font-size: var(--fs-small); }
 .theme-toggle__group {
   display: inline-flex;
-  padding: 2px;
-  gap: 2px;
-  border: 1px solid var(--control-border);
   border-radius: var(--radius-pill);
   background: var(--surface-recessed);
-  box-shadow: var(--shadow-inset);
+  box-shadow: inset 0 0 0 1px var(--control-border);
 }
 .theme-toggle__group button {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s1);
-  min-height: 36px;
-  padding: 0 var(--s3);
-  border: 1px solid transparent;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
-  font-size: var(--fs-small);
-  font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  isolation: isolate;
+  transition: color 150ms ease;
 }
-.theme-toggle__group svg { width: 16px; height: 16px; flex: none; }
+.theme-toggle__group button::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.theme-toggle__group svg { width: 18px; height: 18px; }
 .theme-toggle__group button:hover { color: var(--ink); }
-/* Selected: filled surface, border, ink colour and bold text, so the state never depends on colour alone. */
-.theme-toggle__group button[aria-checked="true"] {
+.theme-toggle__group button:hover::before { background: var(--surface-hover); }
+/* A filled inset and a visible outline distinguish the selected icon in both themes. */
+.theme-toggle__group button[aria-checked="true"] { color: var(--jelly-deep); }
+.theme-toggle__group button[aria-checked="true"]::before {
   background: var(--surface);
   border-color: var(--jelly-deep);
-  color: var(--ink);
-  font-weight: 650;
   box-shadow: var(--shadow-surface);
 }
-@media (pointer: coarse) { .theme-toggle__group button { min-height: 44px; } }
-@media (max-width: 1100px) {
-  .theme-toggle:not([data-labelled]) .theme-toggle__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .theme-toggle:not([data-labelled]) .theme-toggle__group button { padding: 0 var(--s2); min-width: 36px; justify-content: center; }
-  .theme-toggle:not([data-labelled]) .theme-toggle__group button[aria-checked="true"]::after {
-    content: ""; position: absolute; inset-block-end: 3px; inset-inline: 30%; height: 2px; border-radius: 1px; background: var(--jelly-deep);
-  }
+.theme-toggle__group button:focus-visible { outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle__group button, .theme-toggle__group button::before { transition: none; }
 }
-@media (prefers-reduced-motion: reduce) { .theme-toggle__group button { transition: none; } }
-@media (forced-colors: active) { .theme-toggle__group button[aria-checked="true"] { border-color: Highlight; } }
-/* Phones: the toolbar keeps the workspace name, Velum and commands. Theme lives on Your account (More → Your account). */
+@media (forced-colors: active) {
+  .theme-toggle__group { outline: 1px solid ButtonText; }
+  .theme-toggle__group button[aria-checked="true"]::before { border-color: Highlight; border-width: 2px; }
+}
+/* Phones keep the same control on Your account (More → Your account). */
 @media (max-width: 480px) {
   .workspace-bar .theme-toggle:not([data-labelled]) { display: none; }
 }

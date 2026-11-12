@@ -1,5 +1,5 @@
 // What the console says about itself: for each screen, what it is for, a few things worth knowing, and the
-// documentation page that covers it. The help menu, the tip strip and the agent brief all read this table.
+// documentation page that covers it. The help menu, tip toasts and agent brief all read this table.
 import type { PageId } from "../app/route.ts";
 
 /** Works with or without a dedicated docs host: the public site redirects /docs/<page> there when one is configured. */
@@ -94,7 +94,7 @@ export const HELP: Record<PageId, ScreenHelp> = {
     tips: [
       { id: "account-profile", text: "Edit your name, handle and picture in Not Organic. Return here to refresh your profile.",
         docs: "console#your-account" },
-      { id: "account-theme", text: "Auto follows your device's theme. Light and Dark stay selected in this browser.",
+      { id: "account-theme", text: "Use the sun and moon to choose Light or Dark. Your choice is remembered in this browser.",
         docs: "console#your-account" },
     ],
   },

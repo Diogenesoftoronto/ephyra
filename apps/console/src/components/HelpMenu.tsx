@@ -83,6 +83,7 @@ export function HelpMenu({ page, brief }: { page: PageId; brief: () => string })
         ref={trigger}
         type="button"
         className="help-menu__trigger"
+        aria-label="Help"
         aria-expanded={open}
         aria-controls={`${id}-panel`}
         onClick={() => { setOpen((value) => !value); setCopied("idle"); }}
@@ -134,19 +135,55 @@ export function HelpMenu({ page, brief }: { page: PageId; brief: () => string })
   );
 }
 
-/** One line above a screen: the next thing worth knowing about it, until the person has seen them all or turns tips off. */
+/** One optional tip per page visit, outside the reading flow. Every tip also stays available in Help. */
 export function PageTip({ page }: { page: PageId }) {
   const { dismissed, off } = useTips();
-  const tip = nextTip(page, dismissed, off);
-  if (!tip) return null;
+  return off ? null : <TipToast key={page} page={page} dismissed={dismissed} />;
+}
+
+function TipToast({ page, dismissed }: { page: PageId; dismissed: string[] }) {
+  // Bind this visit to one tip: dismissing it must not immediately queue another toast.
+  const [tip] = useState(() => nextTip(page, dismissed, false));
+  const [visible, setVisible] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(() => document.hidden);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 1200);
+    const visibility = () => setHidden(document.hidden);
+    document.addEventListener("visibilitychange", visibility);
+    return () => { window.clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
+  }, []);
+  const dismiss = () => {
+    setVisible(false);
+    if (tip) { dismissTip(tip.id); changed(); }
+  };
+  useEffect(() => {
+    if (!tip || !visible || hovered || focused || hidden) return;
+    const timer = window.setTimeout(() => {
+      setVisible(false);
+      dismissTip(tip.id);
+      changed();
+    }, 12_000);
+    return () => window.clearTimeout(timer);
+  }, [tip, visible, hovered, focused, hidden]);
+  if (!tip || !visible || dismissed.includes(tip.id)) return null;
   return (
-    <aside className="page-tip" aria-label="Tip">
+    <aside className="page-tip" aria-label="Tip" data-paused={hovered ? "hover" : focused ? "focus" : hidden ? "hidden" : undefined}
+      onMouseEnter={() => { if (window.matchMedia("(hover: hover)").matches) setHovered(true); }}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
       <span className="page-tip__label">Tip</span>
-      <span className="page-tip__text">
+      <span className="page-tip__text" role="status">
         {tip.text}{" "}
         {tip.docs && <a href={docsUrl(tip.docs)} target="_blank" rel="noopener">Read more</a>}
       </span>
-      <button type="button" className="page-tip__dismiss" onClick={() => { dismissTip(tip.id); changed(); }}>Got it</button>
+      <button type="button" className="page-tip__dismiss" aria-label="Dismiss tip" onClick={dismiss}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      </button>
     </aside>
   );
 }

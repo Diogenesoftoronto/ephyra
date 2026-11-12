@@ -14,5 +14,14 @@ export const Open: Story = { play: open };
 export const WorkspaceHelp: Story = { args: { page: "workspace" }, play: open };
 export const Dark: Story = { parameters: { theme: "dark" }, play: open };
 export const Phone: Story = { globals: { viewport: { value: "phone" } }, play: open };
-/** The one-line tip above a screen. "Got it" shows the next one; the help menu can turn them off. */
-export const Tip: StoryObj = { render: () => <PageTip page="usage" /> };
+/** One dismissible toast per visit. All tips remain in Help, which can also turn them off. */
+export const Tip: StoryObj = {
+  beforeEach: () => {
+    localStorage.removeItem("ephyra.tips.off");
+    localStorage.removeItem("ephyra.tips.dismissed");
+  },
+  render: () => <PageTip page="usage" />,
+  play: async () => { await new Promise((resolve) => setTimeout(resolve, 1400)); },
+};
+export const TipDark: StoryObj = { ...Tip, parameters: { theme: "dark" } };
+export const TipPhone: StoryObj = { ...Tip, globals: { viewport: { value: "phone" } } };

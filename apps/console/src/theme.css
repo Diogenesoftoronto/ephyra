@@ -169,6 +169,7 @@
   --s5: 1.5rem;
   --s6: 2rem;
   --s7: 3rem;
+  --card-padding-extra: 10px;
 
   --rail-w: 13.5rem;
   /* Menus and sheets sit above sticky navigation; dialogs use the native top layer. */
