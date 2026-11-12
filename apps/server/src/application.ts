@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
 import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput,
-  KnowledgeUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer, Unverified } from "@ephyra/core";
+  KnowledgeUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer, Unverified, MirrorRemove, MirrorUpdate } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
 import { readConfig, type Config } from "./config.ts";
 import { auth, type AuthEnv } from "./http/auth.ts";
@@ -383,6 +383,16 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     const value = RepositoryUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the repository URL, branch and credentials." }, 400);
     return c.json(await account.saveRepository(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.put("/v1/account/mirrors", async (c) => {
+    const value = MirrorUpdate.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Enter an HTTPS repository address and, if it needs one, a token." }, 400);
+    return c.json(await account.saveMirror(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.post("/v1/account/mirrors/remove", async (c) => {
+    const value = MirrorRemove.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Choose a mirror to remove." }, 400);
+    return c.json(await account.removeMirror(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
   });
   app.put("/v1/account/model", async (c) => {
     const value = ModelUpdate.safeParse(await c.req.json().catch(() => null));

@@ -15,6 +15,8 @@ const accountRecord = z
     team: TeamRecord.optional(),
     telemetryKey: z.string().optional(),
     peopleToken: z.string().optional(),
+    /** Sealed mirror tokens by mirror id. */
+    mirrorTokens: z.record(z.string(), z.string()).optional(),
   })
   .strict();
 

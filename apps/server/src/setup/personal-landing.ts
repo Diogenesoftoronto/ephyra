@@ -84,7 +84,7 @@ export function personalLanding(options: {
         run: (argv) => accounts.repositoryCommand(did, workspace, argv),
       }));
     }
-    return { adapters, canLand, refreshBase: () => accounts.refreshRepository(did, workspace), watch: {
+    return { adapters, canLand, afterBaseMoved: (receipt) => accounts.pushMirrors(did, workspace, receipt), refreshBase: () => accounts.refreshRepository(did, workspace), watch: {
       coverage,
       prepare: async (trail) => {
         if (!await canLand()) throw new Unverified("configured deployment and telemetry sources");

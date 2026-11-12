@@ -1,5 +1,6 @@
 import type {
   AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, PeopleUpdate,
+  MirrorUpdate, MirrorRemove,
 } from "@ephyra/core";
 import { KNOWLEDGE_CATALOG_FIXTURE } from "./knowledge.ts";
 import type { AccountApi } from "../account-api.ts";
@@ -55,7 +56,7 @@ export const CONNECTED_ACCOUNT_FIXTURE: AccountSettings = {
 };
 
 type ReadMethod = "settings" | "knowledge";
-type Method = ReadMethod | "saveRepository" | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
+type Method = ReadMethod | "saveRepository" | "saveMirror" | "removeMirror" | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
 export interface FakeAccountOptions {
   initial?: AccountSettings;
   knowledgeCatalog?: KnowledgeCatalog;
@@ -136,6 +137,21 @@ export class FakeAccountApi implements AccountApi {
         onboarding: { status: "in_progress", updatedAt: "2026-11-07T12:00:00.000Z" },
       };
     });
+  }
+  saveMirror(input: MirrorUpdate, key: string) {
+    return this.update("saveMirror", input.expectedVersion, key, () => {
+      const url = input.url.trim();
+      const host = new URL(url).hostname;
+      if (host === "codeberg.org") throw new ApiError(422, "Codeberg's terms forbid AI-generated contributions, so Ephyra does not push there.");
+      const mirrors = this.value.mirrors ?? [];
+      return { mirrors: [...mirrors, { id: `m_${String(mirrors.length + 1).padStart(12, "0")}`, url, host,
+        kind: host === "github.com" ? "github" as const : host === "gitlab.com" ? "gitlab" as const : "forgejo" as const,
+        credentialConfigured: Boolean(input.token), last: null }] };
+    });
+  }
+  removeMirror(input: MirrorRemove, key: string) {
+    return this.update("removeMirror", input.expectedVersion, key, () => ({
+      mirrors: (this.value.mirrors ?? []).filter((m) => m.id !== input.id) }));
   }
   saveTelemetry(input: TelemetryUpdate, key: string) {
     return this.update("saveTelemetry", input.expectedVersion, key, () => {
