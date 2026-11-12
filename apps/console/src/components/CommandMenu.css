@@ -212,3 +212,32 @@
   .workspace-bar__actions { flex-shrink: 0; }
   .workspace-bar .entry-preferences { display: none; }
 }
+
+/* Keep the workspace toolbar compact without shrinking its pointer targets. */
+.workspace-bar { padding-block: 4px; gap: var(--s2); }
+.workspace-bar__actions { flex-shrink: 0; gap: 4px; }
+.workspace-bar .entry-preferences { gap: 4px; }
+.workspace-bar__repo small,
+.workspace-bar .sound-toggle > span,
+.workspace-bar .velum-invoker__label,
+.workspace-bar .command-trigger > span:not([aria-hidden]),
+.workspace-bar .command-trigger kbd {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.workspace-bar .velum-invoker,
+.workspace-bar .command-trigger,
+.workspace-bar .sound-toggle {
+  flex: none;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.workspace-bar .sound-toggle svg { flex: none; }
+.workspace-bar .velum-invoker__count { position: absolute; inset-block-start: -4px; inset-inline-end: -4px; }

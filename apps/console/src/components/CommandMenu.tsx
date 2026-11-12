@@ -126,6 +126,7 @@ export function CommandMenu({
         onClick={show}
         aria-haspopup="dialog"
         aria-label="Open commands and keyboard shortcuts"
+        title="Commands (Ctrl / ⌘ K)"
         aria-keyshortcuts="Control+k Meta+k"
       >
         <span aria-hidden="true">⌕</span>
