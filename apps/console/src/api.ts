@@ -4,6 +4,7 @@ import {
   AgentRunEvent,
   AreaSketch,
   Draft,
+  Effect,
   PersonaId,
   PolicyDoc,
   Trail,
@@ -88,6 +89,8 @@ export const TrailDetailSchema = z.object({
   trail: Trail,
   events: z.array(TrailEvent),
   artefacts: z.array(z.object({ path: z.string(), content: z.string().nullable() })).optional(),
+  /** What each transition asked the engine to do, with the event that caused it. Absent on servers that keep no history. */
+  effects: z.array(z.object({ cause: z.string(), effect: Effect })).optional(),
 });
 export type TrailDetail = z.infer<typeof TrailDetailSchema>;
 
@@ -150,6 +153,7 @@ export interface ConsoleApi {
   usage(query?: UsageQuery): Promise<UsageSummary>;
   entries(query?: EntriesQuery): Promise<EntriesPage>;
   inbox(): Promise<InboxEntry[]>;
+  trails(): Promise<Trail[]>;
   questions(): Promise<InvestigationQuestion[]>;
   question(trailId: string, questionId: string): Promise<InvestigationQuestion | null>;
   answerQuestion(trailId: string, questionId: string, input: InvestigationAnswer, operationKey: string): Promise<InvestigationQuestion>;
@@ -388,6 +392,9 @@ export class ConsoleClient implements ConsoleApi {
   }
   inbox() {
     return this.request("/v1/inbox", z.array(InboxItemSchema));
+  }
+  trails() {
+    return this.request("/v1/trails", z.array(Trail));
   }
   async questions() {
     const questions = await this.request("/v1/questions", z.array(InvestigationQuestion));

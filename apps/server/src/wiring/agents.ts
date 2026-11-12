@@ -11,7 +11,7 @@ import type { HandlerSlice, ServerContext } from "./context.ts";
 import type { BilledTo, UsageRecorder } from "../usage.ts";
 import type { RunHandle, RunRecorder } from "../runs.ts";
 import { gatherResearchEvidence } from "./research-evidence.ts";
-import { buildRecovery } from "./recovery.ts";
+import { buildRecovery, RECOVERY_INDEX_PATH, recoveryIndexWith } from "./recovery.ts";
 import { importRunnerPatch } from "../setup/repository-bundle.ts";
 import { WorkControl } from "./control.ts";
 import { recordTrailUsage, workBudget } from "./budget.ts";
@@ -203,11 +203,22 @@ async function runStep(ctx: ServerContext, deps: AgentDeps, payload: StepPayload
     canResetContext: deps.agent instanceof CodexAgent || deps.agent instanceof ClaudeCodeAgent || deps.agent.name === "account-model",
     secrets: deps.secrets,
   });
-  const recoveryFiles = { [`artefacts/recovery/${payload.step}-${trail.rev}-${recovery.attempt}.json`]: JSON.stringify(recovery.artifact) };
+  const recoveryPath = `artefacts/recovery/${payload.step}-${trail.rev}-${recovery.attempt}.json`;
+  const recoveryFiles = {
+    [recoveryPath]: JSON.stringify(recovery.artifact),
+    [RECOVERY_INDEX_PATH]: recoveryIndexWith(await ctx.journal.readFile(trail.id, RECOVERY_INDEX_PATH), recoveryPath),
+  };
   if (recovery.exhausted) {
     await ctx.emit({ trail: trail.id, actor, type: "parked", data: { reason: recovery.artifact.reason ?? "Recovery needs new evidence." },
       files: recoveryFiles });
     return;
+  }
+  // The plan for this attempt goes into the journal before the agent starts, so a reader can see what is being tried
+  // while it is tried. The same files are written again with the event that ends the turn.
+  try {
+    await ctx.attach?.(trail.id, recoveryFiles, { rev: trail.rev, state: trail.state, generation: trail.workGeneration });
+  } catch (error) {
+    ctx.log("recovery plan not journaled before the turn", { trail: trail.short, step: payload.step, error: String(error) });
   }
   const evidence = ["research", "repro"].includes(payload.step)
     ? await gatherResearchEvidence([

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["vite/client", "bun"] },
+  "include": ["scripts/browser.ts", "scripts/lab-shots.ts", "scripts/loop-acceptance.ts", "scripts/e2e-loop.ts"],
+  "exclude": []
+}

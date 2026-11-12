@@ -167,7 +167,7 @@ export class FakeApi implements ConsoleApi {
       : people;
   }
   readonly now: number;
-  private trails: Trail[];
+  private trailItems: Trail[];
   private inboxItems: InboxEntry[];
   private events = new Map<string, TrailEvent[]>();
   private artefacts = new Map<string, TrailDetail["artefacts"]>();
@@ -190,15 +190,15 @@ export class FakeApi implements ConsoleApi {
     this.now = options.now ?? STORY_NOW;
     this.questionItems = structuredClone(options.questions ?? []);
     const empty = options.empty === true;
-    this.trails = empty ? [] : makeTrails(this.now);
-    this.inboxItems = empty ? [] : makeInbox(this.trails, this.now);
-    this.usageRows = empty ? [] : makeUsage(this.trails, this.now);
+    this.trailItems = empty ? [] : makeTrails(this.now);
+    this.inboxItems = empty ? [] : makeInbox(this.trailItems, this.now);
+    this.usageRows = empty ? [] : makeUsage(this.trailItems, this.now);
     this.docList = empty ? [] : makeDocs();
-    this.runBundles = empty ? [] : makeRuns(this.trails, this.now);
-    for (const t of this.trails) this.events.set(t.id, makeEvents(t, this.now));
+    this.runBundles = empty ? [] : makeRuns(this.trailItems, this.now);
+    for (const t of this.trailItems) this.events.set(t.id, makeEvents(t, this.now));
     if (!empty) this.seedDrafts(options.seedConversation !== false);
     for (const id of options.movedTrails ?? []) {
-      const t = this.trails.find((x) => x.id === id);
+      const t = this.trailItems.find((x) => x.id === id);
       if (t) {
         t.rev += 1;
         t.head = fakeDigest(`moved-${id}`).slice(0, 40);
@@ -210,7 +210,7 @@ export class FakeApi implements ConsoleApi {
   installWalkthrough(value: TrailDetail): void {
     const detail = TrailDetailSchema.parse(structuredClone(value));
     const trail = detail.trail;
-    this.trails = [trail, ...this.trails.filter(item => item.id !== trail.id)];
+    this.trailItems = [trail, ...this.trailItems.filter(item => item.id !== trail.id)];
     this.events.set(trail.id, detail.events);
     this.artefacts.set(trail.id, detail.artefacts);
     const checkpoint = ({ hypothesised: "A", planned: "B", ready: "C" } as const)[
@@ -306,7 +306,7 @@ export class FakeApi implements ConsoleApi {
     const from =
       q.from ?? new Date(Math.floor(this.now / 86_400_000) * 86_400_000 - 6 * 86_400_000).toISOString();
     const rows = filterEntries(this.usageRows, { ...q, from, to });
-    const meta = this.trails.map((t) => ({
+    const meta = this.trailItems.map((t) => ({
       trailId: t.id,
       short: t.short,
       title: t.title,
@@ -333,6 +333,11 @@ export class FakeApi implements ConsoleApi {
     });
   }
 
+  async trails() {
+    await this.gate("trails");
+    return structuredClone(this.trailItems);
+  }
+
   async inbox() {
     await this.gate("inbox");
     this.inboxReads += 1;
@@ -341,7 +346,7 @@ export class FakeApi implements ConsoleApi {
   }
 
   private rebind(trailId: string): void {
-    const t = this.trails.find((x) => x.id === trailId);
+    const t = this.trailItems.find((x) => x.id === trailId);
     if (!t) return;
     this.inboxItems = this.inboxItems.map((i) =>
       i.trailId === trailId
@@ -432,7 +437,7 @@ export class FakeApi implements ConsoleApi {
 
   async trail(id: string): Promise<TrailDetail> {
     await this.gate("trail");
-    const trail = this.trails.find((t) => t.id === id);
+    const trail = this.trailItems.find((t) => t.id === id);
     if (!trail) throw new ApiError(404, "not found");
     return structuredClone({ trail, events: this.events.get(id) ?? [],
       ...(this.artefacts.has(id) ? { artefacts: this.artefacts.get(id) } : {}) });
@@ -444,7 +449,7 @@ export class FakeApi implements ConsoleApi {
 
   async trailOperation(id: string, action: SharedTrailAction, operationKey: string) {
     await this.gate("trailOperation");
-    if (!this.trails.some((t) => t.id === id)) throw new ApiError(404, "not found");
+    if (!this.trailItems.some((t) => t.id === id)) throw new ApiError(404, "not found");
     return { status: this.trailOps.has(this.trailOpKey(id, action, operationKey)) ? "recorded" as const : "not_found" as const };
   }
 
@@ -504,7 +509,7 @@ export class FakeApi implements ConsoleApi {
           input.bound.proofDigest !== item.bound.proofDigest)
       )
         throw new ApiError(409, "the reviewed item changed");
-      const trail = this.trails.find((t) => t.id === trailId);
+      const trail = this.trailItems.find((t) => t.id === trailId);
       if (!trail) throw new ApiError(404, "not found");
       if (trail.state === "handed_off") throw new ApiError(409, "release the review claim before deciding");
       if (this.options.staleTrails?.includes(trailId) && !this.refreshed.has(trailId)) {
@@ -554,7 +559,7 @@ export class FakeApi implements ConsoleApi {
       return;
     }
     {
-      const trail = this.trails.find((t) => t.id === trailId);
+      const trail = this.trailItems.find((t) => t.id === trailId);
       if (!trail) throw new ApiError(404, "not found");
       if (action === "comment" && (!input.text?.trim() || input.text.length > 4000))
         throw new ApiError(400, "comment must contain 1 to 4,000 characters");
@@ -765,7 +770,7 @@ export class FakeApi implements ConsoleApi {
 
   /** For makeActivityFor. */
   snapshot() {
-    return { trails: this.trails, now: this.now, empty: this.options.empty === true };
+    return { trails: this.trailItems, now: this.now, empty: this.options.empty === true };
   }
 
   private get(id: string): Draft {

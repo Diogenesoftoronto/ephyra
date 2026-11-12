@@ -1,6 +1,26 @@
 # Ephyra CLI
 
-Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in with `ephyra login <server-url>`, or set `EPHYRA_URL`, `EPHYRA_API_TOKEN` and `EPHYRA_PRINCIPAL` for automation. `init --remote origin` creates shadow-mode templates and configures git refspecs; `--force` replaces templates. `--json` emits the raw API shape. Comment and kill require `-m` text.
+Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in with `ephyra login <server-url>`, or set `EPHYRA_URL`, `EPHYRA_API_TOKEN` and `EPHYRA_PRINCIPAL` for automation. The public guide is at [docs/cli](https://ephyra.quest/docs/cli) and [docs/terminal](https://ephyra.quest/docs/terminal); this file is for people working on the package.
+
+## Commands
+
+`ephyra help` lists every command and `ephyra help <command>` explains one. Both read the table in `src/commands/help.ts`, which is also what the usage errors and the "did you mean" hint use, so a command cannot be added without its help.
+
+| Group | Commands |
+|---|---|
+| Set up | `login`, `logout`, `whoami`, `doctor`, `init`, `setup`, `handoff`, `docs` |
+| See | `quests` (`trails`), `show`, `file`, `inbox`, `activity`, `runs`, `run`, `usage` |
+| Decide | `decide`, `spend`, `comment`, `claim`, `release`, `park`, `resume`, `kill`, `land`, `questions`, `answer` |
+| Operate | `status`, `policy`, `agents`, `ops`, `open` |
+
+- **`doctor`** checks the server, the sign-in, the repository in the current directory (remote, `refs/ephyra/*` refspecs, `ephyra/` templates), the recorded setup and the inbox. Each check is ok, a warning, a failure with its next step, or skipped. A check that could not run is skipped, never passed. It exits 1 when something fails.
+- **`handoff`** prints a brief for a coding agent: the server, the remote (credentials removed), the branch, what `doctor` found and the documentation links. It never contains a token. `--copy` uses `pbcopy`, `wl-copy`, `xclip` or `xsel`.
+- **`docs [topic]`** prints the address of the page for a topic or command. `EPHYRA_DOCS_URL` points it at another copy of the docs. `apps/web/test/docs.test.ts` checks the topic list against the published pages.
+- **`decide`** reads the inbox first and sends the waiting item's `bound`, so a quest that moved on is refused as stale. With nothing waiting at that checkpoint it sends no bound and the server decides.
+- Every `<quest>` argument accepts the short id (`T-1a2b`).
+- `--json` prints the raw API shape. `init --remote origin` creates shadow-mode templates and configures git refspecs; `--force` replaces templates. Comment and kill require `-m` text.
+
+Human output for the read commands comes from pure functions in `src/commands/views.ts`, coloured only on a TTY without `NO_COLOR`. An unknown cost or token count prints as `unknown`, never as zero. Engine identities are printed whole.
 
 ## The inbox
 
@@ -12,7 +32,9 @@ Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in w
 - **Spend, parked and notice items** show what's asked and the budget.
 - A rail shows how far the quest has got (signal → evidence → hypothesis → repro → plan → patch → proof → land → watch) and where A, B and C sit. Below it is the quest's activity.
 
-Keys: `j`/`k` move, `a` approve, `r` revise with a note, `x` kill with a reason, `c` comment, `t` claim a checkpoint review, `p` park or resume, `o` open the landing or the agent's thread, `l` land a ready quest whose proof is already approved, `e` explain (the evidence index), `J`/`K` scroll, `?` lists the keys, `esc` goes back, and `q` quits. Release a review with `ephyra release <quest>` before deciding. A claim does not stop an active agent. The hint bar shows only the keys that do something for the selected item. At checkpoint C it reads `a approve and land`, because approving C is what lands the quest. While you write a note, it shows only `enter send · esc cancel`.
+Keys: `j`/`k` move, `g`/`G` jump to the first or last item, `a` approve, `r` revise with a note, `x` kill with a reason, `c` comment, `t` claim a checkpoint review, `u` release one you claimed, `p` park or resume, `o` open the landing or the agent's thread, `l` land a ready quest whose proof is already approved, `e` explain (the evidence index), `J`/`K` scroll, `R` refresh now, `d` show the documentation page for the selected item, `?` lists the keys and tips, `esc` goes back, and `q` quits. Release a review before deciding. A claim does not stop an active agent.
+
+The line above the hints carries one tip about the selected item (`tipFor` in `src/inbox/view.ts`). A tip is whole clauses or nothing, so a narrow terminal shows fewer clauses, never half of one. An error or a notice replaces it. `EPHYRA_TIPS=0` hides it. `a` and `r` send the item's `bound` with the decision. A refusal the server was clear about (401, 403, 404, 409) is shown as what it is; anything else is reported as an unknown outcome. The hint bar shows only the keys that do something for the selected item. At checkpoint C it reads `a approve and land`, because approving C is what lands the quest. While you write a note, it shows only `enter send · esc cancel`.
 
 Colour means state and nothing else: mint is waiting on you (a blocking checkpoint, a spend, the key that answers it), amber is work that holds (stages done, proof passed, a landing), cherry is a failure or an undo. Keys, labels and the selection are neutral.
 
@@ -35,6 +57,8 @@ Run `bun run --filter @ephyra/cli textbook` for the Textbook Canvas on `http://1
 ## Verified
 
 - **Offline tests:** fake-fetch client, reducer and property checks, and template/refspec idempotence in a temporary git repository.
+- **Commands (`test/help.test.ts`):** every entry in the help table is accepted by `main()`, and help needs no network. Against a fake API: each read command calls its route, a decision carries the inbox item's bound, short ids resolve, an answer carries its workspace, revoking an agent is a `DELETE`, 403 and 409 are explained, and a write with no answer is reported as unknown. `doctor` is checked for healthy, absent, degraded and unreachable servers and against a real temporary git repository. `handoff` and `repoFacts` never print a remote's password (property test). The views contain no control or bidi characters with hostile text.
+- **Real server:** `help`, `doctor`, `status`, `quests`, `usage`, `policy`, `setup` and `handoff` were run against a local `apps/server` in memory mode on 11 November 2026.
 - **Snapshot:** 80×24 text.
 - **Property tests:** every screen line is exactly the terminal's width at sizes from 40×10 to 160×60, even with hostile text (bidi overrides, escape codes, wide and combining characters).
 - **Quest story:** derived from events. A proof for an older revision never shows as the current proof, and any state with any prefix of events lands on a valid stage.
@@ -47,6 +71,9 @@ Built on Bun 1.4.4, OpenTUI 0.5.17 and Textbook 0.2.0.
 ## Unverified
 
 - A real deployment with real quests: the terminal test used the example data.
+- The new inbox keys (`g`, `G`, `R`, `u`, `d`) in a real terminal: they are covered by the reducer and view tests only.
+- `runs`, `run --follow`, `questions`, `answer`, `agents` and `spend` against a server that has runs, questions or agents: the local server had none, so these were exercised against the fake API.
+- `handoff --copy` and `docs --open`: they shell out to the system clipboard and opener.
 - Terminals other than tmux.
 - `o`: opening links with the system opener.
 - Mouse input.

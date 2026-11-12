@@ -2,11 +2,13 @@ import { SoundToggle } from "../components/SoundToggle.tsx";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiProvider } from "./ApiContext.tsx";
 import { useAsync } from "./useAsync.ts";
+import { useWaiting } from "./waiting.ts";
 import type { ConsoleApi, SessionInfo } from "../api.ts";
 import { Shell, type NavItem } from "../kit.ts";
 import { ThemeToggle } from "../components/ThemeToggle.tsx";
 import { Empty, Skeleton } from "../kit.ts";
 import { InboxPage } from "../pages/InboxPage.tsx";
+import { LoopPage } from "../pages/LoopPage.tsx";
 import { OverviewPage } from "../pages/OverviewPage.tsx";
 import { PersonasPage } from "../pages/PersonasPage.tsx";
 const RunPage = lazy(() => import("../pages/RunPage.tsx").then((m) => ({ default: m.RunPage })));
@@ -27,6 +29,8 @@ import type { SetupApi } from "../setup-api.ts";
 import { SettingsPage } from "../pages/SettingsPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { CommandMenu } from "../components/CommandMenu.tsx";
+import { HelpMenu, PageTip } from "../components/HelpMenu.tsx";
+import { agentBrief } from "../lib/help.ts";
 import type { TeamApi } from "../team-api.ts";
 import { TeamPage } from "../pages/TeamPage.tsx";
 
@@ -42,6 +46,7 @@ export type AccountContext = {
 };
 
 const LABEL: Record<PageId, string> = {
+  loop: "Loop",
   overview: "Overview",
   usage: "Usage",
   inbox: "Inbox",
@@ -86,6 +91,8 @@ function Page({
   workspace?: WorkspaceContext;
 }) {
   switch (route.page) {
+    case "loop":
+      return <LoopPage questId={route.id} canAct={approver} principal={principal} />;
     case "overview":
       return <OverviewPage />;
     case "usage":
@@ -131,7 +138,7 @@ function Page({
         <OnboardingPage
           {...account}
           onDone={() => {
-            location.hash = "#/overview";
+            location.hash = "#/loop";
           }}
         />
       );
@@ -140,7 +147,7 @@ function Page({
         <Empty
           title="That page does not exist"
           body={`There is nothing at “${route.path}”.`}
-          action={<a href="#/overview">Go to the overview</a>}
+          action={<a href="#/loop">Go to the loop</a>}
         />
       );
   }
@@ -213,10 +220,11 @@ function Frame({
   workspace?: WorkspaceContext;
 }) {
   const inbox = useAsync(() => api.inbox(), `nav:${route.page}`);
-  const waiting =
-    inbox.state.status === "ready"
-      ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
-      : 0;
+  // A page that polls publishes its own count, so the badge cannot contradict what that page is showing.
+  const live = useWaiting();
+  const waiting = live ?? (inbox.state.status === "ready"
+    ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
+    : 0);
   const nav: NavItem[] = (Object.keys(LABEL) as PageId[])
     .filter((id) => id !== "onboarding" && (id !== "team" || team))
     .map((id) => ({
@@ -238,6 +246,9 @@ function Frame({
           : route.page === "usage"
             ? { kind: "usage" }
             : { kind: "overview" };
+  // The loop page is the answer to "am I needed?". Nothing sits between the top of the page and that answer.
+  const plain = route.page === "loop";
+  const helpPage: PageId = route.page === "not-found" ? "loop" : route.page;
   const voiceLabel =
     voiceContext.kind === "usage"
       ? "Usage, last 7 days"
@@ -301,6 +312,13 @@ function Frame({
             <VelumInvoker />
             <span className="entry-preferences"><SoundToggle /><ThemeToggle /></span>
             <CommandMenu />
+            <HelpMenu
+              page={helpPage}
+              brief={() => agentBrief({
+                server: location.origin, page: helpPage, demo,
+                repository: account?.settings.repository?.url, branch: account?.settings.repository?.branch,
+              })}
+            />
           </div>
         </div>
         {workspace && workspace.role !== "owner" && (
@@ -326,6 +344,8 @@ function Frame({
               </div>
             </aside>
           )}
+        {/* The loop is a full-bleed board with its own layout contract; its tips live in the help menu. */}
+        {!plain && route.page !== "not-found" && <PageTip page={helpPage} />}
         <Suspense fallback={<Skeleton block />}>
           <Page
             key={route.page === "not-found" ? route.path : `${route.page}:${route.id ?? ""}`}

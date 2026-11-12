@@ -9,3 +9,7 @@ export * from "./inbox/demo";
 export * from "./init";
 export * from "./inbox/run";
 export * from "./commands/cli";
+export * from "./commands/help";
+export * from "./commands/views";
+export * from "./commands/doctor";
+export * from "./docs";

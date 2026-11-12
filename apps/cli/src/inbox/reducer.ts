@@ -1,4 +1,5 @@
 import type { InboxItem, Trail, TrailEvent } from "@ephyra/core";
+import { docsUrl } from "../docs";
 
 export type Command = { action: string; item: InboxItem; note?: string };
 
@@ -37,7 +38,23 @@ export type InboxState = {
 	pane?: Pane;
 	/** Lines the right-hand pane is scrolled down by. The view clamps it to the content. */
 	scroll?: number;
+	/** False hides the one-line tips under the panes (EPHYRA_TIPS=0). */
+	tips?: boolean;
 };
+
+/** The documentation page that covers what is selected: `d` shows its address. */
+export const docsFor = (item: InboxItem | undefined): string =>
+	docsUrl(
+		!item
+			? "terminal"
+			: item.kind === "checkpoint"
+				? "reviewing"
+				: item.kind === "spend"
+					? "budgets"
+					: item.state === "parked"
+						? "troubleshooting"
+						: "terminal",
+	);
 
 /**
  * Details are cached per thing-to-judge: the same trail at a later checkpoint, a new head or a new proof is a
@@ -101,6 +118,14 @@ export function inboxReducer(
 			},
 		};
 	}
+	if (key === "g" || key === "G") {
+		const selected = key === "g" ? 0 : Math.max(0, state.items.length - 1);
+		return selected === state.selected
+			? { state }
+			: { state: { ...state, selected, pane: "detail", scroll: 0, notice: undefined, error: undefined } };
+	}
+	if (key === "d")
+		return { state: { ...state, notice: `Read more: ${docsFor(item)}`, error: undefined } };
 	if (key === "J" || key === " " || key === "space")
 		return { state: { ...state, scroll: (state.scroll ?? 0) + SCROLL_STEP } };
 	if (key === "K")
@@ -151,8 +176,10 @@ export function inboxReducer(
 	const action =
 		key === "a" && (item.kind === "checkpoint" || item.kind === "spend")
 			? "approve"
-			: key === "t"
-				? "claim"
+			: key === "u" && item.state === "handed_off"
+				? "release"
+				: key === "t" && item.state !== "handed_off"
+					? "claim"
 				: key === "p"
 					? item.state === "parked"
 						? "resume"
@@ -167,9 +194,11 @@ export function inboxReducer(
 
 /** Which keys do something for this item right now. The hint bar dims the rest. */
 export function availableKeys(item: InboxItem | undefined): Set<string> {
-	const keys = new Set(["j", "k", "?", "q"]);
+	const keys = new Set(["j", "k", "g", "G", "d", "R", "?", "q"]);
 	if (!item) return keys;
-	for (const k of ["x", "c", "t", "p", "e"]) keys.add(k);
+	for (const k of ["x", "c", "p", "e"]) keys.add(k);
+	// A claimed review is released with `u`; an unclaimed one is taken with `t`.
+	keys.add(item.state === "handed_off" ? "u" : "t");
 	if (item.kind === "checkpoint" || item.kind === "spend") keys.add("a");
 	if (item.kind === "checkpoint") keys.add("r");
 	// At checkpoint C, approving is what lands the trail; `l` is for a ready trail whose C is already approved.

@@ -118,10 +118,11 @@ function validCoverage(value: WatchCoverage, now: Date, since: string): boolean 
     && value.gaps.every(gap => typeof gap === "string" && gap.length > 0 && gap.length <= 500);
 }
 
-function parseWindow(text: string | undefined): number {
-  const m = /^(\d+)\s*(m|h|d)$/.exec(text?.trim() ?? "");
+/** The policy's watch window in seconds. The policy grammar allows s, m, h and d; all four are honoured here. */
+export function parseWindow(text: string | undefined): number {
+  const m = /^(\d+)\s*(s|m|h|d)$/.exec(text?.trim() ?? "");
   if (!m) return 7200;
-  return Number(m[1]) * { m: 60, h: 3600, d: 86400 }[m[2] as "m" | "h" | "d"];
+  return Number(m[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as "s" | "m" | "h" | "d"];
 }
 
 /** Add a trailer commit (same tree) binding the head to the proof, unless the head already carries it. */

@@ -9,9 +9,11 @@ import type {
 	Trail,
 	TrailEvent,
 } from "@ephyra/core";
+import { docsBase } from "../docs";
 import {
 	availableKeys,
 	detailKey,
+	docsFor,
 	type DetailEntry,
 	type FileEntry,
 	type InboxState,
@@ -902,16 +904,20 @@ function evidenceLines(
 
 export const KEYS: [string, string][] = [
 	["j k", "move between items"],
+	["g G", "jump to the first or the last item"],
 	["a", "approve the checkpoint or the spend; at C, this lands it"],
 	["r", "send it back with a note"],
 	["x", "kill the quest, with a reason"],
 	["c", "comment; everyone on the quest sees it"],
-	["t", "claim a checkpoint review; release it before deciding"],
+	["t", "claim a checkpoint review, so nobody decides it under you"],
+	["u", "release a review you claimed; do this before deciding"],
 	["p", "park it, or resume it"],
 	["o", "open the landing or the agent's thread"],
 	["l", "land a ready quest whose proof is approved"],
 	["e", "explain: the evidence behind it"],
 	["J K", "scroll this pane"],
+	["R", "refresh from the server now (it also refreshes every 30 s)"],
+	["d", "show the documentation page for what is selected"],
 	["esc", "back to the quest"],
 	["q", "quit"],
 ];
@@ -931,7 +937,46 @@ function helpLines(w: number): Line[] {
 			w,
 			"muted",
 		),
+		[],
+		[g("tips", "strong", true)],
+		[],
+		...TIPS.flatMap((tip) => [...para(tip, w), []]),
+		[g("docs    ", "key", true), g(docsBase(), "fg")],
+		[g("        "), g("EPHYRA_TIPS=0 hides the tip line; NO_COLOR is honoured by the other commands", "muted")],
 	];
+}
+
+/** Things worth knowing that no key label can say. Shown under the keys. */
+export const TIPS: readonly string[] = [
+	"Read before you approve: e opens the evidence a checkpoint rests on, and J/K scroll it. An approval says you read this revision.",
+	"Colour is state. Mint is waiting on you, amber is work that holds, cherry is a failure or an undo.",
+	"Approving checkpoint C is what lands the quest. l is only for a ready quest whose proof was approved earlier.",
+	"A note with r goes to the agent, which works on it and comes back to the same checkpoint. x ends the quest for good.",
+	"Everything here is also a command: ephyra show, decide, runs, usage. Add --json to script it, or run ephyra help.",
+	"Nothing waiting does not mean nothing is happening. ephyra quests lists every quest; ephyra activity shows the agents at work.",
+];
+
+/**
+ * One line under the panes when nothing else needs the space: the most useful thing to know about what is selected.
+ * Clauses are separated by " · ", most useful first; a narrow terminal shows as many whole clauses as fit.
+ */
+export function tipFor(state: InboxState): string | undefined {
+	if (state.tips === false || state.modal) return undefined;
+	const item = state.items[state.selected];
+	const pane = state.pane ?? "detail";
+	if (pane === "help") return undefined;
+	if (!item) return "ephyra quests lists every quest, waiting or not · ephyra doctor checks the setup · R refreshes";
+	if (pane === "evidence") return "e returns to the quest · J K scroll · a source marked unavailable is a gap, not a pass";
+	if (item.state === "handed_off") return "you hold this review · u releases it so it can be decided";
+	if (item.kind === "spend") return "a approves this one spend · x stops the quest · to decline and continue: ephyra spend <quest> reject";
+	if (item.state === "parked") return "p resumes it where it stopped · the reason it parked is in the activity below";
+	if (item.kind === "checkpoint" && item.checkpoint === "A") return "e shows the evidence behind this hypothesis · r sends it back with a note · d opens the " +
+		"reviewing guide";
+	if (item.kind === "checkpoint" && item.checkpoint === "B") return "the repro should fail for the reason the hypothesis gives · r sends the plan " +
+		"back with a note";
+	if (item.kind === "checkpoint" && item.checkpoint === "C") return "approving lands this exact revision · if the quest changes first, the approval is refused";
+	if (item.state === "ready") return "l lands it: the proof is already approved · e shows what the proof covers";
+	return "? lists every key · d shows the docs page for this";
 }
 
 // ───── Header, hints, messages ─────
@@ -993,6 +1038,8 @@ function hints(state: InboxState, w: number): Line {
 		out.push(g(k, waiting ? "mint" : "key", true), g(` ${lab}  `, "muted"));
 		used += cost;
 	}
+	if (item?.state === "handed_off" && used + "u release  ".length <= w - reserve)
+		out.push(g("u", "key", true), g(" release  ", "muted"));
 	out.push(g("?", "key", true), g(" keys  ", "muted"));
 	return row(out, w);
 }
@@ -1013,7 +1060,15 @@ function message(state: InboxState, w: number): Line {
 		);
 	if (state.notice)
 		return row([g(" "), g(oneLine(state.notice), "strong")], w);
-	return row([], w);
+	// A tip is whole clauses or nothing: half a sentence under a checkpoint is worse than none.
+	const clauses = tipFor(state)?.split(" · ") ?? [];
+	let tip = "";
+	for (const clause of clauses) {
+		const next = tip ? `${tip} · ${clause}` : clause;
+		if (width(next) > w - 6) break;
+		tip = next;
+	}
+	return tip ? row([g(" tip ", "dim", true), g(tip, "dim")], w) : row([], w);
 }
 
 // ───── The whole screen ─────
@@ -1046,6 +1101,14 @@ export function inboxView(state: InboxState, w = 80, h = 24): Line[] {
 					rw,
 					"muted",
 				),
+				[],
+				[g("While you wait", "strong", true)],
+				[g("ephyra quests    ", "key", true), g("every quest and its state", "muted")],
+				[g("ephyra activity  ", "key", true), g("what the agents are doing", "muted")],
+				[g("ephyra setup     ", "key", true), g("what is blocking the loop, if anything", "muted")],
+				[g("ephyra doctor    ", "key", true), g("check this machine and repository", "muted")],
+				[],
+				...para(`Expected something here? ${docsFor(undefined).replace(/terminal$/, "troubleshooting")}`, rw, "muted"),
 			];
 		if (pane === "evidence") return evidenceLines(item, entry, rw);
 		return detailLines(state, item, entry, rw, rows);

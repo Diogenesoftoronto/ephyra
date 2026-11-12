@@ -1,0 +1,303 @@
+/* The board: the scene, the bench and the frame that holds them beside the selected quest. Shared by the lab and the
+   console, so both draw the same thing. Motion is at the end and the board reads the same without it. */
+
+/* ── Frame ── */
+.lp-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem);
+  gap: var(--s7);
+  align-items: start;
+}
+.lp-board-main { display: grid; gap: var(--s5); align-content: start; min-inline-size: 0; }
+.lp-board-aside {
+  position: sticky;
+  inset-block-start: var(--s4);
+  max-block-size: calc(100dvh - 2 * var(--s4));
+  margin-inline: -4px;
+  padding: 4px 4px var(--s5);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scroll-margin-block-start: var(--s4);
+}
+.lp-board-empty { margin: 0; color: var(--muted); }
+.lp-board-note { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.5; }
+.lp-board-note[data-tone="warn"] { color: var(--ink); }
+.lp-board-note[data-tone="bad"] { color: var(--cherry); font-weight: 500; }
+.lp-board-note .lp-quiet { min-block-size: 1.5rem; }
+.lp-board-notes { display: grid; gap: var(--s2); }
+.lp-board-notes:empty { display: none; }
+
+.lp-toast {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: var(--s6);
+  z-index: var(--z-toast);
+  inline-size: fit-content;
+  max-inline-size: min(calc(100vw - 2rem), 34rem);
+  margin-inline: auto;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  background: var(--ink);
+  box-shadow: 0 16px 40px -20px oklch(0.2 0.03 60 / 0.6);
+  color: var(--bg);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.lp-toast:empty { display: none; }
+
+.lp-groups h2 {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+  margin: 0 0 var(--s1);
+  padding-inline: var(--s3);
+  color: var(--muted);
+  font: 500 var(--fs-label) / 1.6 var(--font-mono);
+  font-stretch: normal;
+  letter-spacing: 0.02em;
+}
+.lp-groups h2 span { opacity: 0.75; }
+.lp-groups { display: grid; gap: var(--s5); }
+.lp-groups [data-group="you"] h2 { color: var(--ink); }
+.lp-scene { display: grid; gap: var(--s2); min-inline-size: 0; }
+.lp-stages { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.lp-stages li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  color: var(--muted);
+  font: 500 0.6875rem / 1.3 var(--font-mono);
+  text-align: center;
+}
+.lp-stages li > :first-child { opacity: 0.45; }
+.lp-stages li[data-busy] { color: var(--ink); }
+.lp-stages li[data-busy] > :first-child { opacity: 1; }
+.lp-stages li[data-current] span { color: var(--ink); font-weight: 600; }
+.lp-stages abbr {
+  display: grid;
+  place-items: center;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 600 0.625rem / 1 var(--font-mono);
+  text-decoration: none;
+  cursor: help;
+}
+.lp-stages abbr { position: absolute; inset-block-start: 3px; inset-inline-end: 0; transform: translateX(50%); }
+.lp-scene-field {
+  --pad: 3rem;
+  /* Half the widest thing a quest draws, its tag: nothing drifts out of the water at either end of the loop. */
+  --edge: 3.5rem;
+  position: relative;
+  container-type: size;
+  block-size: clamp(17rem, 40vh, 24rem);
+  border-radius: 1.25rem;
+  background: var(--water-top) url("/app/loop/depth-light.webp") center / cover;
+  overflow: hidden;
+}
+[data-theme="dark"] .lp-scene-field { background-image: url("/app/loop/depth-dark.webp"); }
+/* No choice made: follow the system, as the colour tokens do. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lp-scene-field { background-image: url("/app/loop/depth-dark.webp"); }
+}
+.lp-scene[data-compact] .lp-scene-field { --pad: 2.5rem; block-size: clamp(12.5rem, 27vh, 15rem); }
+.lp-scene-level {
+  position: absolute;
+  z-index: 1;
+  color: color-mix(in oklch, var(--ink) 62%, transparent);
+  font: 500 0.6875rem / 1 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.lp-scene-level[data-level="surface"] { inset-block-start: 0.5rem; inset-inline-start: 50%; transform: translateX(-50%); }
+.lp-scene-level[data-level="seabed"] { inset-block-end: 0.5rem; inset-inline-start: 0.75rem; }
+.lp-scene-field > svg { position: absolute; inset: var(--pad) 0; inline-size: 100%; block-size: calc(100% - 2 * var(--pad)); overflow: visible; }
+.lp-scene-field polyline {
+  fill: none;
+  stroke: color-mix(in oklch, var(--ink) 34%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.lp-scene-field ul { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.lp-scene-field li {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  transform: translate(
+    calc(clamp(var(--edge), var(--x) * 100cqw, 100cqw - var(--edge)) - 50%),
+    calc(var(--pad) + var(--y) * (100cqh - 2 * var(--pad)) - 50% + var(--slot) * var(--pitch))
+  );
+}
+.lp-scene-field li[data-selected] { z-index: 2; }
+.lp-scene-field button {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.lp-scene-field button::before {
+  content: "";
+  position: absolute;
+  inset: -8px -8px 6px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--tone) 46%, transparent), transparent);
+  opacity: 0;
+}
+.lp-scene-field li[data-selected] button::before { opacity: 1; }
+.lp-scene-field .lp-specimen { position: relative; }
+.lp-scene-tag {
+  position: relative;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-block-size: 1.125rem;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklch, var(--surface) 82%, transparent);
+  font: 500 0.6875rem / 1 var(--font-mono);
+}
+.lp-scene-tag .lp-mark { gap: 0; }
+.lp-scene-field li[data-selected] .lp-scene-tag { background: var(--ink); color: var(--bg); }
+.lp-scene-field li[data-selected] .lp-scene-tag :is(.lp-mark, svg) { color: inherit; }
+@media (hover: hover) {
+  .lp-scene-field li:not([data-selected]) button:hover::before { opacity: 0.55; }
+}
+@media (max-width: 720px) {
+  .lp-groups h2 { padding-inline: var(--s2); }
+  /* Room at each end for a specimen and the badge on its shoulder. */
+  .lp-scene-field { --pad: 2.25rem; --edge: 2.25rem; block-size: 15rem; border-radius: 1rem; }
+  .lp-scene-tag { position: absolute; inset-block-start: -2px; inset-inline-end: -8px; min-block-size: 1rem; padding: 0 3px; }
+  .lp-stages li[data-current] span { white-space: nowrap; }
+  .lp-scene[data-compact] .lp-scene-field { --pad: 2rem; block-size: 11.5rem; }
+  .lp-scene-tag { min-block-size: 1rem; padding: 0 3px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .lp-scene-field li { transition: transform 900ms var(--ease-out); }
+  :root:not([data-motion="reduced"])[data-scrub] .lp-scene-field li { transition-duration: 120ms; }
+  :root:not([data-motion="reduced"]) .lp-scene-field button::before { transition: opacity 150ms var(--ease-out); }
+}
+@media (max-width: 1100px) {
+  .lp-board { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+  .lp-board-aside { position: static; max-block-size: none; overflow: visible; }
+}
+@media (max-width: 720px) {
+  .lp-board-main { gap: var(--s4); }
+  .lp-board .lp-row { padding-inline: var(--s2); }
+  /* Above the phone's bottom navigation. */
+  .lp-toast { inset-block-end: calc(88px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .lp-toast { animation: lp-enter 300ms var(--ease-out) both; }
+}
+
+/* ── The console page ── */
+.lp-page { max-inline-size: 88rem; padding-block-start: var(--s5); }
+.lp-groups-more { margin: var(--s1) 0 0 var(--s1); }
+.lp-detail-act { margin: 0; }
+.lp-answer { display: grid; gap: var(--s2); justify-items: start; }
+.lp-answer label { color: var(--muted); font: 500 var(--fs-label) / 1.6 var(--font-mono); }
+.lp-answer textarea {
+  inline-size: 100%;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* ── A bench with little room: the headline moves to a line of its own instead of being cut short ── */
+.lp-groups { container-type: inline-size; }
+@container (max-width: 50rem) {
+  .lp-rows[data-variant="strip"] { grid-template-columns: 6.75rem 4.75rem minmax(0, 1fr) 96px 24px; }
+  .lp-row[data-variant="strip"] { grid-template-rows: auto auto; row-gap: 2px; padding-block: var(--s2); }
+  .lp-row[data-variant="strip"] .lp-row-mark { grid-area: 1 / 1; }
+  .lp-row[data-variant="strip"] .lp-row-id { grid-area: 1 / 2; }
+  .lp-row[data-variant="strip"] .lp-row-title { grid-area: 1 / 3; }
+  .lp-row[data-variant="strip"] .lp-row-meter { grid-area: 1 / 4 / 3 / 5; }
+  .lp-row[data-variant="strip"] .lp-row-who { grid-area: 1 / 5 / 3 / 6; }
+  .lp-row[data-variant="strip"] .lp-row-headline { grid-area: 2 / 3 / 3 / 4; white-space: normal; text-wrap: pretty; }
+}
+
+/* Where the hood is a column, the board gives it the room instead of sitting under it. */
+@media (min-width: 1900px) {
+  .lp-page[data-hood="column"] { margin-inline-end: 37rem; }
+}
+
+/* ── Small things ── */
+/* The row you are on carries its status colour down its edge, like the navigation's own marker. */
+.lp-row[data-selected] { box-shadow: inset 2px 0 0 var(--tone); }
+
+/* The keys, written down once, for whoever has a keyboard in front of them. */
+.lp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s6);
+  align-items: center;
+  margin: 0;
+  padding-inline: var(--s3);
+  color: var(--muted);
+  font: 500 var(--fs-label) / 1.6 var(--font-mono);
+}
+.lp-keys { display: inline-flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
+.lp-live { display: inline-flex; gap: var(--s2); align-items: center; }
+.lp-live i { inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--glow); }
+.lp-live[data-live="lost"] { color: var(--ink); }
+.lp-live[data-live="lost"] i { background: var(--cherry); }
+.lp-keys span { display: inline-flex; gap: 4px; align-items: center; }
+.lp-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.25rem;
+  block-size: 1.25rem;
+  padding-inline: 4px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 600 0.6875rem / 1 var(--font-mono);
+}
+@media (hover: none), (max-width: 720px) { .lp-keys { display: none; } }
+
+/* A landed change being watched: how much of its window is left. */
+.lp-watch { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s1) var(--s3); color: var(--muted); font-size: var(--fs-small); }
+.lp-watch span:nth-child(2) { color: var(--ink); font-variant-numeric: tabular-nums; }
+.lp-watch i { position: relative; grid-column: 1 / -1; block-size: 3px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.lp-watch i::after { content: ""; position: absolute; inset: 0; background: var(--glow); transform: scaleX(var(--ratio)); transform-origin: left; }
+
+/* Where a quest has just moved: one ring, once. Drawn only when motion is welcome. */
+.lp-scene-ripple { position: absolute; inset: -6px -6px 12px; border: 2px solid var(--tone); border-radius: 50%; opacity: 0; pointer-events: none; }
+.lp-scene-field li[data-attention="set"] .lp-scene-ripple { border-color: var(--ok); }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .lp-scene-ripple { animation: lp-ripple 900ms var(--ease-out) both; }
+  :root:not([data-motion="reduced"]) .lp-live[data-live="ok"] i { animation: lp-beat 700ms var(--ease-out) both; }
+  :root:not([data-motion="reduced"]) .lp-fleet > span { animation: lp-fleet-in 320ms var(--ease-out) both; }
+  :root:not([data-motion="reduced"]) .lp-watch i::after { transition: transform 1s linear; }
+  /* A specimen lifts a little under the pointer and gives when pressed, like something that floats. */
+  :root:not([data-motion="reduced"]) .lp-scene-field button { transition: transform 220ms var(--ease-gel); }
+  :root:not([data-motion="reduced"]) .lp-scene-field button:active { transform: scale(0.95); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .lp-scene-field button:hover:not(:active) { transform: translateY(-3px); }
+}
+@keyframes lp-beat { from { transform: scale(2.2); opacity: 0.45; } }
+@keyframes lp-ripple { from { opacity: 0.75; transform: scale(0.55); } to { opacity: 0; transform: scale(1.7); } }
+@keyframes lp-fleet-in { from { opacity: 0.3; filter: blur(2px); } }
+
+/* A tag that would land on its neighbour's sits above its specimen instead. */
+.lp-scene-field li[data-tag="above"] .lp-scene-tag { order: -1; }
+.lp-scene-field li[data-tag="above"] button::before { inset: 6px -8px -8px; }
+.lp-scene-field li[data-tag="above"] .lp-scene-ripple { inset: 12px -6px -6px; }

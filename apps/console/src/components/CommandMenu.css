@@ -138,6 +138,8 @@
 }
 .workspace-bar__repo {
   min-width: 0;
+  /* A link is a target: never shorter than a fingertip's 24px, however small its text. */
+  min-height: 1.5rem;
   display: flex;
   gap: var(--s2) var(--s3);
   align-items: center;
