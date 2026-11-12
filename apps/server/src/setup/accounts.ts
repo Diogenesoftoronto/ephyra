@@ -12,7 +12,11 @@ import {
   type KnowledgeSelection,
   type TelemetryUpdate,
   type PeopleUpdate,
+  type LandingReceipt,
+  type MirrorRemove,
+  type MirrorUpdate,
 } from "@ephyra/core";
+import { parseRepositoryAddress } from "@ephyra/forge";
 import { redact } from "@ephyra/agent";
 import { PostHogEvidence } from "@ephyra/evidence";
 import type { SecretBox, Fetch } from "../auth/crypto.ts";
@@ -403,6 +407,85 @@ export class Accounts {
       else delete record.repoToken;
       return record;
     });
+  }
+  async saveMirror(did: string, input: MirrorUpdate, key: string) {
+    return this.change(did, key, "mirror", input, async (record) => {
+      const mirrors = record.settings.mirrors ?? [];
+      if (mirrors.length >= 5) throw new AccountError(422, "A workspace can keep at most five mirrors.");
+      let address: ReturnType<typeof parseRepositoryAddress>;
+      try { address = parseRepositoryAddress(input.url); } catch { throw new AccountError(400, "Enter an HTTPS repository address."); }
+      if (address.kind === "radicle")
+        throw new AccountError(422, "Ephyra cannot move your Radicle branches: only your key can. Your own git push keeps Radicle in step.");
+      if (address.kind === "tangled")
+        throw new AccountError(422, "Tangled accepts pushes only over SSH, which Ephyra does not hold. Your own git push keeps Tangled in step.");
+      const url = parsePublicHttps(address.cloneUrl).href;
+      const host = new URL(url).hostname.toLowerCase();
+      if (host === "codeberg.org" || host.endsWith(".codeberg.org"))
+        throw new AccountError(422, "Codeberg's terms forbid AI-generated contributions, so Ephyra does not push there.");
+      const own = record.settings.repository;
+      if (own && [own.url, own.forge?.cloneUrl].includes(url)) throw new AccountError(409, "That is the workspace's own repository.");
+      if (mirrors.some((m) => m.url === url)) throw new AccountError(409, "That mirror is already listed.");
+      const id = `m_${createHash("sha256").update(`${record.settings.workspaceId}\0${url}`).digest("hex").slice(0, 12)}`;
+      record.settings.mirrors = [...mirrors, { id, url, host, kind: address.kind, credentialConfigured: Boolean(input.token), last: null }];
+      if (input.token) record.mirrorTokens = { ...record.mirrorTokens, [id]: await this.options.box.seal(input.token) };
+      return record;
+    });
+  }
+  async removeMirror(did: string, input: MirrorRemove, key: string) {
+    return this.change(did, key, "mirror-remove", input, async (record) => {
+      if (!record.settings.mirrors?.some((m) => m.id === input.id)) throw new AccountError(409, "That mirror is not listed.");
+      record.settings.mirrors = record.settings.mirrors.filter((m) => m.id !== input.id);
+      if (record.mirrorTokens) delete record.mirrorTokens[input.id];
+      return record;
+    });
+  }
+  /**
+   * After a landing moved the base branch, bring each mirror to the same commit. A mirror moves only when it is behind
+   * (its tip is an ancestor of the new commit); a diverged mirror is reported, never overwritten. A failure never
+   * fails the landing. The result is recorded on the mirror, with its host only.
+   */
+  async pushMirrors(did: string, workspace: string, receipt: Pick<LandingReceipt, "newOid">): Promise<void> {
+    const record = await this.record(did);
+    const repository = record.settings.repository;
+    const mirrors = record.settings.mirrors ?? [];
+    if (record.settings.workspaceId !== workspace || !repository || !mirrors.length || !this.repository.command) return;
+    if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(receipt.newOid)) return;
+    const branch = `refs/heads/${repository.branch.replace(/^refs\/heads\//, "")}`;
+    const results = new Map<string, NonNullable<(typeof mirrors)[number]["last"]>>();
+    for (const mirror of mirrors) {
+      const at = new Date().toISOString();
+      try {
+        const token = record.mirrorTokens?.[mirror.id] ? await this.options.box.open<string>(record.mirrorTokens[mirror.id]!) : undefined;
+        const input = { url: mirror.url, branch: repository.branch.replace(/^refs\/heads\//, ""), ...(token ? { token } : {}) };
+        const read = await this.repository.command(input, this.directory(workspace),
+          ["git", "ls-remote", "--refs", "--exit-code", "--", mirror.url, branch]);
+        const tip = read.code === 0 ? read.stdout.trim().split(/\s+/)[0] ?? "" : read.code === 2 ? "" : null;
+        if (tip === null) throw new Error("The mirror could not be read. Check its address and token.");
+        if (tip === receipt.newOid) { results.set(mirror.id, { status: "ok", at, commit: tip, detail: "Already up to date." }); continue; }
+        if (tip && !await this.isAncestor(workspace, tip, receipt.newOid))
+          throw new Error("The mirror has commits the workspace does not. It was left as it is.");
+        const pushed = await this.repository.command(input, this.directory(workspace), ["git", "push", "--porcelain", "--no-verify",
+          `--force-with-lease=${branch}:${tip}`, "--", mirror.url, `${receipt.newOid}:${branch}`]);
+        if (pushed.code !== 0) throw new Error("The mirror refused the push. Check its token can write to that branch.");
+        results.set(mirror.id, { status: "ok", at, commit: receipt.newOid, detail: "Pushed." });
+      } catch (error) {
+        const detail = error instanceof Error && !(error instanceof AccountError) ? error.message : "The mirror push failed.";
+        results.set(mirror.id, { status: "failed", at, commit: receipt.newOid, detail: redactModelText(detail).slice(0, 500) });
+        console.log(JSON.stringify({ msg: "mirror push failed", workspace, host: mirror.host }));
+      }
+    }
+    await this.change(did, `mirror-result:${receipt.newOid.slice(0, 40)}:${record.settings.version}`, "mirror-result",
+      { expectedVersion: record.settings.version, newOid: receipt.newOid } as { expectedVersion: number }, async (next) => {
+        next.settings.mirrors = next.settings.mirrors?.map((m) => results.has(m.id) ? { ...m, last: results.get(m.id)! } : m);
+        return next;
+      }).catch(() => { /* a newer settings change wins; the next landing records again */ });
+  }
+  private async isAncestor(workspace: string, ancestor: string, descendant: string): Promise<boolean> {
+    if (![ancestor, descendant].every((o) => /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(o))) return false;
+    const child = Bun.spawn(["git", "--git-dir", join(this.directory(workspace), "workspace.git"), "merge-base", "--is-ancestor",
+      ancestor, descendant], { stdout: "ignore", stderr: "ignore", env: { PATH: process.env.PATH ?? "/usr/bin:/bin",
+      GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" } });
+    return await child.exited === 0;
   }
   async saveModel(did: string, input: ModelUpdate, key: string) {
     return this.change(did, key, "model", input, async (record) => {

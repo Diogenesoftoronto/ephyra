@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { PageHeader, Button } from "../kit.ts";
 import { ModelAccessForm, RepositoryForm, type AccountPageProps } from "../components/AccountForms.tsx";
+import { MirrorsForm } from "../components/MirrorsForm.tsx";
 import { KnowledgeConnections } from "../components/KnowledgeConnections.tsx";
 import { AutomationStatus, ConnectionPanels } from "../components/ConnectionPanels.tsx";
 import "./SettingsPage.css";
@@ -82,6 +83,7 @@ export function SettingsPage({
       >
         <AutomationStatus settings={settings} />
         <RepositoryForm api={api} settings={settings} onChange={onChange} />
+        <MirrorsForm api={api} settings={settings} onChange={onChange} />
       </section>
       <section
         role="tabpanel"

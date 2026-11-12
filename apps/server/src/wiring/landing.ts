@@ -42,6 +42,8 @@ export type LandingDeps = {
   watch?: LandingWatch;
   /** Refresh the authorized remote branch and return the full actual commit now in the mirror. */
   refreshBase?: () => Promise<string>;
+  /** After a landing moved the base branch: bring mirrors along. Never fails the landing. */
+  afterBaseMoved?: (receipt: LandingReceipt) => Promise<void>;
 };
 
 type WatchPayload = {
@@ -281,6 +283,9 @@ export function landingHandlers(ctx: ServerContext, deps: LandingDeps): HandlerS
           ctx.log("landed", { trail: trail.short, mode, target: receipt.target, oid: receipt.newOid });
           if (i === effect.modes.length - 1) {
             await ctx.emit({ trail: trail.id, actor, type: "landing_completed", data: { receipt } });
+            const moved = receipts.find((r) => r.mode === "auto_land");
+            if (moved) await deps.afterBaseMoved?.(moved).catch((e: unknown) =>
+              ctx.log("mirror update failed", { trail: trail.short, error: e instanceof Error ? e.name : "error" }));
           }
         } catch (error) {
           if (error instanceof ReconciliationRequired) throw error;

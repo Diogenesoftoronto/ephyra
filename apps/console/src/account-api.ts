@@ -1,6 +1,6 @@
 import {
   AccountSettings, KnowledgeCatalog, type KnowledgeUpdate, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate,
-  type TelemetryUpdate, type PeopleUpdate,
+  type TelemetryUpdate, type PeopleUpdate, type MirrorUpdate, type MirrorRemove,
 } from "@ephyra/core";
 import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
@@ -13,6 +13,8 @@ export interface AccountApi {
   savePeople(input: PeopleUpdate, operationKey: string): Promise<AccountSettings>;
   saveRepository(input: RepositoryUpdate, operationKey: string): Promise<AccountSettings>;
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
+  saveMirror(input: MirrorUpdate, operationKey: string): Promise<AccountSettings>;
+  removeMirror(input: MirrorRemove, operationKey: string): Promise<AccountSettings>;
   onboarding(input: OnboardingUpdate, operationKey: string): Promise<AccountSettings>;
 }
 
@@ -24,13 +26,13 @@ export class AccountClient implements AccountApi {
     private readonly did?: string,
   ) {}
   private async request<T>(
-    path: string, schema: z.ZodType<T>, input?: unknown, operationKey?: string,
+    path: string, schema: z.ZodType<T>, input?: unknown, operationKey?: string, method: "PUT" | "POST" = "PUT",
   ): Promise<T> {
     const fetcher = this.fetcher;
     let response: Response;
     try {
       response = await fetcher(new URL(`/v1/account${path}`, this.origin), {
-        method: input === undefined ? "GET" : "PUT",
+        method: input === undefined ? "GET" : method,
         credentials: "same-origin",
         cache: "no-store",
         headers: {
@@ -76,6 +78,12 @@ export class AccountClient implements AccountApi {
   }
   saveModel(input: ModelUpdate, key: string) {
     return this.request("/model", AccountSettings, input, key);
+  }
+  saveMirror(input: MirrorUpdate, key: string) {
+    return this.request("/mirrors", AccountSettings, input, key);
+  }
+  removeMirror(input: MirrorRemove, key: string) {
+    return this.request("/mirrors/remove", AccountSettings, input, key, "POST");
   }
   onboarding(input: OnboardingUpdate, key: string) {
     return this.request("/onboarding", AccountSettings, input, key);

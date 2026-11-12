@@ -501,7 +501,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     landingHandlers(ctx, {
       adapters: landing?.adapters ?? [new PlainGitAdapter(repo.mirrorDir, undefined, repo.id, repo.mirrorDir, ledger)],
       git: g, watchEveryMs: config.EPHYRA_WATCH_EVERY_S * 1000,
-      watch: landing?.watch, refreshBase: landing?.refreshBase,
+      watch: landing?.watch, refreshBase: landing?.refreshBase, afterBaseMoved: landing?.afterBaseMoved,
       canLand: opts.workspace ? async () => (await currentSetup())?.status === "ready" && await canInvestigate()
         && (!landing?.canLand || await landing.canLand()) : landing?.canLand,
     }),

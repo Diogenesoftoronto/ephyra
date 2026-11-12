@@ -16,6 +16,24 @@ export const RepositoryConnection = z.object({
   forge: ForgeRepositorySource.optional(),
 });
 export type RepositoryConnection = z.infer<typeof RepositoryConnection>;
+/** A copy of the repository that Ephyra keeps in step after it moves the base branch. Tokens are never part of this. */
+export const MirrorConnection = z.object({
+  id: z.string().regex(/^m_[a-f0-9]{12}$/),
+  url: z.string().max(2048),
+  host: z.string().max(255),
+  kind: z.enum(["git", "github", "gitlab", "forgejo"]),
+  credentialConfigured: z.boolean(),
+  last: z.object({ status: z.enum(["ok", "failed"]), at: z.string(), commit: z.string().optional(), detail: z.string().max(500) }).nullable(),
+});
+export type MirrorConnection = z.infer<typeof MirrorConnection>;
+export const MirrorUpdate = z.object({
+  expectedVersion: z.number().int().nonnegative(),
+  url: z.string().trim().min(1).max(2048),
+  token: z.string().trim().min(1).max(8192).refine((s) => !/[\r\n\0]/.test(s)).optional(),
+}).strict();
+export type MirrorUpdate = z.infer<typeof MirrorUpdate>;
+export const MirrorRemove = z.object({ expectedVersion: z.number().int().nonnegative(), id: z.string().regex(/^m_[a-f0-9]{12}$/) }).strict();
+export type MirrorRemove = z.infer<typeof MirrorRemove>;
 export const ModelConnection = z.object({
   provider: ModelProvider,
   model: z.string(),
@@ -38,6 +56,8 @@ export const AccountSettings = z.object({
   telemetry: TelemetryConnection.optional(),
   people: PeopleConnection.optional(),
   automation: z.object({ provider: z.enum(["none", "railway", "custom"]), configured: z.boolean(), detail: z.string() }).optional(),
+  /** Additive (design/10): copies kept in step after a landing moves the base branch. At most five. */
+  mirrors: z.array(MirrorConnection).max(5).optional(),
 });
 export type AccountSettings = z.infer<typeof AccountSettings>;
 

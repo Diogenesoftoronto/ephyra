@@ -191,3 +191,18 @@ test("high-risk policy approval and critical auto-land cannot bypass named human
     expect(f.ctx.emitted[0]?.type).toBe("parked");
   }
 });
+
+test("after an auto_land completes, mirrors are brought along once; a mirror failure never fails the landing", async () => {
+  for (const failing of [false, true]) {
+    const f = fixture();
+    f.trail.state = "landing";
+    f.ctx.put(f.trail);
+    f.ctx.trails.events = async () => [{ type: "proof_completed", data: { bundle: { rev: f.trail.rev }, digest: proof } } as unknown as TrailEvent];
+    const moved: string[] = [];
+    f.deps.afterBaseMoved = async (r) => { moved.push(r.newOid); if (failing) throw new Error("mirror down"); };
+    const handlers = landingHandlers(f.ctx, f.deps);
+    await handlers.land!({ type: "land", key: "land", modes: ["auto_land"] }, f.trail);
+    expect(f.ctx.emitted.map((e) => e.type)).toContain("landing_completed");
+    expect(moved).toEqual([receipt.newOid]);
+  }
+});
