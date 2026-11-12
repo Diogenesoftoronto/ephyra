@@ -35,6 +35,9 @@ const Config = z.object({
   EPHYRA_RAILWAY_TOKEN: optional,
   // Self-telemetry: report this server's own unexpected errors as OTLP logs. Point it at a workspace intake
   // (/otlp/workspaces/<id>/v1/logs, with that workspace's token) and Ephyra watches itself.
+  // The deployment's own Radicle identity, used to open patches on Radicle workspaces. Without it they stay read-only.
+  EPHYRA_RADICLE_HOME: optional,
+  EPHYRA_RADICLE_PASSPHRASE: optional,
   EPHYRA_SELF_OTLP_ENDPOINT: z.string().url().optional(),
   EPHYRA_SELF_OTLP_TOKEN: optional,
   EPHYRA_SELF_SERVICE: z.string().min(1).default("ephyra-server"),

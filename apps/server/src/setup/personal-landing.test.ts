@@ -26,7 +26,7 @@ async function landingFor(initial: Repo) {
     hosted: (options) => { built.push(options); return { name: options.provider } as unknown as ForgeAdapter; } });
   const ctx = { repo: { mirrorDir: "/tmp/mirror" } } as unknown as ServerContext;
   const landing = await factory({ ctx, ledger: new MemoryOperationLedger(), probes: {} as GitProbeCatalog,
-    runProbe: async () => { throw new Error("unused"); } });
+    runProbe: async () => { throw new Error("unused"); }, telemetry: null });
   return { landing, built, tokenCalls, change: (next: Repo) => { repository = next; } };
 }
 

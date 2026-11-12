@@ -1,5 +1,6 @@
 import { Unverified } from "@ephyra/core";
-import { HostedPullAdapter, RemoteGitAdapter, hostedProviderFor, type HostedPullOptions } from "@ephyra/forge";
+import { HostedPullAdapter, RadicleAdapter, RemoteGitAdapter, hostedProviderFor, type CommandRunner, type HostedPullOptions } from "@ephyra/forge";
+import { radicleWriter, type RadicleWriterConfig } from "./radicle-writer.ts";
 import type { ForgeAdapter } from "@ephyra/core";
 import type { ComposeOverrides } from "../compose.ts";
 import type { Accounts } from "./accounts.ts";
@@ -11,18 +12,30 @@ export function personalLanding(options: {
   accounts: Accounts; did: string; workspace: string;
   /** Tests inject a fake; production builds the real adapter. */
   hosted?: (options: HostedPullOptions) => ForgeAdapter;
+  /** The deployment's Radicle identity. Without it a Radicle workspace has no adapters and cannot land. */
+  radicle?: RadicleWriterConfig | null;
+  /** Tests inject the Radicle command runner. */
+  radicleRunner?: (repository: string) => CommandRunner;
 }): NonNullable<ComposeOverrides["landing"]> {
   return async ({ ctx, ledger, probes, runProbe, telemetry }) => {
     const { accounts, did, workspace } = options;
     const record = await accounts.record(did);
     const repository = record.settings.repository;
-    if (!repository || repository.forge?.kind === "radicle") return { adapters: [] };
-    const remote = repository.forge?.cloneUrl ?? repository.url;
+    if (!repository) return { adapters: [] };
     const authorize = async () => {
       const fresh = await accounts.record(did);
       if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.repository) !== canonicalJson(repository))
         throw new Unverified("current repository write authority");
     };
+    if (repository.forge?.kind === "radicle") {
+      // Patches come from the deployment's own identity; nothing here can move the owner's branches.
+      const rid = repository.forge.repositoryId;
+      if (!options.radicle || !rid) return { adapters: [] };
+      const run = options.radicleRunner?.(rid) ?? radicleWriter(options.radicle, rid);
+      return { adapters: [new RadicleAdapter(ctx.repo.mirrorDir, rid, run, workspace,
+        { scope: `${did}:${workspace}`, ledger, authorize, remote: "rad" })] };
+    }
+    const remote = repository.forge?.cloneUrl ?? repository.url;
     const canLand = async () => {
       await authorize();
       const fresh = await accounts.record(did);
