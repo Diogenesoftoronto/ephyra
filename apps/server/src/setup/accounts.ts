@@ -123,6 +123,14 @@ export class Accounts {
       || fresh.repoToken !== record.repoToken) throw new AccountError(409, "Repository authority changed during the operation.");
     return result;
   }
+  /** The saved repository token, opened for one forge API call. Refuses if the workspace or repository changed. */
+  async repositoryToken(did: string, workspace: string, expected: AccountSettings["repository"]): Promise<string> {
+    const record = await this.record(did);
+    if (record.settings.workspaceId !== workspace || canonicalJson(record.settings.repository) !== canonicalJson(expected))
+      throw new AccountError(409, "The repository authority changed.");
+    if (!record.repoToken) throw new AccountError(409, "Save a repository token to open pull requests.");
+    return this.options.box.open<string>(record.repoToken);
+  }
   async refreshRepository(did: string, workspace: string): Promise<string> {
     const record = await this.record(did);
     const repository = record.settings.repository;
