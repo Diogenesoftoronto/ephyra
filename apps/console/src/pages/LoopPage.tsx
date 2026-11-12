@@ -45,9 +45,11 @@ type Props = {
   principal?: string;
   /** Overrides the API from context. Stories use it. */
   api?: ConsoleApi;
+  /** False when this workspace has no repository: nothing is watched, so the board must not say production is quiet. */
+  connected?: boolean;
 };
 
-export function LoopPage({ questId, canAct = true, principal, api: given }: Props) {
+export function LoopPage({ questId, canAct = true, principal, api: given, connected }: Props) {
   const fromContext = useApi();
   const api = given ?? fromContext;
   const [picked, setPicked] = useState<string | null>(questId ?? null);
@@ -324,14 +326,19 @@ export function LoopPage({ questId, canAct = true, principal, api: given }: Prop
   const scene = (
     <LoopScene views={sceneViews(board.views)} selected={selected?.id} current={view?.stage.id} narrow={narrow} compact onSelect={select} />
   );
-  const bench = board.quests.length === 0
+  const unwatched = connected === false && board.quests.length === 0;
+  const bench = unwatched
+    ? <p className="lp-board-note">No repository is connected, so nothing is watched. <a href="#/onboarding">Connect one</a> and
+      Ephyra opens a quest by itself when its production reports a problem.</p>
+    : board.quests.length === 0
     ? <p className="lp-board-note">No quests yet. Ephyra opens one by itself when a signal arrives from production.</p>
     : <QuestGroups views={board.views} selected={selected?.id} narrow={narrow} finished={5} onSelect={select} />;
   return (
     <div className="lp-page" data-loop-page data-busy={busy || undefined} data-hood={hood ? (roomy ? "column" : "modal") : undefined}>
       <div className="lp-board" data-layout="h">
         <div className="lp-board-main">
-          <FleetSentence fleet={board.fleet} />
+          <FleetSentence fleet={unwatched ? { ...board.fleet, sentence: "Nothing is watched yet. No repository is connected." }
+            : board.fleet} />
           {/* Always present, so a change in how fresh the board is gets announced rather than only drawn. */}
           <div className="lp-board-notes" aria-live="polite">
             {lost && (

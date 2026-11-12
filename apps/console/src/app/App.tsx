@@ -92,7 +92,8 @@ function Page({
 }) {
   switch (route.page) {
     case "loop":
-      return <LoopPage questId={route.id} canAct={approver} principal={principal} />;
+      return <LoopPage questId={route.id} canAct={approver} principal={principal}
+        connected={account ? Boolean(account.settings.repository) : undefined} />;
     case "overview":
       return <OverviewPage />;
     case "usage":

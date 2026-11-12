@@ -1,6 +1,7 @@
 // Policy documents the console edits: autonomy.md, thresholds.yaml and intents/*.md.
 // Source order per document: the configured file (EPHYRA_AUTONOMY_FILE / EPHYRA_THRESHOLDS_FILE, what the server loaded at boot),
 // then the deployment repository at the base ref, then the shipped template (autonomy and thresholds only).
+// The template is an example. A workspace with no repository has no policy, so it is never offered there.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { AreaSketch, PolicyDoc, PolicyDocKind } from "@ephyra/core";
@@ -65,10 +66,15 @@ export type DocsConfig = {
   git: Git; baseRef: string; autonomyFile?: string; thresholdsFile?: string;
   activeContent?: (path: string) => Promise<string | null>;
   activePaths?: () => Promise<string[]>;
+  /** False when no repository is connected: no example policy is shown and no policy can be drafted. Defaults to true. */
+  repository?: boolean;
 };
 
 export class PolicyDocs {
   constructor(private readonly config: DocsConfig) {}
+
+  /** Whether a repository is connected. Without one the workspace has no policy documents at all. */
+  get hasRepository(): boolean { return this.config.repository !== false; }
 
   private async fromRepo(path: string): Promise<string | null> {
     try { return await this.config.git(["show", `${this.config.baseRef}:${path}`]); } catch { return null; }
@@ -82,6 +88,7 @@ export class PolicyDocs {
     if (active !== undefined && active !== null) return active;
     const file = kind === "autonomy" ? this.config.autonomyFile : kind === "thresholds" ? this.config.thresholdsFile : undefined;
     if (file) { try { return await readFile(file, "utf8"); } catch { /* fall through to the repository */ } }
+    if (!this.hasRepository) return null;
     const repo = await this.fromRepo(path);
     if (repo !== null) return repo;
     return kind === "autonomy" ? AUTONOMY_TEMPLATE : kind === "thresholds" ? THRESHOLDS_TEMPLATE : null;

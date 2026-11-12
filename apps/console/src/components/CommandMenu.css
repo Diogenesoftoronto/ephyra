@@ -208,5 +208,7 @@
 }
 @media (max-width: 480px) {
   .workspace-bar > :first-child { min-width: 0; }
+  /* The actions are icons by now and cannot get smaller: the workspace name gives up the room instead. */
+  .workspace-bar__actions { flex-shrink: 0; }
   .workspace-bar .entry-preferences { display: none; }
 }

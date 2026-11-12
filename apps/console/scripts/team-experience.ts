@@ -9,6 +9,7 @@ import type { Page } from "playwright";
 import { composeApplication } from "../../server/src/application.ts";
 import { readConfig } from "../../server/src/config.ts";
 import { fakeNotOrganic } from "../../server/src/auth/notorganic.fixture.ts";
+import { offlineRepository } from "../../server/src/setup/repository.fixture.ts";
 import { launch } from "./browser.ts";
 const root = join(import.meta.dir, "..");
 const output = join(root, "artifacts/experience");
@@ -25,7 +26,9 @@ const app = await composeApplication(readConfig({
   EPHYRA_APPROVER_DIDS: ownerDid, NOTORGANIC_PRODUCT: "ephyra",
   NOTORGANIC_ISSUER: "https://api.notorganic.test", NOTORGANIC_AUTHORIZATION_URL: `${origin}/fixture/authorize`,
   EPHYRA_CONSOLE_DIR: join(root, "dist"),
-}), { startJobs: false, notOrganicFetch: issuer.fetcher });
+}), { startJobs: false, notOrganicFetch: issuer.fetcher,
+  // Shared policy editing needs a policy, and a policy needs a repository: the owner connects an offline one.
+  repository: offlineRepository(join(directory, "fixture-repository")) });
 http.reload({ fetch: (request) => new URL(request.url).pathname === "/fixture/authorize"
   ? Response.redirect(issuer.approve(request.url), 302) : app.app.fetch(request) });
 const browser = await launch();
@@ -52,7 +55,15 @@ try {
   const owner = await tab(1440);
   await login(owner, ownerDid);
   await owner.getByRole("button", { name: "Explore first", exact: true }).click();
-  await owner.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+  await owner.locator("[data-loop-page]").waitFor();
+  const connected = await owner.evaluate(async (did) => {
+    const current = await (await fetch("/v1/account")).json();
+    return (await fetch("/v1/account/repository", { method: "PUT", body: JSON.stringify({
+      expectedVersion: current.version, url: "https://forge.example/team/project.git", branch: "main" }),
+      headers: { "content-type": "application/json", "X-Ephyra-Account": did, "X-Ephyra-Workspace": current.workspaceId,
+        "Idempotency-Key": crypto.randomUUID() } })).status;
+  }, ownerDid);
+  assert.equal(connected, 200, "owner connects the offline repository");
   const personal = await owner.evaluate(async () => (await fetch("/v1/account")).json());
   for (const [role, width] of [["viewer", 390], ["approver", 1440]] as const) {
     await owner.goto(`${origin}/app/#/team`);
@@ -84,12 +95,12 @@ try {
     assert.equal(before.length, 1, "opening a link and signing in never accepts it");
     await guest.screenshot({ path: join(output, `join-${role}-${width}.png`), fullPage: true });
     await guest.getByRole("button", { name: "Join workspace", exact: true }).click();
-    await guest.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+    await guest.locator("[data-loop-page]").waitFor();
     assert.equal(await guest.getByRole("combobox", { name: "Workspace", exact: true }).inputValue(), personal.workspaceId);
     assert.equal(await guest.evaluate(() => sessionStorage.getItem("ephyra.pending-invitation")), null);
     assert.ok(!guest.url().includes("/join/"));
     await guest.reload();
-    await guest.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+    await guest.locator("[data-loop-page]").waitFor();
     assert.equal(await guest.getByRole("combobox", { name: "Workspace", exact: true }).inputValue(), personal.workspaceId);
     await guest.goto(`${origin}/app/#/workspace`);
     const edit = guest.getByRole("button", { name: "Edit the map", exact: true });

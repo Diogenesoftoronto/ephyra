@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApi } from "../app/ApiContext.tsx";
 import { useAsync } from "../app/useAsync.ts";
-import { Button, Card, PageHeader, Skeleton } from "../kit.ts";
+import { Button, Card, Empty, PageHeader, Skeleton } from "../kit.ts";
 import { ApplicationMap } from "../components/ApplicationMap.tsx";
 import { WorkspaceAsk } from "../components/WorkspaceAsk.tsx";
 import { DocList, DraftList } from "../components/DocList.tsx";
@@ -63,13 +63,33 @@ export function WorkspacePage({
     }
   };
   const failure = error ? describeError(error) : null;
+  const header = (
+    <PageHeader
+      title="Workspace"
+      lede="Describe your application and how much the agents may do in each part. Velum drafts the policy; you publish it."
+    />
+  );
+
+  // A connected repository always has policy documents, even before setup writes its own. None means no repository,
+  // and an unconnected workspace has no policy: nothing here may pass for one.
+  if (docs.state.status === "ready" && docs.state.data.length === 0)
+    return (
+      <div className="page">
+        {header}
+        <Card tone="tray" title="Your application">
+          <Empty
+            title="No repository connected"
+            body={"The map shows your repository's autonomy policy. Connect a repository and setup reads it, "
+              + "or drafts one from what it finds there. Until then the agents do nothing."}
+            action={<a href="#/onboarding" className="ui-button ui-button--sm ui-button--primary">Connect a repository</a>}
+          />
+        </Card>
+      </div>
+    );
 
   return (
     <div className="page">
-      <PageHeader
-        title="Workspace"
-        lede="Describe your application and how much the agents may do in each part. Velum drafts the policy; you publish it."
-      />
+      {header}
       <Card
         title="Your application"
         meta="The policy in effect, as a map. Edit it in a draft."
