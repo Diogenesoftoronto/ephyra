@@ -6,6 +6,22 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TOKEN_PREFIX = "eot_";
+const RECEIPT = "otlp-intake.json";
+/** OTLP received within this window counts as live telemetry for setup. */
+export const INTAKE_FRESH_MS = 24 * 60 * 60 * 1000;
+
+/** Record that the workspace intake accepted a batch: time only, never content. */
+export async function recordIntake(directory: string, at = new Date()): Promise<void> {
+  await Bun.write(`${directory}/${RECEIPT}`, JSON.stringify({ schema: 1, lastAcceptedAt: at.toISOString() }));
+}
+
+/** Whether the workspace intake accepted OTLP recently. Missing or unreadable means no. */
+export async function intakeFresh(directory: string, now = Date.now()): Promise<boolean> {
+  try {
+    const at = Date.parse((await Bun.file(`${directory}/${RECEIPT}`).json()).lastAcceptedAt);
+    return Number.isFinite(at) && at <= now + 60_000 && now - at < INTAKE_FRESH_MS;
+  } catch { return false; }
+}
 
 /** The bearer token for one workspace's OTLP intake. Derived, not stored: it changes when the session key does. */
 export function workspaceIngestToken(sessionKey: string, workspaceId: string): string {

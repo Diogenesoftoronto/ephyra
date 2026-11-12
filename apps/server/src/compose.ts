@@ -292,6 +292,8 @@ export type ComposeOverrides = {
   resolveApprover?: (did: string) => Promise<boolean>;
   /** Operator-provided, workspace-scoped capabilities verified by the hosting integration. Never inferred from a URL. */
   automationReadiness?: Partial<Record<"telemetry" | "verification" | "landing" | "watch", boolean>>;
+  /** True when the workspace's own OTLP intake accepted telemetry recently (self-hosted telemetry, no vendor). */
+  otlpFresh?: () => Promise<boolean>;
   evidenceSources?: import("@ephyra/core").EvidenceSource[];
   /** Current account choices are resolved for each research attempt, using this workspace's durable ledger. */
   resolveEvidenceSources?: (ledger: import("@ephyra/core").OperationLedger) => Promise<import("@ephyra/core").EvidenceSource[]>;
@@ -571,7 +573,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
           || await signIn.hasScope(billingDid, "judgement:evaluate")), summary: "A checkpoint decision model is not configured.",
         action: "Connect the decision backend and calibrate its exact returned identity." },
       { id: "telemetry", available: opts.automationReadiness?.telemetry === true
-          || (await telemetry?.latest())?.result.coverage?.complete === true,
+          || (await telemetry?.latest())?.result.coverage?.complete === true || await opts.otlpFresh?.() === true,
         summary: "Live telemetry coverage is unverified.",
         action: "Connect scoped error telemetry and verify ingestion for this repository." },
       { id: "verification", available: opts.automationReadiness?.verification === true || baseline,

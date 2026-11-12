@@ -96,3 +96,21 @@ describe("self reporter", () => {
     expect(() => reporter({ endpoint: "https://example.com/otlp/v1/logs" })).not.toThrow();
   });
 });
+
+describe("intake receipts", () => {
+  test("setup counts the intake as live only while a receipt is fresh, and a missing or bad receipt never counts", async () => {
+    const { mkdtemp, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { intakeFresh, recordIntake, INTAKE_FRESH_MS } = await import("./self-telemetry");
+    const dir = await mkdtemp(join(tmpdir(), "ephyra-intake-"));
+    expect(await intakeFresh(dir)).toBe(false);
+    const at = new Date("2026-11-12T00:00:00Z");
+    await recordIntake(dir, at);
+    expect(await intakeFresh(dir, at.getTime() + 1000)).toBe(true);
+    expect(await intakeFresh(dir, at.getTime() + INTAKE_FRESH_MS + 1)).toBe(false);
+    expect(await intakeFresh(dir, at.getTime() - 3_600_000)).toBe(false);
+    await writeFile(join(dir, "otlp-intake.json"), "{not json");
+    expect(await intakeFresh(dir)).toBe(false);
+  });
+});
