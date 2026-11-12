@@ -39,14 +39,20 @@ export const CLI_VERSION = "0.1.0-prealpha";
 /** A usage mistake: the message already says how to call the command, so main.ts prints it as is. */
 export class UsageError extends Error {}
 
-/** Take `--name value` out of the arguments. */
+/** Take `--name value` or `--name=value` out of the arguments. Completion inserts the inline form. */
 function option(args: string[], ...names: string[]): string | undefined {
 	for (const name of names) {
 		const i = args.indexOf(name);
-		if (i < 0) continue;
-		const value = args[i + 1];
-		args.splice(i, value === undefined ? 1 : 2);
-		return value;
+		if (i >= 0) {
+			const value = args[i + 1];
+			args.splice(i, value === undefined ? 1 : 2);
+			return value;
+		}
+		if (!name.startsWith("--")) continue;
+		const inline = args.findIndex((arg) => arg.startsWith(`${name}=`));
+		if (inline < 0) continue;
+		const [value] = args.splice(inline, 1);
+		return value!.slice(name.length + 1);
 	}
 	return undefined;
 }
