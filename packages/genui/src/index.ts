@@ -13,7 +13,7 @@ export const catalog = defineCatalog(schema, {
     CheckpointMatrix: component(z.object({ ...field, value: z.record(z.string(), z.enum(["advisory", "blocking"])) }),
       "Set A, B and C checkpoint modes."),
     LandingModes: component(z.object({ ...field, value: z.array(z.enum([
-      "trail_ref", "devenv_live", "radicle_patch", "tangled_pull", "auto_land",
+      "trail_ref", "devenv_live", "radicle_patch", "tangled_pull", "pull_request", "auto_land",
     ])) }), "Choose landing modes."),
     Duration: component(z.object({ ...field, value: z.string() }), "Edit the watch duration."),
     BudgetField: component(z.object({ ...field, value: z.string() }), "Edit the monthly voxq budget."),

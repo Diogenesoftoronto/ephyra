@@ -10,7 +10,7 @@ import "./genui.css";
 
 const RISKS = ["low", "medium", "high", "critical"] as const;
 const MODES = ["advisory", "blocking"] as const;
-const LANDING = ["trail_ref", "devenv_live", "radicle_patch", "tangled_pull", "auto_land"] as const;
+const LANDING = ["trail_ref", "devenv_live", "radicle_patch", "tangled_pull", "pull_request", "auto_land"] as const;
 
 type FieldProps<T> = { props: { label: string; path: string; value: T }; disabled?: boolean };
 
