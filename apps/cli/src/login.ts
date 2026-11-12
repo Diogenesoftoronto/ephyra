@@ -130,6 +130,7 @@ export async function login(serverUrl: string, io: LoginIo, timeoutMs = 10 * 60_
   io.signal?.addEventListener("abort", cancel, { once: true });
   const timeout = setTimeout(() => controller.abort(new LoginTimeoutError()), timeoutMs);
   const deadline = Date.now() + timeoutMs;
+  let finished = false;
   try {
     const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
     const challenge = await untilStopped(() => challengeFor(verifier), signal);
@@ -139,13 +140,15 @@ export async function login(serverUrl: string, io: LoginIo, timeoutMs = 10 * 60_
     io.print(`Approve only the request showing code ${code}.`);
     io.onEvent?.({ type: "approval", url, code });
     if (io.open) {
-      try {
-        await untilStopped(() => Promise.resolve(io.open!(url)), signal);
-      } catch (error) {
-        signal.throwIfAborted();
+      const unavailable = () => {
+        if (finished || signal.aborted) return;
         io.print("The browser could not be opened. Open the link above in your browser to continue.");
         io.onEvent?.({ type: "browser_unavailable" });
-      }
+      };
+      try {
+        // Opening is best effort; an injected opener may represent the browser's entire lifetime.
+        void Promise.resolve(io.open(url)).catch(unavailable);
+      } catch { unavailable(); }
     }
     io.print("Waiting for browser approval. Press Ctrl+C to cancel.");
     io.onEvent?.({ type: "waiting" });
@@ -184,6 +187,7 @@ export async function login(serverUrl: string, io: LoginIo, timeoutMs = 10 * 60_
     }
     throw new LoginTimeoutError();
   } finally {
+    finished = true;
     clearTimeout(timeout);
     io.signal?.removeEventListener("abort", cancel);
   }
