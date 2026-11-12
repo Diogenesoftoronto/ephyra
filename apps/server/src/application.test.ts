@@ -258,6 +258,7 @@ describe("personal application account routes", () => {
     expect((await post(a.workspaceId, bobs.token)).status).toBe(401);
     expect((await post(a.workspaceId, intake.token)).status).toBe(200);
     await (f.server as { drainWorkspace?: (id: string) => Promise<void> }).drainWorkspace?.(a.workspaceId);
+    expect(await (await import("./self-telemetry")).intakeFresh(join(f.root, "data", "workspaces", a.workspaceId))).toBe(true);
     const trails = await (await read(f, alice.cookie, "/v1/trails", { "X-Ephyra-Workspace": a.workspaceId })).json() as Trail[];
     expect(trails).toHaveLength(1);
     expect(await (await read(f, bob.cookie, "/v1/trails", { "X-Ephyra-Workspace": b.workspaceId })).json()).toEqual([]);

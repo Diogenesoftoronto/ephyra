@@ -37,7 +37,7 @@ import { ConvexAgentStore, MemoryAgentStore, type AgentStore } from "./auth/agen
 import { agentAuthRoutes } from "./auth/agent-routes.ts";
 import { agentSetupRoutes } from "./http/agent-setup.ts";
 import { agentManagementRoutes } from "./auth/agent-management.ts";
-import { reportSelfError, verifyWorkspaceIngestToken, workspaceIngestToken } from "./self-telemetry.ts";
+import { intakeFresh, recordIntake, reportSelfError, verifyWorkspaceIngestToken, workspaceIngestToken } from "./self-telemetry.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
@@ -188,6 +188,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
             return proofToolchain({ runner, handle, setup, base: trail.base.sha, head: trail.head, ledger: hosted.ledger });
           } } : {}),
           resolveDraftModel: () => account.modelFor(did, workspaceId),
+          otlpFresh: () => intakeFresh(directory),
           resolveApprover: (principal) => teams.canApprove(did, workspaceId, principal),
           resolveTelemetry: () => account.telemetryFor(did, workspaceId),
           assessBootstrap: (run) => accountBootstrapCoverage(account, did, workspaceId, run),
@@ -295,7 +296,9 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     }
     const url = new URL(c.req.url);
     url.pathname = `/otlp/v1/${c.req.param("kind")}`;
-    return target.app.fetch(new Request(url, { method: "POST", headers, body: c.req.raw.body, duplex: "half" } as RequestInit));
+    const response = await target.app.fetch(new Request(url, { method: "POST", headers, body: c.req.raw.body, duplex: "half" } as RequestInit));
+    if (response.ok) await recordIntake(account.directory(workspace)).catch(() => undefined);
+    return response;
   });
   app.use(
     "/v1/account/*",
