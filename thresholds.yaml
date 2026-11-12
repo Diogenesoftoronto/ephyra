@@ -1,0 +1,8 @@
+"judgement-jev/jev-1.14":
+  duplicate: 0.7
+  regression: 0.7
+  conflict: 0.6
+  actionable: 0.4
+  ignore: 0.8
+  severity: 2.5
+  confidence: 0.5
