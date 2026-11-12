@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
 import type { Signal, SignalStore } from "@ephyra/core";
 import { parseOtlp } from "./otlp.ts";
+import { decodeOtlpProtobuf, encodeOtlpError, encodeOtlpResponse } from "./protobuf.ts";
 
 export type OtlpOptions = {
   store: SignalStore;
@@ -44,6 +46,8 @@ async function readBounded(
   return result;
 }
 export function otlpRoutes(options: OtlpOptions): Hono {
+  if (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes < 1)
+    throw new Error("OTLP maxBodyBytes must be a positive integer");
   const app = new Hono();
   const completed = new Set<string>();
   const suppressed = new Set<string>();
@@ -55,21 +59,36 @@ export function otlpRoutes(options: OtlpOptions): Hono {
         ?.split(";")[0]
         ?.trim()
         .toLowerCase();
-      if (contentType !== "application/json")
+      const binary = contentType === "application/x-protobuf";
+      if (contentType !== "application/json" && !binary)
         return c.json(
-          { error: "JSON required; protobuf support is planned" },
+          { error: "Use application/json or application/x-protobuf" },
           415,
         );
+      const failure = (message: string, status: 400 | 413 | 415 | 429, code = 3) => binary
+        ? new Response(encodeOtlpError(code, message), { status, headers: { "content-type": "application/x-protobuf" } })
+        : c.json({ code, message }, status);
+      const encoding = c.req.header("content-encoding")?.trim().toLowerCase();
+      if (encoding && encoding !== "identity" && encoding !== "gzip")
+        return failure("Unsupported content encoding", 415, 12);
       const key = c.req.header("authorization") ?? "anonymous";
       if (!(await options.quota(key)))
-        return c.json({ error: "quota exceeded" }, 429);
-      const bytes = await readBounded(c.req.raw, options.maxBodyBytes);
-      if (bytes === null) return c.json({ error: "body too large" }, 413);
+        return failure("quota exceeded", 429, 8);
+      let bytes = await readBounded(c.req.raw, options.maxBodyBytes);
+      if (bytes === null) return failure("body too large", 413, 8);
+      if (encoding === "gzip") {
+        try { bytes = new Uint8Array(gunzipSync(bytes, { maxOutputLength: options.maxBodyBytes })); }
+        catch (error) {
+          if ((error as { code?: string }).code === "ERR_BUFFER_TOO_LARGE") return failure("body too large", 413, 8);
+          return failure("invalid gzip body", 400);
+        }
+      }
       let parsed: ReturnType<typeof parseOtlp>;
       try {
-        parsed = parseOtlp(JSON.parse(new TextDecoder().decode(bytes)), kind);
+        parsed = parseOtlp(binary ? decodeOtlpProtobuf(bytes, kind)
+          : JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)), kind);
       } catch {
-        return c.json({ error: "invalid OTLP JSON" }, 400);
+        return failure(binary ? "invalid OTLP protobuf" : "invalid OTLP JSON", 400);
       }
       const digest = createHash("sha256")
         .update(kind)
@@ -115,6 +134,9 @@ export function otlpRoutes(options: OtlpOptions): Hono {
       } finally {
         pending.delete(digest);
       }
+      if (binary) return new Response(encodeOtlpResponse(parsed.rejected), {
+        headers: { "content-type": "application/x-protobuf" },
+      });
       return c.json({
         partialSuccess: {
           [kind === "logs" ? "rejectedLogRecords" : "rejectedSpans"]:

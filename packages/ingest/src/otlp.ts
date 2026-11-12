@@ -53,7 +53,7 @@ function signal(
     exceptionType: attributes["exception.type"],
     message: attributes["exception.message"] || data.message || "Error",
     frames: parseStack(stack),
-    attributes,
+    attributes: { ...resource, ...attributes },
   });
 }
 export function parseOtlp(body: unknown, kind: "logs" | "traces"): OtlpResult {
@@ -90,7 +90,7 @@ export function parseOtlp(body: unknown, kind: "logs" | "traces"): OtlpResult {
               result.signals.push(
                 signal(resource, a, {
                   ...record,
-                  time: record.timeUnixNano,
+                  time: record.timeUnixNano && record.timeUnixNano !== "0" ? record.timeUnixNano : record.observedTimeUnixNano,
                   route: a["http.route"] ?? a["url.template"],
                   message: record.body?.stringValue,
                 }),
