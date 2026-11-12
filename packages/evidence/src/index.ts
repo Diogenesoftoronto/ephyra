@@ -7,3 +7,5 @@ export * from "./voxq.ts";
 export * from "./watch.ts";
 export * from "./traction.ts";
 export * from "./posthog.ts";
+
+export * from "./telemetry-providers.ts";

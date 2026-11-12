@@ -84,3 +84,36 @@ The implementation follows PostHog's official [SQL/query contract](https://posth
 confirms ISO timestamps for exception steps. Fixture tests cover pagination, scope isolation, SQL injection,
 revocation, redaction, unavailable/expired data, malformed and oversized responses, and deadlines. No live project,
 credential, event, recording or provider integration was read or verified in this implementation pass.
+
+## Additional telemetry providers
+
+`TelemetryProviderEvidence` supplies read-only `observe(since)`, `verify()`, `search()` and receipt-bound `fetch()` for these connections:
+
+| Provider | Project field | Credentials | Query path |
+|---|---|---|---|
+| Sentry | `organization/project` | `apiKey`: token with project read access | Project error events, including selected exception frames and release/device tags |
+| Firebase Crashlytics | Google Cloud project ID | `serviceAccountJson`: service account with Logs Viewer access, or temporary `apiKey`: OAuth access token | Cloud Logging `entries:list`, restricted to the Crashlytics events log |
+| Grafana Loki | `service_name` label value | `apiKey`; optional `username` for Basic auth | LogQL `query_range`; optional configured `query` overrides the service selector |
+| Axiom | Dataset name | `apiKey`: scoped query API token | Regional edge APL query; legacy `api.axiom.co` also accepted with an explicit region/cost-limit warning |
+| Better Stack | Hot-storage source table such as `t123456_mobile_logs` | `username` and `apiKey`: SQL connection password | Read-only ClickHouse HTTP query to `remote(table)` |
+| Datadog | Service name | `apiKey` and `applicationKey` with log read permission | Logs v2 search; optional configured `query` narrows the service |
+| BugSnag | Project ID | `apiKey`: personal auth token | Project error summaries, identified by issue and last-seen time |
+
+Credentials are resolved against an immutable account/workspace/provider/destination binding and checked before dispatch and after response. Production callers must inject the public-DNS-pinning transport. Redirects, malformed responses, oversized bodies, unrecognised receipts and revoked grants fail closed. Provider error bodies are not exposed. Only selected diagnostic fields are retained; exact credentials and common secret/email patterns are scrubbed. This is not comprehensive removal of sensitive information from arbitrary free-text logs; configure source-side redaction too.
+
+The Crashlytics service-account flow signs a short-lived RS256 assertion for the fixed Google OAuth endpoint with only `logging.read` scope. It ignores `token_uri` in the supplied JSON, caches the returned access token for at most one hour, and refreshes before expiry. Manual OAuth tokens need replacement when they expire. Firebase Cloud Logging export must already be enabled; Ephyra does not enable exports or change provider settings.
+
+**Coverage:** queries inspect a recent sample of at most 50 records (Sentry full-event pages are capped at 10), with a maximum seven-day window. Every observation declares partial coverage: pagination, delayed delivery, sampling and retention are not assumed complete. General log stores create signals only for explicit error/fatal/critical/alert/emergency/panic severities. Missing severity is not guessed from text. Better Stack archive storage is excluded. BugSnag results are issue summaries, not individual occurrences. Empty successful queries verify access only, never instrumentation, application health, or a completed repair. Provider queries can incur costs.
+
+**Verified offline:** provider-shaped fixtures for all seven request/response contracts; scope and revocation checks; credential redaction properties; query identifier validation; response size limits; immutable evidence receipts; severity filtering; Google JWT signature, fixed audience, caching and refresh. Run `bun test packages/evidence` and `bun run --filter @ephyra/evidence typecheck`.
+
+**Unverified:** live provider credentials, export permissions/delays, SDK installation, symbols/source-map upload, regional availability, billing, large-volume completeness, native-device crashes and delivery. No external provider writes or live requests run in tests.
+
+API references consulted for these contracts:
+- [Sentry project error events](https://docs.sentry.io/api/events/list-a-projects-error-events/)
+- [Cloud Logging entries.list](https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/entries/list) and [Crashlytics export filters](https://firebase.google.com/docs/crashlytics/cloud-logging-filtering-and-log-based-metrics)
+- [Grafana Loki HTTP API](https://grafana.com/docs/loki/latest/reference/loki-http-api/)
+- [Axiom regional queries](https://axiom.co/docs/restapi/endpoints/queryEdge)
+- [Better Stack SQL API](https://betterstack.com/docs/logs/query-api/connect-remotely/)
+- [Datadog logs search](https://docs.datadoghq.com/api/latest/logs/)
+- [BugSnag Data Access API](https://developer.smartbear.com/bugsnag/docs/data-access)
