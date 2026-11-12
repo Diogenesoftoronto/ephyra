@@ -8,9 +8,26 @@ import { plain, trailView, trailsView, type Line } from "../inbox/view";
 import { init } from "../init";
 import { loadCredentials, login, logout } from "../login";
 import { doctor, handoffBrief, repoFacts } from "./doctor";
-import { COMMANDS, commandHelpView, commandNames, findCommand, helpView, suggest, usageError } from "./help";
 import {
-	activityView, agentsView, doctorView, policyView, questionsView, runEventsView, runView, runsView, setupView, usageView,
+	COMMANDS,
+	commandHelpView,
+	commandNames,
+	findCommand,
+	helpView,
+	suggest,
+	usageError,
+} from "./help";
+import {
+	activityView,
+	agentsView,
+	doctorView,
+	policyView,
+	questionsView,
+	runEventsView,
+	runView,
+	runsView,
+	setupView,
+	usageView,
 } from "./views";
 
 export const CLI_VERSION = "0.1.0-prealpha";
@@ -43,10 +60,21 @@ function flag(args: string[], ...names: string[]): boolean {
 
 /** Put text on the system clipboard with whatever this machine has. False when nothing worked. */
 async function copy(text: string): Promise<boolean> {
-	const tools = process.platform === "darwin" ? [["pbcopy"]] : [["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]];
+	const tools =
+		process.platform === "darwin"
+			? [["pbcopy"]]
+			: [
+					["wl-copy"],
+					["xclip", "-selection", "clipboard"],
+					["xsel", "--clipboard", "--input"],
+				];
 	for (const tool of tools) {
 		try {
-			const proc = Bun.spawn(tool, { stdin: "pipe", stdout: "ignore", stderr: "ignore" });
+			const proc = Bun.spawn(tool, {
+				stdin: "pipe",
+				stdout: "ignore",
+				stderr: "ignore",
+			});
 			proc.stdin.write(text);
 			await proc.stdin.end();
 			if ((await proc.exited) === 0) return true;
@@ -59,7 +87,10 @@ async function copy(text: string): Promise<boolean> {
 
 function openInBrowser(url: string) {
 	try {
-		Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], { stdout: "ignore", stderr: "ignore" });
+		Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
+			stdout: "ignore",
+			stderr: "ignore",
+		});
 	} catch {
 		/* printing the link is enough */
 	}
@@ -69,11 +100,20 @@ export async function main(args: string[]) {
 	args = [...args];
 	const json = flag(args, "--json");
 	const wantsHelp = flag(args, "--help", "-h");
-	if (flag(args, "--version", "-v") && !args.length) return console.log(json ? JSON.stringify({ version: CLI_VERSION }) : `ephyra ${CLI_VERSION}`);
+	if (flag(args, "--version", "-v") && !args.length)
+		return console.log(
+			json ? JSON.stringify({ version: CLI_VERSION }) : `ephyra ${CLI_VERSION}`,
+		);
 	const cols = process.stdout.columns || 100;
 	// Human output is drawn by the same view as the inbox; --json keeps the raw API shape for scripts.
-	const paint = (lines: Line[]) => console.log(process.stdout.isTTY && !process.env.NO_COLOR ? toAnsi(lines) : plain(lines));
-	const emit = (value: unknown) => console.log(JSON.stringify(value, null, json ? 0 : 2));
+	const paint = (lines: Line[]) =>
+		console.log(
+			process.stdout.isTTY && !process.env.NO_COLOR
+				? toAnsi(lines)
+				: plain(lines),
+		);
+	const emit = (value: unknown) =>
+		console.log(JSON.stringify(value, null, json ? 0 : 2));
 	let cmd = args.shift();
 
 	if (!cmd || cmd === "help" || wantsHelp) {
@@ -81,9 +121,14 @@ export async function main(args: string[]) {
 		if (!topic) return json ? emit(COMMANDS) : paint(helpView(cols));
 		const found = findCommand(topic);
 		if (!found) throw new UsageError(unknown(topic));
-		return json ? emit(found) : paint(commandHelpView(found, Math.min(cols, 100)));
+		return json
+			? emit(found)
+			: paint(commandHelpView(found, Math.min(cols, 100)));
 	}
-	if (cmd === "version") return console.log(json ? JSON.stringify({ version: CLI_VERSION }) : `ephyra ${CLI_VERSION}`);
+	if (cmd === "version")
+		return console.log(
+			json ? JSON.stringify({ version: CLI_VERSION }) : `ephyra ${CLI_VERSION}`,
+		);
 	const help = findCommand(cmd);
 	if (!help) throw new UsageError(unknown(cmd));
 	cmd = help.name;
@@ -93,30 +138,56 @@ export async function main(args: string[]) {
 		const remote = option(args, "--remote") ?? "origin";
 		const value = await init(process.cwd(), remote, flag(args, "--force"));
 		if (json) return console.log(JSON.stringify(value));
-		console.log(`Created: ${value.join(", ") || "none (existing files were kept; --force replaces them)"}`);
-		console.log("Next: edit ephyra/autonomy.md to describe your areas, then `ephyra doctor`.");
+		console.log(
+			`Created: ${value.join(", ") || "none (existing files were kept; --force replaces them)"}`,
+		);
+		console.log(
+			"Next: edit ephyra/autonomy.md to describe your areas, then `ephyra doctor`.",
+		);
 		return;
 	}
 	if (cmd === "docs") {
 		const open = flag(args, "--open");
 		const slug = docsTopic(args[0]);
 		if (!slug) {
-			const topics = Object.entries(DOCS_TOPICS).map(([name, about]) => `  ${name.padEnd(16)}${about}`).join("\n");
-			throw new UsageError(`No documentation page for “${args[0]}”. Topics:\n${topics}`);
+			const topics = Object.entries(DOCS_TOPICS)
+				.map(([name, about]) => `  ${name.padEnd(16)}${about}`)
+				.join("\n");
+			throw new UsageError(
+				`No documentation page for “${args[0]}”. Topics:\n${topics}`,
+			);
 		}
 		const url = docsUrl(slug);
-		if (json) return emit({ topic: slug, url, markdown: slug === "index" ? `${url}/agent.md` : `${url}.md` });
+		if (json)
+			return emit({
+				topic: slug,
+				url,
+				markdown: slug === "index" ? `${url}/agent.md` : `${url}.md`,
+			});
 		console.log(url);
-		if (!args[0]) console.log(`\nTopics (ephyra docs <topic>):\n${Object.entries(DOCS_TOPICS).map(([name, about]) => `  ${name.padEnd(16)}${about}`).join("\n")}`);
+		if (!args[0])
+			console.log(
+				`\nTopics (ephyra docs <topic>):\n${Object.entries(DOCS_TOPICS)
+					.map(([name, about]) => `  ${name.padEnd(16)}${about}`)
+					.join("\n")}`,
+			);
 		if (open) openInBrowser(url);
 		return;
 	}
-	const io = { print: (line: string) => console.log(line), sleep: (ms: number) => Bun.sleep(ms), fetch, env: process.env, open: openInBrowser };
+	const io = {
+		print: (line: string) => console.log(line),
+		sleep: (ms: number) => Bun.sleep(ms),
+		fetch,
+		env: process.env,
+		open: openInBrowser,
+	};
 	if (cmd === "login") {
 		const url = args[0] ?? process.env.EPHYRA_URL;
 		if (!url) throw usage();
 		await login(url, io);
-		console.log("Next: `ephyra doctor` checks this repository; `ephyra inbox` shows what is waiting.");
+		console.log(
+			"Next: `ephyra doctor` checks this repository; `ephyra inbox` shows what is waiting.",
+		);
 		return;
 	}
 	if (cmd === "logout") return logout(io);
@@ -125,41 +196,73 @@ export async function main(args: string[]) {
 	const creds = await loadCredentials();
 	const url = process.env.EPHYRA_URL ?? creds?.url;
 	let client: Client | null = null;
-	let authProblem = "Not signed in. Run `ephyra login <server-url>`, then `ephyra doctor` if anything else is off.";
+	let authProblem =
+		"Not signed in. Run `ephyra login <server-url>`, then `ephyra doctor` if anything else is off.";
 	if (process.env.EPHYRA_API_TOKEN && url) {
-		if (process.env.EPHYRA_PRINCIPAL) client = new Client(url, process.env.EPHYRA_API_TOKEN, fetch, process.env.EPHYRA_PRINCIPAL);
+		if (process.env.EPHYRA_PRINCIPAL)
+			client = new Client(
+				url,
+				process.env.EPHYRA_API_TOKEN,
+				fetch,
+				process.env.EPHYRA_PRINCIPAL,
+			);
 		else authProblem = "EPHYRA_API_TOKEN needs EPHYRA_PRINCIPAL";
-	} else if (creds && url === creds.url) client = new Client(creds.url, creds.token, fetch, "");
+	} else if (creds && url === creds.url)
+		client = new Client(creds.url, creds.token, fetch, "");
 
 	if (cmd === "doctor" || cmd === "handoff") {
 		const repo = repoFacts(process.cwd());
-		const report = await doctor({ env: process.env, creds, client, ...(url ? { url } : {}), repo, fetch });
+		const report = await doctor({
+			env: process.env,
+			creds,
+			client,
+			...(url ? { url } : {}),
+			repo,
+			fetch,
+		});
 		if (cmd === "doctor") {
 			if (json) emit(report.checks);
 			else paint(doctorView(report.checks, Math.min(cols, 110)));
 			if (report.checks.some((c) => c.status === "fail")) process.exitCode = 1;
 			return;
 		}
-		const brief = handoffBrief({ ...(url ? { url } : {}), who: creds?.handle ?? report.principal, repo, report, env: process.env });
+		const brief = handoffBrief({
+			...(url ? { url } : {}),
+			who: creds?.handle ?? report.principal,
+			repo,
+			report,
+			env: process.env,
+		});
 		if (json) return emit({ brief });
 		const copied = flag(args, "--copy") && (await copy(brief));
 		console.log(brief);
-		console.error(copied ? "\nCopied to the clipboard. Paste it into your coding agent." : "\nPaste the text above into your coding agent (--copy puts it on the clipboard).");
+		console.error(
+			copied
+				? "\nCopied to the clipboard. Paste it into your coding agent."
+				: "\nPaste the text above into your coding agent (--copy puts it on the clipboard).",
+		);
 		return;
 	}
 
 	if (!client) throw new Error(authProblem);
 	const c = client;
 	if (cmd === "whoami") {
-		const res = await fetch(new URL("/auth/me", c.url), { headers: { Authorization: `Bearer ${c.token}` } });
-		if (res.ok) return console.log(JSON.stringify(await res.json(), null, json ? 0 : 2));
+		const res = await fetch(new URL("/auth/me", c.url), {
+			headers: { Authorization: `Bearer ${c.token}` },
+		});
+		if (res.ok)
+			return console.log(JSON.stringify(await res.json(), null, json ? 0 : 2));
 		// A service token has no browser session; /v1/me still says who the API thinks it is.
 		if (c.principal) return emit(await c.me());
-		console.log("Not signed in (or the session expired). Run `ephyra login <server-url>`.");
+		console.log(
+			"Not signed in (or the session expired). Run `ephyra login <server-url>`.",
+		);
 		return;
 	}
 	if (cmd === "open") {
-		const target = args[0] ? `${c.url}/app/#/inbox/${encodeURIComponent(await c.resolve(args[0]))}` : `${c.url}/app/`;
+		const target = args[0]
+			? `${c.url}/app/#/inbox/${encodeURIComponent(await c.resolve(args[0]))}`
+			: `${c.url}/app/`;
 		if (json) return emit({ url: target });
 		console.log(target);
 		openInBrowser(target);
@@ -182,19 +285,36 @@ export async function main(args: string[]) {
 			const read = async (path: string): Promise<FileEntry> => {
 				try {
 					const text = await c.file(detail.trail.id, path);
-					return text === null ? { status: "missing" } : { status: "ready", text };
+					return text === null
+						? { status: "missing" }
+						: { status: "ready", text };
 				} catch {
 					return { status: "error", message: "couldn't fetch it" };
 				}
 			};
-			const [hypothesis, plan] = await Promise.all([read("hypothesis.md"), read("plan.md")]);
-			return paint(trailView(detail.trail, detail.events, { hypothesis, plan }, Math.min(cols, 110)));
+			const [hypothesis, plan] = await Promise.all([
+				read("hypothesis.md"),
+				read("plan.md"),
+			]);
+			return paint(
+				trailView(
+					detail.trail,
+					detail.events,
+					{ hypothesis, plan },
+					Math.min(cols, 110),
+				),
+			);
 		}
 	} else if (cmd === "file") {
 		if (!args[0] || !args[1]) throw usage();
 		const text = await c.file(await c.resolve(args[0]), args[1]);
-		if (text === null) throw new Error(`The journal has no ${args[1]} for this quest yet.`);
-		return console.log(json ? JSON.stringify({ path: args[1], content: text }) : text.replace(/\n$/, ""));
+		if (text === null)
+			throw new Error(`The journal has no ${args[1]} for this quest yet.`);
+		return console.log(
+			json
+				? JSON.stringify({ path: args[1], content: text })
+				: text.replace(/\n$/, ""),
+		);
 	} else if (cmd === "activity") {
 		const limit = Number(option(args, "--limit")) || undefined;
 		const items = await c.activity(limit);
@@ -204,7 +324,11 @@ export async function main(args: string[]) {
 		const quest = option(args, "--quest", "--trail");
 		const status = option(args, "--status");
 		const limit = Number(option(args, "--limit")) || undefined;
-		const runs = await c.runs({ ...(quest ? { trail: await c.resolve(quest) } : {}), ...(status ? { status } : {}), ...(limit ? { limit } : {}) });
+		const runs = await c.runs({
+			...(quest ? { trail: await c.resolve(quest) } : {}),
+			...(status ? { status } : {}),
+			...(limit ? { limit } : {}),
+		});
 		if (!json) return paint(runsView(runs, cols));
 		result = runs;
 	} else if (cmd === "run") {
@@ -242,7 +366,10 @@ export async function main(args: string[]) {
 		if (!json) return paint(usageView(summary, cols));
 		result = summary;
 	} else if (cmd === "policy") {
-		const [active, docs] = await Promise.all([c.policyActive(), c.policyDocs()]);
+		const [active, docs] = await Promise.all([
+			c.policyActive(),
+			c.policyDocs(),
+		]);
 		if (!json) return paint(policyView(active, docs, cols));
 		result = { active, documents: docs };
 	} else if (cmd === "setup") {
@@ -257,15 +384,30 @@ export async function main(args: string[]) {
 	} else if (cmd === "answer") {
 		const text = option(args, "-m", "--message");
 		if (!args[0] || !text) throw usage();
-		const matches = (await c.questions()).filter((q) => q.id.startsWith(args[0]!.toLowerCase()));
-		if (matches.length !== 1) throw new Error(matches.length ? "That id matches more than one question; give more characters." : "No open question has that id. `ephyra questions` lists them.");
+		const matches = (await c.questions()).filter((q) =>
+			q.id.startsWith(args[0]!.toLowerCase()),
+		);
+		if (matches.length !== 1)
+			throw new Error(
+				matches.length
+					? "That id matches more than one question; give more characters."
+					: "No open question has that id. `ephyra questions` lists them.",
+			);
 		result = await c.answer(matches[0]!, text);
-		if (!json) return console.log("Answer recorded. The investigation checks it before using it.");
+		if (!json)
+			return console.log(
+				"Answer recorded. The investigation checks it before using it.",
+			);
 	} else if (cmd === "agents") {
 		if (args[0] === "revoke") {
 			if (!args[1]) throw usage();
 			result = await c.revokeAgent(args[1]);
-			if (!json) return console.log((result as { revoked: boolean }).revoked ? "Access revoked." : "Nothing to revoke: no active agent has that id.");
+			if (!json)
+				return console.log(
+					(result as { revoked: boolean }).revoked
+						? "Access revoked."
+						: "Nothing to revoke: no active agent has that id.",
+				);
 		} else {
 			const agents = await c.agents();
 			if (!json) return paint(agentsView(agents, cols));
@@ -274,25 +416,72 @@ export async function main(args: string[]) {
 	} else if (cmd === "decide") {
 		const note = option(args, "-m", "--message");
 		const [id, checkpoint, verdict] = args;
-		if (!id || !["A", "B", "C"].includes(checkpoint ?? "") || !["approve", "revise", "reject"].includes(verdict ?? "")) throw usage();
+		if (
+			!id ||
+			!["A", "B", "C"].includes(checkpoint ?? "") ||
+			!["approve", "revise", "reject"].includes(verdict ?? "")
+		)
+			throw usage();
 		const trailId = await c.resolve(id);
+		const said =
+			verdict === "approve"
+				? "approved"
+				: verdict === "revise"
+					? "sent back"
+					: "rejected";
+		const lands = checkpoint === "C" && verdict === "approve";
 		// Bind the decision to what is waiting now, so a quest that moved on is refused instead of approved unread.
-		const waiting = (await c.inbox().catch(() => [])).find((i) => i.trailId === trailId && i.kind === "checkpoint" && i.checkpoint === checkpoint);
-		result = await c.action(trailId, "decide", { checkpoint, verdict, ...(note ? { note } : {}), ...(waiting ? { bound: waiting.bound } : {}) });
-		if (!json) return console.log(`${checkpoint} ${verdict === "approve" ? "approved" : verdict === "revise" ? "sent back" : "rejected"}.${checkpoint === "C" && verdict === "approve" ? " The quest lands next; `ephyra show` follows it." : ""}`);
+		const waiting = (await c.inbox().catch(() => [])).find(
+			(i) =>
+				i.trailId === trailId &&
+				i.kind === "checkpoint" &&
+				i.checkpoint === checkpoint,
+		);
+		result = await c.action(trailId, "decide", {
+			checkpoint,
+			verdict,
+			...(note ? { note } : {}),
+			...(waiting ? { bound: waiting.bound } : {}),
+		});
+		if (!json)
+			return console.log(
+				`${checkpoint} ${said}.${lands ? " The quest lands next; `ephyra show` follows it." : ""}`,
+			);
 	} else if (cmd === "spend") {
 		const note = option(args, "-m", "--message");
 		const [id, verdict] = args;
 		if (!id || !["approve", "reject"].includes(verdict ?? "")) throw usage();
 		result = await c.spend(await c.resolve(id), verdict!, note);
-		if (!json) return console.log(verdict === "approve" ? "Spend approved." : "Spend declined; the quest continues without that study.");
-	} else if (["comment", "claim", "release", "park", "resume", "kill", "land"].includes(cmd)) {
+		if (!json)
+			return console.log(
+				verdict === "approve"
+					? "Spend approved."
+					: "Spend declined; the quest continues without that study.",
+			);
+	} else if (
+		["comment", "claim", "release", "park", "resume", "kill", "land"].includes(
+			cmd,
+		)
+	) {
 		const note = option(args, "-m", "--message");
 		if (!args[0] || (["comment", "kill"].includes(cmd) && !note)) throw usage();
-		result = await c.action(await c.resolve(args[0]), cmd, cmd === "comment" ? { text: note } : cmd === "kill" ? { reason: note } : {});
+		result = await c.action(
+			await c.resolve(args[0]),
+			cmd,
+			cmd === "comment"
+				? { text: note }
+				: cmd === "kill"
+					? { reason: note }
+					: {},
+		);
 		const said: Record<string, string> = {
-			comment: "Comment posted.", claim: "Review claimed. `ephyra release` it before you decide.", release: "Review released.",
-			park: "Parked. `ephyra resume` continues it.", resume: "Resumed.", kill: "Killed.", land: "Landing requested. `ephyra show` follows it.",
+			comment: "Comment posted.",
+			claim: "Review claimed. `ephyra release` it before you decide.",
+			release: "Review released.",
+			park: "Parked. `ephyra resume` continues it.",
+			resume: "Resumed.",
+			kill: "Killed.",
+			land: "Landing requested. `ephyra show` follows it.",
 		};
 		if (!json) return console.log(said[cmd]);
 	} else throw usage();
