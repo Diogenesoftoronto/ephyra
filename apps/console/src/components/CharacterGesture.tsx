@@ -8,6 +8,7 @@ export function CharacterGesture({ poster, clip, label, size = 112 }: { poster: 
   const element = useRef<HTMLButtonElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const allowed = useMotionAllowed(element);
+  const [hovered, setHovered] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [requested, setRequested] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -33,11 +34,15 @@ export function CharacterGesture({ poster, clip, label, size = 112 }: { poster: 
     title={playing ? "Pause greeting" : "Say hello"} data-motion={playing ? "playing" : "still"}
     onPointerEnter={() => {
       const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-      if (matchMedia("(hover: hover)").matches && !connection?.saveData) greet();
+      if (matchMedia("(hover: hover)").matches && !connection?.saveData && allowed && !failed) {
+        setHovered(true); greet();
+      }
     }}
+    onPointerLeave={() => { setHovered(false); setRequested(false); }}
+    onPointerCancel={() => { setHovered(false); setRequested(false); }}
     onClick={() => { if (requested) setRequested(false); else { greet(); playFeedback("touch"); } }}>
     <img src={missing ? "/app/brand/logo.svg" : poster} width={512} height={512} alt="" onError={() => setMissing(true)} />
-    <video ref={video} src={loaded && !failed ? clip : undefined} muted playsInline preload="none" aria-hidden="true"
+    <video ref={video} src={loaded && !failed ? clip : undefined} muted playsInline loop={hovered && allowed} preload="none" aria-hidden="true"
       onLoadedData={() => {
         // Browsers that decode VP9 without alpha keep the approved still instead of showing a black rectangle.
         const movie = video.current;
