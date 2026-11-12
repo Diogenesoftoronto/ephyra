@@ -11,7 +11,7 @@ test("the pull request target names the forge, and says plainly when it cannot o
   expect(proposalTarget(withForge("github"))).toEqual({ ready: true, text: "GitHub pull requests." });
   expect(proposalTarget(withForge("gitlab"))).toEqual({ ready: true, text: "GitLab merge requests." });
   expect(proposalTarget(withForge("github", false)).ready).toBe(false);
-  expect(proposalTarget(withForge("github", false)).text).toContain("access token");
+  expect(proposalTarget(withForge("github", false)).text).toContain("connect with GitHub");
   expect(proposalTarget(withForge("git")).ready).toBe(false);
   expect(proposalTarget(withForge("radicle")).text).toContain("Radicle patches");
 });

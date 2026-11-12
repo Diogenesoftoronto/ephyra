@@ -31,6 +31,7 @@ import { ConnectionError, parsePublicHttps, publicHttpsFetch, resolvePublicHttps
 import { RepositoryConnector } from "./repository.ts";
 import { ForgeRepositoryConnector, type ForgeResolution, type ForgeRepositoryInput } from "./forge-repository.ts";
 import { ownerContact } from "./questions.ts";
+import { installationToken, verifyInstallation, type GitHubAppConfig } from "./github-app.ts";
 import { redactModelText } from "./model-redaction.ts";
 
 export class AccountError extends Error {
@@ -52,6 +53,8 @@ export type AccountOptions = {
   fetcher?: Fetch;
   onWorkspaceChange?: (before: string, after: string) => void;
   automation?: (did: string) => AccountSettings["automation"];
+  /** Feature flag: set when the deployment has a GitHub App. Mints per-repository installation tokens. */
+  githubApp?: GitHubAppConfig | null;
 };
 
 export function workspaceId(did: string, url = "", branch = ""): string {
@@ -122,27 +125,58 @@ export class Accounts {
     if (record.settings.workspaceId !== workspace || !repository || !this.repository.command)
       throw new AccountError(409, "The repository authority changed or its write transport is unavailable.");
     const input = { url: repository.url, branch: repository.branch, username: repository.username,
-      credentialHost: repository.credentialHost, token: record.repoToken ? await this.options.box.open<string>(record.repoToken) : undefined };
+      credentialHost: repository.credentialHost, token: await this.repositoryCredential(record) };
     const result = await this.repository.command(input, this.directory(workspace), argv);
     const fresh = await this.record(did);
     if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.repository) !== canonicalJson(repository)
       || fresh.repoToken !== record.repoToken) throw new AccountError(409, "Repository authority changed during the operation.");
     return result;
   }
-  /** The saved repository token, opened for one forge API call. Refuses if the workspace or repository changed. */
+  /** The credential for git and forge API calls: a fresh GitHub App installation token, else the saved token. */
+  private async repositoryCredential(record: AccountRecord): Promise<string | undefined> {
+    const repository = record.settings.repository;
+    const app = this.options.githubApp;
+    if (repository?.githubApp && app && repository.forge?.kind === "github") {
+      const path = new URL(repository.forge.cloneUrl ?? repository.url).pathname.replace(/^\/|\.git$/g, "");
+      return installationToken(app, repository.githubApp.installationId, path, this.fetcher);
+    }
+    return record.repoToken ? this.options.box.open<string>(record.repoToken) : undefined;
+  }
+  /** The repository credential, opened for one forge API call. Refuses if the workspace or repository changed. */
   async repositoryToken(did: string, workspace: string, expected: AccountSettings["repository"]): Promise<string> {
     const record = await this.record(did);
     if (record.settings.workspaceId !== workspace || canonicalJson(record.settings.repository) !== canonicalJson(expected))
       throw new AccountError(409, "The repository authority changed.");
-    if (!record.repoToken) throw new AccountError(409, "Save a repository token to open pull requests.");
-    return this.options.box.open<string>(record.repoToken);
+    const credential = await this.repositoryCredential(record);
+    if (!credential) throw new AccountError(409, "Connect with GitHub, or save a repository token, to open pull requests.");
+    return credential;
+  }
+  /** Bind a GitHub App installation to the workspace repository after GitHub confirms it covers that repository. */
+  async connectGitHubApp(did: string, installationId: string, key: string) {
+    const app = this.options.githubApp;
+    if (!app) throw new AccountError(409, "This server has no GitHub App configured.");
+    const record = await this.record(did);
+    const repository = record.settings.repository;
+    if (!repository || repository.forge?.kind !== "github") throw new AccountError(409, "Connect a GitHub repository first.");
+    const path = new URL(repository.forge.cloneUrl ?? repository.url).pathname.replace(/^\/|\.git$/g, "");
+    const verified = await verifyInstallation(app, installationId, path, this.fetcher).catch((error: unknown) => {
+      throw new AccountError(422, error instanceof Error ? error.message : "GitHub did not confirm the installation.");
+    });
+    return this.change(did, key, "github-app", { expectedVersion: record.settings.version, installationId } as { expectedVersion: number }, async (next) => {
+      const bare = (r: NonNullable<AccountSettings["repository"]> | null) => { if (!r) return null; const { githubApp: _, ...rest } = r; return rest; };
+      if (canonicalJson(bare(next.settings.repository)) !== canonicalJson(bare(repository)))
+        throw new AccountError(409, "The repository changed. Connect with GitHub again.");
+      next.settings.repository = { ...next.settings.repository!, credentialConfigured: true,
+        githubApp: { installationId: verified.installationId, account: verified.account, connectedAt: new Date().toISOString() } };
+      return next;
+    });
   }
   async refreshRepository(did: string, workspace: string): Promise<string> {
     const record = await this.record(did);
     const repository = record.settings.repository;
     if (record.settings.workspaceId !== workspace || !repository) throw new AccountError(409, "The workspace repository changed.");
     const result = await this.repository.prepare({ url: repository.url, branch: repository.branch, username: repository.username,
-      credentialHost: repository.credentialHost, token: record.repoToken ? await this.options.box.open<string>(record.repoToken) : undefined },
+      credentialHost: repository.credentialHost, token: await this.repositoryCredential(record) },
     this.directory(workspace));
     const fresh = await this.record(did);
     if (fresh.settings.workspaceId !== workspace || canonicalJson(fresh.settings.repository) !== canonicalJson(repository))

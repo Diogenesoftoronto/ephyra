@@ -1,3 +1,5 @@
+import type { Context } from "hono";
+import { browserSessionToken } from "./auth/browser-session.ts";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
@@ -31,6 +33,7 @@ import { canonicalJson } from "./audit.ts";
 import { proofToolchain } from "./setup/proof-toolchain.ts";
 import { personalLanding } from "./setup/personal-landing.ts";
 import { radicleWriterConfig } from "./setup/radicle-writer.ts";
+import { appManifest, convertManifest, githubAppConfig } from "./setup/github-app.ts";
 import { accountBootstrapCoverage } from "./setup/account-bootstrap.ts";
 import { createAgentAccess } from "./auth/agent-service.ts";
 import { ConvexAgentStore, MemoryAgentStore, type AgentStore } from "./auth/agent-store.ts";
@@ -68,6 +71,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   const box = await SecretBox.fromBase64(config.EPHYRA_SESSION_KEY);
   const runtimes = new Map<string, Promise<Composed>>();
   const connector = opts.repository ?? new ForgeRepositoryConnector();
+  const githubApp = githubAppConfig(config);
   accounts = new Accounts({
     store,
     box,
@@ -76,6 +80,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     signIn,
     repository: connector,
     fetcher: opts.providerFetch,
+    githubApp: githubApp,
     automation: (did) => opts.workspaceAutomation ? { provider: "custom", configured: true, detail: "A workspace hosting integration is configured." }
       : hostingStatus(config, did),
     onWorkspaceChange: (before) => {
@@ -300,6 +305,51 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     if (response.ok) await recordIntake(account.directory(workspace)).catch(() => undefined);
     return response;
   });
+  // GitHub App creation (operator) and installation (owner). Both are browser pages, signed in with Not Organic.
+  const page = (title: string, body: string) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>${title}</title><style>body{font:16px/1.5 system-ui;max-width:640px;margin:48px auto;padding:0 16px}code,pre{background:#f3f0e8;padding:2px 4px;border-radius:4px;white-space:pre-wrap;word-break:break-all}</style>
+<h1>${title}</h1>${body}`;
+  const escape = (text: string) => text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+  const sessionDid = async (c: Context) =>
+    (await signIn.authenticate(browserSessionToken(c, config.EPHYRA_PUBLIC_ORIGIN!) ?? "").catch(() => null))?.did ?? null;
+  const operator = async (c: Context) => {
+    const did = await sessionDid(c);
+    return did && config.EPHYRA_APPROVER_DIDS.split(",").map((s) => s.trim()).includes(did) ? did : null;
+  };
+  app.get("/github/app/new", async (c) => {
+    if (!await operator(c)) return c.html(page("Sign in first", `<p><a href="/auth/login">Sign in</a> as an operator, then open this page again.</p>`), 403);
+    if (githubApp) return c.html(page("GitHub App is set up", `<p>This server already has a GitHub App (<code>${escape(githubApp.slug)}</code>).</p>`));
+    const manifest = escape(JSON.stringify(appManifest(config.EPHYRA_PUBLIC_ORIGIN!)));
+    return c.html(page("Create the Ephyra GitHub App", `<p>GitHub will ask you to name the app and confirm. It asks only for
+contents and pull requests (write) plus checks and statuses (read), and no webhook.</p>
+<form action="https://github.com/settings/apps/new" method="post"><input type="hidden" name="manifest" value="${manifest}">
+<button type="submit">Create the app on GitHub</button></form>`));
+  });
+  app.get("/github/app/created", async (c) => {
+    if (!await operator(c)) return c.html(page("Sign in first", `<p>Sign in as an operator and create the app again.</p>`), 403);
+    try {
+      const created = await convertManifest(c.req.query("code") ?? "", (url, init) => fetch(url, init));
+      c.header("Cache-Control", "no-store");
+      return c.html(page("GitHub App created", `<p>Set these on the server, then redeploy. The key is shown once and is not stored here.</p>
+<pre>EPHYRA_GITHUB_APP_ID=${escape(created.appId)}
+EPHYRA_GITHUB_APP_SLUG=${escape(created.slug)}
+EPHYRA_GITHUB_APP_PRIVATE_KEY=${escape(created.privateKey.replace(/\n/g, "\\n"))}</pre>`));
+    } catch (error) {
+      return c.html(page("GitHub App not created", `<p>${escape(error instanceof Error ? error.message : "GitHub did not confirm.")}</p>`), 422);
+    }
+  });
+  app.get("/github/install/callback", async (c) => {
+    const did = await sessionDid(c);
+    if (!did) return c.redirect(`/auth/login?returnTo=${encodeURIComponent(c.req.url.replace(/^https?:\/\/[^/]+/, ""))}`);
+    const installationId = c.req.query("installation_id") ?? "";
+    try {
+      await account.connectGitHubApp(did, installationId, `github-app:${installationId}:${Date.now()}`);
+      return c.redirect("/app/#/settings");
+    } catch (error) {
+      return c.html(page("GitHub not connected", `<p>${escape(error instanceof Error ? error.message : "GitHub did not confirm.")}</p>
+<p><a href="/app/#/settings">Back to settings</a></p>`), 422);
+    }
+  });
   app.use(
     "/v1/account/*",
     bodyLimit({ maxSize: 24_000, onError: (c) => c.json({ error: "The settings request is too large." }, 413) }),
@@ -317,6 +367,10 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     await next();
   });
   app.get("/v1/account", async (c) => c.json(await account.settings(c.get("principal"))));
+  /** Whether "Connect with GitHub" is available, and where it goes. Never exposes the app key. */
+  app.get("/v1/account/github-app", (c) => c.json(githubApp
+    ? { available: true, installUrl: `https://github.com/apps/${githubApp.slug}/installations/new` }
+    : { available: false, installUrl: null }));
   /** The owner's OTLP intake for their current workspace. Any service that speaks OTLP/HTTP JSON can report here. */
   app.get("/v1/account/telemetry/otlp", async (c) => {
     const { workspaceId, repository } = (await account.record(c.get("principal"))).settings;

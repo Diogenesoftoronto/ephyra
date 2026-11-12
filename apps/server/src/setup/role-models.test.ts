@@ -51,3 +51,32 @@ test("review uses the coding model until a review model is saved, then its own m
   expect(s.roleModels).toBeUndefined();
   expect((await f.service.modelFor(DID, ws, "review"))!.requestedModel).toBe("gpt-6.1-sol");
 });
+
+test("Connect with GitHub binds a verified installation, and the repository credential becomes a fresh installation token", async () => {
+  const { generateKeyPairSync } = await import("node:crypto");
+  const pem = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+  const { SecretBox } = await import("../auth/crypto");
+  const box = await SecretBox.fromBase64(Buffer.alloc(32, 7).toString("base64"));
+  const fake = fakeNotOrganic({ approved: true, product: "ephyra", did: DID });
+  const signIn = new NotOrganicSignIn({ issuer: "https://api.notorganic.test", authorizationUrl: "https://id.notorganic.test/authorize",
+    publicOrigin: "https://ephyra.example", product: "ephyra", scopes: [] }, new MemoryAuthStore(), box, fake.fetcher);
+  let minted = 0;
+  const fetcher = (async (url: string) => {
+    if (url.endsWith("/repos/acme/app/installation")) return new Response(JSON.stringify({ id: 77, account: { login: "acme" } }));
+    if (url.endsWith("/app/installations/77/access_tokens")) return new Response(JSON.stringify({ token: `ghs_${++minted}` }), { status: 201 });
+    return new Response("{}", { status: 404 });
+  }) as never;
+  const service = new Accounts({ store: new MemoryAccountStore(), box, operationSecret: "fixture-secret", dataDir: "/tmp/ephyra-gh-app",
+    signIn, fetcher, githubApp: { appId: "123", slug: "ephyra", privateKey: pem },
+    repository: {
+      resolve: async () => ({ url: "https://github.com/acme/app.git",
+        forge: { kind: "github" as const, source: "https://github.com/acme/app", cloneUrl: "https://github.com/acme/app.git" } }),
+      prepare: async (input: { url: string; branch: string }) => ({ url: input.url, branch: input.branch, head: "a".repeat(40), verifiedAt: new Date().toISOString() }),
+    } as never });
+  const s = await service.saveRepository(DID, { expectedVersion: 0, url: "https://github.com/acme/app", branch: "main" }, "repo-connect-gh1");
+  await expect(service.connectGitHubApp(DID, "78", "gh-app-wrong-1")).rejects.toThrow("does not cover");
+  const connected = await service.connectGitHubApp(DID, "77", "gh-app-right-1");
+  expect(connected.repository).toMatchObject({ credentialConfigured: true, githubApp: { installationId: "77", account: "acme" } });
+  expect(await service.repositoryToken(DID, s.workspaceId, connected.repository)).toBe("ghs_1");
+  expect(await service.repositoryToken(DID, s.workspaceId, connected.repository)).toBe("ghs_2");
+});

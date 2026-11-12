@@ -568,6 +568,25 @@ Still `Unverified`:
 - browser errors from the console, which are not reported yet. Bundled frames would not match repository areas
   without source maps.
 
+## Connect with GitHub (GitHub App)
+
+Instead of pasting a token, a GitHub repository can be connected through a GitHub App. The feature is on when all three of
+`EPHYRA_GITHUB_APP_ID`, `EPHYRA_GITHUB_APP_SLUG` and `EPHYRA_GITHUB_APP_PRIVATE_KEY` are set. The key accepts a PEM with
+literal `\n` and is redacted like other known secrets.
+
+1. **Operator, once.** Sign in as an approver and open `/github/app/new`. It posts a manifest to GitHub asking only for
+   contents and pull requests (write), checks and statuses (read), with no webhook. GitHub sends you back to
+   `/github/app/created`, which shows the three values once. Set them and redeploy.
+2. **Owner.** Settings → Repository shows **Connect with GitHub** on a GitHub repository. GitHub returns to
+   `/github/install/callback`. The server asks GitHub whether that installation covers the workspace repository and stores
+   only the installation id.
+3. Every push and pull request call mints a fresh one-hour installation token for that one repository. A saved token is
+   still used when no installation is connected.
+
+Verified by `src/setup/github-app.test.ts` (JWT signature, manifest scope, installation checks, token scope) and
+`src/setup/role-models.test.ts` (binding and per-call tokens). `Unverified` until exercised live: app creation and
+installation against github.com.
+
 ## Models per role
 
 A workspace's model (`PUT /v1/account/model`) is its **coding** model: research, repro, plan and patch. A separate
