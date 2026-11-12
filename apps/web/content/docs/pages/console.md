@@ -57,7 +57,7 @@ Unknown prices stay unknown. If a provider did not report a cost, the entry is c
 
 The spending pace chart puts daily recorded spend beside its running total. Cost drivers show which personas and engines contributed most; select one to filter the ledger. Outcomes and price coverage show failed or unavailable work and how much could be priced. Charts support arrow keys and include tables.
 
-If Clairic forecasting is configured, **Forecast spend** requests a forecast only when you select it. It is metered model work. Dashed lines and daily probability ranges remain separate from recorded spend and never change a budget. [Reading a forecast](./budgets#spend-forecasts) explains its limits and recovery.
+If spend forecasting is configured, **Forecast spend** requests a forecast only when you select it. It is metered model work. Dashed lines and daily probability ranges remain separate from recorded spend and never change a budget. [Reading a forecast](./budgets#spend-forecasts) explains its limits and recovery.
 
 ## Workspace
 

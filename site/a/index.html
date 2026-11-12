@@ -174,7 +174,7 @@
   </div>
   <ol class="loop-steps" data-loop-steps>
     <li data-step="0"><h3>A signal appears</h3><p>Errors, trace anomalies and failed probes arrive through OpenTelemetry. Code fingerprints them first; only new or re-rising fingerprints go on.</p></li>
-    <li data-step="1"><h3>Duplicates merge</h3><p>Two cheap System One calls judge each signal: actionable, duplicate of, regression of, conflicts with, severity, route. Duplicates fuse into the open trail instead of opening a second one.</p></li>
+    <li data-step="1"><h3>Duplicates merge</h3><p>Models assess each signal: actionable, duplicate of, regression of, conflicts with, severity, route. Duplicates fuse into the open trail instead of opening a second one.</p></li>
     <li data-step="2"><h3>The trail travels</h3><p>Evidence from traces, the code graph and past trails. A hypothesis at checkpoint A. A failing repro in a sandbox, then a plan at B. Each checkpoint is blocking or advisory per code area.</p></li>
     <li data-step="3"><h3>Proof, then it sets</h3><p>Repro fails at base and passes at head, tests run, regression and intent probes pass. The trail lands as a git ref, a Radicle patch, a Tangled pull or live into your devenv. It is watched, and reverts itself if the error returns.</p></li>
   </ol>
@@ -204,7 +204,7 @@
           <tr><th scope="row">Triggered by</th><td>Tasks, review and CI events</td><td>Signals inbox</td><td>Bug reports, agents, pushes</td><td class="us">Prod signals, hunters, regressions, intent drift</td></tr>
           <tr><th scope="row">Forge</th><td>GitHub</td><td>GitHub</td><td>Entire, or a GitHub mirror</td><td class="us">Radicle, Tangled, plain git</td></tr>
           <tr><th scope="row">Self-host</th><td>Control plane "soon"</td><td>No</td><td>No</td><td class="us">Railway template or one <code>devenv up</code></td></tr>
-          <tr><th scope="row">Triage tier</th><td>LLM</td><td>LLM</td><td>LLM review agents</td><td class="us">System One models</td></tr>
+          <tr><th scope="row">Triage tier</th><td>LLM</td><td>LLM</td><td>LLM review agents</td><td class="us">Metered signal assessment</td></tr>
         </tbody>
       </table>
     </div>
@@ -258,8 +258,8 @@ number on screen and by email within one minute.</code></pre>
 <!-- 5 · Cheap judgement -->
 <section class="judgement" id="judgement" aria-labelledby="judgement-title">
   <div class="section-intro">
-    <h2 id="judgement-title" class="display-2" data-elastic>Cheap judgement first. Agents only where code gets written.</h2>
-    <p>No language model runs until a trail is routed. Triage is two calls to System One models: an extraction pass pulls typed fields out of the raw payload, and a judgement pass answers six questions with calibrated probabilities. Thresholds are keyed by the model identity each response reports. You pick the backend.</p>
+    <h2 id="judgement-title" class="display-2" data-elastic>Assess the signal. Spend on the work it needs.</h2>
+    <p>Ephyra checks whether a signal needs investigation before starting a coding agent. Repeated signals can join the same quest. Usage shows the model work and compute recorded along the way.</p>
   </div>
   <div class="judgement-grid">
     <figure class="clip clip-wide" data-clip="dedupe-merge" data-swap-img>
@@ -274,33 +274,31 @@ number on screen and by email within one minute.</code></pre>
       <div class="mode" data-jiggle>
         <svg class="icon" aria-hidden="true"><use data-icon="system-one" href="#fb-system-one"/></svg>
         <h3>Hosted</h3>
-        <p>Not Organic's extraction and judgement contracts. Clairic extracts, Jev decides. Paid from a wallet, reserve then settle, idempotent per signal.</p>
+        <p>Use connected hosted models. Model use covers signal assessment, investigation and verification.</p>
       </div>
       <div class="mode" data-jiggle>
         <svg class="icon" aria-hidden="true"><use data-icon="checkpoint" href="#fb-checkpoint"/></svg>
         <h3>Bring your own key</h3>
-        <p>Workers AI for Clairic, TypeSafe for Jev, or any endpoint that speaks the same shapes. Ephyra meters it locally.</p>
+        <p>Connect a supported provider with your own account. Your provider bills its usage; Ephyra records the costs it reports.</p>
       </div>
       <div class="mode" data-jiggle>
         <svg class="icon" aria-hidden="true"><use data-icon="self-host" href="#fb-self-host"/></svg>
         <h3>Self-hosted</h3>
-        <p>Deterministic parsers for extraction until Clairic's weights ship. Liquid AI's d1 or Cloudflare's Clef, both with open weights, behind the decide adapter.</p>
+        <p>Run supported models on your own infrastructure. You control the deployment and pay for its resources.</p>
       </div>
     </div>
   </div>
   <div class="cost-wrap">
     <table class="cost">
-      <caption><span class="flag">Illustrative</span> Cost per 10,000 raw signals, from published list prices and one vendor-reported timing. Nothing here has been measured.</caption>
-      <thead><tr><th scope="col">Stage</th><th scope="col">Hosted</th><th scope="col">BYOK</th><th scope="col">Self-hosted</th></tr></thead>
+      <caption>How usage is charged. Hosted credit billing is proposed; rates have not been set.</caption>
+      <thead><tr><th scope="col">Usage</th><th scope="col">Hosted proposal</th><th scope="col">Your own account or hardware</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Fingerprint dedupe <span class="sub">10,000 → about 1,500 unique</span></th><td>$0</td><td>$0</td><td>$0</td></tr>
-        <tr><th scope="row">Extraction <span class="sub">1,500 × about 2,000 tokens</span></th><td>$0.30</td><td>$0.30</td><td>$0, parsers</td></tr>
-        <tr><th scope="row">Decision, six questions <span class="sub">1,500 × about 3,000 tokens</span></th><td>$0.19</td><td>$0.19</td><td>about 72 s of one consumer GPU</td></tr>
-        <tr class="total"><th scope="row">System One total</th><td>about $0.49</td><td>about $0.49</td><td>about $0 plus hardware</td></tr>
-        <tr><th scope="row">LLM agent trails <span class="sub">about 2% routed, so around 30</span></th><td colspan="2">$1 to $5 each, so $30 to $150</td><td>depends on the local model</td></tr>
+        <tr><th scope="row">Model work</th><td>Usage plus a consistent service charge; rate to be announced</td><td>Provider charges or your own resources</td></tr>
+        <tr><th scope="row">Compute</th><td>Resources and execution time; rates to be announced</td><td>Your own infrastructure costs</td></tr>
+        <tr><th scope="row">Starting balance</th><td>$150 suggested, customer-funded</td><td>Set by the services you connect</td></tr>
       </tbody>
     </table>
-    <p class="table-note">Listening to everything costs almost nothing in every column. The gate on spend is the route, and the route is a probability you calibrate per backend.</p>
+    <p class="table-note">No required subscription, seat fee or per-quest charge in the hosted proposal. <a href="/pricing">Read the pricing proposal</a>.</p>
   </div>
 </section>
 
@@ -436,7 +434,7 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
     <ol class="milestones">
       <li><strong>M0</strong> one service, one loop, one human: a production error becomes a landed, watched fix and the only key pressed is <kbd>a</kbd></li>
       <li><strong>M1</strong> memory and the forge: Radicle patch landing, regression probes, intents, <code>entire search</code></li>
-      <li><strong>M2</strong> proof and hunting: story proofs, traffic replay, autonomy policy evaluated by the decision model, self-hosted d1 and Clef verified</li>
+      <li><strong>M2</strong> proof and hunting: story proofs, traffic replay, autonomy policy evaluated by the decision model, supported self-hosted models verified</li>
       <li><strong>M3</strong> people: voxq studies with spend approval, multiplayer trails, Sapling, Tangled</li>
       <li><strong>M4</strong> the jellyware loop: the agent's own prompts and policy evolve from closed trails, activated by a human</li>
     </ol>
@@ -456,7 +454,7 @@ Then auto-land as trail_ref + devenv_live, watch 2h.</code></pre>
   <dl class="foot-facts">
     <div><dt>Status</dt><dd>Pre-alpha. Not for sale.</dd></div>
     <div><dt>Stack</dt><dd>TypeScript on Bun, Convex, OpenTelemetry, devenv</dd></div>
-    <div><dt>Accounts and evidence</dt><dd>Not Organic for hosted System One calls; voxq for human-intent studies</dd></div>
+    <div><dt>Accounts and evidence</dt><dd>Not Organic for hosted models; voxq for human-intent studies</dd></div>
     <div><dt>License</dt><dd>Open source, license to be decided</dd></div>
   </dl>
   <nav class="foot-links" aria-label="Site">

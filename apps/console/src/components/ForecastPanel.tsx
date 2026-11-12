@@ -119,7 +119,7 @@ export function ForecastPanel({ now, scope, onForecast }: {
       <details className="forecast forecast--off">
         <summary><strong>Spend forecast</strong> <span className="muted">Not configured</span></summary>
         <p>{capability.reason}</p>
-        <p className="muted">Recorded spend remains available. A forecast appears here when Clairic is connected.</p>
+        <p className="muted">Recorded spend remains available. A forecast appears here when a forecasting service is connected.</p>
       </details>
     );
   }
@@ -132,7 +132,7 @@ export function ForecastPanel({ now, scope, onForecast }: {
         <div>
           <h3>Spend forecast</h3>
           <p className="muted">
-            Clairic via {capability.provider === "notorganic" ? "Not Organic" : "Cloudflare Workers AI"} · from 28
+            Estimated from 28
             complete UTC days ending {dayLabel(basisEnd)}. Runs only when you ask, and is metered like other model work.
           </p>
         </div>
@@ -182,7 +182,7 @@ export function ForecastPanel({ now, scope, onForecast }: {
         )}
         {state.kind === "pending" && (
           <p>
-            <span className="forecast__dot" aria-hidden="true" /> Asking Clairic… You can leave this page; the result is
+            <span className="forecast__dot" aria-hidden="true" /> Estimating spend… You can leave this page; the result is
             saved under this request.
           </p>
         )}
