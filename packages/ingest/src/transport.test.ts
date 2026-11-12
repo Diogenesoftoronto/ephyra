@@ -81,7 +81,7 @@ describe("OTLP", () => {
           headers: { "content-type": "application/x-protobuf" },
         })
       ).status,
-    ).toBe(415);
+    ).toBe(200); // An empty protobuf export request is valid OTLP.
     const limited = otlpRoutes({
       store,
       quota: () => false,
