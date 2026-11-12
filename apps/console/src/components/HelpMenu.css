@@ -135,49 +135,63 @@
 }
 
 .page-tip {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin: 0 0 1rem;
-  padding: 0.6rem 0.6rem 0.6rem 0.9rem;
-  border: 1px solid color-mix(in oklab, var(--glow) 35%, var(--line));
-  border-radius: 12px;
-  background: var(--info-tint);
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-inline-start: calc(var(--rail-w) + var(--s6));
+  inset-block-end: var(--s5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: var(--s1) var(--s2);
+  width: min(24rem, calc(100vw - var(--s6)));
+  margin: 0;
+  padding: var(--s3) var(--s2) var(--s3) var(--s4);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
   font-size: var(--fs-small);
   line-height: 1.45;
 }
 .page-tip__label {
-  flex-shrink: 0;
+  grid-column: 1;
   color: var(--glow);
   font-weight: 700;
 }
 .page-tip__text {
-  flex: 1;
+  grid-column: 1;
   min-width: 0;
 }
 .page-tip__dismiss {
-  flex-shrink: 0;
-  align-self: center;
-  min-height: 32px;
-  padding: 0.2rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink);
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: start;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
   font: inherit;
-  font-weight: 600;
   cursor: pointer;
 }
+.page-tip__dismiss svg { width: 18px; height: 18px; }
+.page-tip__text a { display: inline-flex; align-items: center; min-height: 44px; }
+/* Keep optional advice behind a conversation or a decision dialog. */
+body:has(.velum-panel[data-open], dialog[open]) .page-tip { visibility: hidden; }
 
 @media (hover: hover) {
   .help-menu__trigger:hover {
     background: var(--surface-2);
     border-color: var(--muted);
   }
-  .help-menu__toggle:hover,
-  .page-tip__dismiss:hover {
+  .help-menu__toggle:hover {
     border-color: var(--muted);
   }
+  .page-tip__dismiss:hover { background: var(--surface-hover); color: var(--ink); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .help-menu__trigger,
@@ -219,7 +233,10 @@
     width: auto;
     max-height: 75dvh;
   }
+}
+@media (max-width: 760px) {
   .page-tip {
-    flex-wrap: wrap;
+    inset-inline-start: var(--s4);
+    inset-block-end: calc(88px + env(safe-area-inset-bottom));
   }
 }

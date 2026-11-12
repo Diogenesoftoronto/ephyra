@@ -273,7 +273,6 @@
 /* While the rail is docked the page column is narrower: the toolbar drops secondary labels, never the workspace name. */
 .ui-shell:has(~ .velum-panel[data-open]) .command-trigger kbd,
 .ui-shell:has(~ .velum-panel[data-open]) .sound-toggle span,
-.ui-shell:has(~ .velum-panel[data-open]) .theme-toggle:not([data-labelled]) .theme-toggle__text,
 .ui-shell:has(~ .velum-panel[data-open]) .velum-invoker__label {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }

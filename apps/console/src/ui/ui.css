@@ -324,7 +324,7 @@ a.ui-rail-foot .who::after { content: "Profile and sign out"; display: block; co
   flex-direction: column;
   gap: var(--s4);
   min-width: 0;
-  padding: var(--s5);
+  padding: calc(var(--s5) + var(--card-padding-extra));
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--rule);
@@ -359,7 +359,7 @@ a.ui-rail-foot .who::after { content: "Profile and sign out"; display: block; co
   align-self: center;
 }
 .ui-card--quiet {
-  padding: 0;
+  padding: var(--card-padding-extra);
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -384,7 +384,7 @@ a.ui-rail-foot .who::after { content: "Profile and sign out"; display: block; co
 .ui-card--tray {
   border: 1px solid color-mix(in oklab, var(--ink) 22%, transparent);
   border-radius: 4px;
-  padding: var(--s5) var(--s5) var(--s4);
+  padding: calc(var(--s5) + var(--card-padding-extra)) calc(var(--s5) + var(--card-padding-extra)) calc(var(--s4) + var(--card-padding-extra));
   background:
     linear-gradient(var(--ink), var(--ink)) top left / 10px 1.5px no-repeat,
     linear-gradient(var(--ink), var(--ink)) top left / 1.5px 10px no-repeat,
@@ -403,10 +403,10 @@ a.ui-rail-foot .who::after { content: "Profile and sign out"; display: block; co
 }
 @media (max-width: 480px) {
   .ui-card {
-    padding: var(--s4);
+    padding: calc(var(--s4) + var(--card-padding-extra));
   }
   .ui-card--quiet {
-    padding: 0;
+    padding: var(--card-padding-extra);
   }
 }
 

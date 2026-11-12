@@ -74,8 +74,11 @@ not proof of account access or actual spending. Missing metadata stays unknown; 
 **⌘/Ctrl K** opens the command menu, **?** shows its shortcut hints, and **G** followed by O/I/R/U/W/P/T/S navigates to
 Overview/Inbox/Runs/Usage/Workspace/Personas/Team/Settings. Letter shortcuts are disabled while typing or using a modal.
 Menus, recessed inputs, active controls and hover/focus states share console tokens and reduced-motion behavior.
-The Auto / Light / Dark radio group sits beside Commands. Auto follows the device's color preference;
+The icon-only Light / Dark radio group sits beside Commands. The selected icon has an outlined inset;
 an explicit choice is remembered in this browser. These preferences also appear on Your account.
+Page tips appear one at a time as dismissible toasts, leaving the page layout in place. They pause while hovered
+or focused and remain available in Help after dismissal. Help can turn them off or reset them.
+Framed cards add 10px to their existing padding in both desktop and phone layouts.
 New forms, pages, model picker and command menu have adjacent Storybook stories.
 
 Welcome and invitation acceptance use an amber specimen; each persona has its own short generated greeting.

@@ -1,7 +1,7 @@
 /* Each area is its own framed card, even inside a quiet parent, so neighbouring areas never run together. */
 .area-card.ui-card--quiet,
 .area-card {
-  padding: var(--s4) var(--s5) var(--s5);
+  padding: calc(var(--s4) + var(--card-padding-extra)) calc(var(--s5) + var(--card-padding-extra)) calc(var(--s5) + var(--card-padding-extra));
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
@@ -46,5 +46,5 @@
 }
 @media (max-width: 480px) {
   .area-card.ui-card--quiet,
-  .area-card { padding: var(--s4); }
+  .area-card { padding: calc(var(--s4) + var(--card-padding-extra)); }
 }

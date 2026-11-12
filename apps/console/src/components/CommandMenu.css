@@ -127,7 +127,8 @@
   align-items: center;
   gap: var(--s3);
   justify-content: space-between;
-  padding: var(--s2) var(--gutter);
+  padding: var(--s2) 0;
+  margin-bottom: var(--s5);
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
 }
@@ -139,7 +140,6 @@
 .workspace-bar__repo {
   min-width: 0;
   /* A link is a target: never shorter than a fingertip's 24px, however small its text. */
-  min-height: 1.5rem;
   display: flex;
   gap: var(--s2) var(--s3);
   align-items: center;
@@ -174,7 +174,7 @@
   gap: var(--s3) var(--s5);
   justify-content: space-between;
   align-items: center;
-  margin: var(--s4) var(--gutter) var(--s5);
+  margin: 0 auto var(--s5);
   padding: var(--s3) var(--s4);
   border: 1px solid color-mix(in oklab, var(--jelly-deep) 35%, var(--line));
   border-radius: var(--radius);
@@ -191,7 +191,7 @@
 }
 @media (max-width: 640px) {
   .workspace-bar__repo small { display: none; }
-  .workspace-bar { padding: var(--s2) var(--s4); gap: var(--s2); }
+  .workspace-bar { gap: var(--s2); }
   .workspace-bar .entry-preferences .sound-toggle { display: none; }
   .command-trigger > span:not([aria-hidden]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .command-trigger { min-width: 44px; justify-content: center; padding-inline: var(--s2); }
@@ -207,7 +207,6 @@
   }
 }
 @media (max-width: 480px) {
-  .workspace-bar { padding-inline: var(--s2); }
   .workspace-bar > :first-child { min-width: 0; }
   .workspace-bar .entry-preferences { display: none; }
 }
