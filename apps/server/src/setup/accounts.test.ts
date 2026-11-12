@@ -288,3 +288,39 @@ test("canonical native identity determines the workspace and changing repositori
   expect((await f.store.get(DID))!.settings.people).toBeUndefined();
   expect(other.people?.contacts).toEqual(initial.people!.contacts);
 });
+
+test("additional telemetry is sealed, replays safely and revokes captured adapters", async () => {
+  let calls = 0;
+  const f = await fixture(async () => { calls++; return json([]); });
+  const workspaceId = (await f.service.settings(DID)).workspaceId;
+  const input = { expectedVersion: 0, workspaceId, id: "sentry", provider: "sentry" as const, enabled: true,
+    origin: "https://sentry.io", project: "team/app", credentials: { apiKey: KEY } };
+  const settings = await f.service.saveTelemetrySource(DID, input, "source-save-001");
+  expect(settings.telemetrySources?.[0]).toMatchObject({ status: "verified", keyConfigured: true });
+  expect(settings.telemetrySources?.[0]?.detail).toContain("No recent records");
+  expect(JSON.stringify(settings)).not.toContain(KEY);
+  const stored = (await f.store.get(DID))!;
+  expect(stored.telemetrySourceKeys?.sentry).not.toContain(KEY);
+  expect(await f.box.open(stored.telemetrySourceKeys!.sentry!)).toEqual({ apiKey: KEY });
+  expect(await f.service.saveTelemetrySource(DID, input, "source-save-001")).toEqual(settings);
+  expect(calls).toBe(1);
+  const [source] = await f.service.telemetrySourcesFor(DID, workspaceId);
+  expect(await f.service.telemetrySourcesFor(OTHER, workspaceId)).toEqual([]);
+  const { credentials: _, ...withoutCredentials } = input;
+  await expect(f.service.saveTelemetrySource(DID, { ...withoutCredentials, expectedVersion: 1, project: "team/other" }, "source-other-001"))
+    .rejects.toThrow("credentials");
+  await f.service.saveTelemetrySource(DID, { ...withoutCredentials, expectedVersion: 1, enabled: false, clearKey: true }, "source-disable-001");
+  expect(await f.service.telemetrySourcesFor(DID, workspaceId)).toEqual([]);
+  await expect(source!.observe()).rejects.toThrow("access denied");
+  expect((await f.store.get(DID))!.telemetrySourceKeys).toEqual({});
+});
+
+test("telemetry validation errors preserve previous settings and reject private destinations", async () => {
+  const f = await fixture(async () => json({ message: KEY }, 403));
+  const workspaceId = (await f.service.settings(DID)).workspaceId;
+  const input = { expectedVersion: 0, workspaceId, id: "sentry", provider: "sentry" as const, enabled: true,
+    origin: "https://sentry.io", project: "team/app", credentials: { apiKey: KEY } };
+  await expect(f.service.saveTelemetrySource(DID, input, "source-denied-001")).rejects.toThrow();
+  expect((await f.service.settings(DID)).telemetrySources).toBeUndefined();
+  await expect(f.service.saveTelemetrySource(DID, { ...input, origin: "https://127.0.0.1" }, "source-private-001")).rejects.toThrow();
+});

@@ -1,3 +1,4 @@
+import { detectTelemetry } from "./detect-telemetry.ts";
 import { createHash, createHmac } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -11,6 +12,7 @@ import {
   type KnowledgeCatalog,
   type KnowledgeSelection,
   type TelemetryUpdate,
+  type TelemetrySourceUpdate,
   type PeopleUpdate,
   type LandingReceipt,
   type MirrorRemove,
@@ -20,7 +22,7 @@ import {
 } from "@ephyra/core";
 import { parseRepositoryAddress } from "@ephyra/forge";
 import { redact } from "@ephyra/agent";
-import { PostHogEvidence } from "@ephyra/evidence";
+import { TelemetryProviderEvidence, PostHogEvidence } from "@ephyra/evidence";
 import type { SecretBox, Fetch } from "../auth/crypto.ts";
 import type { NotOrganicSignIn } from "../auth/notorganic.ts";
 import { NotOrganicKnowledge, KnowledgeAccessError } from "../auth/knowledge.ts";
@@ -87,6 +89,7 @@ export function initialAccount(did: string): AccountRecord {
 
 /** Account identity comes exclusively from the authenticated Not Organic principal. Keys are write-only. */
 export class Accounts {
+  private readonly providerSources = new Map<string, TelemetryProviderEvidence>();
   private readonly repository;
   private readonly fetcher;
   readonly knowledgeGateway: NotOrganicKnowledge;
@@ -313,6 +316,86 @@ export class Accounts {
       authorize: allowed, credential: async () => await allowed() ? this.options.box.open<string>(record.telemetryKey!) : null,
       fetcher: this.fetcher, includeRecordings: config.includeRecordings });
   }
+  async detectedTelemetry(did: string) {
+    const record = await this.record(did);
+    if (!record.settings.repository) return { providers: [] };
+    const dir = join(this.directory(record.settings.workspaceId), "workspace.git");
+    const read = async (args: string[]) => {
+      const child = Bun.spawn(["git", "--git-dir", dir, ...args], { stdout: "pipe", stderr: "ignore",
+        env: { PATH: process.env.PATH ?? "/usr/bin:/bin", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" } });
+      const timer = setTimeout(() => child.kill(), 5000);
+      try {
+        const reader = child.stdout.getReader(); const chunks: Uint8Array[] = []; let size = 0;
+        while (true) { const result = await reader.read(); if (result.done) break;
+          size += result.value.length; if (size > 256_000) { child.kill(); await reader.cancel(); return ""; } chunks.push(result.value); }
+        return await child.exited === 0 ? Buffer.concat(chunks).toString("utf8") : "";
+      } finally { clearTimeout(timer); }
+    };
+    const head = record.settings.repository.head;
+    if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(head)) return { providers: [] };
+    const paths = (await read(["ls-tree", "-r", "--name-only", head])).split("\n")
+      .filter((path) => /(?:package\.json|pyproject\.toml|requirements\.txt|go\.mod|Podfile|Package\.swift|build\.gradle(?:\.kts)?)$/.test(path)
+        || /(?:sentry\.[a-z.]+|.*(?:otel|alloy|promtail).*\.(?:yaml|yml))$/.test(path)).slice(0, 30);
+    const files: Record<string, string> = {};
+    for (const path of paths) files[path] = await read(["show", `${head}:${path}`]);
+    const fresh = await this.record(did);
+    return { providers: fresh.settings.workspaceId === record.settings.workspaceId ? detectTelemetry(files) : [] };
+  }
+  async saveTelemetrySource(did: string, input: TelemetrySourceUpdate, key: string) {
+    return this.change(did, key, "telemetry-source", input, async (record) => {
+      if (record.settings.workspaceId !== input.workspaceId) throw new AccountError(409, "Your workspace changed. Reload before saving.");
+      if (input.credentials && input.clearKey) throw new AccountError(400, "Replace credentials or remove them.");
+      const sources = record.settings.telemetrySources ?? [];
+      const previous = sources.find((source) => source.id === input.id);
+      if (!previous && sources.length >= 12) throw new AccountError(400, "At most twelve telemetry sources can be connected.");
+      const url = input.enabled ? parsePublicHttps(input.origin) : null;
+      if (url && (url.pathname !== "/" || url.search)) throw new AccountError(400, "Use an HTTPS origin without a path or query.");
+      const origin = url?.origin ?? previous?.origin ?? input.origin;
+      const retained = previous?.provider === input.provider && previous.origin === origin && previous.project === input.project
+        && previous.query === input.query && previous.workspaceId === input.workspaceId;
+      const sealed = record.telemetrySourceKeys?.[input.id];
+      const credentials = input.credentials ?? (!input.clearKey && retained && sealed
+        ? await this.options.box.open<Record<string, string>>(sealed) : undefined);
+      if (input.enabled && !credentials) throw new AccountError(400, "Add credentials for this source before connecting.");
+      const connection = { id: input.id, provider: input.provider, origin, project: input.project, ...(input.query ? { query: input.query } : {}) };
+      let detail = "Disconnected. No new telemetry will be fetched.";
+      if (input.enabled) {
+        const source = new TelemetryProviderEvidence({ connection, scope: { accountId: did, workspaceId: input.workspaceId },
+          credential: async () => credentials!, authorize: async () => true, fetcher: this.fetcher });
+        detail = (await source.verify()).detail;
+      }
+      const saved = { ...connection, workspaceId: input.workspaceId, enabled: input.enabled,
+        keyConfigured: Boolean(input.enabled && credentials), status: input.enabled ? "verified" as const : "saved" as const,
+        checkedAt: input.enabled ? new Date().toISOString() : null, detail };
+      record.settings.telemetrySources = [...sources.filter((source) => source.id !== input.id), saved];
+      record.telemetrySourceKeys = { ...record.telemetrySourceKeys };
+      if (input.enabled && credentials) record.telemetrySourceKeys[input.id] = await this.options.box.seal(credentials);
+      else delete record.telemetrySourceKeys[input.id];
+      return record;
+    });
+  }
+  async telemetrySourcesFor(did: string, workspace: string): Promise<TelemetryProviderEvidence[]> {
+    const record = await this.options.store.get(did);
+    if (!record || record.settings.workspaceId !== workspace) return [];
+    return (record.settings.telemetrySources ?? []).filter((config) => config.enabled && config.workspaceId === workspace
+      && record.telemetrySourceKeys?.[config.id]).map((config) => {
+      const sealed = record.telemetrySourceKeys![config.id]!;
+      const cacheKey = createHash("sha256").update(canonicalJson([did, workspace, config, sealed])).digest("hex");
+      const cached = this.providerSources.get(cacheKey);
+      if (cached) return cached;
+      const allowed = async () => {
+        const fresh = await this.options.store.get(did);
+        return Boolean(fresh?.settings.workspaceId === workspace && fresh.telemetrySourceKeys?.[config.id] === sealed
+          && canonicalJson(fresh.settings.telemetrySources?.find((source) => source.id === config.id) ?? null) === canonicalJson(config));
+      };
+      const source = new TelemetryProviderEvidence({ connection: config, scope: { accountId: did, workspaceId: workspace },
+        authorize: allowed, credential: async () => await allowed() ? this.options.box.open<Record<string, string>>(sealed) : null,
+        fetcher: this.fetcher });
+      this.providerSources.set(cacheKey, source);
+      while (this.providerSources.size > 128) this.providerSources.delete(this.providerSources.keys().next().value!);
+      return source;
+    });
+  }
   async savePeople(did: string, input: PeopleUpdate, key: string) {
     return this.change(did, key, "people", input, async (record) => {
       if (input.workspaceId !== record.settings.workspaceId) throw new AccountError(409, "Your workspace changed. Reload before saving contacts.");
@@ -416,6 +499,9 @@ export class Accounts {
         { url, branch, ...(username ? { username } : {}), ...(token ? { token } : {}), ...(credentialHost ? { credentialHost } : {}) } as ForgeRepositoryInput,
         this.directory(id),
       );
+      if (record.settings.workspaceId !== id) {
+        delete record.settings.telemetrySources; delete record.telemetrySourceKeys;
+      }
       record.settings.workspaceId = id;
       if (record.settings.knowledge && record.settings.knowledge.workspaceId !== id) {
         // The initial onboarding choice follows the first repository. A different repository needs a new opt-in.

@@ -137,3 +137,12 @@ C still requires an actual named human. Optional `LandingReceipt.externalVersion
 external updates. `TelemetryConnection`/`TelemetryUpdate.deploymentUrl`, `Runner.exec`'s optional abort signal and
 `AgentTask.budget.spendMicrousd` are backward-compatible fields. Pure/property tests verify accounting, limits and
 state transitions; these schemas alone cannot attest provider usage, execution, deployment or remote authorization.
+
+### Additional telemetry connections
+
+`TelemetryProvider`, `TelemetrySourceConnection`, and `TelemetrySourceUpdate` describe
+workspace-scoped Sentry, Crashlytics, Loki, Axiom, Better Stack, Datadog, and BugSnag
+connections. `AccountSettings.telemetrySources` is optional and additive; the original
+PostHog contract is unchanged. Public connections contain no credentials. Update
+credentials are write-only and permit either an API key or Google service-account JSON.
+Schema and property tests verify parsing; provider access is outside core.

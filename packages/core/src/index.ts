@@ -20,3 +20,5 @@ export * from "./bootstrap.ts";
 export * from "./knowledge.ts";
 export * from "./connections.ts";
 export * from "./velum.ts";
+
+export * from "./telemetry-providers.ts";

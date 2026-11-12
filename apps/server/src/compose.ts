@@ -59,6 +59,7 @@ import { AutomaticSetup, setupGit, type SetupOptions } from "./setup/automation.
 import { setupRoutes } from "./http/setup.ts";
 import { questionRoutes } from "./http/questions.ts";
 import { InvestigationQuestions, type QuestionOptions } from "./setup/questions.ts";
+import { registerProviderPolling } from "./setup/provider-polling.ts";
 import { registerPostHogPolling } from "./setup/telemetry.ts";
 import { telemetryCoverage } from "./setup/bootstrap-coverage.ts";
 import { BootstrapEvidence } from "./setup/bootstrap-evidence.ts";
@@ -96,6 +97,7 @@ export type Composed = {
   setup: AutomaticSetup;
   questions: InvestigationQuestions | null;
   telemetry: ReturnType<typeof registerPostHogPolling> | null;
+  providerTelemetry?: ReturnType<typeof registerProviderPolling> | null;
   /** Runs a delegated mutation under the same captured workspace fence as HTTP mutations. */
   withOwner<T>(work: () => Promise<T>): Promise<T>;
   health(): Promise<{ store: "ok" | "unavailable" | "memory" }>;
@@ -274,6 +276,7 @@ export type ComposeOverrides = {
   operationLedger?: import("@ephyra/core").OperationLedger;
   questions?: Omit<QuestionOptions, "ctx" | "decide" | "ledger">;
   bootstrapContact?: Omit<BootstrapContactOptions, "ctx" | "ledger" | "current">;
+  resolveTelemetrySources?: () => Promise<import("@ephyra/evidence").TelemetryProviderEvidence[]>;
   resolveTelemetry?: () => Promise<import("@ephyra/evidence").PostHogEvidence | null>;
   setupProvision?: SetupOptions["provision"];
   assessBootstrap?: SetupOptions["assess"];
@@ -413,6 +416,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
   });
   const questions = opts.questions ? new InvestigationQuestions({ ...opts.questions, ctx, decide, ledger }) : null;
   let onTelemetryObservation = async () => {};
+  const providerTelemetry = opts.resolveTelemetrySources ? registerProviderPolling({ ctx, resolve: opts.resolveTelemetrySources, ledger,
+    onSignal: (signal) => intakeHooks.onNewSignal(signal), onObservation: () => onTelemetryObservation() }) : null;
   const telemetry = opts.resolveTelemetry ? registerPostHogPolling({ ctx, resolve: opts.resolveTelemetry, ledger,
     onSignal: (signal) => intakeHooks.onNewSignal(signal), onObservation: () => onTelemetryObservation() }) : null;
   const control = new WorkControl();
@@ -539,8 +544,18 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     },
     assess: async (run) => {
       // Observation starts during bootstrap, independently of coding/landing readiness.
-      await telemetry?.start();
-      return [...await opts.assessBootstrap?.(run) ?? [], await telemetryCoverage(telemetry, opts.resolveTelemetry)];
+      await telemetry?.start(); await providerTelemetry?.start();
+      const original = await telemetryCoverage(telemetry, opts.resolveTelemetry);
+      const additional = await providerTelemetry?.latest() ?? [];
+      const observed = additional.filter((batch) => batch.events.length > 0);
+      const configured = await opts.resolveTelemetrySources?.() ?? [];
+      const coverage = original.status === "observed" || !configured.length ? original : observed.length ? {
+        id: "telemetry" as const, status: "observed" as const, checkedAt: new Date().toISOString(),
+        references: observed.map((batch) => batch.source),
+        summary: "Recorded errors retrieved from connected providers. Bounded samples establish ingestion, not complete coverage or application health.",
+      } : { id: "telemetry" as const, status: "configured" as const, references: configured.map((source) => source.name),
+        summary: "Provider query access is configured. Send an error from this application to verify ingestion; an empty sample is not proof of health." };
+      return [...await opts.assessBootstrap?.(run) ?? [], coverage];
     },
     capabilities: async (run) => {
       const cleanup = await ledger.get(setupCleanupKey);
@@ -573,7 +588,8 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
           || await signIn.hasScope(billingDid, "judgement:evaluate")), summary: "A checkpoint decision model is not configured.",
         action: "Connect the decision backend and calibrate its exact returned identity." },
       { id: "telemetry", available: opts.automationReadiness?.telemetry === true
-          || (await telemetry?.latest())?.result.coverage?.complete === true || await opts.otlpFresh?.() === true,
+          || (await telemetry?.latest())?.result.coverage?.complete === true
+          || (await providerTelemetry?.latest() ?? []).some((batch) => batch.events.length > 0) || await opts.otlpFresh?.() === true,
         summary: "Live telemetry coverage is unverified.",
         action: "Connect scoped error telemetry and verify ingestion for this repository." },
       { id: "verification", available: opts.automationReadiness?.verification === true || baseline,
@@ -597,7 +613,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       for (const key of Object.keys(thresholds)) delete thresholds[key];
       Object.assign(thresholds, parseThresholds(calibration.content));
       await activation?.restore();
-      await telemetry?.start();
+      await telemetry?.start(); await providerTelemetry?.start();
     },
   });
   currentSetup = () => setup.current();
@@ -789,14 +805,14 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
         await activation?.restore();
         await setup.restore();
         await engine.recoverEffects(undefined, { project: false });
-        if (repo.url && (!opts.workspace || await setup.current())) await telemetry?.start();
+        if (repo.url && (!opts.workspace || await setup.current())) { await telemetry?.start(); await providerTelemetry?.start(); }
         if (version === generation) { durableStore?.assertOwner(); jobs.start(); }
       };
       if (durableStore) await durableStore.startOwner({ onAcquired: async () => {
         try { await acquired(); }
         catch (error) { log("workspace worker startup recovery failed"); throw error; }
       }, onLost: async () => {
-        telemetry?.stop(); jobs.stop();
+        telemetry?.stop(); providerTelemetry?.stop(); jobs.stop();
         const receipts = await control.stopAll();
         if (receipts.some(receipt => ["pending_allocation", "reconciliation_required"].includes(receipt.status))) {
           log("worker cleanup needs reconciliation", { receipts });
@@ -813,9 +829,9 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
     signIn: Boolean(signIn), approvers: approvers.size, draft: draftModel?.kind ?? null, console: hasConsole(config.EPHYRA_CONSOLE_DIR),
   });
   return { app, decide, signIn, mode, ctx, usage: usageStore, memoryAudit, runs: runStore, runBroker, drafts, draftModel,
-    engine, jobs, setup, questions, telemetry, withOwner, health, start,
+    engine, jobs, setup, questions, telemetry, providerTelemetry, withOwner, health, start,
     close: async () => {
-      generation++; telemetry?.stop(); jobs.stop(); startup = null;
+      generation++; telemetry?.stop(); providerTelemetry?.stop(); jobs.stop(); startup = null;
       if (durableStore) await durableStore.stopOwner();
       else await control.stopAll();
     } };
