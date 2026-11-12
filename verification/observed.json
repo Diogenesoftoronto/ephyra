@@ -1,0 +1,63 @@
+{
+  "kind": "finite-model-pilot",
+  "observedAt": "2026-11-12",
+  "tools": {
+    "quint": "0.33.1",
+    "apalacheCompiler": "0.62.4",
+    "checker": "TLC"
+  },
+  "inputs": {
+    "verification/proof_gate.qnt": "fba0d409cdc18d5c8c380460750db5907820832987c426e5d169e093edae3e6d",
+    "verification/replay.ts": "7a4895eaccc3daac465b2f00cb1e283f20d3afe5c076b0f5bba0c8931e283ea0",
+    "packages/core/src/lifecycle.ts": "567fb415199645838056a9e72734cc97e6741221495cb282ff9ecd266ab1d36d",
+    "verification/completion.itf.json": "c64e7bff94a4fb76dbf487728cfa2c17a9dbbb1dac0c30c79b30e7183be863cc"
+  },
+  "modelCheck": {
+    "status": "passed",
+    "generatedStates": 4231,
+    "distinctStates": 87,
+    "remainingStates": 0,
+    "invariant": "freshProof",
+    "domain": {
+      "revisions": [
+        1,
+        2,
+        3
+      ],
+      "bases": [
+        0,
+        1
+      ],
+      "headEqualsRevision": true
+    }
+  },
+  "simulation": {
+    "status": "passed",
+    "seed": "7122026",
+    "samples": 1000,
+    "maxSteps": 30,
+    "completionWitnesses": 26
+  },
+  "implementationReplay": {
+    "status": "passed",
+    "traces": 51,
+    "modelSteps": 1504,
+    "reducerEvents": 389,
+    "stutters": 1115,
+    "rejectedProofs": 127,
+    "completedTraces": 1
+  },
+  "negativeControl": {
+    "mutation": "Remove head equality from accepted proof",
+    "status": "counterexample_found"
+  },
+  "unverified": [
+    "LLM injection resistance",
+    "evidence sufficiency",
+    "event authentication",
+    "sandbox isolation",
+    "live deployment and watch",
+    "general implementation refinement",
+    "Studio integration"
+  ]
+}
