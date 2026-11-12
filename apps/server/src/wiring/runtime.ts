@@ -17,6 +17,7 @@ import {
   recordEffects, type PendingEffect,
 } from "./effect-outbox.ts";
 import { WorkerOwnershipLost } from "./worker-lease.ts";
+import { reportSelfError } from "../self-telemetry.ts";
 
 export type ContextFn = (trail: Trail, event: TrailEvent) => Promise<TransitionContext>;
 
@@ -248,6 +249,7 @@ export class Engine {
       } catch (error) {
         // Already recorded by the executor's reconciliation sink; keep dispatching the rest.
         this.log("effect failed", { key: effect.key, type: effect.type, error: String(error) });
+        reportSelfError(error, `effect:${effect.type}`);
       } finally { this.inFlightEffects.delete(effect.key); }
     }
   }
@@ -345,6 +347,8 @@ export class JobLoop {
         throw failure;
       }
       this.log(dead ? "job dead-lettered" : "job failed, will retry", { key: job.key, kind: job.kind, error: String(error) });
+      // A retry may still succeed; a dead letter is a fault the loop should look at.
+      if (dead) reportSelfError(error, `job:${job.kind}`);
     } finally {
       this.running -= 1;
     }

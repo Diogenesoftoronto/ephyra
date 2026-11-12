@@ -36,6 +36,7 @@ import { ConvexAgentStore, MemoryAgentStore, type AgentStore } from "./auth/agen
 import { agentAuthRoutes } from "./auth/agent-routes.ts";
 import { agentSetupRoutes } from "./http/agent-setup.ts";
 import { agentManagementRoutes } from "./auth/agent-management.ts";
+import { reportSelfError, verifyWorkspaceIngestToken, workspaceIngestToken } from "./self-telemetry.ts";
 
 export type ApplicationOptions = ComposeOverrides & {
   accountStore?: AccountStore;
@@ -222,6 +223,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   const app = new Hono<AuthEnv>();
   app.onError((error, c) => {
     if (error instanceof AccountError) return c.json({ error: error.message }, error.status);
+    reportSelfError(error, "http", c.req.routePath);
     // Connection/provider/DB bodies can contain credentials. Never reflect or log them here.
     return c.json({ error: "The request could not be completed. Refresh to check the saved state." }, 503);
   });
@@ -271,6 +273,28 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     return c.body(image.bytes.slice().buffer, 200, { "Content-Type": image.type, "Cache-Control": "private, max-age=600",
       "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; sandbox" });
   });
+  // A workspace's own OTLP intake. The token is derived per workspace and shown only to its owner; signals land in
+  // that workspace, where its policy and approvers apply. The deployment intake at /otlp/v1/* is unchanged.
+  let owners = { at: 0, byWorkspace: new Map<string, AccountRecord>() };
+  app.post("/otlp/workspaces/:workspace/v1/:kind{logs|traces}", async (c) => {
+    const workspace = c.req.param("workspace");
+    if (!/^ws_[a-f0-9]{40}$/.test(workspace)
+      || !verifyWorkspaceIngestToken(config.EPHYRA_SESSION_KEY!, workspace, c.req.header("Authorization")))
+      return c.json({ error: "unauthorized" }, 401);
+    if (Date.now() - owners.at > 30_000 || !owners.byWorkspace.has(workspace))
+      owners = { at: Date.now(), byWorkspace: new Map((await store.list()).map((r) => [r.settings.workspaceId, r])) };
+    const record = owners.byWorkspace.get(workspace);
+    if (!record) return c.json({ error: "unauthorized" }, 401);
+    const target = await runtime(record);
+    const headers = new Headers({ Authorization: `Bearer ${config.EPHYRA_API_TOKEN}` });
+    for (const name of ["content-type", "content-length"]) {
+      const value = c.req.header(name);
+      if (value) headers.set(name, value);
+    }
+    const url = new URL(c.req.url);
+    url.pathname = `/otlp/v1/${c.req.param("kind")}`;
+    return target.app.fetch(new Request(url, { method: "POST", headers, body: c.req.raw.body, duplex: "half" } as RequestInit));
+  });
   app.use(
     "/v1/account/*",
     bodyLimit({ maxSize: 24_000, onError: (c) => c.json({ error: "The settings request is too large." }, 413) }),
@@ -288,6 +312,14 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     await next();
   });
   app.get("/v1/account", async (c) => c.json(await account.settings(c.get("principal"))));
+  /** The owner's OTLP intake for their current workspace. Any service that speaks OTLP/HTTP JSON can report here. */
+  app.get("/v1/account/telemetry/otlp", async (c) => {
+    const { workspaceId, repository } = (await account.record(c.get("principal"))).settings;
+    c.header("Cache-Control", "no-store");
+    return c.json({ workspaceId, repository: Boolean(repository),
+      endpoint: `${config.EPHYRA_PUBLIC_ORIGIN}/otlp/workspaces/${workspaceId}/v1/logs`,
+      token: workspaceIngestToken(config.EPHYRA_SESSION_KEY!, workspaceId) });
+  });
   app.get("/v1/account/workspaces", async (c) => c.json(await teams.workspaces(c.get("principal"))));
   app.get("/v1/account/team", async (c) => c.json(await teams.team(c.get("principal"), c.req.header("X-Ephyra-Workspace"))));
   app.post("/v1/account/team/invitations", async (c) => {
@@ -450,6 +482,8 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     ...legacy,
     app,
     accounts: account,
+    /** Drains one personal workspace's job queue. Tests run with startJobs: false and use this instead. */
+    drainWorkspace: async (workspaceId: string) => (await runtimes.get(workspaceId))?.jobs.drain(),
     close: async () => {
       await legacy.close();
       await Promise.allSettled([...runtimes.values()].map(async (p) => (await p).close()));

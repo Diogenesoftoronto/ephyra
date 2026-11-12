@@ -523,6 +523,51 @@ Jest and Vitest reports require consistent actual counts and failure identities;
 remain Unverified. A proof integration failure parks the trail instead of allocating another sandbox blindly.
 
 
+## Workspace OTLP intake and self-telemetry
+
+A personal workspace has its own OTLP/HTTP JSON intake. `GET /v1/account/telemetry/otlp` (owner only, `no-store`) returns
+its endpoint, `/otlp/workspaces/<workspaceId>/v1/logs` or `/v1/traces`, and a bearer token. The token is an HMAC of the
+workspace id under `EPHYRA_SESSION_KEY`: it is derived rather than stored, opens only that workspace, and changes when
+the session key does. A signal sent there is triaged in that workspace under its policy, and only its approvers can decide
+on it. The deployment intake at `/otlp/v1/*`, behind `EPHYRA_API_TOKEN`, is unchanged.
+
+A workspace with no repository connected has no policy at all. `/v1/docs` is empty, the shipped `autonomy.md` example is
+never served there, and drafting a policy is refused with 409 until a repository is connected.
+
+Self-telemetry is how Ephyra watches itself. Set both of these and the server reports its own unexpected errors as OTLP logs:
+
+| Variable | Meaning |
+|---|---|
+| `EPHYRA_SELF_OTLP_ENDPOINT` | Full logs URL: a workspace intake, this server's own or another's. HTTPS unless loopback; no credentials in it. |
+| `EPHYRA_SELF_OTLP_TOKEN` | That intake's bearer token. Treated as a secret: redacted from reports and logs. |
+| `EPHYRA_SELF_SERVICE` | `service.name` (default `ephyra-server`). |
+| `EPHYRA_SELF_ENVIRONMENT` | `deployment.environment.name` (default `production`). |
+
+The server reports errors from these places: HTTP handlers that fail with 500/503, effects that fail, jobs that are
+dead-lettered (a retry may still succeed, so a single failure is not reported), and process crashes. It does not change
+crash behavior: a crash is reported, given up to 2 s to deliver, and the process still exits.
+
+It never reports:
+
+- designed outcomes: `Unverified`, `ReconciliationRequired`, `WorkerOwnershipLost`, account and draft refusals,
+  invalid transitions, and errors with a status below 500;
+- failures inside the OTLP intake;
+- a failed report (the intake may be the thing that is down).
+
+Before a report is sent, frames are made relative to the working directory, so `/app/apps/server/src/…` becomes the
+repository path that `autonomy.md` areas match. Known secrets are redacted. The same error is sent at most once per
+10 minutes and at most 20 reports go out a minute.
+
+Verified by `src/self-telemetry.test.ts` (property tests for token isolation, dedupe and rate limits, and an OTLP round
+trip through the real parser) and by `src/application.test.ts`. The application test checks four things: a wrong token
+and another workspace's token are refused, the owner's token opens a trail in their workspace, and neither another
+account nor the deployment workspace sees that trail.
+
+Still `Unverified`:
+- delivery from a deployed server, until a production report has been observed in the workspace;
+- browser errors from the console, which are not reported yet. Bundled frames would not match repository areas
+  without source maps.
+
 ## Completing the repair loop
 
 Personal HTTPS Git workspaces now use `RemoteGitAdapter` through the same constrained connector as onboarding.

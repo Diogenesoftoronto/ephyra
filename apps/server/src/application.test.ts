@@ -236,6 +236,36 @@ const connect = async (f: Fixture, cookie: string, did = ALICE) => {
 };
 
 describe("personal application account routes", () => {
+  test("a workspace's own OTLP intake opens a trail there, behind its token, and nowhere else", async () => {
+    const f = await fixture(true);
+    const alice = await f.login();
+    const bob = await f.login(BOB);
+    const a = await connect(f, alice.cookie);
+    const b = await settings(f, bob.cookie);
+    const intake = await (await read(f, alice.cookie, "/v1/account/telemetry/otlp")).json() as { endpoint: string; token: string; workspaceId: string };
+    expect(intake.workspaceId).toBe(a.workspaceId);
+    expect(intake.endpoint).toBe(`${ORIGIN}/otlp/workspaces/${a.workspaceId}/v1/logs`);
+    const body = JSON.stringify({ resourceLogs: [{ resource: { attributes: [{ key: "service.name", value: { stringValue: "ephyra-server" } }] },
+      scopeLogs: [{ logRecords: [{ timeUnixNano: String(Date.now() * 1e6), severityText: "ERROR", attributes: [
+        { key: "exception.type", value: { stringValue: "TypeError" } },
+        { key: "exception.message", value: { stringValue: "cannot read trail of undefined" } },
+        { key: "exception.stacktrace", value: { stringValue: "TypeError: x\n    at intake (apps/server/src/wiring/intake.ts:58:9)" } },
+      ] }] }] }] });
+    const post = (workspace: string, token: string) => f.server.app.request(`/otlp/workspaces/${workspace}/v1/logs`, {
+      method: "POST", headers: { "content-type": "application/json", Authorization: `Bearer ${token}` }, body });
+    expect((await post(a.workspaceId, "eot_wrong")).status).toBe(401);
+    const bobs = await (await read(f, bob.cookie, "/v1/account/telemetry/otlp")).json() as { token: string };
+    expect((await post(a.workspaceId, bobs.token)).status).toBe(401);
+    expect((await post(a.workspaceId, intake.token)).status).toBe(200);
+    await (f.server as { drainWorkspace?: (id: string) => Promise<void> }).drainWorkspace?.(a.workspaceId);
+    const trails = await (await read(f, alice.cookie, "/v1/trails", { "X-Ephyra-Workspace": a.workspaceId })).json() as Trail[];
+    expect(trails).toHaveLength(1);
+    expect(await (await read(f, bob.cookie, "/v1/trails", { "X-Ephyra-Workspace": b.workspaceId })).json()).toEqual([]);
+    const deployment = await f.server.app.request("/v1/trails", { headers: { Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": "ops" } });
+    expect(deployment.status).toBe(200);
+    expect(await deployment.json()).toEqual([]);
+  });
+
   test("a new account without a repository shows no example policy, no trails and cannot draft one", async () => {
     const f = await fixture(true);
     const { cookie } = await f.login();
