@@ -7,5 +7,5 @@ main(args).catch((error) => {
 	console.error(
 		args.includes("--json") ? JSON.stringify({ error: message }) : message,
 	);
-	process.exitCode = 1;
+	process.exitCode = error instanceof Error && ["CliCancelledError", "LoginCancelledError"].includes(error.name) ? 130 : 1;
 });

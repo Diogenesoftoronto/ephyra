@@ -20,6 +20,7 @@ Put the alias in your shell profile to keep it.
 ## First five minutes
 
 ```sh
+ephyra setup --interactive                   # detect this repository, connect it, follow recorded setup
 ephyra login https://console.ephyra.quest   # opens your browser; approve the code it shows
 ephyra doctor                                # checks the server, your sign-in and this repository
 ephyra quests                                # every quest and where it stands
@@ -27,6 +28,10 @@ ephyra inbox                                 # what is waiting on you
 ```
 
 `ephyra login` signs you in with Not Organic through the browser. The page shows a short code; approve the request showing the same code in your terminal. The CLI never sees your Not Organic credentials. It keeps only an Ephyra session token in `~/.config/ephyra/credentials.json`, readable by you alone.
+
+The setup wizard signs you in when needed, suggests the repository and frameworks found locally, shows integration hints, and lets you choose self-driving or supervised operation. It can connect a public repository or use a masked access token. Browser authorization and model or telemetry configuration open the existing console forms; return to the terminal to read the saved connections. Discovery alone does not prove an integration works.
+
+Setup progress comes from the server's recorded quest. Ctrl+C stops waiting while server work continues. Run the wizard again to follow that quest, or choose **Recheck setup** after correcting a blocked or failed setup. An interrupted write keeps an operation reference so setup is checked before another start; an unconfirmed repository connection needs operator reconciliation.
 
 > [!TIP]
 > Start every "why is this not working" with `ephyra doctor`. Each line is a check that passed, a warning, or a failure with the next step. It only reads.
@@ -41,8 +46,23 @@ ephyra inbox                                 # what is waiting on you
 | `ephyra doctor` | Check the server, sign-in, repository, journal refs, policy files, setup and inbox. Exits non-zero if something must be fixed. |
 | `ephyra init [--remote origin] [--force]` | Write `ephyra/autonomy.md`, `thresholds.yaml` and `models.yaml` in shadow mode, and add `refs/ephyra/*` to the remote's fetch and push refspecs. Existing files are kept unless `--force`. |
 | `ephyra setup` | Show the recorded setup: steps, coverage and blockers, with who has to act. |
+| `ephyra setup --interactive` | Discover this repository, collect missing choices, connect it and follow setup. Requires an interactive terminal. |
 | `ephyra handoff [--copy]` | Print a brief for your coding agent with your server, repository and `doctor` findings filled in. No token is included. |
 | `ephyra docs [topic] [--open]` | Print the address of the page for a topic or command: `ephyra docs policy`, `ephyra docs stuck`. |
+| `ephyra complete <shell>` | Print shell completion for Bash, Zsh, Fish or PowerShell. |
+
+## Shell completion
+
+Completions use the same command definitions as `ephyra help`, including aliases, options and fixed choices. They do not need sign-in or network access. With an installed `ephyra` executable, use the line for your shell:
+
+```sh
+source <(ephyra complete bash) # Bash 4+, with bash-completion loaded
+source <(ephyra complete zsh)
+ephyra complete fish | source # Fish
+ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
+```
+
+For a source checkout, define a shell function before sourcing completions: `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }`. Completion prints a script; it does not change your shell profile. Add the appropriate line to your profile if you want to keep it.
 
 ## See
 
@@ -90,7 +110,7 @@ These change a quest. They need a signed-in **approver**; a read-only account or
 
 ## For scripts
 
-Every command accepts `--json` and then prints the raw API shape on one line. Errors are JSON too, as `{"error": "..."}`. The exit code is `0` on success and `1` for a usage, configuration or API error; `ephyra doctor` exits `1` when a check fails.
+Read commands accept `--json` and print the raw API shape on one line. Errors are JSON too, as `{"error": "..."}`. `login --json` sends browser instructions to stderr and prints a token-free sign-in result to stdout. The interactive wizard and shell completion reject `--json`. The exit code is `0` on success, `1` for a usage, configuration or API error, and `130` for clean cancellation; `doctor` and the wizard exit `1` for failed checks or blocked/failed setup. An interrupted write keeps its receipt and exits `1` because its outcome is unknown.
 
 ```sh
 # Is anything blocking a quest right now?

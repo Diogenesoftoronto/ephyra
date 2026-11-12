@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { main } from "../src/commands/cli.ts";
 
-test("quests and the existing trails alias read the same authenticated API", async () => {
+async function checkAliases() {
   const directory = await mkdtemp(join(tmpdir(), "ephyra-command-"));
   const env = {
     EPHYRA_CREDENTIALS: join(directory, "credentials.json"), EPHYRA_URL: "https://offline.example",
@@ -13,10 +13,12 @@ test("quests and the existing trails alias read the same authenticated API", asy
   const before = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
   Object.assign(process.env, env);
   const requests: { url: string; method: string; authorization: string | null }[] = [];
-  const transport = spyOn(globalThis, "fetch").mockImplementation((async (input, init) => {
+  const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch")!;
+  const transport = (async (input, init) => {
     requests.push({ url: String(input), method: init?.method ?? "GET", authorization: new Headers(init?.headers).get("authorization") });
     return Response.json([]);
-  }) as typeof fetch);
+  }) as typeof fetch;
+  Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: transport });
   const output = spyOn(console, "log").mockImplementation(() => {});
   try {
     for (const name of ["quests", "trails"]) await main([name, "--state", "closed", "--json"]);
@@ -26,10 +28,22 @@ test("quests and the existing trails alias read the same authenticated API", asy
     expect(requests.every(request => request.method === "GET" && request.authorization === "Bearer test-token")).toBe(true);
     expect(output.mock.calls).toEqual([["[]"], ["[]"]]);
   } finally {
-    transport.mockRestore(); output.mockRestore();
+    Object.defineProperty(globalThis, "fetch", fetchDescriptor); output.mockRestore();
     for (const [key, value] of Object.entries(before)) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+test("quests and the existing trails alias read the same authenticated API", checkAliases);
+test("command transport mocking preserves fetch when the host exposes it through an accessor", async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "fetch")!;
+  const originalFetch = fetch;
+  const getter = () => originalFetch;
+  Object.defineProperty(globalThis, "fetch", { configurable: true, enumerable: true, get: getter });
+  try {
+    await checkAliases();
+    expect(Object.getOwnPropertyDescriptor(globalThis, "fetch")!.get).toBe(getter);
+  } finally { Object.defineProperty(globalThis, "fetch", original); }
 });
