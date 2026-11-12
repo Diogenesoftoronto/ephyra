@@ -512,3 +512,14 @@ use the same recorded example as the terminal walkthrough. Browser checks cover
 frame readiness, all nine snapshots, fullscreen and GUI/TUI switching; offline
 tests check isolated sample comments, review claims and approvals. These sample
 interactions do not establish production repair or provider behavior.
+
+### Ephyra playback asset repair
+
+The specimen uses `motion/ephyra-specimen-v2.png`, clean decoded frame 108 of the original
+`juice/characters/ephyra.webm`, and `juice/characters/ephyra-v2.webm`, decoded frames 0–116
+re-encoded losslessly with VP9 alpha. The original still and final two video frames contain
+colored block artifacts. Keep those historical inputs for provenance, but do not use them
+for specimen playback. New URLs avoid cached copies of the damaged assets. The PNG avoids
+the colored alpha artifacts observed after a lossless WebP encode in this environment.
+The decoded PNG and all nine final retained video frames were visually inspected; this is
+asset verification, not proof of playback in every browser. Hover looping remains enabled.
