@@ -113,8 +113,7 @@ function Page({
       return <ProfilePage principal={principal} onDisconnect={onDisconnect} disconnectLabel={disconnectLabel}
         workspaceName={workspace?.name} workspaceRole={workspace?.role} />;
     case "team":
-      return team ? <TeamPage {...team} /> : <Empty title="Team access is managed by the owner"
-        body="Switch to your own workspace to invite viewers and approvers." />;
+      return <TeamPage {...team} tab={route.id} channels={account ? account.settings.people ?? null : undefined} />;
     case "settings":
     case "onboarding":
       if (!account)
@@ -227,7 +226,7 @@ function Frame({
     ? inbox.state.data.filter((i) => i.kind === "checkpoint" || i.kind === "spend").length
     : 0);
   const nav: NavItem[] = (Object.keys(LABEL) as PageId[])
-    .filter((id) => id !== "onboarding" && (id !== "team" || team))
+    .filter((id) => id !== "onboarding")
     .map((id) => ({
       id,
       label: LABEL[id],

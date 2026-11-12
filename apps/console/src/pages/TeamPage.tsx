@@ -9,6 +9,8 @@ import { invitationUrl, type TeamApi } from "../team-api.ts";
 import { Badge, Button, Card, Empty, Field, Icon, PageHeader, Skeleton } from "../kit.ts";
 import { InvitationCode } from "../components/InvitationCode.tsx";
 import { useNow } from "../lib/clock.tsx";
+import { TeamSpace } from "../components/TeamSpace.tsx";
+import type { PeopleConnection } from "@ephyra/core";
 import "./TeamPage.css";
 
 type Operation =
@@ -80,7 +82,7 @@ function RevokeConfirmation({ invitation, onConfirm, onCancel }: {
   );
 }
 
-export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => void }) {
+function TeamAccess({ api, onChanged }: { api: TeamApi; onChanged?: () => void }) {
   const now = useNow(1000);
   const [team, setTeam] = useState<TeamState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -320,9 +322,11 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
   }
 
   return (
-    <div className="page team-page">
-      <PageHeader title="Team" lede="Invite your team to follow the work and help with approvals."
-        actions={<Button size="sm" disabled={loading || Boolean(busy)} onClick={() => void refresh()}>Refresh</Button>} />
+    <div className="team-access">
+      <div className="team-access-bar">
+        <p className="team-note">Invite people to follow the work and help with approvals.</p>
+        <Button size="sm" disabled={loading || Boolean(busy)} onClick={() => void refresh()}>Refresh</Button>
+      </div>
       <div ref={feedbackRegion} tabIndex={-1} className="team-feedback" role="status" aria-live="polite" aria-atomic="true">
         {origin !== "invite" && feedback && <p data-tone={feedback.kind}>{feedback.message}</p>}
         {busy && busy !== "invite" && <p>{busy === "refresh" ? "Checking saved team details…" : "Revoking access…"}</p>}
@@ -424,6 +428,31 @@ export function TeamPage({ api, onChanged }: { api: TeamApi; onChanged?: () => v
           input: { expectedVersion: team.version, workspaceId: team.workspaceId, id: confirm.id },
         })} />}
       </>}
+    </div>
+  );
+}
+
+const TABS = [{ id: "now", label: "Now", href: "#/team" }, { id: "access", label: "Access", href: "#/team/access" }] as const;
+
+/**
+ * The team page: a shared view of what Ephyra is asking people for and what the work looks like now, and, for the
+ * owner, who has access. Tabs are links so each view has its own address.
+ */
+export function TeamPage({ api, onChanged, tab, channels }: {
+  /** Present only for the workspace owner, who can see the roster and manage access. */
+  api?: TeamApi;
+  onChanged?: () => void;
+  tab?: string;
+  channels?: PeopleConnection | null;
+}) {
+  const current = api && tab === "access" ? "access" : "now";
+  return (
+    <div className="page team-page">
+      <PageHeader title="Team" lede="What Ephyra needs from people, and what everyone is working on." />
+      {api && <nav className="team-tabs" aria-label="Team views">
+        {TABS.map((t) => <a key={t.id} href={t.href} aria-current={current === t.id ? "page" : undefined}>{t.label}</a>)}
+      </nav>}
+      {current === "access" && api ? <TeamAccess api={api} onChanged={onChanged} /> : <TeamSpace teamApi={api} channels={channels} />}
     </div>
   );
 }

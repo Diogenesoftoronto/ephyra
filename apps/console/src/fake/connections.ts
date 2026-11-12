@@ -26,3 +26,13 @@ export const QUESTION_FIXTURE: InvestigationQuestion = {
   checks: [{ phase: "question", model: "fixture/not-a-live-model", accepted: true,
     request: { fixture: "Question appropriateness check" }, response: { fixture: true, verdict: "accept" } }],
 };
+
+/** A question for a contact with no Ephyra account, delivered through the (fictional) bridge. */
+export const BRIDGE_QUESTION_FIXTURE: InvestigationQuestion = {
+  ...QUESTION_FIXTURE, id: "f".repeat(64), trailId: makeTrails(STORY_NOW)[1]!.id,
+  question: "Fictional question: may a discount code stack with a referral credit?",
+  reason: "Fixture: pricing intent does not cover combined credits.",
+  acceptance: "Fixture: yes or no, with the rule's owner.",
+  recipient: CONNECTION_ACCOUNT_FIXTURE.people!.contacts[1]!, createdAt: new Date(STORY_NOW - 6 * 3_600_000).toISOString(),
+  delivery: { kind: "webhook", status: "sent", receipt: "http:202" },
+};
