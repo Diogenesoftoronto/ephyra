@@ -9,12 +9,14 @@ import { readConfig } from "./config";
 import { fakeNotOrganic } from "./auth/notorganic.fixture";
 import { sessionCookieName } from "./auth/browser-session";
 import { MemoryAccountStore } from "./setup/account-store";
+import { offlineRepository } from "./setup/repository.fixture";
 import { sha256 } from "./docs";
 
 const ALICE = "did:plc:alice", BOB = "did:plc:bob", CAROL = "did:plc:carol";
 const ORIGIN = "https://ephyra.example", SERVICE = "s".repeat(32);
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
+
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "ephyra-team-http-"));
@@ -23,13 +25,14 @@ async function fixture() {
   const issuer = fakeNotOrganic(identity);
   const store = new MemoryAccountStore();
   const providerCalls: string[] = [];
+  const source = join(root, "source");
   const server = await composeApplication(readConfig({
     EPHYRA_API_TOKEN: SERVICE, EPHYRA_DATA_DIR: root, EPHYRA_PUBLIC_ORIGIN: ORIGIN,
     EPHYRA_SESSION_KEY: Buffer.alloc(32, 9).toString("base64"), EPHYRA_APPROVER_DIDS: ALICE,
     NOTORGANIC_ISSUER: "https://api.notorganic.test", NOTORGANIC_AUTHORIZATION_URL: "https://id.notorganic.test/authorize",
     NOTORGANIC_PRODUCT: "ephyra", EPHYRA_DRAFT: "fake",
   }), {
-    startJobs: false, accountStore: store, notOrganicFetch: issuer.fetcher,
+    startJobs: false, accountStore: store, notOrganicFetch: issuer.fetcher, repository: offlineRepository(source),
     providerFetch: async (url) => {
       providerCalls.push(url);
       return Response.json(url.endsWith("/models") ? { data: [{ id: "team-model" }] } : {
@@ -58,6 +61,10 @@ async function fixture() {
       ...(options.workspace ? { "X-Ephyra-Workspace": options.workspace } : {}), ...options.headers,
     }, ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }) });
   const settings = async (did: string) => AccountSettings.parse(await (await request(did, "/v1/account")).json());
+  const unconnected = await settings(ALICE);
+  const connected = await request(ALICE, "/v1/account/repository", { method: "PUT", workspace: unconnected.workspaceId,
+    body: { expectedVersion: unconnected.version, url: "https://forge.example/team/project.git", branch: "main" } });
+  expect(connected.status).toBe(200);
   const invite = async (did: string, role: "viewer" | "approver") => {
     const current = await settings(ALICE);
     const input = { expectedVersion: current.version, workspaceId: current.workspaceId, label: did, role };

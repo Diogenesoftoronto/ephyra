@@ -226,7 +226,36 @@ const write = (
     body: JSON.stringify(body),
   });
 
+/** Connects the fixture repository: drafting a policy needs one. Returns the settings of the new workspace. */
+const connect = async (f: Fixture, cookie: string, did = ALICE) => {
+  const current = await settings(f, cookie);
+  const response = await write(f, cookie, did, current.workspaceId, "/v1/account/repository",
+    { expectedVersion: current.version, url: "https://forge.example/team/project.git", branch: "main" }, `connect-${did}`);
+  expect(response.status).toBe(200);
+  return AccountSettings.parse(await response.json());
+};
+
 describe("personal application account routes", () => {
+  test("a new account without a repository shows no example policy, no trails and cannot draft one", async () => {
+    const f = await fixture(true);
+    const { cookie } = await f.login();
+    const fresh = await settings(f, cookie);
+    expect(fresh.repository).toBeNull();
+    const headers = { "X-Ephyra-Workspace": fresh.workspaceId };
+    expect(await (await read(f, cookie, "/v1/docs", headers)).json()).toEqual([]);
+    for (const path of ["autonomy.md", "thresholds.yaml"]) expect((await read(f, cookie, `/v1/docs/${path}`, headers)).status).toBe(404);
+    for (const path of ["/v1/trails", "/v1/inbox", "/v1/questions", "/v1/drafts", "/v1/activity", "/v1/runs"])
+      expect(await (await read(f, cookie, path, headers)).json()).toEqual([]);
+    expect(await (await read(f, cookie, "/v1/policy/active", headers)).json()).toBeNull();
+    expect(await (await read(f, cookie, "/v1/setup", headers)).json()).toBeNull();
+    const refused = await write(f, cookie, ALICE, fresh.workspaceId, "/v1/drafts", { path: "autonomy.md" }, "no-repo-draft", "POST");
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ error: "Connect a repository before drafting its policy." });
+    const connected = await connect(f, cookie);
+    const doc = PolicyDoc.parse(await (await read(f, cookie, "/v1/docs/autonomy.md", { "X-Ephyra-Workspace": connected.workspaceId })).json());
+    expect(doc.content).toBe(f.content);
+  });
+
   test("account settings require a human session; browser writes require Origin and current account binding", async () => {
     const f = await fixture();
     expect((await f.server.app.request("/v1/account")).status).toBe(401);
@@ -275,11 +304,11 @@ describe("personal application account routes", () => {
   });
 
   test("two signed-in people have separate settings, drafts and usage, with stale workspace requests refused", async () => {
-    const f = await fixture();
+    const f = await fixture(true);
     const a = await f.login();
     const b = await f.login(BOB);
-    const sa = await settings(f, a.cookie);
-    const sb = await settings(f, b.cookie);
+    const sa = await connect(f, a.cookie);
+    const sb = await connect(f, b.cookie, BOB);
     expect(sa.workspaceId).not.toBe(sb.workspaceId);
     const created = await write(
       f,
@@ -314,7 +343,7 @@ describe("personal application account routes", () => {
     expect(own.status).toBe(200);
     expect(Draft.parse(await own.json()).createdBy).toBe(BOB);
     const saved = await write(f, a.cookie, ALICE, sa.workspaceId, "/v1/account/model", {
-      expectedVersion: 0,
+      expectedVersion: sa.version,
       provider: "compatible",
       model: "chosen-model",
       baseUrl: "https://models.example/v1",
@@ -328,11 +357,11 @@ describe("personal application account routes", () => {
   });
 
   test("saved BYOK settings drive Velum's real adapter and attributed usage; repeated operations do not call twice", async () => {
-    const f = await fixture();
+    const f = await fixture(true);
     const { cookie } = await f.login();
-    const before = await settings(f, cookie);
+    const before = await connect(f, cookie);
     const input = {
-      expectedVersion: 0,
+      expectedVersion: before.version,
       provider: "compatible",
       model: "chosen-model",
       baseUrl: "https://models.example/v1",
@@ -429,13 +458,13 @@ describe("personal application account routes", () => {
   });
 
   test("Anthropic selection reaches the selected messages endpoint with its own authentication protocol", async () => {
-    const f = await fixture();
+    const f = await fixture(true);
     const { cookie } = await f.login();
-    const before = await settings(f, cookie);
+    const before = await connect(f, cookie);
     expect(
       (
         await write(f, cookie, ALICE, before.workspaceId, "/v1/account/model", {
-          expectedVersion: 0,
+          expectedVersion: before.version,
           provider: "anthropic",
           model: "chosen-model",
           baseUrl: "https://anthropic-compatible.example/v1",

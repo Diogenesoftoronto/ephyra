@@ -100,6 +100,7 @@ export class DraftService {
   async create(path: string, principal: string): Promise<Draft> {
     const kind = docKind(path);
     if (!kind) throw new DraftError(400, "path is not an editable policy document");
+    if (!this.d.docs.hasRepository) throw new DraftError(409, "Connect a repository before drafting its policy.");
     const doc = await this.d.docs.get(path);
     // A new intent starts from an empty document; autonomy and thresholds always exist (template at worst).
     if (!doc && kind !== "intent") throw new DraftError(404, "document not found");

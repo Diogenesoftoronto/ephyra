@@ -644,6 +644,7 @@ export async function compose(config: Config, opts: ComposeOverrides = {}): Prom
       return run?.status === "ready" || run?.investigationActive ? run.artifacts.find((a) => a.path === path)?.content ?? null : null;
     },
     activePaths: () => activation?.paths() ?? Promise.resolve([]),
+    repository: Boolean(repo.url) || Boolean(config.EPHYRA_AUTONOMY_FILE),
     ...(config.EPHYRA_AUTONOMY_FILE ? { autonomyFile: config.EPHYRA_AUTONOMY_FILE } : {}),
     ...(config.EPHYRA_THRESHOLDS_FILE ? { thresholdsFile: config.EPHYRA_THRESHOLDS_FILE } : {}),
   });
