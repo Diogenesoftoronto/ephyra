@@ -8,7 +8,7 @@ Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in w
 
 | Group | Commands |
 |---|---|
-| Set up | `login`, `logout`, `whoami`, `doctor`, `init`, `setup`, `handoff`, `docs` |
+| Set up | `login`, `logout`, `whoami`, `doctor`, `init`, `setup`, `handoff`, `docs`, `complete` |
 | See | `quests` (`trails`), `show`, `file`, `inbox`, `activity`, `runs`, `run`, `usage` |
 | Decide | `decide`, `spend`, `comment`, `claim`, `release`, `park`, `resume`, `kill`, `land`, `questions`, `answer` |
 | Operate | `status`, `policy`, `agents`, `ops`, `open` |
@@ -21,6 +21,31 @@ Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in w
 - `--json` prints the raw API shape. `init --remote origin` creates shadow-mode templates and configures git refspecs; `--force` replaces templates. Comment and kill require `-m` text.
 
 Human output for the read commands comes from pure functions in `src/commands/views.ts`, coloured only on a TTY without `NO_COLOR`. An unknown cost or token count prints as `unknown`, never as zero. Engine identities are printed whole.
+
+## Guided setup and completion
+
+Run `ephyra setup --interactive` from a repository. The Clack wizard reads bounded local manifests to suggest frameworks and integrations, signs in if needed, connects an HTTPS repository, lets you choose self-driving or supervised operation, and follows the server's recorded setup. It discovers the remote default branch unless you enter one. Nothing executes from local manifests, and discovery does not change local git settings. An installed SDK is only a hint, never a verified connection.
+
+You can connect a public repository, enter a masked repository token, or open the console for GitHub App and other browser authorization flows. Model access and telemetry configuration use the console's existing connection forms; the wizard rereads their saved state before continuing. `setup` without the flag remains a read-only status command. The wizard requires both terminal streams and rejects `--json` before any I/O.
+
+Ctrl+C detaches from server work; it does not cancel a setup quest. Resume the wizard to follow an existing run, or choose **Recheck setup** after correcting a blocked or failed setup. Polling detaches after ten minutes with the last recorded state. Blocked and failed setup return exit 1.
+
+Each setup start has a private, credential-free operation receipt beside the credentials file, written before dispatch. Interrupted starts reconcile through the exact operation key. Repository writes have no public operation-receipt lookup, so an interrupted connection remains unresolved for operator reconciliation; an unrelated settings-version increase never clears it. Receipt operations use an exclusive local lock. A receipt or lock left by an interrupted process fails closed and identifies its file for the operator; never remove one merely to retry an unknown write.
+
+`login` now supports cancellation and a bounded wait, including hung responses. On a terminal it shows the browser link and matching code through Clack. With `--json`, instructions go to stderr and stdout contains one token-free sign-in result. `doctor` uses bounded, cancellable requests and retains plain/JSON output for scripts. `NO_COLOR` disables color; the wizard also uses Clack's accessible text presentation in that mode.
+
+`@bomb.sh/tab` reads `COMMANDS` and its option/argument metadata to generate completions without auth or network calls:
+
+```sh
+source <(ephyra complete bash) # Bash 4+ with bash-completion loaded
+source <(ephyra complete zsh)
+ephyra complete fish | source # fish
+ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
+```
+
+Use the line for your shell. Scripts are printed only; the CLI never edits shell profiles. Completion callbacks resolve `ephyra` through PATH or a shell function. During source development, define `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }` before sourcing. Completion has a shell protocol and rejects `--json`.
+
+The completion catalog and protocol use Tab; Ephyra's small shell adapters pass literal argument arrays. They do not evaluate typed words as shell code. This avoids the `eval` boundary in Tab 0.0.22's generated Bash/Zsh scripts.
 
 ## The inbox
 
@@ -56,6 +81,9 @@ Run `bun run --filter @ephyra/cli textbook` for the Textbook Canvas on `http://1
 
 ## Verified
 
+- **Guided CLI offline tests:** account/workspace binding, default-branch choice, mode selection, recorded progress, browser connection refresh, explicit recheck, cancel/detach, unknown-write receipts, private/exclusive receipt storage, bounded discovery with symlink/secret exclusion, token-free login output and completion metadata. Tests use injected transport and temporary repositories; they do not prove hosted setup or provider access.
+- **Guided CLI terminal checks (12 November 2026):** the actual CLI ran in a 120-column PTY against a local HTTP fixture. Repository connection and setup used the expected account/workspace headers, queued/running/blocked progress came from that fixture, Ctrl+C before confirmation made no writes, Ctrl+C after start detached, login cancellation preserved credentials, JSON login kept tokens out of both streams, diagnostics rendered, and `NO_COLOR` emitted no color codes. The browser opener was a local stub; these are terminal checks, not hosted-account evidence.
+- **Shell integration:** real Bash with bash-completion resolved command flags and enum values. Bash and Fish tests preserve hostile words as literal arguments without executing them. Zsh and PowerShell scripts are inspected and generated in tests, but not runtime-verified locally.
 - **Offline tests:** fake-fetch client, reducer and property checks, and template/refspec idempotence in a temporary git repository.
 - **Commands (`test/help.test.ts`):** every entry in the help table is accepted by `main()`, and help needs no network. Against a fake API: each read command calls its route, a decision carries the inbox item's bound, short ids resolve, an answer carries its workspace, revoking an agent is a `DELETE`, 403 and 409 are explained, and a write with no answer is reported as unknown. `doctor` is checked for healthy, absent, degraded and unreachable servers and against a real temporary git repository. `handoff` and `repoFacts` never print a remote's password (property test). The views contain no control or bidi characters with hostile text.
 - **Real server:** `help`, `doctor`, `status`, `quests`, `usage`, `policy`, `setup` and `handoff` were run against a local `apps/server` in memory mode on 11 November 2026.
@@ -70,6 +98,7 @@ Built on Bun 1.4.4, OpenTUI 0.5.17 and Textbook 0.2.0.
 
 ## Unverified
 
+- Hosted wizard setup and real browser login/provider consent. Integration credentials still use the console; local discovery is bounded and may miss deeply nested or unsupported frameworks.
 - A real deployment with real quests: the terminal test used the example data.
 - The new inbox keys (`g`, `G`, `R`, `u`, `d`) in a real terminal: they are covered by the reducer and view tests only.
 - `runs`, `run --follow`, `questions`, `answer`, `agents` and `spend` against a server that has runs, questions or agents: the local server had none, so these were exercised against the fake API.
@@ -80,4 +109,4 @@ Built on Bun 1.4.4, OpenTUI 0.5.17 and Textbook 0.2.0.
 
 Ambiguous writes are reported without automatic retry; the server must implement the Idempotency-Key contract for durable reconciliation. Sapling synchronization is not implemented.
 
-Exit codes: 0 for success, 1 for usage, configuration, or API errors.
+Exit codes: 0 for success, 1 for usage, configuration, blocked/failed setup or API errors, 130 for clean cancellation. An interrupted write reports uncertainty (1) while retaining its receipt.

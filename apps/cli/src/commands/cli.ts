@@ -1,4 +1,5 @@
 import type { Trail } from "@ephyra/core";
+import { setTimeout as delay } from "node:timers/promises";
 import { Client } from "../client";
 import { DOCS_TOPICS, docsTopic, docsUrl } from "../docs";
 import { toAnsi } from "../inbox/paint";
@@ -8,6 +9,9 @@ import { plain, trailView, trailsView, type Line } from "../inbox/view";
 import { init } from "../init";
 import { loadCredentials, login, logout } from "../login";
 import { doctor, handoffBrief, repoFacts } from "./doctor";
+import { complete } from "./completion";
+import { canPrompt, clackUi, loginPresentation, withCliSignal } from "./interactive";
+import { setupWizard } from "./setup-wizard";
 import {
 	COMMANDS,
 	commandHelpView,
@@ -85,19 +89,24 @@ async function copy(text: string): Promise<boolean> {
 	return false;
 }
 
-function openInBrowser(url: string) {
-	try {
-		Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
-			stdout: "ignore",
-			stderr: "ignore",
-		});
-	} catch {
-		/* printing the link is enough */
-	}
+function openInBrowser(url: string): Promise<void> {
+	const proc = Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
+		stdout: "ignore", stderr: "ignore",
+	});
+	return proc.exited.then(code => {
+		if (code !== 0) throw new Error("The browser could not be opened. Open the printed link to continue.");
+	});
+}
+
+async function openPrintedLink(url: string) {
+	try { await openInBrowser(url); }
+	catch { console.error("The browser could not be opened. Open the printed link to continue."); }
 }
 
 export async function main(args: string[]) {
 	args = [...args];
+	// Completion words are literal input; --help, --json and the trailing empty word belong to tab.
+	if (args[0] === "complete" && args[1] === "--") return complete(args.slice(1));
 	const json = flag(args, "--json");
 	const wantsHelp = flag(args, "--help", "-h");
 	if (flag(args, "--version", "-v") && !args.length)
@@ -133,6 +142,14 @@ export async function main(args: string[]) {
 	if (!help) throw new UsageError(unknown(cmd));
 	cmd = help.name;
 	const usage = () => new UsageError(usageError(help));
+	if (cmd === "complete") {
+		if (json) throw new UsageError("Shell completion prints a shell script. Omit --json.");
+		return complete(args);
+	}
+	const interactiveSetup = cmd === "setup" && flag(args, "--interactive");
+	if (interactiveSetup && !canPrompt(json))
+		throw new UsageError("`ephyra setup --interactive` needs an interactive terminal without --json. Use `ephyra setup --json` for recorded status.");
+	if (interactiveSetup && args.length) throw usage();
 
 	if (cmd === "init") {
 		const remote = option(args, "--remote") ?? "origin";
@@ -171,12 +188,12 @@ export async function main(args: string[]) {
 					.map(([name, about]) => `  ${name.padEnd(16)}${about}`)
 					.join("\n")}`,
 			);
-		if (open) openInBrowser(url);
+		if (open) await openPrintedLink(url);
 		return;
 	}
 	const io = {
 		print: (line: string) => console.log(line),
-		sleep: (ms: number) => Bun.sleep(ms),
+		sleep: async (ms: number, signal?: AbortSignal) => { await delay(ms, undefined, { signal }); },
 		fetch,
 		env: process.env,
 		open: openInBrowser,
@@ -184,10 +201,17 @@ export async function main(args: string[]) {
 	if (cmd === "login") {
 		const url = args[0] ?? process.env.EPHYRA_URL;
 		if (!url) throw usage();
-		await login(url, io);
-		console.log(
-			"Next: `ephyra doctor` checks this repository; `ephyra inbox` shows what is waiting.",
-		);
+		await withCliSignal(async signal => {
+			const ui = canPrompt(json) ? clackUi(signal) : null;
+			ui?.intro("Sign in to Ephyra");
+			const creds = await login(url, {
+				...io, signal,
+				...(ui ? loginPresentation(ui) : json ? { print: (line: string) => console.error(line) } : {}),
+			});
+			if (json) emit({ signedIn: true, url: creds.url, did: creds.did, handle: creds.handle ?? null });
+			else if (ui) ui.outro("Run `ephyra setup --interactive` to connect this repository, or `ephyra doctor` to check it.");
+			else console.log("Next: `ephyra setup --interactive` connects this repository; `ephyra doctor` checks it.");
+		});
 		return;
 	}
 	if (cmd === "logout") return logout(io);
@@ -195,6 +219,12 @@ export async function main(args: string[]) {
 	// Signed-in session (from `ephyra login`) first; the service token is for automation.
 	const creds = await loadCredentials();
 	const url = process.env.EPHYRA_URL ?? creds?.url;
+	if (interactiveSetup) {
+		return withCliSignal(async signal => {
+			const run = await setupWizard({ cwd: process.cwd(), creds, url, io, signal, ui: clackUi(signal) });
+			if (run && (run.status === "blocked" || run.status === "failed")) process.exitCode = 1;
+		}, "Stopped waiting. Any setup already started on the server continues. Resume with `ephyra setup --interactive`.");
+	}
 	let client: Client | null = null;
 	let authProblem =
 		"Not signed in. Run `ephyra login <server-url>`, then `ephyra doctor` if anything else is off.";
@@ -212,14 +242,21 @@ export async function main(args: string[]) {
 
 	if (cmd === "doctor" || cmd === "handoff") {
 		const repo = repoFacts(process.cwd());
-		const report = await doctor({
-			env: process.env,
-			creds,
-			client,
-			...(url ? { url } : {}),
-			repo,
-			fetch,
-		});
+		const report = await withCliSignal(async signal => {
+			const boundedFetch = ((input: string | URL | Request, init?: RequestInit) => fetch(input, {
+				...init, signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
+			})) as typeof fetch;
+			const check = () => doctor({
+				env: process.env, creds,
+				client: client ? new Client(client.url, client.token, boundedFetch, client.principal) : null,
+				...(url ? { url } : {}), repo, fetch: boundedFetch,
+			});
+			const value = cmd === "doctor" && canPrompt(json)
+				? await clackUi(signal).work("Checking server, sign-in, repository and setup…", check)
+				: await check();
+			signal.throwIfAborted();
+			return value;
+		}, "Checks cancelled. Run `ephyra doctor` to check again.");
 		if (cmd === "doctor") {
 			if (json) emit(report.checks);
 			else paint(doctorView(report.checks, Math.min(cols, 110)));
@@ -265,7 +302,7 @@ export async function main(args: string[]) {
 			: `${c.url}/app/`;
 		if (json) return emit({ url: target });
 		console.log(target);
-		openInBrowser(target);
+		await openPrintedLink(target);
 		return;
 	}
 
