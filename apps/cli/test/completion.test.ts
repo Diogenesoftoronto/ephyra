@@ -1,6 +1,10 @@
 import { expect, spyOn, test } from "bun:test";
 import fc from "fast-check";
-import { complete, CompletionUsageError, createCompletion } from "../src/commands/completion";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { complete, completionScript, CompletionUsageError, createCompletion } from "../src/commands/completion";
 import { COMMANDS, COMPLETION_SHELLS, GLOBAL_OPTIONS, commandNames } from "../src/commands/help";
 import { DOCS_TOPICS } from "../src/docs";
 
@@ -101,8 +105,98 @@ test("prints scripts for four shells using the installed executable, with no loc
 		expect(script).toContain("complete");
 		expect(script).not.toContain(process.cwd());
 		expect(script).not.toContain("credentials");
+		expect(script).not.toMatch(/\beval\b|Invoke-Expression|compgen\s+-W/);
 		expect(script.length).toBeGreaterThan(200);
 	}
 	for (const args of [[], ["sh"], ["bash", "extra"], ["bash", "--json"], ["$(touch injected)"]])
 		expect(() => complete(args)).toThrow(CompletionUsageError);
+});
+
+const bash = Bun.which("bash");
+const fish = Bun.which("fish");
+const nulWords = (text: string) => text === "" ? [] : text.slice(0, -1).split("\0");
+
+// Supply Readline's already-tokenized words without running a prompt or executing the typed command.
+// A real Bash process sources and invokes the emitted script; only the Readline metadata helper is stubbed.
+const BASH_DRIVER = [
+	'source "$1"',
+	'shift',
+	'COMP_WORDS=(ephyra "$@")',
+	'COMP_CWORD=$TEST_CWORD',
+	'_get_comp_words_by_ref() {',
+	'    words=("${COMP_WORDS[@]}")',
+	'    cword=$COMP_CWORD',
+	'    cur=$TEST_CURRENT',
+	'    prev=${words[cword-1]}',
+	'}',
+	'ephyra() {',
+	'    printf "%s\\0" "$@" > "$TEST_CAPTURE"',
+	'    printf "%s\\n" "$TEST_RESPONSE"',
+	'}',
+	'__ephyra_complete',
+	'if (( ${#COMPREPLY[@]} )); then printf "%s\\0" "${COMPREPLY[@]}"; fi',
+].join("\n");
+
+test.skipIf(!bash)("Bash passes hostile words literally, preserving empty arguments, spaces, quotes and the cursor boundary", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ephyra-bash-completion-"));
+	try {
+		const script = join(dir, "completion.bash");
+		const capture = join(dir, "argv");
+		const marker = join(dir, "executed");
+		await writeFile(script, completionScript("bash"));
+		const hostile = [`$(touch ${marker})`, `; touch ${marker}; #`, `\`touch ${marker}\``, "two words", "double\" and single' quotes"];
+		const words = ["comment", "-m", ...hostile, "", "ignored-after-cursor"];
+		const invoke = (current: string, cword: number, response = "ready\tDescription: with colons:4\n:4") => Bun.spawnSync([
+			bash!, "--noprofile", "--norc", "-c", BASH_DRIVER, "test", script, ...words,
+		], { env: { ...process.env, TEST_CAPTURE: capture, TEST_CURRENT: current, TEST_CWORD: String(cword), TEST_RESPONSE: response } });
+		const result = invoke("", words.length - 1);
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr.toString()).toBe("");
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", ...words.slice(0, -1)]);
+		expect(nulWords(result.stdout.toString())).toEqual(["ready"]);
+		expect(existsSync(marker)).toBe(false);
+		// The current word is replaced by its prefix, and later words are never sent.
+		const middle = invoke("re", 3);
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", "comment", "-m", "re"]);
+		expect(nulWords(middle.stdout.toString())).toEqual(["ready"]);
+		const equals = invoke("--state=re", 3);
+		expect(nulWords(equals.stdout.toString())).toEqual(["--state=ready"]);
+		for (const response of ["ready\tLooks like a directive:4", "ready\tDescription\n:0", `ready\tDescription\n:$(touch ${marker})`]) {
+			const invalid = invoke("", words.length - 1, response);
+			expect(invalid.stdout.toString()).toBe("");
+		}
+		expect(existsSync(marker)).toBe(false);
+	} finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+const FISH_DRIVER = [
+	'source $argv[1]',
+	'function ephyra',
+	'    printf "%s\\0" $argv > "$TEST_CAPTURE"',
+	'    printf "%s\\n" "$TEST_RESPONSE"',
+	'end',
+	'set -l line ephyra',
+	'for word in $argv[2..-1]',
+	'    set line "$line "(string escape -- "$word")',
+	'end',
+	'complete -C "$line "',
+].join("\n");
+
+test.skipIf(!fish)("Fish uses actual completion tokenization without evaluating hostile arguments", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ephyra-fish-completion-"));
+	try {
+		const script = join(dir, "completion.fish");
+		const capture = join(dir, "argv");
+		const marker = join(dir, "executed");
+		await writeFile(script, completionScript("fish"));
+		const words = ["comment", "-m", "two words", `$(touch ${marker})`, `; touch ${marker}; #`, "double\" and single' quotes"];
+		const result = Bun.spawnSync([fish!, "--no-config", "-c", FISH_DRIVER, "--", script, ...words], {
+			env: { ...process.env, TEST_CAPTURE: capture, TEST_RESPONSE: "ready\tDescription: with colons:4\n:4" },
+		});
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr.toString()).toBe("");
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", ...words, ""]);
+		expect(result.stdout.toString()).toContain("ready\tDescription: with colons:4");
+		expect(existsSync(marker)).toBe(false);
+	} finally { await rm(dir, { recursive: true, force: true }); }
 });
