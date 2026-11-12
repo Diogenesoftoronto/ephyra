@@ -1,10 +1,37 @@
 // What the CLI can do, in one table. `ephyra help`, `ephyra help <command>`, the usage error and the
-// "did you mean" hint all read it, and test/help.test.ts checks every entry is handled by main().
+// "did you mean" hint and shell completions all read it. test/help.test.ts checks main() handles every entry.
+import { AgentRun, Checkpoint, TrailState, Verdict } from "@ephyra/core";
 import { DOCS_TOPICS, docsUrl } from "../docs";
 import { row, type Line, type Seg, type Tone } from "../inbox/view";
 import { wrap } from "../inbox/text";
 
 export type CommandGroup = "Set up" | "See" | "Decide" | "Operate";
+export type CommandOption = {
+	/** Exact accepted spellings, including their dashes. */
+	flags: readonly string[];
+	description: string;
+	/** A placeholder means this option consumes a value; omitted for boolean flags. */
+	value?: string;
+	values?: readonly string[];
+	rootOnly?: boolean;
+};
+export type CommandArgument = {
+	name: string;
+	values?: readonly string[];
+	/** Resolve changing catalogs from their source of truth, without network calls. */
+	catalog?: "commands" | "docs";
+};
+export const GLOBAL_OPTIONS: readonly CommandOption[] = [
+	{ flags: ["--json"], description: "Print machine-readable output" },
+	{ flags: ["--help", "-h"], description: "Show help" },
+	{ flags: ["--version", "-v"], description: "Show the CLI version", rootOnly: true },
+];
+export const COMPLETION_SHELLS = ["bash", "zsh", "fish", "powershell"] as const;
+
+const MESSAGE_OPTION: CommandOption = {
+	flags: ["--message", "-m"], description: "Message or reason to record", value: "text",
+};
+
 export type CommandHelp = {
 	name: string;
 	/** Other spellings main() accepts. */
@@ -19,6 +46,8 @@ export type CommandHelp = {
 	docs?: keyof typeof DOCS_TOPICS;
 	/** Works without being signed in. */
 	offline?: boolean;
+	options?: readonly CommandOption[];
+	arguments?: readonly CommandArgument[];
 };
 
 export const COMMANDS: readonly CommandHelp[] = [
@@ -26,6 +55,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "login",
 		group: "Set up",
 		usage: "ephyra login <server-url>",
+		arguments: [{ name: "server-url" }],
 		offline: true,
 		summary: "Sign in with Not Organic through your browser",
 		detail:
@@ -65,6 +95,10 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "init",
 		group: "Set up",
 		usage: "ephyra init [--remote origin] [--force]",
+		options: [
+			{ flags: ["--remote"], description: "Git remote to configure", value: "remote" },
+			{ flags: ["--force"], description: "Replace existing policy templates" },
+		],
 		offline: true,
 		summary:
 			"Add shadow-mode policy templates and the refs/ephyra/* refspecs to this repository",
@@ -76,18 +110,20 @@ export const COMMANDS: readonly CommandHelp[] = [
 	{
 		name: "setup",
 		group: "Set up",
-		usage: "ephyra setup",
-		summary:
-			"Show the recorded setup: steps, coverage and what is blocking the loop",
+		usage: "ephyra setup [--interactive]",
+		offline: true,
+		options: [{ flags: ["--interactive"], description: "Start the guided setup wizard" }],
+		summary: "Show recorded setup progress, or start the guided wizard with --interactive",
 		detail:
 			"Setup is a recorded run, not a switch. This prints each step, what Ephyra can observe (repository, checks, telemetry, deployment, knowledge, contact) " +
-			"and the blockers with who has to act.",
+			"and the blockers with who has to act. --interactive starts a guided wizard in your terminal, including sign-in when needed.",
 		docs: "quickstart",
 	},
 	{
 		name: "handoff",
 		group: "Set up",
 		usage: "ephyra handoff [--copy]",
+		options: [{ flags: ["--copy"], description: "Copy the brief to the clipboard" }],
 		offline: true,
 		summary:
 			"Print a brief you can paste into your coding agent to set up or debug Ephyra here",
@@ -100,9 +136,29 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "docs",
 		group: "Set up",
 		usage: "ephyra docs [topic] [--open]",
+		arguments: [{ name: "topic", catalog: "docs" }],
+		options: [{ flags: ["--open"], description: "Open the documentation in your browser" }],
 		offline: true,
 		summary: "Find the documentation page for a topic or a command",
 		examples: ["ephyra docs", "ephyra docs policy", "ephyra docs stuck --open"],
+	},
+	{
+		name: "complete",
+		group: "Set up",
+		usage: "ephyra complete <bash|zsh|fish|powershell>",
+		arguments: [{ name: "shell", values: COMPLETION_SHELLS }],
+		offline: true,
+		summary: "Print the shell completion script",
+		detail:
+			"Load this script in your shell to complete commands and options. This command only prints; it does not edit your shell configuration. " +
+			"Bash needs version 4 or later and bash-completion. The shell calls `ephyra complete -- ...` for suggestions; no sign-in or network is needed.",
+		examples: [
+			"source <(ephyra complete bash)",
+			"source <(ephyra complete zsh)",
+			"ephyra complete fish | source",
+			"ephyra complete powershell | Out-String | Invoke-Expression",
+		],
+		docs: "cli",
 	},
 
 	{
@@ -110,6 +166,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		aliases: ["trails"],
 		group: "See",
 		usage: "ephyra quests [--state <state>]",
+		options: [{ flags: ["--state"], description: "Filter by quest state", value: "state", values: TrailState.options }],
 		summary: "List every quest and where it stands",
 		examples: ["ephyra quests", "ephyra quests --state ready"],
 		docs: "concepts",
@@ -118,6 +175,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "show",
 		group: "See",
 		usage: "ephyra show <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "One quest: its stage, hypothesis, plan, proof and activity",
 		detail: "<quest> is a full id or the short one from the list (T-1a2b).",
 		docs: "reviewing",
@@ -126,6 +184,13 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "file",
 		group: "See",
 		usage: "ephyra file <quest> <path>",
+		arguments: [
+			{ name: "quest" },
+			{ name: "path", values: [
+				"hypothesis.md", "plan.md", "intent.md", "evidence/index.json", "proof/manifest.json",
+				"decisions/latest-A.json", "decisions/latest-B.json", "decisions/latest-C.json",
+			] },
+		],
 		summary: "Print a file from a quest's journal",
 		detail:
 			"Readable paths: hypothesis.md, plan.md, intent.md, evidence/index.json, proof/manifest.json, artefacts/<kind>/<name>, decisions/latest-A.json (or B, C).",
@@ -146,6 +211,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "activity",
 		group: "See",
 		usage: "ephyra activity [--limit n]",
+		options: [{ flags: ["--limit"], description: "Maximum activity items", value: "n" }],
 		summary: "What the agents are doing now and did recently",
 		docs: "console",
 	},
@@ -154,6 +220,11 @@ export const COMMANDS: readonly CommandHelp[] = [
 		group: "See",
 		usage:
 			"ephyra runs [--quest <quest>] [--status running|done|failed|unavailable]",
+		options: [
+			{ flags: ["--quest", "--trail"], description: "Filter by quest", value: "quest" },
+			{ flags: ["--status"], description: "Filter by run status", value: "status", values: AgentRun.shape.status.options },
+			{ flags: ["--limit"], description: "Maximum runs", value: "n" },
+		],
 		summary: "List agent runs: which step, which engine, how it ended",
 		docs: "console",
 	},
@@ -161,6 +232,8 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "run",
 		group: "See",
 		usage: "ephyra run <run-id> [--follow]",
+		arguments: [{ name: "run-id" }],
+		options: [{ flags: ["--follow", "-f"], description: "Follow the transcript until the run ends" }],
 		summary:
 			"Read one run's transcript: messages, tool calls and policy decisions",
 		detail: "--follow keeps reading until the run ends.",
@@ -170,6 +243,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "usage",
 		group: "See",
 		usage: "ephyra usage [--days n]",
+		options: [{ flags: ["--days"], description: "Days of usage to include", value: "n" }],
 		summary: "Tokens, known spend, unknown costs and per-quest budgets",
 		detail:
 			"Unknown costs are counted separately and never folded into the total as zero, so the spend shown is a lower bound when any are present.",
@@ -180,6 +254,10 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "decide",
 		group: "Decide",
 		usage: "ephyra decide <quest> <A|B|C> <approve|revise|reject> [-m note]",
+		arguments: [
+			{ name: "quest" }, { name: "checkpoint", values: Checkpoint.options }, { name: "verdict", values: Verdict.options },
+		],
+		options: [MESSAGE_OPTION],
 		summary: "Answer a checkpoint",
 		detail:
 			"The decision is bound to the revision that is waiting in your inbox. If the quest moved on, it is refused as stale rather than applied to something you " +
@@ -194,6 +272,8 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "spend",
 		group: "Decide",
 		usage: "ephyra spend <quest> <approve|reject> [-m note]",
+		arguments: [{ name: "quest" }, { name: "verdict", values: ["approve", "reject"] }],
+		options: [MESSAGE_OPTION],
 		summary: "Answer a request to spend on a real-respondent study",
 		docs: "budgets",
 	},
@@ -201,6 +281,8 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "comment",
 		group: "Decide",
 		usage: "ephyra comment <quest> -m <text>",
+		arguments: [{ name: "quest" }],
+		options: [MESSAGE_OPTION],
 		summary: "Say something on the quest; the agent and reviewers see it",
 		docs: "reviewing",
 	},
@@ -208,6 +290,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "claim",
 		group: "Decide",
 		usage: "ephyra claim <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "Take a checkpoint review so nobody else decides it under you",
 		docs: "reviewing",
 	},
@@ -215,6 +298,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "release",
 		group: "Decide",
 		usage: "ephyra release <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "Give a claimed review back; do this before deciding",
 		docs: "reviewing",
 	},
@@ -222,6 +306,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "park",
 		group: "Decide",
 		usage: "ephyra park <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "Pause a quest where it is",
 		docs: "reviewing",
 	},
@@ -229,6 +314,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "resume",
 		group: "Decide",
 		usage: "ephyra resume <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "Continue a parked quest from the state it was in",
 		docs: "reviewing",
 	},
@@ -236,6 +322,8 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "kill",
 		group: "Decide",
 		usage: "ephyra kill <quest> -m <reason>",
+		arguments: [{ name: "quest" }],
+		options: [MESSAGE_OPTION],
 		summary: "Stop a quest for good, with a reason",
 		docs: "budgets",
 	},
@@ -243,6 +331,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "land",
 		group: "Decide",
 		usage: "ephyra land <quest>",
+		arguments: [{ name: "quest" }],
 		summary: "Land a ready quest whose proof is already approved",
 		docs: "landing-watch",
 	},
@@ -257,6 +346,8 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "answer",
 		group: "Decide",
 		usage: "ephyra answer <question-id> -m <text>",
+		arguments: [{ name: "question-id" }],
+		options: [MESSAGE_OPTION],
 		summary: "Answer one of those questions with a fact",
 		detail:
 			"<question-id> can be the first characters shown by `ephyra questions`.",
@@ -282,6 +373,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "agents",
 		group: "Operate",
 		usage: "ephyra agents [revoke <id>]",
+		arguments: [{ name: "action", values: ["revoke"] }, { name: "id" }],
 		summary: "Coding agents you approved for setup, and how to revoke one",
 		docs: "agent-setup",
 	},
@@ -296,8 +388,24 @@ export const COMMANDS: readonly CommandHelp[] = [
 		name: "open",
 		group: "Operate",
 		usage: "ephyra open [quest]",
+		arguments: [{ name: "quest" }],
 		summary: "Open the web console, at a quest if you name one",
 		docs: "console",
+	},
+	{
+		name: "help",
+		group: "Operate",
+		usage: "ephyra help [command]",
+		arguments: [{ name: "command", catalog: "commands" }],
+		offline: true,
+		summary: "Show all commands or help for one command",
+	},
+	{
+		name: "version",
+		group: "Operate",
+		usage: "ephyra version",
+		offline: true,
+		summary: "Show the CLI version",
 	},
 ];
 
@@ -376,9 +484,7 @@ export function helpView(
 		[],
 		[
 			g("first time?  ", "muted"),
-			g("ephyra login <server-url>", "strong"),
-			g(", then ", "muted"),
-			g("ephyra doctor", "strong"),
+			g("ephyra setup --interactive", "strong"),
 		],
 		[g("one command  ", "muted"), g("ephyra help <command>", "strong")],
 		[
