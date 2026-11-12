@@ -115,3 +115,13 @@
   background: linear-gradient(var(--material-wash), var(--material-wash)), var(--material) center / 480px;
   box-shadow: var(--shadow-gel);
 }
+.team-tabs { display: flex; gap: 0 var(--s5); border-bottom: 1px solid var(--line); }
+.team-tabs a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0; border-bottom: 2px solid transparent;
+  color: var(--muted); font-weight: 600; text-decoration: none;
+}
+.team-tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--jelly-deep); }
+.team-tabs a:hover { color: var(--ink); }
+.team-access { display: grid; gap: var(--s5); min-width: 0; }
+.team-access-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); }
+.team-access-bar p { margin: 0; }

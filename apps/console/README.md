@@ -175,6 +175,28 @@ explicit acceptance, reload, workspace selection, UI/server permissions, revocat
 `team-recovery.ts` tests ambiguous responses and clipboard fallback in named Storybook fixtures. `experience-layout.ts`
 checks six screens at 320/390/1440 pixels in both themes. These are local checks, not live account or deployment proof.
 
+## Team: what Ephyra needs from people
+
+`#/team` opens the **Now** view for everyone in the workspace, modelled on Amp Spaces' status cards and side panel.
+It is one pure projection (`src/lib/team-space.ts`, property-tested) over data the console already reads:
+
+- **Ephyra is asking**: open investigation questions plus checkpoint, spend, and parked inbox entries. Each one shows
+  whom it is waiting on: the recipient for a question, the human owner of the quest, or "Any approver". Notices are
+  left out. Blocking asks come first, then the oldest. A question's delivery reads "Delivery unconfirmed" whenever the
+  server recorded an ambiguous or uncertain send. It never reads as sent.
+- **Working on**: agent steps running now, and open quests grouped as Investigating, Fixing, Ready to land, Watching,
+  and Paused.
+- **At a glance**: asks waiting on people, agents working, open quests, and quests landed in the last 30 days. A quest
+  counts as landed only when it closed with a landing receipt.
+- **People**: the owner's roster with each person's asks and owned quests, plus asks pooled on approvers or on
+  contacts who have no account.
+- **Channels**: the Ephyra inbox and the saved delivery bridge (host, contact count, URL and key present). Slack,
+  Discord, Teams, and Matrix have **no native integration yet**. They are reachable only through an operator's relay
+  behind the bridge, and the page says so. Bridge status comes from saved settings and is not a delivery check.
+
+Each source loads on its own. A missing feed is named on the page instead of being shown as zero.
+`#/team/access` (owner only) keeps the invitation and access management described below.
+
 ## Shared reviews
 
 The real Inbox shows authenticated authors, comments and review handoffs from the git journal.
