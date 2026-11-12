@@ -568,6 +568,57 @@ Still `Unverified`:
 - browser errors from the console, which are not reported yet. Bundled frames would not match repository areas
   without source maps.
 
+## Forges: pull requests, Radicle patches and mirrors
+
+Design: `design/10-forge-integration.md`. The `pull_request` landing mode opens a reviewable proposal on the workspace's own
+forge, picked by one rule (`adapterForMode`) with no fallback to a plain push.
+
+| Repository | `pull_request` lands as | Needs |
+|---|---|---|
+| GitHub, GitHub Enterprise | pull request (`HostedPullAdapter`) | a saved access token that can push branches and open PRs |
+| GitLab, self-hosted GitLab | merge request | the same, for the project |
+| Forgejo / Gitea | pull request | the same |
+| Tangled | Tangled pull (`TangledAdapter`) | account-scoped Tangled service auth (still `Unverified`) |
+| Radicle | patch from this server's own identity | `EPHYRA_RADICLE_HOME` (+ `EPHYRA_RADICLE_PASSPHRASE`) |
+| Codeberg | refused everywhere | (its terms forbid AI-generated contributions) |
+
+Without a token, or on a plain Git host, there is no proposal adapter and a `pull_request` landing parks for a human.
+
+**Radicle.** Patches come from the deployment's own identity, so the owner's key never reaches the server. The command runner
+(`setup/radicle-writer.ts`) allows only:
+
+- `git push rad <oid>:refs/patches` with `patch.message`/`patch.base` options;
+- reads or archives of that repository's patches.
+
+Nothing can move a Radicle branch. Without `EPHYRA_RADICLE_HOME` a Radicle workspace has no adapters and says why. The
+passphrase is redacted like other known secrets.
+
+**Mirrors.** The `PUT /v1/account/mirrors` and `POST /v1/account/mirrors/remove` routes manage up to five HTTPS mirrors per
+workspace, each with an optional token sealed like the repository token.
+
+After an `auto_land` completes, every mirror whose tip is an ancestor of the new commit moves to it with a conditional push.
+A mirror with commits of its own is left alone. Each result (`ok` or `failed`, host and short reason) is stored on the
+mirror and shown in Settings. A mirror failure never fails the landing.
+
+Some forges are refused as mirrors, each with its reason:
+
+- Radicle and Tangled, which only their owner's key or SSH can move;
+- Codeberg;
+- the repository itself.
+
+Verified by:
+- `src/setup/personal-landing.test.ts`: adapter selection and the per-call token authority;
+- `src/setup/radicle-writer.test.ts`: the allowlist, plus a property test that only patch refs pass;
+- `src/setup/mirrors.test.ts`: real local Git remotes, covering behind, diverged and empty mirrors, plus validation;
+- `src/wiring/landing.test.ts`: the post-landing hook never fails a landing;
+- `packages/forge/src/hosted.test.ts`.
+
+A Radicle patch push was also checked by hand against a throwaway identity.
+
+Still `Unverified`:
+- the hosted forge APIs and a Radicle patch from a deployed server, until each has been exercised live;
+- mirrors after a merged pull request (only `auto_land` moves mirrors today).
+
 ## Completing the repair loop
 
 Personal HTTPS Git workspaces now use `RemoteGitAdapter` through the same constrained connector as onboarding.
