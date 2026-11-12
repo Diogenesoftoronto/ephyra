@@ -5,12 +5,12 @@ import { createJellyRenderer, type JellyRenderer } from "../lib/jelly-shader.ts"
 import "./JellySpecimen.css";
 import { CharacterGesture } from "./CharacterGesture.tsx";
 
-export const SPECIMEN_ART = "/app/motion/ephyra-specimen-v1.webp";
+export const SPECIMEN_ART = "/app/motion/ephyra-specimen-v2.png";
 
 /** A small, explicitly playful interaction. It never represents health, connection, or agent activity. */
 export function JellySpecimen({ size = 112, src = SPECIMEN_ART }: { size?: number; src?: string }) {
   return src === SPECIMEN_ART
-    ? <CharacterGesture poster={src} clip="/app/juice/characters/ephyra.webm" label="Ripple the Ephyra specimen" size={size} />
+    ? <CharacterGesture poster={src} clip="/app/juice/characters/ephyra-v2.webm" label="Ripple the Ephyra specimen" size={size} />
     : <ShaderSpecimen size={size} src={src} />;
 }
 

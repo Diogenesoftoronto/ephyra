@@ -39,7 +39,7 @@ try {
   console.log("PASS repository selection, default branch, stale lookup cancellation, rate-limit recovery");
 
   const videoRequests: string[] = [];
-  page.on("request", request => { if (request.url().endsWith("/characters/ephyra.webm")) videoRequests.push(request.url()); });
+  page.on("request", request => { if (request.url().endsWith("/characters/ephyra-v2.webm")) videoRequests.push(request.url()); });
   await page.goto(`${site.url}/iframe.html?id=motion-charactergesture--default&viewMode=story`);
   const character = page.getByRole("button", { name: "Greet Ephyra", exact: true });
   await character.waitFor();
@@ -65,10 +65,10 @@ try {
   for (const persona of ["ephyra", "rho", "bell", "nema", "lappet", "turri", "velum"]) {
     const greeting = page.getByRole("button", { name: `Greet ${persona}`, exact: true });
     await greeting.focus(); await greeting.press("Enter");
-    const movie = page.locator(`video[src$="/${persona}.webm"]`);
+    const movie = page.locator(`video[src$="/${persona === "ephyra" ? "ephyra-v2" : persona}.webm"]`);
     await movie.waitFor({ state: "attached" });
     await page.waitForFunction(name => {
-      const movie = document.querySelector<HTMLVideoElement>(`video[src$="/${name}.webm"]`);
+      const movie = document.querySelector<HTMLVideoElement>(`video[src$="/${name === "ephyra" ? "ephyra-v2" : name}.webm"]`);
       return movie && movie.currentTime > .3 && !movie.paused;
     }, persona);
     const alpha = await movie.evaluate(element => {
@@ -96,7 +96,7 @@ try {
 
   const reduced = await browser.newContext({ reducedMotion: "reduce" });
   const still = await reduced.newPage(); let fetched = 0;
-  still.on("request", request => { if (request.url().endsWith("/characters/ephyra.webm")) fetched++; });
+  still.on("request", request => { if (request.url().endsWith("/characters/ephyra-v2.webm")) fetched++; });
   await still.goto(`${site.url}/iframe.html?id=motion-charactergesture--default&viewMode=story`);
   await still.getByRole("button", { name: "Greet Ephyra", exact: true }).click();
   assert.equal(await still.locator("video").getAttribute("src"), null);

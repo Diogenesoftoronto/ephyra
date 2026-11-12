@@ -39,7 +39,7 @@ function Exports() {
       {reduced && <p>Showing stills to follow your reduced-motion preference.</p>}
       <div className="cluster">
         {[
-          { id: "ephyra-specimen-v1", name: "Ephyra specimen", still: "/app/motion/ephyra-specimen-v1.webp" },
+          { id: "ephyra-specimen-v1", name: "Ephyra specimen", still: "/app/motion/ephyra-specimen-v2.png" },
           { id: "velum-refraction-v1", name: "Velum", still: "/app/personas/velum.webp" },
         ].map((asset) => (
           <figure key={asset.id} style={{ margin: 0 }}>

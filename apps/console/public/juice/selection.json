@@ -5,10 +5,13 @@
       "experiment": "ephyra-h3-max",
       "model": "minimax/h3-max/image-to-video",
       "requestId": "01a1bab4-6e1a-7813-83a2-c0bec446392b",
-      "file": "characters/ephyra.webm",
+      "file": "characters/ephyra-v2.webm",
       "note": "Clear contraction and reopening; clean silhouette.",
       "trimStartSeconds": 0.2,
-      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0.2s removed; no speed change or generation."
+      "derivation": "Black matte keyed to alpha; silent VP9, 480px. Opening 0.2s removed. Retained decoded frames 0\u2013116; damaged final frames 117\u2013118 removed. Lossless re-encode of the existing export; poster is clean decoded frame 108. No new generation.",
+      "trimEndFrameExclusive": 117,
+      "poster": "../motion/ephyra-specimen-v2.png",
+      "posterFrame": 108
     },
     "rho": {
       "experiment": "rho-flux-3-max",
