@@ -41,7 +41,8 @@ export function repoFacts(cwd: string, remote = "origin"): RepoFacts {
 				stdout: "pipe",
 				stderr: "pipe",
 			});
-			return r.exitCode === 0 ? r.stdout.toString().trim() : null;
+			// Strip only git's terminating newline; a repository path may end in spaces.
+			return r.exitCode === 0 ? r.stdout.toString().replace(/\r?\n$/, "") : null;
 		} catch {
 			return null;
 		}

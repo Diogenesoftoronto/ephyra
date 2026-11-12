@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { discoverRepository, httpsRepositoryUrl } from "../src/commands/discovery";
+import { repoFacts } from "../src/commands/doctor";
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
@@ -139,4 +140,34 @@ test("HTTPS suggestions preserve repository paths while discarding userinfo, que
 		"/tmp/app", "file:///tmp/app", "https://git.example/", "https://git.example/app\n",
 	])
 		expect(httpsRepositoryUrl(address)).toBeUndefined();
+});
+
+test("a repository path ending in a space is read as itself, not as a sibling without the space", async () => {
+	const parent = await directory();
+	const sibling = join(parent, "repo");
+	const spaced = join(parent, "repo ");
+	for (const root of [sibling, spaced]) {
+		await mkdir(root);
+		git(root, "init", "--initial-branch=work");
+	}
+	git(sibling, "remote", "add", "origin", "https://git.example/team/sibling.git");
+	await file(sibling, "package.json", JSON.stringify({ dependencies: { vue: "1" } }));
+	git(spaced, "remote", "add", "origin", "https://git.example/team/spaced.git");
+	await file(spaced, "package.json", JSON.stringify({ dependencies: { hono: "1", posthog: "1" } }));
+	await file(spaced, "ephyra/autonomy.md", "# areas\n");
+
+	const found = await discoverRepository(spaced);
+	expect(found.root).toBe(spaced);
+	expect(found.remote).toBe("https://git.example/team/spaced.git");
+	expect(found.frameworks).toEqual(["Hono"]);
+	expect(found.integrations).toEqual(["posthog"]);
+	// Doctor reads templates from the same top-level path.
+	expect(repoFacts(spaced).templates).toContain("autonomy.md");
+	expect(repoFacts(sibling).templates).not.toContain("autonomy.md");
+
+	// Without the sibling, a trimmed path was unreadable and discovery gave up.
+	await rm(sibling, { recursive: true, force: true });
+	const alone = await discoverRepository(spaced);
+	expect(alone.root).toBe(spaced);
+	expect(alone.frameworks).toEqual(["Hono"]);
 });

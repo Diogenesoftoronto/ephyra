@@ -84,7 +84,8 @@ export async function discoverRepository(cwd: string): Promise<RepositoryDiscove
 			const child = Bun.spawnSync(["git", "--no-optional-locks", "-C", cwd, ...args], {
 				stdout: "pipe", stderr: "pipe", timeout: 5_000,
 			});
-			return child.exitCode === 0 ? child.stdout.toString().trim() : null;
+			// Only the newline git adds ends the value: a repository path may itself end in spaces.
+			return child.exitCode === 0 ? child.stdout.toString().replace(/\r?\n$/, "") : null;
 		} catch { return null; }
 	};
 	const top = git("rev-parse", "--show-toplevel");
