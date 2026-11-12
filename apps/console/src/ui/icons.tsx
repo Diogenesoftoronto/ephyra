@@ -2,6 +2,8 @@
 import type { SVGProps } from "react";
 
 const paths: Record<string, string> = {
+  // The loop's own shape: down to git, back up to production.
+  loop: "M3 7c3 0 4 10 9 10s6-10 9-10M3 7h.01M21 7h.01M12 17v.01",
   overview: "M4 13a8 8 0 0 1 16 0M4 13h16M7 13v3.5M10.5 13v5.5M13.5 13v5.5M17 13v3.5",
   usage: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   inbox: "M3 13l2.5-7h13L21 13M3 13v5h18v-5M3 13h5l1.5 2.5h5L16 13h5",

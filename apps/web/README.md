@@ -4,7 +4,7 @@ Ephyra's public site. One Bun handler serves:
 
 - the landing page: cut E ("Immortal", `site/e/`) is the main site, served at `/`; earlier cuts stay at `/a/`, `/b/` and `/c/`, marked noindex and left out of the sitemap;
 - the journal: a Standard.site blog on AT Protocol;
-- the public product guide at `/docs`, with local search, section links, copyable examples and a plain-text export;
+- the public guide at `/docs` or on its own host: 23 pages, each also Markdown for agents, with search and an agent brief;
 - pricing, legal and security pages;
 - everything crawlers and LLMs read.
 
@@ -16,6 +16,7 @@ Settings:
 - **`EPHYRA_HOME_CUT`:** `e` (the default), `a`, `b` or `c` picks which cut is served at `/`. The server adds `<base href="/<cut>/">` so the cut's relative links still resolve, and `/<cut>/` redirects to `/`. A cut used as home must not rely on bare `#anchor` links, because they resolve against the base. Cut D is a draft: it isn't committed or copied into the image.
 - **`EPHYRA_BLOG_PUBLICATION_URI`:** connects the journal.
 - **`EPHYRA_API_ORIGIN`:** links the control plane from `llms.txt`.
+- **`EPHYRA_DOCS_ORIGIN`:** a host of its own for the guide. See [the docs host](#the-docs-host).
 - **`EPHYRA_SITE_REDIRECT_ORIGINS`:** comma-separated previous origins and aliases that redirect to the canonical site,
   preserving paths and queries. `/healthz` remains available on every host for deployment health checks.
 
@@ -27,7 +28,7 @@ Settings:
 | `/blog/`, `/blog/posts/<slug>`, `/blog/feed.xml` | Journal, read from the publication's PDS (`site.standard.publication` / `site.standard.document`) |
 | `/.well-known/site.standard.publication` | Publication URI, for verification |
 | `/pricing` | Rendered from `src/pricing.ts`; the hosted plan is marked proposed |
-| `/docs`, `/docs.txt` | Source-backed product guide and its readable text export; `/docs/` redirects to `/docs` |
+| `/docs`, `/docs/<slug>`, `/docs/<slug>.md`, `/docs/agent.md`, `/docs.txt` | The guide, each page as Markdown, the agent brief and the text export. With `EPHYRA_DOCS_ORIGIN` these redirect to the docs host |
 | `/legal/`, `/legal/{terms,privacy,acceptable-use,providers}`, `/security` | Bodies in `content/legal/*.html`, operator details from `OPERATOR` in `src/legal.ts` |
 | `/.well-known/security.txt` | RFC 9116 contact |
 | `/terms`, `/privacy`, trailing slashes | 308 to the canonical path |
@@ -86,24 +87,27 @@ The journal, pricing, legal and security pages share cut E's tokens and type (An
 
 ## Public documentation
 
-`src/docs.ts` holds the ten guide sections and generates both server-rendered HTML and the text export. The guide covers
-account setup, quests, connections, policy activation, proof, study receipt transports, landing/watch, budgets, local
-development and API availability. Keep it aligned with executable contracts; original design proposals are not current
-capabilities. No account IDs, credentials, incident data or private deployment inventory belong in the public guide.
+The guide is 23 Markdown pages in `content/docs/pages/`, listed in reading order in `DOCS_NAV` (`src/docs.ts`). A page that is not listed there is not published. Each page has front matter (`title`, `summary`) and opens by saying who it is for or what problem it solves; the tests refuse a page that opens on a heading or a table.
 
-The complete content and native anchor navigation work without JavaScript. `content/docs/client.js` progressively adds
-local body search, `/` keyboard focus, current-section tracking, light/dark/system preferences and copy feedback with an
-honest selection fallback when clipboard access is denied. Mobile navigation uses a native disclosure. The stylesheet
-supports reduced motion, readable code overflow and printing. Both assets are copied by the existing web image.
+Authoring conventions:
+- Links between pages are written `./slug` or `./slug#anchor`, so the same source works under `/docs` and on a docs host. Links to the public site use `{{site}}`, `{{app}}` and `{{auth}}`; the control plane is `{{api}}` and the docs themselves `{{docs}}`.
+- `> [!TIP]`, `> [!NOTE]` and `> [!WARNING]` become callouts. A code fence tagged `prompt` is a prompt to paste into an agent.
+- `<!-- cards -->`, `<!-- steps -->` or `<!-- loop -->` on the line before a list gives it that shape.
+- Keep pages aligned with executable contracts. Design proposals are not current capabilities. No account IDs, credentials, incident data or private deployment inventory belong in the public guide.
 
-The homepage and shared navigation link the guide. Its canonical URL, TechArticle metadata, sitemap and LLM exports
-are served independently of the journal/PDS. `/llms-full.txt` includes the complete guide, even when the journal is down.
-`bun test apps/web` checks routes, assets, deep links, source claims, text export, crawler discovery and query injection.
-Evaluate `apps/web/scripts/check-docs.js` in the served guide to check browser interactions; clipboard success and denial
-use explicitly stubbed APIs and do not prove an operating-system clipboard write or authenticated repair.
-Local browser checks passed at 1440×900, 390×844 dark and 320×568 light, including section navigation, body search,
-no-results and literal query handling, copy success/denial, and theme selection. Actual keyboard events checked `/`
-focus and Escape clearing. Measured reading/control text roles met 4.5:1 in both themes (lowest checked role: 4.80:1).
+Every page is served three ways from one source: HTML for people, `/<slug>.md` for agents, and inside `/docs.txt` and `/llms-full.txt`. `/agent.md` is a brief written for coding agents: what Ephyra is, the rules, the setup sequence, and a map of every page as Markdown. Each page offers **Copy page for an agent**, **Copy a prompt**, and links that open Claude or ChatGPT with that prompt.
+
+### The docs host
+
+Set `EPHYRA_DOCS_ORIGIN` (for example `https://docs.ephyra.quest`) and the same process serves the guide at that host's root: `/`, `/<slug>`, `/<slug>.md`, `/agent.md`, `/search.json`, `/llms.txt`, `/llms-full.txt`, `/robots.txt`, `/sitemap.xml`. Each page then has one address: `/docs`, `/docs/<slug>` and `/docs.txt` on the public site redirect there (308), and the public site's navigation, sitemap and `llms.txt` name the docs host. Anything else requested from the docs host redirects to the public site. Without the variable the guide is served under `/docs`.
+
+Old single-page links such as `/docs#policy` reach the page that replaced the section: the fragment is handled by `content/docs/client.js` on the overview.
+
+The complete content and anchor navigation work without JavaScript. `content/docs/client.js` progressively adds search over every section of every page (`/search.json`, fetched on first use), `/` to focus it and arrow keys through results, current-section tracking, light/dark/system preferences, and copy actions with an honest fallback when clipboard access is denied. Mobile navigation uses a native disclosure. The stylesheet supports reduced motion, readable code overflow and printing.
+
+`bun test apps/web` checks, with no network: every page on both hosts (canonical URL, one `h1`, no unfilled token); that every link between pages and every anchor resolves; the Markdown, agent brief, text and LLM exports; the search index; docs-host routing and redirects; that the CLI's topic list names exactly the published pages; and that arbitrary queries and paths cannot inject markup.
+
+Checked in a headless browser on 11 November 2026 at 1440×900 (light and dark), 1100×900 and 390×844 (light and dark): no console errors and no horizontal overflow on the overview, CLI, reviewing, troubleshooting and architecture pages; `/` focuses search and "stale decision" returns the troubleshooting section first. `scripts/check-docs.js`, evaluated in a served page, checks the interactions with a stubbed clipboard: it passed on `/docs/cli` (1440×900), `/docs/troubleshooting` (390×844 dark) and, with a docs host configured, on `/policy` (1100×800) and `/` (320×568). Not checked: the copy actions against a real system clipboard, a screen reader, and the docs host behind real DNS.
 
 ## Landing walkthrough
 

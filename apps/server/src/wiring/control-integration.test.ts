@@ -6,6 +6,7 @@ import {
   Trail, TrailEvent, Unverified, budgetBlocker, type AgentResult, type CodingAgent,
   type EvidenceSource, type Runner, type ServiceProfile,
 } from "@ephyra/core";
+import type { AgentRunOptions } from "@ephyra/agent";
 import { GitJournal } from "@ephyra/journal";
 import { MemorySignalStore } from "@ephyra/ingest";
 import { LocalRunner } from "@ephyra/runner";
@@ -21,7 +22,8 @@ import { agentHandlers, type AgentDeps } from "./agents.ts";
 import { recordTrailUsage } from "./budget.ts";
 import { WorkControl } from "./control.ts";
 import type { EmitInput, JobRunner, ServerContext } from "./context.ts";
-import { humanHandlers } from "./human.ts";
+import { MemoryAudit } from "../audit.ts";
+import { humanHandlers, httpPort } from "./human.ts";
 import { Engine } from "./runtime.ts";
 import { MemoryStore } from "./store.ts";
 
@@ -332,4 +334,47 @@ test("activating a higher risk policy reclassifies the exact diff and rejects th
     } };
   await expect(f.application.engine.emit(old)).rejects.toThrow("workflow changed");
   expect((await f.application.ctx.trails.get(t.id))!.state).toBe("proving");
+});
+
+test("each attempt's plan is in the journal while the agent is still working, and the trail detail lists plans and effects", async () => {
+  const seen: string[][] = [];
+  let plans: () => Promise<string[]> = async () => [];
+  let turns = 0;
+  const run = async (_task: unknown, _runner: unknown, _handle: unknown, opts: AgentRunOptions = {}): Promise<AgentResult> => {
+    turns++;
+    seen.push(await plans());
+    const usage = { tokens: 5, costMicrousd: 1, model: "fixture-model" };
+    if (turns === 1) {
+      await opts.onUsage?.({ key: "fixture-first-turn", ...usage });
+      throw new Error("The first reading went nowhere");
+    }
+    return { ok: true, artefacts: { "hypothesis.md": "A different cause." }, outputs: {}, sessions: [], usage };
+  };
+  const f = await runtime({}, { agent: { name: "fixture-agent", run } });
+  f.ctx.attach = (id, files, expected) => f.engine().attach(id, files, expected);
+  const audit = new MemoryAudit();
+  const port = httpPort(f.ctx, { append: async (input) => audit.append(input) });
+  const detail = async () => (await port.trail(f.t.id))!;
+  plans = async () => ((await detail()).artefacts ?? []).map((file) => file.path).filter((path) => path.startsWith("artefacts/recovery/"));
+  await f.start("research", "first-research");
+  await f.drainOne();
+  expect((await f.current())!.state).toBe("researching");
+  await f.drainOne();
+  expect((await f.current())!.state).toBe("hypothesised");
+  // What a reader could see from inside each turn: the plan being tried, before the turn had an outcome.
+  expect(seen).toEqual([
+    ["artefacts/recovery/research-1-1.json"],
+    ["artefacts/recovery/research-1-1.json", "artefacts/recovery/research-1-2.json"],
+  ]);
+  const result = await detail();
+  const strategies = result.artefacts!.filter((file) => file.path.startsWith("artefacts/recovery/"))
+    .map((file) => JSON.parse(file.content!).strategy);
+  expect(strategies).toEqual(["initial", "alternate_hypothesis"]);
+  expect(result.artefacts!.some((file) => file.path === "artefacts/recovery/index.json")).toBe(false);
+  // Effects carry the event that caused them. The first turn was started by the fixture directly, so it is not among them.
+  const events = new Map(result.events.map((event) => [event.id, event.type]));
+  expect(result.effects!.map((entry) => [events.get(entry.cause), entry.effect.type])).toEqual([
+    ["agent_failed", "start_agent"], ["research_completed", "request_checkpoint"],
+  ]);
+  expect(new Set(result.effects!.map((entry) => entry.effect.key)).size).toBe(result.effects!.length);
 });

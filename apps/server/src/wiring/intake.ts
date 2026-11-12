@@ -8,6 +8,18 @@ import {
 import { applyTriage, areaFor, buildExtractionRequest, buildTriageRequest, type Candidates } from "@ephyra/policy";
 import type { HandlerSlice, ServerContext } from "./context.ts";
 
+/**
+ * A quest is named for what went wrong, not only for the kind of error: "TypeError: amount must be whole cents" rather
+ * than "TypeError". The words are the signal's own, already redacted, and are only ever shown as text.
+ */
+export function questTitle(signal: { title: string; message: string; exceptionType?: string }): string {
+  const message = signal.message.split("\n")[0]!.trim();
+  const type = signal.exceptionType?.trim();
+  if (!type) return (message || signal.title).slice(0, 200);
+  if (!message || message === type) return type.slice(0, 200);
+  return (message.startsWith(type) ? message : `${type}: ${message}`).slice(0, 200);
+}
+
 export type IntakeDeps = {
   extract: ExtractBackend | null;
   decide: DecideBackend | null;
@@ -73,7 +85,7 @@ export async function triageSignal(ctx: ServerContext, deps: IntakeDeps, signal:
     delete triage.regressionOf;
   }
   const result = createTrail({
-    id, signal, title: signal.title.slice(0, 200), repo: ctx.repo.id,
+    id, signal, title: questTitle(signal), repo: ctx.repo.id,
     base: { ref: ctx.repo.baseRef, sha: await deps.baseSha() }, triage, now, budget: deps.budget,
     ...(regressionTrail && triage.regressionOf ? { regressionTrail } : {}),
   });

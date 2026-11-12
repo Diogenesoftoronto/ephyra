@@ -96,7 +96,7 @@ function WorkspaceRoot() {
   const invitation: InvitationFlow = { token: invited, clear: () => {
     try { forgetInvitation(sessionStorage); } catch { /* Storage is blocked. */ }
     setInvited(null);
-    if (location.hash.startsWith("#/join/")) history.replaceState(null, "", "#/overview");
+    if (location.hash.startsWith("#/join/")) history.replaceState(null, "", "#/loop");
   } };
   const [credentials, setCredentials] = useState<Credentials | null>(readCredentials);
   const fake = useMemo(() => (demo ? new FakeApi({ now: Date.now() }) : null), [demo]);

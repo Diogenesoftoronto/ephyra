@@ -11,6 +11,7 @@ const handler = createSite({
   redirectOrigins: (process.env.EPHYRA_SITE_REDIRECT_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean),
   ...(process.env.EPHYRA_BLOG_PUBLICATION_URI ? { publicationUri: process.env.EPHYRA_BLOG_PUBLICATION_URI } : {}),
   ...(process.env.EPHYRA_API_ORIGIN ? { apiOrigin: process.env.EPHYRA_API_ORIGIN } : {}),
+  ...(process.env.EPHYRA_DOCS_ORIGIN ? { docsOrigin: process.env.EPHYRA_DOCS_ORIGIN } : {}),
 });
 const server = Bun.serve({ hostname: "0.0.0.0", port, fetch: handler });
 const blog = Boolean(process.env.EPHYRA_BLOG_PUBLICATION_URI);

@@ -245,6 +245,57 @@ repository with a fake model, unit/property tests, app/Storybook builds, and the
 Unverified: live provider replies, hosted sign-in with a real account, live agent/orb streams,
 production deployment and cloud/forge writes. Storybook/demo fixtures are not evidence for those.
 
+## Help and tips
+
+The **Help** button in the workspace bar opens help for the current screen: what it is for, a few things worth knowing, links to the matching page of the public guide, and **Copy a brief for your agent**. The brief names the server, the connected repository (with any credentials removed) and the screen; it never contains a token. If the clipboard is unavailable the brief is shown selected instead of claiming it was copied.
+
+Above every screen except the loop, one tip is shown at a time. **Got it** moves to the next; when a screen's tips have all been seen, nothing is shown. **Hide tips** in the help menu turns them off, and **Show tips** starts them again. Both are remembered in `localStorage` (`ephyra.tips.dismissed`, `ephyra.tips.off`); blocked storage only means tips reappear. The loop page keeps its layout contract, so its tips are in the help menu only.
+
+`src/lib/help.ts` holds the table. `src/lib/help.test.ts` checks that every screen has help and that every link names a published docs page and a heading on it, by reading `apps/web/content/docs/pages`. `VITE_EPHYRA_DOCS_URL` points the links at another copy of the guide. Checked in a headless browser against the demo (`/app/?demo=1`) at 1440×900 light and dark and 390×844: tips advance, the brief reaches the clipboard, the panel is not covered, Escape and an outside click close it and focus returns. Not checked: a signed-in account with a real repository, and a screen reader.
+
+## The loop view and the design lab
+
+`design/09-console-redesign.md` is the decision record. `#/loop` is the console's home page: every quest the server
+holds, where each one is, and the one thing (if any) that needs a person.
+
+- `src/pages/LoopPage.tsx` is the page. `src/app/useLoop.ts` polls quests, the inbox and questions (every two seconds
+  while anything is moving by itself, every five when nothing is, never while the tab is hidden) and reads journals for
+  the selected quest, changed quests and working quests in turn. `src/loop/live.ts` holds the
+  pure parts of that (which journals to read, how a board is assembled).
+- `src/loop/model.ts` turns server shapes into what the screen says. `src/loop/parts.tsx`, `board.tsx` and
+  `Inspector.tsx` are the components, shared by the page and the lab.
+- Keys on the page: `j`/`k` walk the quests, `a` then `Enter` does the one waiting action, `i` opens under the hood,
+  `Esc` closes it. Approving, sending back, dropping (two presses), resuming and answering a question are real writes,
+  each with its own operation key.
+- `lab.html` compares seven layouts over a simulated hour (`src/loop/scenario.ts`) and has three benches. It always
+  shows "Simulated quests. No agent ran." The real page never shows that label and never predicts a recovery plan: it
+  reads the server's.
+
+```sh
+bun run --filter @ephyra/console loop:e2e           # the real server, then the built console in a browser
+bun run --filter @ephyra/console loop:independent   # a second driver with its own scenario and its own checks (needs a build)
+bun run --filter @ephyra/console loop:accept        # the acceptance contract against the lab's layouts
+bun run --filter @ephyra/console build:lab          # then open dist-lab/lab.html through any static server
+bun run --filter @ephyra/console lab:shots          # screenshots and metrics.json in .screens/lab
+bun run --filter @ephyra/console typecheck:scripts
+```
+
+Verified locally with `loop:e2e` (24 of 24 on 10 November 2026): the real server takes a signal to a landed and watched
+fix with no person deciding; recovers from a failed first reading and a failed proof; stops only at a blocking
+checkpoint; stops on a missing fact and asks one person, and refuses an answer from anyone else; the console at
+`#/loop` shows the same quests in the same state as the server, passes the twelve checks of the acceptance contract,
+lands a quest from one approval in the browser, takes the asked person's answer, and follows a quest from asking to set
+without a reload. The coding agent, decide backend, question-wording model, contact and production telemetry in that run
+are fixtures and are recorded as fixtures. Pictures from the last run are in `.screens/e2e/`.
+
+`loop:independent` is a second driver, written separately with its own fixture repository and assertions (21 of 21): it
+also covers sending a quest back with a note, dropping one, a stale approval, a server outage and recovery, a reload
+mid-quest, direct links, and a page kept open through eight quests without a reload.
+
+Not verified: sign in, connecting a repository and automatic setup are not part of that script, so the run begins at a
+server that already has its repository. The page polls; there is no stream for quests. Nothing here was run against a
+real coding agent, a real decide backend or real production telemetry.
+
 ## Velum companion
 
 One workspace conversation for typed and spoken turns, built on the existing assistant-ui composer (`src/velum/`). The

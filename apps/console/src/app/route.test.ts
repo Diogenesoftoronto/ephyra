@@ -3,7 +3,9 @@ import { parseRoute } from "./route.ts";
 
 describe("parseRoute", () => {
   test("pages, ids and fallbacks", () => {
-    expect(parseRoute("")).toEqual({ page: "overview" });
+    expect(parseRoute("")).toEqual({ page: "loop" });
+    expect(parseRoute("#/loop/T-c0ffee")).toEqual({ page: "loop", id: "T-c0ffee" });
+    expect(parseRoute("#/overview")).toEqual({ page: "overview" });
     expect(parseRoute("#/usage")).toEqual({ page: "usage" });
     expect(parseRoute("#/inbox/abc-1")).toEqual({ page: "inbox", id: "abc-1" });
     expect(parseRoute("#/workspace/d%2D1?x=1")).toEqual({ page: "workspace", id: "d-1" });

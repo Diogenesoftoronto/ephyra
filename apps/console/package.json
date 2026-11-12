@@ -16,7 +16,13 @@
     "tutor-interactions": "env -u LD_LIBRARY_PATH bun scripts/tutor-interactions.ts",
     "multiplayer": "env -u LD_LIBRARY_PATH bun scripts/multiplayer.ts",
     "screens": "env -u LD_LIBRARY_PATH bun scripts/screens.ts",
-    "build:walkthrough": "vite build --config vite.walkthrough.config.ts"
+    "build:walkthrough": "vite build --config vite.walkthrough.config.ts",
+    "build:lab": "vite build --config vite.lab.config.ts",
+    "lab:shots": "env -u LD_LIBRARY_PATH bun scripts/lab-shots.ts",
+    "loop:accept": "env -u LD_LIBRARY_PATH bun scripts/loop-acceptance.ts",
+    "loop:e2e": "env -u LD_LIBRARY_PATH bun --no-env-file scripts/e2e-loop.ts",
+    "loop:independent": "env -u LD_LIBRARY_PATH bun --no-env-file scripts/independent-e2e.ts",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.32",

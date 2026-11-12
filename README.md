@@ -10,6 +10,10 @@ Ephyra is a design for an open-source system that keeps a running application he
 | [design/01-product-and-loop.md](design/01-product-and-loop.md) | Fable | Quest state machine, sensing, intents, System One triage schemas, autonomy policy, proof bundles, event→action table, MVP |
 | [design/02-platform.md](design/02-platform.md) | Astra (Codex) | Forge adapters (Radicle / Tangled / plain git), git ref layout, DBOS durable execution, telemetry, sandboxes, model/account registry, Railway + self-host service maps, security |
 
+## Documentation
+
+The public guide is at <https://ephyra.quest/docs> (and `docs.ephyra.quest` once that host is attached): quickstart, the console, the CLI, the terminal inbox, how to judge a checkpoint, policy, proof, self-hosting, the API, and how the loop works inside. Its source is `apps/web/content/docs/pages/`. To hand it to a coding agent, give it `https://ephyra.quest/docs/agent.md`, or run `ephyra handoff` in your repository.
+
 ## Implemented application
 
 Onboarding now starts automatic setup after an HTTPS repository connection and discovers the remote default branch.

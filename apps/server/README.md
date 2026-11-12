@@ -122,6 +122,9 @@ needs a signed-in approver whenever approvers are configured**. Every response i
 
 | Route | Returns |
 |---|---|
+| `GET /v1/trails/:id` | The quest, its events, its review documents, its recovery plans (`artefacts/recovery/*`, named by an index the server keeps because a journal cannot list a directory) and `effects`: every effect a transition asked for, with the event that caused it. `effects` records intent, not delivery, and is absent when the history cannot be read |
+| `GET /v1/questions`, `GET /v1/questions/:trail/:question` | On a self-hosted server: what a stopped quest is asking and of whom. Any authenticated principal may read |
+| `POST /v1/questions/:trail/:question/answer` | On a self-hosted server: only the principal the question was addressed to (its contact's `did`) may answer; anyone else gets 403. The answer is checked before the quest resumes |
 | `GET /v1/me` | Authenticated principal, identity kind and server-derived decision permission for the console |
 | `GET /v1/personas` | `Persona[]` |
 | `GET /v1/usage?from&to&persona&engine&trail` | `UsageSummary`; default window the last 7 days (at most 366), every UTC day present, `persona=unattributed` for work with no persona |

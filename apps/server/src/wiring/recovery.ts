@@ -25,6 +25,32 @@ const unblock = " If the available tools cannot resolve the uncertainty, record 
   + "with the missing information, why their answer changes the next action, and the evidence already checked. "
   + "Do not contact anyone or widen permissions from this instruction alone.";
 
+/**
+ * Which recovery plans a trail's journal holds. The journal cannot list a directory, so the plans are named here, oldest
+ * first, each time one is written. A trail journaled before the index existed has none to show.
+ */
+export const RECOVERY_INDEX_PATH = "artefacts/recovery/index.json";
+export const RECOVERY_PLAN_PATH = /^artefacts\/recovery\/[a-z_]{1,32}-\d{1,6}-\d{1,3}\.json$/;
+const MAX_INDEXED = 64;
+
+/** The plan paths an index names. Anything unreadable or out of shape reads as none: the index is a finding aid, not evidence. */
+export function recoveryIndexPaths(bytes: Uint8Array | null): string[] {
+  if (!bytes || bytes.byteLength > 64_000) return [];
+  try {
+    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (value?.schema !== 1 || !Array.isArray(value.paths)) return [];
+    const paths = value.paths.filter((path: unknown): path is string => typeof path === "string" && RECOVERY_PLAN_PATH.test(path));
+    return [...new Set<string>(paths)].slice(-MAX_INDEXED);
+  } catch { return []; }
+}
+
+/** The index after `path` was written: every earlier plan in order, `path` once, the oldest dropped past the cap. */
+export function recoveryIndexWith(bytes: Uint8Array | null, path: string): string {
+  if (!RECOVERY_PLAN_PATH.test(path)) throw new Error(`not a recovery plan path: ${path}`);
+  const paths = recoveryIndexPaths(bytes).filter(known => known !== path);
+  return JSON.stringify({ schema: 1, paths: [...paths, path].slice(-MAX_INDEXED) });
+}
+
 /** Pure recovery planning. Provider/sandbox reset and external reconciliation must be performed by their owning adapters. */
 export function buildRecovery(trail: Trail, events: TrailEvent[], step: AgentStep, options: RecoveryOptions = {}) {
   const seen = new Set<string>();

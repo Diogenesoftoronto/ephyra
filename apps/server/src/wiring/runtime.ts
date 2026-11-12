@@ -3,7 +3,7 @@
 // projection that the API reads. Effects run after the journal acknowledged the transition, through the
 // operation ledger, so a replay never runs an effect twice. Long work runs as jobs on a background loop.
 import {
-  TrailEvent, transition, type Effect, type IdGen, type Journal, type OperationLedger, type Trail,
+  TrailEvent, transition, type Effect, type IdGen, type Journal, type JournalFiles, type OperationLedger, type Trail,
   type TransitionContext,
 } from "@ephyra/core";
 import { EffectExecutor } from "../orchestrator/effects.ts";
@@ -12,7 +12,10 @@ import { canonicalJson } from "../audit.ts";
 import type { EffectHandlers } from "../orchestrator.ts";
 import type { EmitInput, JobRunner, ServerContext } from "./context.ts";
 import type { RuntimeStore } from "./store.ts";
-import { appendEffects, EFFECT_OUTBOX_PATH, effectIsCurrent, effectOutbox, readEffectOutbox, type PendingEffect } from "./effect-outbox.ts";
+import {
+  appendEffects, EFFECT_HISTORY_PATH, EFFECT_OUTBOX_PATH, effectHistory, effectIsCurrent, effectOutbox, readEffectHistory, readEffectOutbox,
+  recordEffects, type PendingEffect,
+} from "./effect-outbox.ts";
 import { WorkerOwnershipLost } from "./worker-lease.ts";
 
 export type ContextFn = (trail: Trail, event: TrailEvent) => Promise<TransitionContext>;
@@ -65,6 +68,21 @@ export class Engine {
     return (await readEffectOutbox(this.journal, trailId)).filter(entry => !this.completedEffects.has(entry.effect.key));
   }
 
+  /**
+   * The history file to write with a transition, or nothing when the transition asked for no effects. A history that
+   * cannot be read is left exactly as it is: the transition must still go through, and a reader is told it is unreadable.
+   */
+  private async recorded(trailId: string, exists: boolean, cause: string, effects: readonly Effect[]): Promise<JournalFiles> {
+    if (!effects.length) return {};
+    try {
+      const history = exists ? await readEffectHistory(this.journal, trailId) : [];
+      return { [EFFECT_HISTORY_PATH]: effectHistory(recordEffects(history, cause, effects)) };
+    } catch (error) {
+      this.log("effect history left unchanged", { trail: trailId, error: String(error) });
+      return {};
+    }
+  }
+
   /** Serialize all work on one trail. */
   private serial<T>(trailId: string, work: () => Promise<T>): Promise<T> {
     const prev = this.chains.get(trailId) ?? Promise.resolve();
@@ -88,13 +106,14 @@ export class Engine {
         return;
       }
       const entries = appendEffects(existing ? await this.pending(trail.id) : [], initial.id, trail, effects);
+      const files = { ...await this.recorded(trail.id, existing !== null, initial.id, effects), [EFFECT_OUTBOX_PATH]: effectOutbox(entries) };
       await this.assertOwned();
-      if (!existing) await this.journal.create(trail, initial, { [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+      if (!existing) await this.journal.create(trail, initial, files);
       else {
         if (existing.trail.state !== "closed" || trail.state !== "researching" || trail.rev !== existing.trail.rev + 1) {
           throw new InvalidTransition("An existing trail requires its recorded start or a new closed-trail regression revision");
         }
-        await this.journal.append(trail.id, existing.head, trail, [initial], { [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+        await this.journal.append(trail.id, existing.head, trail, [initial], files);
       }
       await this.project(trail, [initial]);
     });
@@ -145,13 +164,32 @@ export class Engine {
       if (!result.ok) throw new InvalidTransition(result.error);
       // CAS append: a concurrent writer outside this process makes this throw rather than overwrite.
       const entries = appendEffects(await this.pending(trailId), event.id, result.trail, result.effects);
+      const history = await this.recorded(trailId, true, event.id, result.effects);
       await this.assertOwned();
-      await this.journal.append(trailId, current.head, result.trail, [event], { ...files, [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
+      await this.journal.append(trailId, current.head, result.trail, [event],
+        { ...files, ...history, [EFFECT_OUTBOX_PATH]: effectOutbox(entries) });
       await this.project(result.trail, [event]);
       return result.trail;
     });
     await this.deliverPending(trailId);
     return trail;
+  }
+
+  /**
+   * Add files to a trail's journal without an event, in the same per-trail queue as every transition, so it can never
+   * race one. Returns false, and writes nothing, when the trail has moved on from the work the files describe.
+   */
+  async attach(trailId: string, files: JournalFiles, expected?: { rev: number; state: Trail["state"]; generation?: number }): Promise<boolean> {
+    if (Object.keys(files).some(path => path.startsWith("outbox/"))) throw new InvalidTransition("The effect outbox is reserved");
+    return this.serial(trailId, async () => {
+      await this.assertOwned();
+      const current = await this.journal.read(trailId);
+      if (!current) return false;
+      if (expected && (current.trail.rev !== expected.rev || current.trail.state !== expected.state
+        || (current.trail.workGeneration ?? 0) !== (expected.generation ?? 0))) return false;
+      await this.journal.append(trailId, current.head, current.trail, [], files);
+      return true;
+    });
   }
 
   /** Repair every durable projection before policy reload or any pending effect is delivered. */
