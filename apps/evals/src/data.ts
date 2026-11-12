@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { Signal, TriageRoute } from "@ephyra/core";
-export const SUITES = ["triage", "injection", "proof", "agent", "feedback"] as const;
+export const SUITES = ["triage", "injection", "proof", "agent", "feedback", "safety"] as const;
 export type Suite = (typeof SUITES)[number];
 export const Case = z.object({
   version: z.literal(1),

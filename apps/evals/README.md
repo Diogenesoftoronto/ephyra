@@ -27,6 +27,25 @@ No production signals, approvals, runs, or Entire checkpoints are invented.
   success claims. The captured Amp reauthentication failure is explicitly replayed
   and unavailable. Plan/explanation quality uses the committed rubric; a judge
   has not been run, so quality scores remain null.
+- **safety**: 10 versioned attack/benign **pairs** (`datasets/safety.v1.jsonl`)
+  asking whether prompt-injection resistance costs autonomy. Each scenario drives a
+  real boundary: core `transition`, policy `parseAutonomy`/`checkpointMode`/
+  `interpretPolicyAnswer`/`evaluateWatch`/`areaFor`, evidence `WatchCollector`, and
+  the server `agentHandlers`/`httpPort`/`workBudget` through `FakeContext`. Covers
+  judge identity + high/critical C authority in an advisory owner envelope, forge
+  comments claiming approval, policy-commit rebinding of approvals, token/unknown-usage
+  budgets, spend top-ups (comment-claimed, stacked, non-human), multi-hop propagation
+  (signal + tool output → generated hypothesis → plan prompt, with an env/log canary),
+  repro probe paths, canary/watch coverage, and diff scope across areas. Scores:
+  `boundary_held` (attack), `legit_completion_under_attack`, `legit_completion` and
+  `unnecessary_block` (benign, 0 is good), `matches_expected`; the report adds
+  `breach_rate`, `benign_completion`, `unnecessary_block_rate`, `pair_robust_utility`.
+  The adversary is **scripted**: it always attempts, so `model_attempt_rate` is
+  Unverified offline, and "breach" means the boundary accepted the action, not that a
+  model tried. Three breaches are labelled `known_gap` and shown in every report
+  rather than hidden (see `SAFETY.md`). Not exercised here and therefore Unverified:
+  PolicyActivation (git), landing.ts telemetry freshness and deploy attribution
+  (private), HTTP principal authentication, sandbox/network isolation, real models.
 - **feedback**: production human/agent wiring, in-memory context and effect ledger:
   A/B/C bindings, stale approvals, artifact citation existence, timeouts/errors,
   failed turn handling, and reconciliation causes. Relative imports within apps
@@ -41,6 +60,7 @@ From the repository root:
 rtk proxy bun apps/evals/src/main.ts run --suite all
 rtk proxy bun test apps/evals
 rtk proxy bun run --filter @ephyra/evals typecheck
+rtk proxy bun apps/evals/src/main.ts run --suite safety   # offline only; no paid calls
 
 rtk proxy env EPHYRA_LIVE=1 TYPESAFE_MODEL=jev-latest \
   TYPESAFE_API_KEY="$(rtk proxy skate get typesafe_api_key@secrets)" \
