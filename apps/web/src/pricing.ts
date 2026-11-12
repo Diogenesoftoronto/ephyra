@@ -1,5 +1,6 @@
 // Public pricing proposal shared by /pricing and llms.txt. This is not a billing rate card.
 // Unknown rates stay null; no numeric zero may imply free hosted usage.
+import { OPERATOR } from "./legal.ts";
 
 export type Rate = { label: string; usd: number | null; unit: string; note?: string; display?: string };
 export type Plan = {
@@ -43,13 +44,13 @@ export const pricing: Pricing = {
         "A customer-funded balance, with $150 suggested to start",
         "Model usage for monitoring, investigation, coding and verification",
         "Compute for running your application and its checks",
-        "A consistent service charge on model usage; rate to be announced",
+        "A consistent percentage added to underlying model cost; percentage to be announced",
       ],
       rates: [
         { label: "Model usage", usd: null, unit: "", display: "Rates to be announced",
-          note: "Usage charges plus the published service charge, without tying the plan to a particular model." },
+          note: "Underlying model cost plus a consistent percentage. Lower underlying costs reduce your charge." },
         { label: "Compute", usd: null, unit: "", display: "Rates to be announced",
-          note: "Based on the resources and execution time used." },
+          note: "Hosting and compute are charged separately from model usage, based on resources and execution time." },
       ],
     },
   ],
@@ -64,7 +65,7 @@ export const pricing: Pricing = {
       "Usage shows recorded spend, work history and quest budgets. Unknown costs are labelled separately. "
       + "Published rates and an itemized billing breakdown will explain hosted charges before purchase."],
     ["What does self-hosting cost?", "There is no Ephyra licence fee. Hosting, model providers and other services you connect charge separately."],
-    ["Can I buy hosted credits?", "Not yet. The structure is a proposal; unit rates and the service charge are still being set. "
+    ["Can I buy hosted credits?", "Not yet. The structure is a proposal; unit rates, markup percentage and data-option prices are still being set. "
       + "Checkout will show prices, the seller and terms before anything is charged."],
   ],
 };
@@ -96,11 +97,21 @@ ${plan.rates ? `<table><tbody>${rateRows(plan.rates, plan.id)}</tbody></table>` 
 <div class="plans">${cards}</div>
 <h2 id="models">Understand your usage</h2>
 <p>Model use covers monitoring, investigation, coding and verification. Compute covers the resources used to run your application and its checks. \
-The hosted proposal adds a consistent service charge to model usage; the rate has not been set.</p>
+Model charges follow <strong>underlying model cost × (1 + markup percentage)</strong>. \
+The percentage has not been set. When the underlying cost falls, your model charge falls with it. Hosting and compute are charged separately.</p>
 <p>We suggest ${money(p.startingBalanceUsd)} as an initial customer-funded balance. How long it lasts depends on your workload, \
 check duration and retries. We have not measured a representative number of hours or fixes for that amount.</p>
 <p>The <a href="/docs/budgets">Usage guide</a> explains recorded spend, per-quest budgets and forecasts. \
 Hosted balance warnings, account spending limits and optional automatic top-ups are planned.</p>
+<h2 id="data-options">Proposed data options</h2>
+<p>These options are proposed and not available for purchase. Price differences have not been set.</p>
+<table><thead><tr><th>Option</th><th>Pricing direction</th><th>What it means</th></tr></thead><tbody>
+<tr><td>Training permitted</td><td>Lower proposed price</td><td>Available only with your explicit, separate opt-in to use agreed content for training.</td></tr>
+<tr><td>No training</td><td>Higher proposed price</td><td>Without explicit permission, we do not use your content for training. \
+No-training does not mean zero retention; processing and retention terms are separate.</td></tr>
+<tr><td>Zero data retention</td><td><a href="mailto:${esc(OPERATOR.email)}">Contact sales</a></td><td>Discuss the required scope and provider support. \
+Availability and terms must be confirmed before any zero-retention commitment.</td></tr>
+</tbody></table>
 <h2 id="faq">Questions</h2>
 <dl class="faq">${p.faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl>
 <p class="muted">Prices are in ${p.currency}, before taxes. Hosted credit billing is not implemented, and nothing on this page is an offer. \
@@ -114,7 +125,11 @@ export function pricingSummary(p = pricing): string[] {
     `- Self-hosted: $0 licence fee. ${self.summary}`,
     `- Hosted plan (proposed, not for sale): prepaid model usage and compute; no required subscription, seat fee or per-quest charge.`,
     `- Suggested starting balance: ${money(p.startingBalanceUsd)}, customer-funded, not a free grant.`,
-    `- Hosted rates: ${(hosted.rates ?? []).map((r) => `${r.label}: ${priced(r)}`).join("; ")}. Service charge not yet set.`,
+    `- Hosted rates: ${(hosted.rates ?? []).map((r) => `${r.label}: ${priced(r)}`).join("; ")}. Markup percentage not yet set.`,
+    `- Model charges: underlying model cost × (1 + markup percentage). Lower underlying costs reduce your charge; hosting is separate.`,
+    `- Proposed data options (not available): lower price with explicit training opt-in; higher price without training. Price differences not yet set.`,
+    `- Without explicit permission, we do not use your content for training. No-training does not mean zero retention.`,
+    `- Zero data retention: contact sales at ${OPERATOR.email}; scope, provider support and availability must be confirmed.`,
     `- Recorded usage and per-quest budgets are available. Hosted balance warnings and automatic top-ups are planned.`,
   ];
 }
