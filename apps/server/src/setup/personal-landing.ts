@@ -1,5 +1,6 @@
 import { Unverified } from "@ephyra/core";
-import { RemoteGitAdapter } from "@ephyra/forge";
+import { HostedPullAdapter, RemoteGitAdapter, hostedProviderFor, type HostedPullOptions } from "@ephyra/forge";
+import type { ForgeAdapter } from "@ephyra/core";
 import type { ComposeOverrides } from "../compose.ts";
 import type { Accounts } from "./accounts.ts";
 import { canonicalJson } from "../audit.ts";
@@ -8,6 +9,8 @@ import { measureWatchBaseline } from "../wiring/landing.ts";
 /** Personal writes use current account credentials at the constrained HTTPS edge, never deployment Git identity. */
 export function personalLanding(options: {
   accounts: Accounts; did: string; workspace: string;
+  /** Tests inject a fake; production builds the real adapter. */
+  hosted?: (options: HostedPullOptions) => ForgeAdapter;
 }): NonNullable<ComposeOverrides["landing"]> {
   return async ({ ctx, ledger, probes, runProbe, telemetry }) => {
     const { accounts, did, workspace } = options;
@@ -55,7 +58,20 @@ export function personalLanding(options: {
     };
     const adapter = new RemoteGitAdapter(ctx.repo.mirrorDir, { remote, scope: `${did}:${workspace}`, ledger, authorize,
       run: (argv) => accounts.repositoryCommand(did, workspace, argv) });
-    return { adapters: [adapter], canLand, refreshBase: () => accounts.refreshRepository(did, workspace), watch: {
+    const adapters: ForgeAdapter[] = [adapter];
+    // A pull request needs the forge's API, so it needs a saved token. Without one, pull_request has no adapter and parks.
+    const provider = ["github", "gitlab", "forgejo"].includes(repository.forge?.kind ?? "") && repository.credentialConfigured
+      ? hostedProviderFor(remote, repository.forge?.kind === "gitlab" ? { gitlabHosts: [new URL(remote).hostname] } : {})
+      : null;
+    if (provider) {
+      adapters.push((options.hosted ?? ((o) => new HostedPullAdapter(o)))({
+        ...provider, baseBranch: repository.branch.replace(/^refs\/heads\//, ""), repoDir: ctx.repo.mirrorDir, remote,
+        scope: `${did}:${workspace}`, ledger, authorize,
+        token: () => accounts.repositoryToken(did, workspace, repository),
+        run: (argv) => accounts.repositoryCommand(did, workspace, argv),
+      }));
+    }
+    return { adapters, canLand, refreshBase: () => accounts.refreshRepository(did, workspace), watch: {
       coverage,
       prepare: async (trail) => {
         if (!await canLand()) throw new Unverified("configured deployment and telemetry sources");
