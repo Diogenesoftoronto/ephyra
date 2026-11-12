@@ -109,6 +109,21 @@ async function openPrintedLink(url: string) {
 	catch { console.error("The browser could not be opened. Open the printed link to continue."); }
 }
 
+/** Exit status for an error from `main`: 130 for a user cancellation, 1 otherwise (including unconfirmed writes). */
+export function exitCodeFor(error: unknown): number {
+	return error instanceof Error && ["CliCancelledError", "LoginCancelledError"].includes(error.name) ? 130 : 1;
+}
+
+/** The binary's entry point: run `main`, print a failure the way the caller asked for, and set the exit status. */
+export async function runCli(args: string[]): Promise<void> {
+	try { await main(args); }
+	catch (error) {
+		const message = error instanceof Error ? error.message : "Command failed";
+		console.error(args.includes("--json") ? JSON.stringify({ error: message }) : message);
+		process.exitCode = exitCodeFor(error);
+	}
+}
+
 export async function main(args: string[]) {
 	args = [...args];
 	// Completion words are literal input; --help, --json and the trailing empty word belong to tab.
