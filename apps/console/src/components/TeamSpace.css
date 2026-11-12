@@ -81,3 +81,40 @@
 .space-channels strong { font-size: var(--fs-small); }
 .space-channels small { color: var(--muted); font-size: var(--fs-label); overflow-wrap: anywhere; }
 .space-link { font-size: var(--fs-small); }
+
+/* Why a person, and how to need one less */
+.space-why { grid-column: 2 / -1; font-size: var(--fs-small); }
+.space-why summary {
+  display: inline-flex; align-items: center; min-height: 32px; color: var(--jelly-deep); font-weight: 600; cursor: pointer;
+  list-style: none;
+}
+.space-why summary::-webkit-details-marker { display: none; }
+.space-why summary::before { content: "▸"; margin-inline-end: 6px; transition: transform 120ms var(--ease-out); }
+.space-why[open] summary::before { transform: rotate(90deg); }
+.space-why__body {
+  display: grid; gap: var(--s2); margin-top: var(--s1); padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.space-why__body p { margin: 0; }
+.space-why__facts { display: grid; gap: 2px; margin: 0; padding-inline-start: 1.1em; color: var(--muted); }
+.space-why__body h4 { margin: var(--s2) 0 0; font-size: var(--fs-small); }
+.space-why__steps { display: grid; gap: var(--s2); margin: 0; padding-inline-start: 1.3em; }
+.space-why__steps li { display: grid; gap: 2px; }
+.space-why__steps a { font-weight: 600; }
+.space-why__steps span { color: var(--ink); }
+.space-why__steps small { color: var(--muted); font-size: var(--fs-label); }
+@media (prefers-reduced-motion: reduce) { .space-why summary::before { transition: none; } }
+
+.space-patterns { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+.space-patterns th, .space-patterns td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); text-align: start; vertical-align: top; }
+.space-patterns thead th { color: var(--muted); font: 400 var(--fs-label) / 1.4 var(--font-mono); }
+.space-patterns td:nth-child(3), .space-patterns td:nth-child(4) { font-variant-numeric: tabular-nums; }
+.space-patterns + .space-note { margin-top: var(--s3); }
+@media (max-width: 560px) {
+  .space-patterns thead { display: none; }
+  .space-patterns tr { display: grid; grid-template-columns: 1fr auto; padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+  .space-patterns th, .space-patterns td { padding: 0; border: 0; }
+  .space-patterns td:nth-child(3)::before { content: "Waiting "; color: var(--muted); }
+  .space-patterns td:nth-child(4) { display: none; }
+  .space-patterns td:last-child { grid-column: 1 / -1; }
+}

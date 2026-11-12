@@ -194,6 +194,17 @@ It is one pure projection (`src/lib/team-space.ts`, property-tested) over data t
   Discord, Teams, and Matrix have **no native integration yet**. They are reachable only through an operator's relay
   behind the bridge, and the page says so. Bridge status comes from saved settings and is not a delivery check.
 
+- **Why a person?** Under each ask (`src/lib/team-guidance.ts`, property-tested): the recorded reasons it stopped (the
+  area's autonomy level, whether the checkpoint blocks, risk, the triage route, budget and proof attempts), why Ephyra
+  did not settle it alone (policy, a cap, a product rule it will not guess, or a shadow verdict that is recorded but
+  never acts), and steps so the next case needs no one. Those steps are: write the rule into the area's intent, turn a
+  landing check into proof, invite the person who knows, connect the bridge or a knowledge source, adjust a budget, or
+  make a failure reproducible. "Raise this area's level" is offered only after 5 unchanged human approvals at that
+  checkpoint with no revisions. Policy and shadow decisions never count toward it. If the policy can't be read, the
+  page says so and suggests no level change.
+- **Toward more autonomy**: per area, asks waiting now and decisions people made in the last 30 days, with the move
+  that would remove the most of those stops.
+
 Each source loads on its own. A missing feed is named on the page instead of being shown as zero.
 `#/team/access` (owner only) keeps the invitation and access management described below.
 

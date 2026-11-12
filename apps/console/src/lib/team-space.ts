@@ -8,7 +8,8 @@ import type { InboxEntry } from "../api.ts";
 export type SpaceQuestion = Pick<InvestigationQuestion,
   "id" | "trailId" | "status" | "question" | "reason" | "recipient" | "delivery" | "createdAt">;
 export type SpaceInbox = Pick<InboxEntry,
-  "trailId" | "short" | "title" | "kind" | "checkpoint" | "blocking" | "artefact" | "createdAt" | "risk">;
+  "trailId" | "short" | "title" | "kind" | "checkpoint" | "blocking" | "artefact" | "createdAt" | "risk"> &
+  Partial<Pick<InboxEntry, "shadowVerdict">>;
 export type SpaceTrail = Pick<Trail, "id" | "short" | "title" | "state" | "area" | "owner" | "updatedAt"> & {
   landing?: { receipts: readonly unknown[] };
 };
@@ -34,6 +35,7 @@ export interface Ask {
   since: string;
   checkpoint?: "A" | "B" | "C";
   delivery?: Delivery;
+  shadowVerdict?: "approve" | "revise" | "reject";
 }
 
 export type WorkGroupId = "investigating" | "fixing" | "landing" | "watching" | "paused";
@@ -83,6 +85,7 @@ export function asks(input: { inbox: readonly SpaceInbox[]; questions: readonly 
       key: `${e.kind}:${e.trailId}:${e.checkpoint ?? ""}`, kind: e.kind, trailId: e.trailId, short: e.short,
       title: e.title, detail: e.artefact.summary, blocking: e.blocking, since: e.createdAt,
       ...(e.checkpoint ? { checkpoint: e.checkpoint } : {}),
+      ...(e.shadowVerdict ? { shadowVerdict: e.shadowVerdict } : {}),
       waitingOn: owner?.kind === "human" ? { kind: "person", did: owner.id } : { kind: "approvers" },
     });
   }

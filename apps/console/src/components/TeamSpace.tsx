@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { personLabel, type ActivityItem, type InvestigationQuestion, type PeopleConnection, type PersonProfile, type TeamRole, type Trail } from "@ephyra/core";
+import {
+  AUTONOMY_LEVELS, personLabel, type ActivityItem, type AreaSketch, type InvestigationQuestion, type PeopleConnection,
+  type PersonProfile, type TeamRole, type Trail,
+} from "@ephyra/core";
 import type { InboxEntry } from "../api.ts";
 import { useOptionalApi } from "../app/ApiContext.tsx";
 import type { TeamApi } from "../team-api.ts";
@@ -10,6 +13,7 @@ import {
   asks, blockers, channelStatus, load, recentCounts, running, waitingKey, workGroups,
   type Ask, type Delivery, type WaitingOn,
 } from "../lib/team-space.ts";
+import { guidance, patterns } from "../lib/team-guidance.ts";
 import { ActivityRow } from "./ActivityFeed.tsx";
 import { PersonIdentity } from "./PersonIdentity.tsx";
 import "./TeamSpace.css";
@@ -17,7 +21,7 @@ import "./TeamSpace.css";
 type Part<T> = T | "unavailable";
 interface Data {
   inbox: Part<InboxEntry[]>; questions: Part<InvestigationQuestion[]>; trails: Part<Trail[]>;
-  activity: Part<ActivityItem[]>; people: Map<string, PersonProfile> | null;
+  activity: Part<ActivityItem[]>; people: Map<string, PersonProfile> | null; sketches: AreaSketch[] | undefined;
   roster: Part<{ did: string; role: TeamRole | "owner" | null; label?: string }[]>;
 }
 const ok = <T,>(r: PromiseSettledResult<T>): Part<T> => (r.status === "fulfilled" ? r.value : "unavailable");
@@ -58,14 +62,16 @@ export function TeamSpace({ teamApi, channels }: {
     void Promise.allSettled([
       api ? api.inbox() : none, api ? api.questions() : none, api ? api.trails() : none, api ? api.activity(40) : none,
       api?.profiles ? api.profiles() : none, teamApi ? teamApi.team() : none,
-    ]).then(([inbox, questions, trails, activity, profiles, team]) => {
+      api ? api.doc("autonomy.md") : none,
+    ]).then(([inbox, questions, trails, activity, profiles, team, autonomy]) => {
       if (!live) return;
       const people = profiles.status === "fulfilled" ? new Map(profiles.value.people.map((p) => [p.did, p])) : null;
       const roster: Data["roster"] = team.status === "fulfilled"
         ? [{ did: team.value.ownerDid, role: "owner" }, ...team.value.invitations
             .filter((i) => i.acceptedBy && !i.revokedAt).map((i) => ({ did: i.acceptedBy!, role: i.role, label: i.label }))]
         : people ? [...people.values()].map((p) => ({ did: p.did, role: null })) : "unavailable";
-      setData({ inbox: ok(inbox), questions: ok(questions), trails: ok(trails), activity: ok(activity), people, roster });
+      const sketches = autonomy.status === "fulfilled" ? autonomy.value.sketches : undefined;
+      setData({ inbox: ok(inbox), questions: ok(questions), trails: ok(trails), activity: ok(activity), people, roster, sketches });
     });
     return () => { live = false; };
   }, [api, teamApi]);
@@ -78,7 +84,9 @@ export function TeamSpace({ teamApi, channels }: {
       questions: data.questions === "unavailable" ? [] : data.questions,
       trails,
     });
+    const byId = new Map(trails.map((t) => [t.id, t]));
     return {
+      byId, patterns: patterns(list, byId, trails, data.sketches, now),
       asks: list, blockers: blockers(list), load: load(list, trails), groups: workGroups(trails),
       counts: recentCounts(trails, now), agents: data.activity === "unavailable" ? [] : running(data.activity),
     };
@@ -133,8 +141,28 @@ export function TeamSpace({ teamApi, channels }: {
                   </div>
                   <a className="ui-button ui-button--sm ui-button--secondary" href={`#/inbox/${encodeURIComponent(a.trailId)}`}
                     aria-label={`${KIND[a.kind].act}: ${a.title}`}>{KIND[a.kind].act}</a>
+                  <Why ask={a} g={guidance(a, {
+                    trail: view.byId.get(a.trailId), trails: data.trails === "unavailable" ? [] : data.trails, sketches: data.sketches,
+                    bridge: channelStatus(channels).bridge, shadowVerdict: a.shadowVerdict,
+                    recipientHasAccount: a.waitingOn.kind === "person" ? true : a.waitingOn.kind === "contact" ? false : undefined,
+                  })} />
                 </li>))}</ul>}
           </Card>
+
+          {view.patterns.length > 0 && <Card title="Toward more autonomy" meta="Last 30 days">
+            <table className="space-patterns">
+              <thead><tr><th scope="col">Area</th><th scope="col">Level</th><th scope="col">Waiting</th><th scope="col">Decided</th>
+                <th scope="col">Next move</th></tr></thead>
+              <tbody>{view.patterns.slice(0, 6).map((p) => <tr key={p.area}>
+                <th scope="row">{p.area}</th>
+                <td>{p.level ? AUTONOMY_LEVELS.find((l) => l.id === p.level)!.label : data.sketches === undefined ? "Unknown" : "Not set"}</td>
+                <td>{p.open}</td><td>{p.decided}</td>
+                <td><a href="#/workspace">{p.move}</a></td>
+              </tr>)}</tbody>
+            </table>
+            <p className="space-note">Every time a person steps in is a rule Ephyra doesn't have yet. Write the rule down, and the same stop
+              stops coming back.</p>
+          </Card>}
 
           <Card title="Working on" meta={view.agents.length ? `${view.agents.length} running now` : undefined}>
             {view.agents.length > 0 && <Rows className="space-agents">{view.agents.slice(0, 4).map((i) => <ActivityRow key={i.id} item={i} />)}</Rows>}
@@ -181,6 +209,26 @@ export function TeamSpace({ teamApi, channels }: {
         </aside>
       </div>
     </div>
+  );
+}
+
+function Why({ ask, g }: { ask: Ask; g: ReturnType<typeof guidance> }) {
+  return (
+    <details className="space-why">
+      <summary>Why a person?<span className="sr-only"> for {ask.title}</span></summary>
+      <div className="space-why__body">
+        <ul className="space-why__facts">{g.why.map((w) => <li key={w}>{w}</li>)}</ul>
+        <p><strong>Why not alone:</strong> {g.notAlone}</p>
+        {g.steps.length > 0 && <>
+          <h4>So Ephyra can handle this next time</h4>
+          <ol className="space-why__steps">{g.steps.map((s) => <li key={s.id}>
+            {s.href ? <a href={s.href}>{s.title}</a> : <strong>{s.title}</strong>}
+            <span>{s.detail}</span>
+            {s.evidence && <small>Based on {s.evidence}.</small>}
+          </li>)}</ol>
+        </>}
+      </div>
+    </details>
   );
 }
 
