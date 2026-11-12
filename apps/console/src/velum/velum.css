@@ -1,5 +1,6 @@
 /* Velum companion. Rail on wide screens, sheet on phones. Motion only marks real state; reduced motion is static. */
 .velum-invoker {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
@@ -28,6 +29,7 @@
 @media (max-width: 640px) {
   .velum-invoker__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .velum-invoker { padding: 0 var(--s2); }
+  .velum-invoker__count { position: absolute; inset-block-start: -4px; inset-inline-end: -4px; }
 }
 
 /* ── panel ── */
@@ -115,6 +117,7 @@
 .velum-thinking { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); color: var(--muted); font-size: var(--fs-small); }
 .velum-composer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s2);
   padding: var(--s3) var(--s4) calc(var(--s4) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--rule);
@@ -156,14 +159,15 @@
 @keyframes velum-wait { 50% { opacity: 0.35; } }
 
 /* ── chips ── */
-.velum-chips-wrap { display: grid; gap: var(--s2); }
+.velum-chips-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s2); min-width: 0; }
 .velum-chips-title { display: flex; gap: var(--s3); align-items: baseline; font-size: var(--fs-small); font-weight: 600; }
 .velum-link { border: 0; background: none; color: var(--jelly-deep); text-decoration: underline; cursor: pointer; padding: var(--s1) 0; font-weight: 500; }
-.velum-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.velum-chips { display: flex; flex-wrap: wrap; gap: var(--s2); min-width: 0; }
 .velum-chip {
   display: inline-flex;
   align-items: stretch;
   max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--jelly-deep);
   border-radius: var(--radius-pill);
   background: var(--jelly-tint);
@@ -177,7 +181,7 @@
 .velum-chip__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14rem; }
 .velum-chip__flag { font-weight: 600; }
 .velum-chip__act { padding: 0 var(--s2); text-decoration: underline; }
-.velum-chip__remove { width: 36px; font-size: 1.1rem; border-start-end-radius: var(--radius-pill); border-end-end-radius: var(--radius-pill); }
+.velum-chip__remove { flex: none; width: 36px; font-size: 1.1rem; border-start-end-radius: var(--radius-pill); border-end-end-radius: var(--radius-pill); }
 .velum-chip__remove:hover { background: color-mix(in oklab, var(--ink) 8%, transparent); }
 @media (pointer: coarse) {
   .velum-chip button { min-height: 44px; }
@@ -234,7 +238,9 @@
 @media (pointer: coarse) {
   .velum-ref-action { min-height: 44px; inset-block-start: -14px; }
   /* Touch has no hover: outside selection mode only selected regions show their action. */
-  .velum-ref:hover > .velum-ref-action:not([aria-pressed="true"]) { opacity: 0; pointer-events: none; }
+  html:not(.velum-selecting) .velum-ref:hover:not(:focus-within) > .velum-ref-action:not([aria-pressed="true"]) {
+    opacity: 0; pointer-events: none;
+  }
   .velum-selecting .velum-ref > .velum-ref-action { opacity: 1; pointer-events: auto; }
 }
 
