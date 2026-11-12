@@ -1,4 +1,5 @@
 import * as p from "@clack/prompts";
+import { styleText } from "node:util";
 import { clean, oneLine } from "../inbox/text";
 import type { LoginIo } from "../login";
 
@@ -83,18 +84,76 @@ export function clackUi(signal: AbortSignal): WizardUi {
     confirm: async (message, active, inactive) => answer<boolean>(await p.confirm({ ...opts, message, active, inactive })),
     async work(message, task) {
       signal.throwIfAborted();
-      const spinner = p.spinner({ ...opts, cancelMessage: "Stopped waiting for the server." });
-      spinner.start(message);
+      const indicator = waitIndicator(message, opts.accessible);
       try {
         const result = await task();
         signal.throwIfAborted();
-        spinner.stop(message.replace(/…$/, ""));
+        indicator.end("done", message.replace(/…$/, ""));
         return result;
       } catch (error) {
-        if (signal.aborted) spinner.cancel("Stopped waiting for the server.");
-        else spinner.error("Could not confirm this step.");
+        if (signal.aborted) indicator.end("cancel", "Stopped waiting for the server.");
+        else indicator.end("error", "Could not confirm this step.");
         throw error;
       }
+    },
+  };
+}
+
+type WaitInput = Pick<NodeJS.ReadStream, "isTTY" | "on" | "off" | "resume" | "pause"> & {
+  isRaw?: boolean; setRawMode?(mode: boolean): unknown;
+};
+type WaitOutput = Pick<NodeJS.WriteStream, "isTTY" | "write">;
+
+/**
+ * Show that a request is in flight. Clack's animated spinner reads raw input and calls process.exit(0) on Ctrl+C,
+ * which skips abort handling, unknown-write classification and the exit code. Here a literal Ctrl+C byte is
+ * re-raised as SIGINT, so withCliSignal decides the outcome exactly as it does for a signal from the terminal.
+ */
+export function waitIndicator(message: string, accessible: boolean, input: WaitInput = process.stdin,
+  output: WaitOutput = process.stdout, interrupt: () => void = () => process.kill(process.pid, "SIGINT")) {
+  const text = oneLine(message).replace(/…$/, "");
+  const animate = !accessible && Boolean(output.isTTY);
+  const frames = ["◒", "◐", "◓", "◑"];
+  let frame = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const wasRaw = input.isRaw;
+  const raw = Boolean(input.isTTY && input.setRawMode);
+  const onData = (chunk: Buffer | string) => {
+    if ((typeof chunk === "string" ? chunk : chunk.toString("latin1")).includes("\x03")) interrupt();
+  };
+  const restore = () => {
+    if (timer) clearInterval(timer);
+    timer = undefined;
+    if (raw) {
+      input.off("data", onData);
+      input.setRawMode!(Boolean(wasRaw));
+      input.pause();
+    }
+    if (animate) output.write("\r\x1b[2K\x1b[?25h");
+    process.off("exit", restore);
+  };
+  // Raw mode keeps typed keys from echoing over the animation; restore it even if something exits the process.
+  if (raw) {
+    input.setRawMode!(true);
+    input.on("data", onData);
+    input.resume();
+  }
+  process.on("exit", restore);
+  if (animate) {
+    output.write(`${styleText("gray", p.S_BAR)}\n\x1b[?25l`);
+    const draw = () => output.write(`\r\x1b[2K${styleText("magenta", frames[frame++ % frames.length]!)}  ${text}…`);
+    draw();
+    timer = setInterval(draw, 80);
+  } else output.write(`${text}…\n`);
+  let ended = false;
+  return {
+    end(outcome: "done" | "cancel" | "error", final: string) {
+      if (ended) return;
+      ended = true;
+      restore();
+      const mark = outcome === "done" ? styleText("green", p.S_STEP_SUBMIT)
+        : outcome === "cancel" ? styleText("red", p.S_STEP_CANCEL) : styleText("red", p.S_STEP_ERROR);
+      output.write(animate ? `${mark}  ${oneLine(final)}\n` : `${oneLine(final)}\n`);
     },
   };
 }
