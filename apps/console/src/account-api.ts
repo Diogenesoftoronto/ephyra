@@ -1,6 +1,6 @@
 import {
   AccountSettings, KnowledgeCatalog, type KnowledgeUpdate, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate,
-  type TelemetryUpdate, type PeopleUpdate, type MirrorUpdate, type MirrorRemove, type RoleModelUpdate,
+  type TelemetryUpdate, type TelemetrySourceUpdate, TelemetryProvider, type PeopleUpdate, type MirrorUpdate, type MirrorRemove, type RoleModelUpdate,
 } from "@ephyra/core";
 import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
@@ -8,8 +8,11 @@ import { ApiError, UnknownWriteOutcome } from "./api.ts";
 export interface AccountApi {
   settings(): Promise<AccountSettings>;
   knowledge(): Promise<KnowledgeCatalog>;
+  detectedTelemetry(): Promise<{ providers: TelemetryProvider[] }>;
+  telemetryOtlp(): Promise<{ workspaceId: string; repository: boolean; endpoint: string; token: string }>;
   saveKnowledge(input: KnowledgeUpdate, operationKey: string): Promise<AccountSettings>;
   saveTelemetry(input: TelemetryUpdate, operationKey: string): Promise<AccountSettings>;
+  saveTelemetrySource(input: TelemetrySourceUpdate, operationKey: string): Promise<AccountSettings>;
   savePeople(input: PeopleUpdate, operationKey: string): Promise<AccountSettings>;
   saveRepository(input: RepositoryUpdate, operationKey: string): Promise<AccountSettings>;
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
@@ -64,6 +67,14 @@ export class AccountClient implements AccountApi {
   settings() {
     return this.request("", AccountSettings);
   }
+  telemetryOtlp() {
+    return this.request("/telemetry/otlp", z.object({
+      workspaceId: z.string(), repository: z.boolean(), endpoint: z.string().url(), token: z.string().min(1),
+    }));
+  }
+  detectedTelemetry() {
+    return this.request("/telemetry/detected", z.object({ providers: z.array(TelemetryProvider) }));
+  }
   knowledge() {
     return this.request("/knowledge", KnowledgeCatalog);
   }
@@ -72,6 +83,9 @@ export class AccountClient implements AccountApi {
   }
   saveTelemetry(input: TelemetryUpdate, key: string) {
     return this.request("/telemetry", AccountSettings, input, key);
+  }
+  saveTelemetrySource(input: TelemetrySourceUpdate, key: string) {
+    return this.request("/telemetry/sources", AccountSettings, input, key);
   }
   savePeople(input: PeopleUpdate, key: string) {
     return this.request("/people", AccountSettings, input, key);

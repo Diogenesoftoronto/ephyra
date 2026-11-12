@@ -523,3 +523,13 @@ for specimen playback. New URLs avoid cached copies of the damaged assets. The P
 the colored alpha artifacts observed after a lossless WebP encode in this environment.
 The decoded PNG and all nine final retained video frames were visually inspected; this is
 asset verification, not proof of playback in every browser. Hover looping remains enabled.
+
+### Telemetry source onboarding
+
+Application setup and Settings share a provider picker with locally bundled, attributed logos for Sentry, Firebase Crashlytics, Grafana Loki, Axiom, Better Stack, Datadog and BugSnag. PostHog remains available through its existing connection form. Repository detection is advisory and never implies a verified connection. Each source uses its own workspace-bound credentials and versioned, idempotent account write. Changing the source destination clears draft credentials; ambiguous writes require a settings refresh. Crashlytics supports a service-account JSON key or an explicitly temporary access token for its Cloud Logging export.
+
+Embrace/OpenTelemetry and Railway are presented as collector setup paths, not fictitious connected accounts. The UI distinguishes saved configuration, checked access and unavailable sources. Access checks do not establish full telemetry coverage or application health.
+
+Verified locally: provider forms, credential handling, source selection, fixture saves, logo rendering, keyboard activation and 390px/1280px layout. `bun scripts/telemetry-onboarding.ts` (after `bun run build`, with `LD_LIBRARY_PATH` unset) runs isolated Chromium against explicit fictional data. Live provider access, export delivery, production deployment and mobile SDK instrumentation remain Unverified.
+
+The collector guide fetches workspace-scoped OTLP credentials only after an explicit request. Tokens stay hidden by default, can be revealed deliberately, and can be copied with endpoint/protocol environment settings for a trusted server-side collector. They must not be embedded in browser or mobile applications. Local Chromium also verifies this flow and mobile dark-theme rendering.

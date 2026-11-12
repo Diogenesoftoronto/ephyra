@@ -87,3 +87,36 @@ test("new connection writes treat lost or malformed successful replies as ambigu
       .rejects.toBeInstanceOf(UnknownWriteOutcome);
   }
 });
+
+test("provider detection and source saves use authenticated account routes and preserve write operation keys", async () => {
+  const calls: { url: URL; init: RequestInit }[] = [];
+  const api = new AccountClient("https://console.example", "", (async (url: URL, init: RequestInit) => {
+    calls.push({ url, init });
+    return Response.json(init.method === "GET" ? { providers: ["sentry", "crashlytics"] } : ACCOUNT_FIXTURE);
+  }) as typeof fetch, ACCOUNT_FIXTURE.did);
+  expect((await api.detectedTelemetry()).providers).toEqual(["sentry", "crashlytics"]);
+  const input = { id: "sentry", provider: "sentry" as const, enabled: true, expectedVersion: 0,
+    workspaceId: ACCOUNT_FIXTURE.workspaceId, origin: "https://sentry.io", project: "team/app", credentials: { apiKey: "secret-fixture" } };
+  await api.saveTelemetrySource(input, "provider-operation");
+  expect(calls[0]!.url.pathname).toBe("/v1/account/telemetry/detected");
+  expect(calls[1]!.url.pathname).toBe("/v1/account/telemetry/sources");
+  expect(calls[1]!.init.method).toBe("PUT");
+  expect(new Headers(calls[1]!.init.headers).get("Idempotency-Key")).toBe("provider-operation");
+  expect(new Headers(calls[1]!.init.headers).get("X-Ephyra-Account")).toBe(ACCOUNT_FIXTURE.did);
+  expect(JSON.parse(calls[1]!.init.body as string)).toEqual(input);
+});
+
+test("collector credentials are fetched only by an explicit authenticated account read", async () => {
+  const calls: { url: URL; init: RequestInit }[] = [];
+  const api = new AccountClient("https://console.example", "", (async (url: URL, init: RequestInit) => {
+    calls.push({ url, init });
+    return Response.json({ workspaceId: "workspace-one", repository: true, endpoint: "https://console.example/v1/logs", token: "fixture-private" });
+  }) as typeof fetch, ACCOUNT_FIXTURE.did);
+  expect(calls).toHaveLength(0);
+  const result = await api.telemetryOtlp();
+  expect(result.workspaceId).toBe("workspace-one");
+  expect(calls[0]!.url.pathname).toBe("/v1/account/telemetry/otlp");
+  expect(calls[0]!.init.method).toBe("GET");
+  expect(calls[0]!.init.cache).toBe("no-store");
+  expect(calls[0]!.init.credentials).toBe("same-origin");
+});
