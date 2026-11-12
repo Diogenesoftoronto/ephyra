@@ -95,18 +95,39 @@ async function copy(text: string): Promise<boolean> {
 	return false;
 }
 
-function openInBrowser(url: string): Promise<void> {
-	const proc = Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
-		stdout: "ignore", stderr: "ignore",
-	});
-	return proc.exited.then(code => {
-		if (code !== 0) throw new Error("The browser could not be opened. Open the printed link to continue.");
-	});
+/**
+ * Hand the link to the platform opener without waiting for it. Some openers stay alive as long as the browser they
+ * started, so neither sign-in polling, the next prompt nor CLI exit may depend on it. Only a failed launch rejects;
+ * a later nonzero exit calls `onExit`. The child is unreferenced and never killed: it may own the user's browser.
+ */
+export function launchOpener(url: string, onExit: (code: number) => void = () => {}): Promise<void> {
+	try {
+		const proc = Bun.spawn([process.platform === "darwin" ? "open" : "xdg-open", url], {
+			stdin: "ignore", stdout: "ignore", stderr: "ignore",
+		});
+		proc.unref();
+		void proc.exited.then(onExit, () => onExit(1));
+		return Promise.resolve();
+	} catch {
+		return Promise.reject(new Error("The browser could not be opened. Open the printed link to continue."));
+	}
 }
 
+const BROWSER_FAILED = "The browser could not be opened. Open the printed link to continue.";
+function openInBrowser(url: string): Promise<void> {
+	return launchOpener(url, (code) => { if (code !== 0) console.error(BROWSER_FAILED); });
+}
+
+/** One-shot commands: report a quick opener failure, but stop waiting after a short bound. */
 async function openPrintedLink(url: string) {
-	try { await openInBrowser(url); }
-	catch { console.error("The browser could not be opened. Open the printed link to continue."); }
+	let report: (code: number) => void = () => {};
+	const exited = new Promise<number>((resolve) => { report = resolve; });
+	try { await launchOpener(url, (code) => report(code)); }
+	catch { console.error(BROWSER_FAILED); return; }
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const code = await Promise.race([exited, new Promise<number>((resolve) => { timer = setTimeout(() => resolve(0), 3_000); })]);
+	clearTimeout(timer);
+	if (code !== 0) console.error(BROWSER_FAILED);
 }
 
 /** Exit status for an error from `main`: 130 for a user cancellation, 1 otherwise (including unconfirmed writes). */
