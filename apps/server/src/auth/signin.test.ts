@@ -1,5 +1,6 @@
 // Sign in with Not Organic, end to end against a fake Not Organic that enforces what the real gateway does:
 // PKCE S256, an approved client origin, DPoP proofs bound to the key given at token exchange, refresh rotation.
+import { AUTONOMY_TEMPLATE } from "@ephyra/policy";
 import { describe, expect, test } from "bun:test";
 import { b64url, sha256b64url } from "./crypto.ts";
 import { compose } from "../compose.ts";
@@ -40,7 +41,10 @@ describe("sign in with Not Organic", () => {
 
   test("browser sign-in returns to the app with a protected cookie and resolves the account without a pasted token", async () => {
     const fake = fakeNotOrganic({ approved: true, product: "ephyra" });
-    const { app } = await server(fake);
+    // Drafting needs a policy, and a deployment without a repository has one only from a policy file.
+    const policy = `/tmp/ephyra-signin-policy-${crypto.randomUUID()}.md`;
+    await Bun.write(policy, AUTONOMY_TEMPLATE);
+    const { app } = await server(fake, { EPHYRA_AUTONOMY_FILE: policy });
     const anonymous = await app.request("/auth/session");
     expect(await anonymous.json()).toEqual({ signIn: true, identity: null });
     expect(anonymous.headers.get("cache-control")).toBe("no-store");
