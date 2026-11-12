@@ -845,3 +845,37 @@ Release the web service from the same export with `infra/docker/Dockerfile.web`.
 `/e/presentation/`, the nine quest moments and six workspace views. The public walkthrough uses the separately built
 same-origin console at `/e/app/walkthrough.html`; its inline frame leaves scrolling to the page and its details dialog
 provides interaction. `apps/console/scripts/landing-scroll.probe.js` and `landing-workspace.probe.js` cover those boundaries.
+
+## Additional telemetry providers
+
+The authenticated account API now supports:
+
+- `GET /v1/account/telemetry/detected`: bounded inspection of the connected git revision's
+  dependency/configuration files. Provider matches are suggestions, not access or instrumentation proof.
+- `PUT /v1/account/telemetry/sources`: versioned, idempotent source updates, with source ID,
+  provider, workspace ID, origin, project, optional query and write-only credentials.
+  Enabling performs a real bounded read before saving. Disconnecting removes credentials.
+
+Sentry, Firebase Crashlytics through Google Cloud Logging export, Grafana Loki, Axiom,
+Better Stack, Datadog, and BugSnag use `TelemetryProviderEvidence`. Accounts may connect
+multiple sources alongside PostHog. Credentials are encrypted in memory/Convex account
+storage and rechecked before every request and evidence disclosure. Changing repositories
+clears these connections. Public HTTPS transport pins DNS and refuses redirects.
+
+Saved sources enter the workspace job queue and poll every minute with a five-minute
+lookback. Stable provider event IDs and the workspace operation ledger prevent duplicate
+signal counts and triage dispatch. Ambiguous effects require reconciliation. The same
+sources are available to research as untrusted, receipt-bound evidence. Fresh retrieved
+errors establish ingestion for bootstrap; no-data samples do not establish instrumentation.
+
+Queries are bounded samples, not lossless log shipping. High-volume sources, delayed export,
+worker downtime, provider retention and sampling can leave gaps. These connectors do not
+supply complete quiet-window evidence to post-landing watch; existing deployment receipts,
+probes, and verified coverage requirements remain in force. Crashlytics requires its Cloud
+Logging export and either a short-lived OAuth token or a service-account JSON credential
+with project-scoped Logs Viewer access; service-account access tokens refresh automatically.
+
+Offline tests cover credential storage, scope/revocation, idempotent save and intake,
+provider request/response contracts, and repository detection. Live customer-provider
+access, cloud billing, and physical iOS/Android delivery remain **Unverified** until those
+accounts/apps are connected. See the evidence and ingest package READMEs for exact limits.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TelemetrySourceConnection } from "./telemetry-providers.ts";
 import { KnowledgeConnection } from "./knowledge.ts";
 import { ForgeRepositorySource, PeopleConnection, TelemetryConnection } from "./connections.ts";
 
@@ -56,6 +57,7 @@ export const AccountSettings = z.object({
   execution: z.literal("not_configured"),
   knowledge: KnowledgeConnection.optional(),
   telemetry: TelemetryConnection.optional(),
+  telemetrySources: z.array(TelemetrySourceConnection).max(12).optional(),
   people: PeopleConnection.optional(),
   automation: z.object({ provider: z.enum(["none", "railway", "custom"]), configured: z.boolean(), detail: z.string() }).optional(),
   /** Additive (design/10): copies kept in step after a landing moves the base branch. At most five. */

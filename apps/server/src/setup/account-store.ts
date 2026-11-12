@@ -7,6 +7,7 @@ import { TeamRecord } from "./team-record.ts";
 /** Server-only account state. Credential strings are already sealed; this store never opens them. */
 export type AccountRecord = {
   settings: AccountSettings; modelKey?: string; repoToken?: string; team?: TeamRecord;
+  telemetrySourceKeys?: Record<string, string>;
   telemetryKey?: string; peopleToken?: string; mirrorTokens?: Record<string, string>; roleModelKeys?: Record<string, string>;
 };
 export type AccountBeginResult =
@@ -31,6 +32,7 @@ const accountRecord = z
     repoToken: z.string().optional(),
     team: TeamRecord.optional(),
     telemetryKey: z.string().optional(),
+    telemetrySourceKeys: z.record(z.string(), z.string()).optional(),
     peopleToken: z.string().optional(),
     /** Sealed mirror tokens by mirror id. */
     mirrorTokens: z.record(z.string(), z.string()).optional(),

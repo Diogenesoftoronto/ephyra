@@ -5,7 +5,8 @@ import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
 import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput,
-  KnowledgeUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer, Unverified, MirrorRemove, MirrorUpdate, RoleModelUpdate } from "@ephyra/core";
+  KnowledgeUpdate, TelemetrySourceUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer,
+  Unverified, MirrorRemove, MirrorUpdate, RoleModelUpdate } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
 import { readConfig, type Config } from "./config.ts";
 import { auth, type AuthEnv } from "./http/auth.ts";
@@ -196,6 +197,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           otlpFresh: () => intakeFresh(directory),
           resolveApprover: (principal) => teams.canApprove(did, workspaceId, principal),
           resolveTelemetry: () => account.telemetryFor(did, workspaceId),
+          resolveTelemetrySources: () => account.telemetrySourcesFor(did, workspaceId),
           assessBootstrap: (run) => accountBootstrapCoverage(account, did, workspaceId, run),
           landing: automation?.landing ?? personalLanding({ accounts: account, did, workspace: workspaceId, radicle: radicleWriter }),
           questions: { did, workspaceId, model: () => account.modelFor(did, workspaceId),
@@ -212,7 +214,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
             return [...sources.map((selection) => new NotOrganicEvidence({
               gateway: account.knowledgeGateway, scope: { did, workspaceId }, selection, ledger: knowledgeLedger ?? ledger,
               authorize: () => account.knowledgeAllowed(did, workspaceId, selection),
-            })), ...(telemetry ? [telemetry] : [])];
+            })), ...(telemetry ? [telemetry] : []), ...await account.telemetrySourcesFor(did, workspaceId)];
           },
         });
         await hosted?.attach(composed.ctx);
@@ -295,7 +297,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     if (!record) return c.json({ error: "unauthorized" }, 401);
     const target = await runtime(record);
     const headers = new Headers({ Authorization: `Bearer ${config.EPHYRA_API_TOKEN}` });
-    for (const name of ["content-type", "content-length"]) {
+    for (const name of ["content-type", "content-length", "content-encoding"]) {
       const value = c.req.header(name);
       if (value) headers.set(name, value);
     }
@@ -372,7 +374,7 @@ EPHYRA_GITHUB_APP_PRIVATE_KEY=${escape(created.privateKey.replace(/\n/g, "\\n"))
   app.get("/v1/account/github-app", (c) => c.json(githubApp
     ? { available: true, installUrl: `https://github.com/apps/${githubApp.slug}/installations/new` }
     : { available: false, installUrl: null }));
-  /** The owner's OTLP intake for their current workspace. Any service that speaks OTLP/HTTP JSON can report here. */
+  /** The owner's OTLP intake for their current workspace. Authenticated collectors can report OTLP/HTTP JSON or Protobuf here. */
   app.get("/v1/account/telemetry/otlp", async (c) => {
     const { workspaceId, repository } = (await account.record(c.get("principal"))).settings;
     c.header("Cache-Control", "no-store");
@@ -417,6 +419,18 @@ EPHYRA_GITHUB_APP_PRIVATE_KEY=${escape(created.privateKey.replace(/\n/g, "\\n"))
     const composed = await runtime(await account.record(c.get("principal")));
     await composed.withOwner(async () => {
       await composed.telemetry?.start(String(settings.version));
+      await composed.setup.reassess();
+    });
+    return c.json(settings);
+  });
+  app.get("/v1/account/telemetry/detected", async (c) => c.json(await account.detectedTelemetry(c.get("principal"))));
+  app.put("/v1/account/telemetry/sources", async (c) => {
+    const value = TelemetrySourceUpdate.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Check the telemetry source and credentials." }, 400);
+    const settings = await account.saveTelemetrySource(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? "");
+    const composed = await runtime(await account.record(c.get("principal")));
+    await composed.withOwner(async () => {
+      await composed.providerTelemetry?.start(String(settings.version));
       await composed.setup.reassess();
     });
     return c.json(settings);

@@ -257,6 +257,11 @@ describe("personal application account routes", () => {
     const bobs = await (await read(f, bob.cookie, "/v1/account/telemetry/otlp")).json() as { token: string };
     expect((await post(a.workspaceId, bobs.token)).status).toBe(401);
     expect((await post(a.workspaceId, intake.token)).status).toBe(200);
+    const compressed = await f.server.app.request(`/otlp/workspaces/${a.workspaceId}/v1/logs`, {
+      method: "POST", headers: { "content-type": "application/json", "content-encoding": "gzip", Authorization: `Bearer ${intake.token}` },
+      body: Bun.gzipSync(body),
+    });
+    expect(compressed.status).toBe(200);
     await (f.server as { drainWorkspace?: (id: string) => Promise<void> }).drainWorkspace?.(a.workspaceId);
     expect(await (await import("./self-telemetry")).intakeFresh(join(f.root, "data", "workspaces", a.workspaceId))).toBe(true);
     const trails = await (await read(f, alice.cookie, "/v1/trails", { "X-Ephyra-Workspace": a.workspaceId })).json() as Trail[];
@@ -780,6 +785,24 @@ describe("telemetry, people and investigation HTTP routes", () => {
     });
     expect(disconnected.status).toBe(200); expect(await f.server.accounts!.telemetryFor(ALICE, a.workspaceId)).toBeNull();
     expect(f.calls).toHaveLength(1);
+  });
+
+  test("provider telemetry endpoint verifies, isolates credentials, and enqueues scoped polling", async () => {
+    const f = await fixture(); f.respond(() => new Response("[]", { headers: { "content-type": "application/json" } }));
+    const alice = await f.login(); const bob = await f.login(BOB);
+    const a = await settings(f, alice.cookie); const b = await settings(f, bob.cookie);
+    const input = { expectedVersion: a.version, workspaceId: a.workspaceId, id: "sentry", provider: "sentry", enabled: true,
+      origin: "https://sentry.io", project: "team/app", credentials: { apiKey: KEY } };
+    const path = "/v1/account/telemetry/sources";
+    const saved = await write(f, alice.cookie, ALICE, a.workspaceId, path, input, "provider-connect-one");
+    expect(saved.status).toBe(200);
+    const text = await saved.text(); expect(text).not.toContain(KEY);
+    expect(AccountSettings.parse(JSON.parse(text)).telemetrySources?.[0]?.status).toBe("verified");
+    expect((await settings(f, bob.cookie)).telemetrySources).toBeUndefined();
+    expect((await write(f, bob.cookie, BOB, b.workspaceId, path, input)).status).toBe(409);
+    expect((await write(f, alice.cookie, ALICE, a.workspaceId, path, input, "provider-connect-one")).status).toBe(200);
+    expect(f.calls).toHaveLength(1);
+    expect((await f.store.get(ALICE))!.telemetrySourceKeys!.sentry).not.toContain(KEY);
   });
 
   test("delivery bridge settings are isolated and neither their credential nor another account's contact appears publicly", async () => {
