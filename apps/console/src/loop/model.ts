@@ -618,7 +618,7 @@ const GATE_NAME: Record<Gate, string> = { A: "the hypothesis", B: "the plan", C:
 /** Where a change lands, in words. The exact mode and target stay in the receipt under the hood. */
 const LANDING_WORDS: Record<LandingMode, string> = {
   trail_ref: "on the quest's own ref", devenv_live: "in the live development environment", radicle_patch: "as a Radicle patch",
-  tangled_pull: "as a Tangled pull request", auto_land: "on the base branch",
+  tangled_pull: "as a Tangled pull request", pull_request: "as a pull request on the repository's forge", auto_land: "on the base branch",
 };
 /** A length of time in the unit a person would say it in. */
 const span = (seconds: number): string => {

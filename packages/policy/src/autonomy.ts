@@ -111,6 +111,7 @@ export function parseAutonomy(md: string): AutonomyPolicy {
                 "devenv_live",
                 "radicle_patch",
                 "tangled_pull",
+                "pull_request",
                 "auto_land",
               ].includes(v),
           )
@@ -158,6 +159,7 @@ export function parseAutonomy(md: string): AutonomyPolicy {
                 "devenv_live",
                 "radicle_patch",
                 "tangled_pull",
+                "pull_request",
                 "auto_land",
               ].includes(v),
           )

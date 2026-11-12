@@ -56,7 +56,7 @@ The ephyra command. It talks to the server over HTTP only and never prints a cre
 paths: apps/server/**
 risk: high
 user_facing: true
-landing: trail_ref
+landing: pull_request
 The server, its workflows and its stores. Agents may research, reproduce, patch and prove here.
 A named human approves C. Side effects keep their operation keys; an ambiguous write is reconciled, not retried.
 
@@ -64,14 +64,14 @@ A named human approves C. Side effects keep their operation keys; an ambiguous w
 paths: packages/**
 risk: high
 user_facing: false
-landing: trail_ref
+landing: pull_request
 Shared packages. They depend on core only and never on each other; test/boundaries.test.ts enforces it.
 
 ## area: design
 paths: design/**
 risk: medium
 user_facing: false
-landing: trail_ref
+landing: pull_request
 Decision records. A change to a decision is proposed for a human to read, never landed by itself.
 
 ## area: self-control

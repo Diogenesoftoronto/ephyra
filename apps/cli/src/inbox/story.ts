@@ -93,6 +93,7 @@ export const MODE: Record<LandingReceipt["mode"], string> = {
 	trail_ref: "quest ref",
 	radicle_patch: "Radicle patch",
 	tangled_pull: "Tangled pull",
+	pull_request: "pull request",
 	auto_land: "auto-land",
 };
 const VERB = {

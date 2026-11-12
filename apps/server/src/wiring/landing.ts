@@ -3,7 +3,8 @@
 // not, a trailer commit is added on top (same tree) so the landed commit is bound to its proof.
 import { ReconciliationRequired, Unverified, type ForgeAdapter, type LandingReceipt,
   type Trail, type TrailEvent, type WatchConfig } from "@ephyra/core";
-import { LandingReceipt as LandingReceiptSchema } from "@ephyra/core";
+import { LandingMode, LandingReceipt as LandingReceiptSchema } from "@ephyra/core";
+import { adapterForMode } from "@ephyra/forge";
 import { evaluateWatch } from "@ephyra/policy";
 import { WatchCollector, type WatchState } from "@ephyra/evidence";
 import { latestProofDigest } from "./human.ts";
@@ -143,10 +144,8 @@ async function touchedFiles(git: Git, trail: Trail): Promise<string[]> {
 }
 
 function adapterFor(deps: LandingDeps, mode: string): ForgeAdapter {
-  const name = mode === "radicle_patch" ? "radicle" : mode === "tangled_pull" ? "tangled" : "plain-git";
-  const adapter = deps.adapters.find((a) => a.name === name);
-  if (!adapter) throw new Error(`no forge adapter for landing mode ${mode}`);
-  return adapter;
+  try { return adapterForMode(LandingMode.parse(mode), deps.adapters); }
+  catch { throw new Error(`no forge adapter for landing mode ${mode}`); }
 }
 
 async function observe(ctx: ServerContext, deps: LandingDeps, payload: WatchPayload): Promise<void> {

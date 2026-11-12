@@ -23,7 +23,9 @@ export const TERMINAL_STATES: readonly TrailState[] = ["closed", "abandoned"];
 export const Checkpoint = z.enum(["A", "B", "C"]);
 export type Checkpoint = z.infer<typeof Checkpoint>;
 
-export const LandingMode = z.enum(["devenv_live", "trail_ref", "radicle_patch", "tangled_pull", "auto_land"]);
+/** `pull_request` opens a reviewable proposal on the workspace's own forge: a GitHub or Forgejo pull request, a GitLab
+ * merge request, a Tangled pull or a Radicle patch. `radicle_patch` and `tangled_pull` name one forge explicitly. */
+export const LandingMode = z.enum(["devenv_live", "trail_ref", "radicle_patch", "tangled_pull", "pull_request", "auto_land"]);
 export type LandingMode = z.infer<typeof LandingMode>;
 
 export const Verdict = z.enum(["approve", "revise", "reject"]);
