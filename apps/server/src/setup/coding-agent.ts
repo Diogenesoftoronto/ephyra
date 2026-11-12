@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { ReconciliationRequired, Unverified, type AgentResult, type AgentTask, type CodingAgent,
+import { ReconciliationRequired, Unverified, roleForStep, type AgentRole, type AgentResult, type AgentTask, type CodingAgent,
   type OperationLedger, type Runner, type RunnerHandle } from "@ephyra/core";
 import { redact, type AgentRunOptions } from "@ephyra/agent";
 import { untrustedJson } from "@ephyra/policy";
@@ -24,9 +24,10 @@ const pathOf = (path: string) => {
 /** Model credentials stay on the server. Only repository operations run in the account's isolated sandbox. */
 export class AccountCodingAgent implements CodingAgent {
   readonly name = "account-model";
-  constructor(private readonly options: { model: () => Promise<DraftModel | null>; ledger: OperationLedger; maxTurns?: number }) {}
+  /** `model(role)` picks the model per job: coding steps use "code", review uses "review" (or the coding model if unset). */
+  constructor(private readonly options: { model: (role: AgentRole) => Promise<DraftModel | null>; ledger: OperationLedger; maxTurns?: number }) {}
   async run(task: AgentTask, runner: Runner, handle: RunnerHandle, options: AgentRunOptions = {}): Promise<AgentResult> {
-    const model = await this.options.model();
+    const model = await this.options.model(roleForStep(task.step));
     if (!model) throw new Unverified("an account model is required for automatic coding");
     const deadline = Date.now() + task.budget.wallclockS * 1000;
     const remaining = () => {
@@ -71,7 +72,7 @@ export class AccountCodingAgent implements CodingAgent {
     let finished = false;
     for (let turn = 0; turn < (this.options.maxTurns ?? 24); turn++) {
       options.signal?.throwIfAborted();
-      const selected = await this.options.model();
+      const selected = await this.options.model(roleForStep(task.step));
       if (!selected || selected.kind !== model.kind || selected.requestedModel !== model.requestedModel)
         throw new Unverified("the account model selection changed during this step");
       if (tokens + 4096 > task.budget.tokens) throw new Unverified("remaining account agent token budget");

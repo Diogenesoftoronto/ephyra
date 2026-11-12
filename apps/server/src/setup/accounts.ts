@@ -15,6 +15,8 @@ import {
   type LandingReceipt,
   type MirrorRemove,
   type MirrorUpdate,
+  type AgentRole,
+  type RoleModelUpdate,
 } from "@ephyra/core";
 import { parseRepositoryAddress } from "@ephyra/forge";
 import { redact } from "@ephyra/agent";
@@ -488,7 +490,17 @@ export class Accounts {
     return await child.exited === 0;
   }
   async saveModel(did: string, input: ModelUpdate, key: string) {
-    return this.change(did, key, "model", input, async (record) => {
+    return this.saveModelSlot(did, input, key, "code");
+  }
+  /** A model for a role other than coding. `provider: "none"` removes it, so the coding model does that job again. */
+  async saveRoleModel(did: string, input: RoleModelUpdate, key: string) {
+    const { role, ...update } = input;
+    return this.saveModelSlot(did, update, key, role);
+  }
+  private async saveModelSlot(did: string, input: ModelUpdate, key: string, role: AgentRole) {
+    const current = (record: AccountRecord) => role === "code" ? record.settings.model : record.settings.roleModels?.[role];
+    const sealedKey = (record: AccountRecord) => role === "code" ? record.modelKey : record.roleModelKeys?.[role];
+    return this.change(did, key, role === "code" ? "model" : `model:${role}`, input, async (record) => {
       if (input.apiKey && input.clearKey) throw new AccountError(400, "Choose a replacement key or remove the key.");
       if (input.provider !== "none" && !/^[^\s\u0000-\u001f]{1,200}$/.test(input.model))
         throw new AccountError(400, "Enter a model identifier.");
@@ -502,13 +514,11 @@ export class Accounts {
         : null;
       if (baseUrl && new URL(baseUrl).search)
         throw new AccountError(400, "The provider URL cannot contain query parameters.");
-      const sameDestination =
-        record.settings.model.provider === input.provider && record.settings.model.baseUrl === baseUrl;
+      const previous = current(record);
+      const sameDestination = previous?.provider === input.provider && previous?.baseUrl === baseUrl;
+      const saved = sealedKey(record);
       const apiKey = byok
-        ? (input.apiKey ??
-          (!input.clearKey && sameDestination && record.modelKey
-            ? await this.options.box.open<string>(record.modelKey)
-            : undefined))
+        ? (input.apiKey ?? (!input.clearKey && sameDestination && saved ? await this.options.box.open<string>(saved) : undefined))
         : undefined;
       const model: AccountSettings["model"] = {
         provider: input.provider,
@@ -546,9 +556,22 @@ export class Accounts {
           ? "Key accepted and model listed. No generation was run."
           : "Saved. This endpoint did not confirm the model. No generation was run.";
       } else if (byok) model.detail = "Add a key to use this model.";
-      record.settings.model = model;
-      if (apiKey) record.modelKey = await this.options.box.seal(apiKey);
-      else delete record.modelKey;
+      if (role === "code") {
+        record.settings.model = model;
+        if (apiKey) record.modelKey = await this.options.box.seal(apiKey);
+        else delete record.modelKey;
+        return record;
+      }
+      const roles = { ...record.settings.roleModels };
+      const keys = { ...record.roleModelKeys };
+      if (input.provider === "none") { delete roles[role]; delete keys[role]; }
+      else {
+        roles[role] = model;
+        if (apiKey) keys[role] = await this.options.box.seal(apiKey);
+        else delete keys[role];
+      }
+      if (Object.keys(roles).length) record.settings.roleModels = roles; else delete record.settings.roleModels;
+      if (Object.keys(keys).length) record.roleModelKeys = keys; else delete record.roleModelKeys;
       return record;
     });
   }
@@ -562,19 +585,22 @@ export class Accounts {
     });
   }
   /** Capture the selection once per request, so concurrent settings edits cannot misattribute a reply or charge. */
-  async modelFor(did: string, workspace: string): Promise<DraftModel | null> {
+  async modelFor(did: string, workspace: string, role: AgentRole = "code"): Promise<DraftModel | null> {
     const record = await this.record(did);
     if (record.settings.workspaceId !== workspace)
       throw new Unverified("This workspace is no longer selected. Open the current workspace.");
-    const { model } = record.settings;
+    // A role without its own model falls back to the coding model; the usage receipt names whichever model ran.
+    const own = role === "code" ? undefined : record.settings.roleModels?.[role];
+    const model = own ?? record.settings.model;
+    const modelKey = own ? record.roleModelKeys?.[role] : record.modelKey;
     if (model.provider === "none") return null;
     if (model.provider === "notorganic") {
       if (!(await this.options.signIn.hasScope(did, `infer:${model.model}`)))
         throw new Unverified("Allow the selected hosted model in Settings by signing in again.");
       return new NotOrganicDraftModel(this.options.signIn, did, model.model);
     }
-    if (!record.modelKey || !model.baseUrl) return null;
-    const apiKey = await this.options.box.open<string>(record.modelKey);
+    if (!modelKey || !model.baseUrl) return null;
+    const apiKey = await this.options.box.open<string>(modelKey);
     const adapter =
       model.provider === "anthropic"
         ? new AnthropicDraftModel(apiKey, model.model, this.fetcher, `${model.baseUrl}/messages`)

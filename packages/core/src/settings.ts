@@ -58,6 +58,8 @@ export const AccountSettings = z.object({
   automation: z.object({ provider: z.enum(["none", "railway", "custom"]), configured: z.boolean(), detail: z.string() }).optional(),
   /** Additive (design/10): copies kept in step after a landing moves the base branch. At most five. */
   mirrors: z.array(MirrorConnection).max(5).optional(),
+  /** Additive: models for roles other than coding. Absent means the coding model does that job too. */
+  roleModels: z.object({ review: ModelConnection.optional() }).strict().optional(),
 });
 export type AccountSettings = z.infer<typeof AccountSettings>;
 
@@ -92,6 +94,17 @@ export const ModelUpdate = z
   })
   .strict();
 export type ModelUpdate = z.infer<typeof ModelUpdate>;
+/**
+ * Which model does which job. `code` is the workspace model (research, repro, plan, patch); `review` checks every
+ * patch. A role without its own model uses the coding model, and the proof records which model actually reviewed.
+ */
+export const AgentRole = z.enum(["code", "review"]);
+export type AgentRole = z.infer<typeof AgentRole>;
+const STEP_ROLE = { research: "code", repro: "code", plan: "code", patch: "code", review: "review" } as const;
+export function roleForStep(step: keyof typeof STEP_ROLE): AgentRole { return STEP_ROLE[step]; }
+/** A role model update has the same shape and checks as the workspace model, scoped to one role. */
+export const RoleModelUpdate = ModelUpdate.extend({ role: AgentRole.exclude(["code"]) }).strict();
+export type RoleModelUpdate = z.infer<typeof RoleModelUpdate>;
 export const OnboardingUpdate = z
   .object({ expectedVersion: version, action: z.enum(["skip", "resume", "complete"]) })
   .strict();

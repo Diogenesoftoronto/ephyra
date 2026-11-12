@@ -17,6 +17,8 @@ const accountRecord = z
     peopleToken: z.string().optional(),
     /** Sealed mirror tokens by mirror id. */
     mirrorTokens: z.record(z.string(), z.string()).optional(),
+    /** Sealed API keys for role models, by role. */
+    roleModelKeys: z.record(z.string(), z.string()).optional(),
   })
   .strict();
 

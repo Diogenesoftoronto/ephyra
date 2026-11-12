@@ -1,3 +1,4 @@
+import type { AgentRole } from "@ephyra/core";
 import { join } from "node:path";
 import { Unverified, type AccountSettings, type ServiceProfile } from "@ephyra/core";
 import { ArtifactStore, FileRailwayLeaseStore, RailwaySandboxRunner, createRailwaySandboxClient } from "@ephyra/runner";
@@ -19,7 +20,7 @@ export function hostingStatus(config: Config, did: string): NonNullable<AccountS
 }
 
 export async function hostedAutomation(config: Config, scope: { did: string; workspaceId: string; directory: string },
-  model: () => Promise<DraftModel | null>) {
+  model: (role: AgentRole) => Promise<DraftModel | null>) {
   if (!hostingStatus(config, scope.did).configured) return null;
   const ledger = new KnowledgeOperationLedger(join(scope.directory, "hosted-operations"));
   const leases = new FileRailwayLeaseStore(join(scope.directory, "hosted-leases"));

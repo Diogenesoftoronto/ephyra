@@ -1,6 +1,6 @@
 import type {
   AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, PeopleUpdate,
-  MirrorUpdate, MirrorRemove,
+  MirrorUpdate, MirrorRemove, RoleModelUpdate,
 } from "@ephyra/core";
 import { KNOWLEDGE_CATALOG_FIXTURE } from "./knowledge.ts";
 import type { AccountApi } from "../account-api.ts";
@@ -56,7 +56,8 @@ export const CONNECTED_ACCOUNT_FIXTURE: AccountSettings = {
 };
 
 type ReadMethod = "settings" | "knowledge";
-type Method = ReadMethod | "saveRepository" | "saveMirror" | "removeMirror" | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
+type Method = ReadMethod | "saveRepository" | "saveRoleModel" | "saveMirror" | "removeMirror"
+  | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
 export interface FakeAccountOptions {
   initial?: AccountSettings;
   knowledgeCatalog?: KnowledgeCatalog;
@@ -136,6 +137,14 @@ export class FakeAccountApi implements AccountApi {
         },
         onboarding: { status: "in_progress", updatedAt: "2026-11-07T12:00:00.000Z" },
       };
+    });
+  }
+  saveRoleModel(input: RoleModelUpdate, key: string) {
+    return this.update("saveRoleModel", input.expectedVersion, key, () => {
+      if (input.provider === "none") return { roleModels: undefined };
+      return { roleModels: { review: { provider: input.provider, model: input.model, baseUrl: input.baseUrl ?? null,
+        keyConfigured: Boolean(input.apiKey), status: "saved" as const, checkedAt: null,
+        detail: "Fictional fixture: no provider was contacted." } } };
     });
   }
   saveMirror(input: MirrorUpdate, key: string) {

@@ -159,3 +159,13 @@ test("an action with an uncertain result is not repeated on a saved model turn",
   expect(requests).toHaveLength(1);
   await f.runner.destroy(f.handle);
 });
+
+test("each step asks for its role's model: coding steps use the coding model, review uses the review model", async () => {
+  for (const [step, role] of [["review", "review"], ["research", "code"], ["patch", "code"]] as const) {
+    const f = await fixture();
+    const asked = new Set<string>();
+    const agent = new AccountCodingAgent({ ledger: f.ledger, model: async (r) => { asked.add(r); return model([], []); } });
+    await agent.run({ ...f.task, step }, f.runner, f.handle).catch(() => undefined);
+    expect([...asked]).toEqual([role]);
+  }
+});
