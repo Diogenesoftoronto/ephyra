@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -32,4 +32,29 @@ test.skipIf(!bash)("the documented source install runs in Bash even where an eph
 	expect(out).toContain("usage  ephyra <command>");
 	expect(out).toContain("complete -F __ephyra_complete ephyra");
 	expect(out).toContain("failed\t\n:4");
+}, 30_000);
+
+test.skipIf(!bash)("the documented profile works in a fresh shell outside the checkout", () => {
+	const section = page.split("## Install")[1]?.split("## First five minutes")[0] ?? "";
+	const blocks = [...section.matchAll(/```sh\n([\s\S]*?)```/g)];
+	const profile = blocks[1]?.[1] ?? "";
+	expect(profile).toContain('EPHYRA_MAIN="/absolute/path/to/ephyra/apps/cli/src/main.ts"');
+	const home = mkdtempSync(join(tmpdir(), "ephyra-docs-profile-"));
+	let result: ReturnType<typeof Bun.spawnSync>;
+	try {
+		writeFileSync(join(home, ".bashrc"), profile.replace("/absolute/path/to/ephyra", ROOT));
+		result = Bun.spawnSync([bash!, "--noprofile", "--norc", "-c", [
+			'[[ ! -v EPHYRA_MAIN ]] || exit 4',
+			'source "$HOME/.bashrc"',
+			"ephyra help",
+			"source <(ephyra complete bash)",
+			"complete -p ephyra",
+			"ephyra complete -- runs --status fa",
+		].join("\n")], { cwd: home, env: { PATH: process.env.PATH, HOME: home } });
+	} finally { rmSync(home, { recursive: true, force: true }); }
+	expect(result.stderr!.toString()).toBe("");
+	expect(result.exitCode).toBe(0);
+	expect(result.stdout!.toString()).toContain("usage  ephyra <command>");
+	expect(result.stdout!.toString()).toContain("complete -F __ephyra_complete ephyra");
+	expect(result.stdout!.toString()).toContain("failed\t\n:4");
 }, 30_000);
