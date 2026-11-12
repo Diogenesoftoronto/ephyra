@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, spyOn, test, type Mock } from "bun:test";
+import { afterEach, beforeEach, expect, mock, spyOn, test, type Mock } from "bun:test";
 import fc from "fast-check";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -19,6 +19,7 @@ let saved: Record<string, string | undefined>;
 let requests: { method: string; path: string; body: unknown; headers: Headers }[];
 let out: Mock<typeof console.log>;
 let transport: Mock<typeof fetch>;
+let fetchDescriptor: PropertyDescriptor | undefined;
 let routes: Record<string, (body: unknown) => unknown>;
 const ENV = ["EPHYRA_CREDENTIALS", "EPHYRA_URL", "EPHYRA_API_TOKEN", "EPHYRA_PRINCIPAL", "EPHYRA_DOCS_URL", "NO_COLOR"];
 const printed = () => out.mock.calls.map((call) => String(call[0])).join("\n");
@@ -30,7 +31,8 @@ beforeEach(async () => {
 	delete process.env.EPHYRA_DOCS_URL;
 	requests = [];
 	routes = {};
-	transport = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request, init?: RequestInit) => {
+	fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch");
+	transport = mock((async (input: string | URL | Request, init?: RequestInit) => {
 		const url = new URL(String(input));
 		const path = url.pathname + url.search;
 		requests.push({ method: init?.method ?? "GET", path, body: init?.body ? JSON.parse(String(init.body)) : undefined, headers: new Headers(init?.headers) });
@@ -39,10 +41,12 @@ beforeEach(async () => {
 		const value = handler(init?.body ? JSON.parse(String(init.body)) : undefined);
 		return value instanceof Response ? value : Response.json(value);
 	}) as typeof fetch);
+	Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: transport });
 	out = spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(async () => {
-	transport.mockRestore();
+	if (fetchDescriptor) Object.defineProperty(globalThis, "fetch", fetchDescriptor);
+	else Reflect.deleteProperty(globalThis, "fetch");
 	out.mockRestore();
 	for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
 	process.exitCode = 0;
@@ -75,7 +79,7 @@ test("help fits the terminal at any width and names where to go next", () => {
 	}), { numRuns: 25 });
 	const help = text(helpView(100, {}));
 	for (const command of COMMANDS) expect(help).toContain(command.name);
-	expect(help).toContain("ephyra login <server-url>");
+	expect(help).toContain("ephyra setup --interactive");
 	expect(help).toContain("https://ephyra.quest/docs");
 	expect(text(helpView(100, { EPHYRA_DOCS_URL: "https://docs.internal.example/" }))).toContain("https://docs.internal.example");
 	expect(text(commandHelpView(findCommand("decide")!, 100, {}))).toContain("https://ephyra.quest/docs/reviewing");
