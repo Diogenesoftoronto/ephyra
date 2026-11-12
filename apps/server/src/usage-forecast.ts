@@ -61,9 +61,9 @@ export class UsageForecastService {
     const r = this.deps.route;
     return r
       ? { available: true, provider: r.provider, requestedModel: r.backend.requestedModel, minCompleteDays: MIN_COMPLETE_DAYS,
-        reason: "Runs only when you ask. Each forecast is one metered Clairic extraction request." }
+        reason: "Runs only when you ask. Each forecast is one metered model request." }
       : { available: false, provider: null, requestedModel: null, minCompleteDays: MIN_COMPLETE_DAYS,
-        reason: "No verified Clairic forecast route is configured. Set EPHYRA_FORECAST to notorganic or workers-ai." };
+        reason: "No verified forecasting service is configured for this deployment." };
   }
 
   async forecast(principal: string, workspace: string, operationKey: string, input: UsageForecastInput, signal: AbortSignal): Promise<UsageForecast> {

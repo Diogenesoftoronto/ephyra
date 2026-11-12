@@ -98,7 +98,7 @@ production correctness; it supplements the existing proof and production watch.
 5. Extend the setup wizard with a resumable end-to-end test quest.
 
 Pricing remains in `04-pricing.md`: customer-funded credits, model use and compute,
-with a consistent model-use service charge whose rate is still undecided. Keep exact
+with a consistent percentage on underlying model cost whose rate is still undecided. Keep exact
 model identities for billing/audit and benchmark reproducibility, not marketing copy.
 Any future rate card needs an effective revision and an estimate before work; Usage
 should explain charges by quest/activity and rate, plus balance, forecast and limits.

@@ -20,7 +20,7 @@ export const OPERATOR: Operator = {
   email: "ephyra@notorganic.info",
 };
 
-export const REVISED = "2026-11-07";
+export const REVISED = "2026-11-12";
 
 export type LegalDoc = { path: string; file: string; title: string; summary: string; glance?: string[] };
 
@@ -31,7 +31,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
     glance: [
       "Your code and content stay yours. Model output needs your review.",
       "You choose what Ephyra may do alone. You own what you approve.",
-      "We don’t train models on your code.",
+      "We currently do not train on your content. A proposed training option would need separate permission.",
       "Self-hosting is free. Nothing is for sale yet.",
       "Your mandatory consumer rights stay intact.",
     ],

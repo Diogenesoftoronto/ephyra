@@ -14,11 +14,15 @@ The hosted credit product remains a proposal, not an available checkout or entit
 
 | Category | What it covers | Decision still needed |
 |---|---|---|
-| Model usage | Monitoring, investigation, coding, review and verification requests | Metered unit prices and a consistent service charge on model usage |
-| Compute | Resources and execution time for application environments and checks | Resource units, rounding and published rates |
+| Model usage | Monitoring, investigation, coding, review and verification requests | Underlying model cost plus a consistent percentage; percentage not yet set |
+| Hosting and compute | Resources, execution time, storage, network and retained environments | Resource units, idle charges, rounding and published rates |
+| Data-use option | Explicit training permission at the lower price; no-training at a higher price | Price difference and consent/enforcement implementation |
+| ZDR processing | Separately assessed hosting and provider configuration | Contact sales; scoped agreement and technical verification required |
 | Customer-funded balance | Prepaid funds consumed as work runs | Checkout, payment fees, taxes, expiry/refunds and settlement rules |
 
-A consistent service charge is the current direction. Whether it is a fixed amount per billing unit or a percentage of usage, and its value, remain undecided. Do not publish the earlier 5% as an agreed rate. Do not imply one flat total price for arbitrarily large model requests. Changing the underlying model should not require rewriting the plan names; rate changes still need a clear effective date and auditable rate version.
+The model service charge is a **consistent percentage of underlying model cost**, not a fixed price per operation. The percentage remains undecided; do not publish the earlier 5% as an agreed rate. At the same usage and percentage, lower underlying model prices produce lower customer model charges. The billing cost basis must say how discounts, caching, credits and rebates are allocated; an arbitrary frozen list price must not silently defeat that pass-through. Changing the underlying model should not require rewriting plan names; rate changes still need a clear effective date and auditable rate version.
+
+Proposed model charge = eligible model cost × (1 + service percentage). Hosting and compute are separate items, followed by any disclosed data-use option adjustment and applicable taxes. Preserve microusd precision and a versioned rounding rule. A constant markup percentage preserves relative markup, not absolute revenue: as model cost falls, the markup dollars fall too. Measure hosting, support, verification, idle capacity and payment costs before claiming sustainability. Do not fund unmetered hosting on an assumption that model markup will always cover it.
 
 Model work and compute still cost money when a quest is abandoned, fails verification or is rolled back. There is no extra reward for landing an unproven fix. Customer-owned provider accounts are billed by those providers; their treatment under the hosted service charge remains to be decided.
 
@@ -36,6 +40,61 @@ The intended hosted experience adds:
 - optional automatic top-ups with a customer-set amount and maximum;
 - permission for Ephyra to allocate work within the customer's chosen limits;
 - estimated cost ranges before expensive work, with actual charges and uncertainty afterward.
+
+### Agentic forecasts without model-specific product names
+
+The existing spend forecast is an on-demand service over recorded complete-day usage.
+Extend that through capability-based interfaces for classification and forecasting;
+Jev and Clairic are possible internal implementations, not names of customer plans.
+Keep exact returned identities and evaluation versions in receipts. Provider changes
+must trigger capability and calibration checks, never an invisible fallback.
+
+Add estimated **time to a verified fix**, distinct from time to a patch and the
+configured watch window. Report a range, update it as repro/proof/retry evidence
+arrives, and explain what changed. Separate active compute from queue time, external
+dependencies, human waits and watch duration. Include unresolved/failed quests as
+censored or failed outcomes so successful fixes alone do not bias the estimate.
+When history is insufficient, show that fact instead of a precise invented ETA.
+
+Benchmark estimates against held-out observed outcomes: interval coverage, error,
+cost overrun and changes in accuracy by task type and model identity. Do not label
+a model's self-reported confidence as calibrated. Forecasts inform the agent's
+choice of checks and work allocation within the existing envelope; they do not
+raise spend limits, purchase credits or expand authority by themselves. Automatic
+refreshes must have their own bounded cadence, cost and idempotency rules.
+
+## Training permission and retention options
+
+Product direction: a lower-price training-permitted option, a higher-price
+no-training option, and a sales-led ZDR configuration. Prices remain unpublished.
+No training pipeline, consent setting, price differential or ZDR capability is
+activated by this proposal. Existing content remains outside training use.
+
+Training requires a separate, affirmative and recorded choice by someone with
+authority over the selected content. Specify allowed repositories and artifact
+classes, purposes, recipients, retention and withdrawal behavior. Repository text,
+an agent action, public availability, ordinary service access or a billing change
+does not grant training rights. Record consent revision and provenance on eligible
+datasets; recheck before collection/export/use and stop future use after withdrawal.
+Explain treatment of previously trained weights before consent rather than promising
+unlearning that the system cannot perform. Keep pricing changes transparent when
+the customer changes options; no retrospective repricing or retroactive consent.
+
+An organization connecting telemetry may not control all personal information or
+third-party code within it. Define eligible content, exclude secrets and unnecessary
+personal data, and establish the required authority for any secondary use. Review
+the consent/pricing arrangement before launch against applicable law; a checkbox
+does not establish rights the customer lacks. See the Canadian privacy regulator's
+[meaningful consent guidance](https://www.priv.gc.ca/en/privacy-topics/privacy-for-businesses/appropriate-handling-of-personal-information/collecting-personal-information-and-consent/consent/gl_omc_201805/).
+
+No-training and zero retention are separate. The former controls model training;
+the latter needs a defined scope across inference providers, logs, caches, backups,
+telemetry and our own services. Ephyra normally keeps git evidence and operation
+records, so never advertise blanket zero retention while retaining that content.
+Sales must agree which payloads are transient, which customer-owned artifacts and
+minimal billing/security metadata remain, and which routes can enforce that scope.
+Disable incompatible routes/features for that configuration. See, for example,
+[provider-specific ZDR limits](https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/zero-data-retention).
 
 Account credit billing, automatic top-ups and aggregate monthly spending controls are not established by the current usage page. The pricing page must call these planned until their settlement and enforcement paths are implemented and verified.
 
