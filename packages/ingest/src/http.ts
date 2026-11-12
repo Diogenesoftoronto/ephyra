@@ -66,7 +66,7 @@ export function otlpRoutes(options: OtlpOptions): Hono {
           415,
         );
       const failure = (message: string, status: 400 | 413 | 415 | 429, code = 3) => binary
-        ? new Response(encodeOtlpError(code, message), { status, headers: { "content-type": "application/x-protobuf" } })
+        ? new Response(new Uint8Array(encodeOtlpError(code, message)).buffer, { status, headers: { "content-type": "application/x-protobuf" } })
         : c.json({ code, message }, status);
       const encoding = c.req.header("content-encoding")?.trim().toLowerCase();
       if (encoding && encoding !== "identity" && encoding !== "gzip")
@@ -134,7 +134,7 @@ export function otlpRoutes(options: OtlpOptions): Hono {
       } finally {
         pending.delete(digest);
       }
-      if (binary) return new Response(encodeOtlpResponse(parsed.rejected), {
+      if (binary) return new Response(new Uint8Array(encodeOtlpResponse(parsed.rejected)).buffer, {
         headers: { "content-type": "application/x-protobuf" },
       });
       return c.json({
