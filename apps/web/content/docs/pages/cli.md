@@ -11,11 +11,13 @@ The CLI runs on [Bun](https://bun.sh) 1.4 from an Ephyra source checkout:
 
 ```sh
 bun install
-alias ephyra="bun $PWD/apps/cli/src/main.ts"
+EPHYRA_MAIN="$PWD/apps/cli/src/main.ts"
+unalias ephyra 2>/dev/null
+ephyra() { bun "$EPHYRA_MAIN" "$@"; }
 ephyra help
 ```
 
-Put the alias in your shell profile to keep it.
+This is a shell function rather than an alias, so shell completion can call it and the definition still parses where an older `ephyra` alias exists; `unalias` removes such an alias first. To keep it, put the last three lines in your shell profile with the absolute path in place of `$PWD`. In Fish, use `function ephyra; bun /absolute/path/to/ephyra/apps/cli/src/main.ts $argv; end`.
 
 ## First five minutes
 
@@ -62,7 +64,7 @@ ephyra complete fish | source # Fish
 ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
 ```
 
-For a source checkout, define a shell function before sourcing completions: `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }`. Completion prints a script; it does not change your shell profile. Add the appropriate line to your profile if you want to keep it.
+For a source checkout, define the `ephyra` function from [Install](#install) before sourcing completions. Completion prints a script; it does not change your shell profile. Add the appropriate line to your profile if you want to keep it.
 
 ## See
 

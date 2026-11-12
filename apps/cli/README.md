@@ -34,6 +34,8 @@ Each setup start has a private, credential-free operation receipt beside the cre
 
 `login` now supports cancellation and a bounded wait, including hung responses. On a terminal it shows the browser link and matching code through Clack. With `--json`, instructions go to stderr and stdout contains one token-free sign-in result. `doctor` uses bounded, cancellable requests and retains plain/JSON output for scripts. `NO_COLOR` disables color; the wizard also uses Clack's accessible text presentation in that mode.
 
+While a request is in flight the wizard and `doctor` show the CLI's own wait indicator, not Clack's spinner: Clack's animated spinner calls `process.exit(0)` on a literal Ctrl+C byte. The indicator turns that byte back into SIGINT, so a cancelled read exits 130 and an interrupted setup write exits 1 with its receipt kept and the unconfirmed-write message; raw mode and the cursor are restored either way (verified in a PTY by `test/interrupt.test.ts`). Browser openers are launched unreferenced and never awaited or killed: an opener that stays alive with the browser does not delay sign-in polling, the next prompt or exit (`test/opener.test.ts`). Valued options accept `--name value` and `--name=value`, the form shell completion inserts.
+
 `@bomb.sh/tab` reads `COMMANDS` and its option/argument metadata to generate completions without auth or network calls:
 
 ```sh
@@ -43,9 +45,9 @@ ephyra complete fish | source # fish
 ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
 ```
 
-Use the line for your shell. Scripts are printed only; the CLI never edits shell profiles. Completion callbacks resolve `ephyra` through PATH or a shell function. During source development, define `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }` before sourcing. Completion has a shell protocol and rejects `--json`.
+Use the line for your shell. Scripts are printed only; the CLI never edits shell profiles. Completion callbacks resolve `ephyra` through PATH or a shell function. During source development, run `unalias ephyra 2>/dev/null` and then define `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }` on its own line before sourcing; Bash expands an existing alias inside a function definition on the same line. Completion has a shell protocol and rejects `--json`.
 
-The completion catalog and protocol use Tab; Ephyra's small shell adapters pass literal argument arrays. They do not evaluate typed words as shell code. This avoids the `eval` boundary in Tab 0.0.22's generated Bash/Zsh scripts.
+The completion catalog and protocol use Tab; Ephyra's small shell adapters pass literal argument arrays. The Bash adapter replies with only the text Readline replaces after `=` or `:` in `COMP_WORDBREAKS`; the Fish adapter reads completed words with `read --tokenize`, so a quoted multiline argument stays one word; and completed words are normalized before Tab's parser, which otherwise drops a completed empty argument before the current one. Bash (interactive PTY with bash-completion) and Fish are exercised for real in `test/completion.test.ts`; Zsh and PowerShell adapters are **unverified at runtime** here because neither shell is installed. They do not evaluate typed words as shell code. This avoids the `eval` boundary in Tab 0.0.22's generated Bash/Zsh scripts.
 
 ## The inbox
 
