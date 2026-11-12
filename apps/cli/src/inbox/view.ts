@@ -970,8 +970,10 @@ export function tipFor(state: InboxState): string | undefined {
 	if (item.state === "handed_off") return "you hold this review · u releases it so it can be decided";
 	if (item.kind === "spend") return "a approves this one spend · x stops the quest · to decline and continue: ephyra spend <quest> reject";
 	if (item.state === "parked") return "p resumes it where it stopped · the reason it parked is in the activity below";
-	if (item.kind === "checkpoint" && item.checkpoint === "A") return "e shows the evidence behind this hypothesis · r sends it back with a note · d opens the reviewing guide";
-	if (item.kind === "checkpoint" && item.checkpoint === "B") return "the repro should fail for the reason the hypothesis gives · r sends the plan back with a note";
+	if (item.kind === "checkpoint" && item.checkpoint === "A") return "e shows the evidence behind this hypothesis · r sends it back with a note · d opens the " +
+		"reviewing guide";
+	if (item.kind === "checkpoint" && item.checkpoint === "B") return "the repro should fail for the reason the hypothesis gives · r sends the plan " +
+		"back with a note";
 	if (item.kind === "checkpoint" && item.checkpoint === "C") return "approving lands this exact revision · if the quest changes first, the approval is refused";
 	if (item.state === "ready") return "l lands it: the proof is already approved · e shows what the proof covers";
 	return "? lists every key · d shows the docs page for this";

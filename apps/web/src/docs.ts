@@ -129,8 +129,10 @@ export function docsPlainText(context: DocsContext): string {
 
 /** What a person pastes into a coding agent. Short on purpose: the brief it points at holds the detail. */
 export const agentPrompt = (context: DocsContext, slug?: string): string => slug && slug !== "index"
-  ? `Read ${markdownUrl(slug, context)} (Ephyra documentation) and help me with it. The agent brief at ${context.docsBase}/agent.md explains the rest and the rules.`
-  : `Read ${context.docsBase}/agent.md and help me set up Ephyra for this repository. Tell me what you find before you change anything, and ask me for whatever only I can decide.`;
+  ? `Read ${markdownUrl(slug, context)} (Ephyra documentation) and help me with it. The agent brief at ${context.docsBase}/agent.md explains the rest ` +
+    `and the rules.`
+  : `Read ${context.docsBase}/agent.md and help me set up Ephyra for this repository. Tell me what you find before you change anything, and ask me for ` +
+    `whatever only I can decide.`;
 
 /**
  * One self-contained brief for a coding agent: what Ephyra is, the rules that keep its evidence honest, how setup and
@@ -158,8 +160,10 @@ export function agentBrief(context: DocsContext): string {
     `1. Read ${context.site}/auth.md. It is the authoritative description of registration, the owner's claim, token renewal and the bootstrap API on ${api}.`,
     "2. Ask the owner for their Not Organic DID, the HTTPS Git URL and the branch. Do not guess them from the checkout if the owner can tell you.",
     "3. Register, then give the owner the approval link and six-digit code. Wait for them to approve the exact repository and scopes.",
-    "4. Read the recorded setup, inspect the pinned commit, and report bounded, attributed findings: the important user journeys, the checks that exist, what telemetry and deployment information is present.",
-    "5. Tell the owner what is observed, configured, missing or unknown, and what only they can provide (expected behavior, credentials, model access, a runner, a deployment receipt URL).",
+    "4. Read the recorded setup, inspect the pinned commit, and report bounded, attributed findings: the important user journeys, the checks that exist, " +
+      "what telemetry and deployment information is present.",
+    "5. Tell the owner what is observed, configured, missing or unknown, and what only they can provide (expected behavior, credentials, model access, a " +
+      "runner, a deployment receipt URL).",
     `6. Follow ${markdownUrl("agent-setup", context)} for the full sequence and ${markdownUrl("quickstart", context)} for what the owner does in the app.`, "",
     "## If you were asked to operate or explain it", "",
     "The `ephyra` CLI talks to the same API as the web console. Useful read-only commands:", "",
@@ -238,7 +242,8 @@ datetime="${DOCS_UPDATED}">${updatedLabel}</time></span></p></aside>
 <p class="docs-label">${escape(page.group)}</p><h1>${escape(page.title)}</h1>
 <p class="docs-summary">${escape(page.summary)}</p>
 <div class="docs-actions" aria-label="Use this page with an agent">
-<button type="button" class="docs-action" data-primary data-copy-markdown="${escape(`${context.linkBase}/${page.slug}.md`)}" hidden>Copy page for an agent</button>
+<button type="button" class="docs-action" data-primary data-copy-markdown="${escape(`${context.linkBase}/${page.slug}.md`)}"
+hidden>Copy page for an agent</button>
 <button type="button" class="docs-action" data-copy-text="${escape(prompt)}" hidden>Copy a prompt</button>
 <a class="docs-action" href="${escape(ask("https://claude.ai/new?q="))}" rel="noopener">Ask Claude <span aria-hidden="true">↗</span></a>
 <a class="docs-action" href="${escape(ask("https://chatgpt.com/?q="))}" rel="noopener">Ask ChatGPT <span aria-hidden="true">↗</span></a>
@@ -246,6 +251,7 @@ datetime="${DOCS_UPDATED}">${updatedLabel}</time></span></p></aside>
 ${html}${pager}</article>
 <aside class="docs-toc" aria-label="On this page">${toc.length > 1 ? `<p>On this page</p><ul>${toc.map(heading =>
     `<li><a href="#${heading.id}" data-doc-link="${heading.id}">${escape(heading.text)}</a></li>`).join("")}</ul>` : ""}
-<p class="docs-toc-agent"><a href="${escape(`${context.linkBase}/agent.md`)}">Brief for your agent</a><a href="${escape(`${context.linkBase}/llms-full.txt`)}">All docs as text</a></p></aside></div>
+<p class="docs-toc-agent"><a href="${escape(`${context.linkBase}/agent.md`)}">Brief for your agent</a><a
+href="${escape(`${context.linkBase}/llms-full.txt`)}">All docs as text</a></p></aside></div>
 <span class="docs-sr-only" id="docs-announcement" role="status" aria-live="polite"></span></div>`;
 }

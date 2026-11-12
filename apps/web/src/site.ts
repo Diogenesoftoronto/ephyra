@@ -331,7 +331,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
 .foot p{margin:.25rem 0}
 @media (max-width:24rem){.logo span{display:none}}
 </style></head><body id="top" class="${[wide ? "wide" : "", bodyClass].filter(Boolean).map(esc).join(" ")}"><header class="bar">
-<a class="logo" href="${base}/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span aria-hidden="true">ephyra</span></a>
+<a class="logo" href="${base}/" aria-label="${NAME}, home"><img src="/assets/brand/logo.svg" alt="" width="28" height="28"><span
+aria-hidden="true">ephyra</span></a>
 <nav aria-label="Site">${nav}</nav></header><main>${body}</main>
 <footer class="foot"><nav aria-label="Site and legal"><a href="${esc(docsOrigin ?? "/docs")}">Docs</a><a href="${base}/blog/">Journal</a>
 <a href="${base}/pricing">Pricing</a><a href="${base}/security">Security</a>
@@ -447,7 +448,8 @@ background:linear-gradient(180deg,var(--bg),var(--water-mid))}
     if (path === "/robots.txt") return text(["User-agent: *", "Allow: /", "", `Sitemap: ${docsOrigin}/sitemap.xml`, "",
       "# For agents", `# ${docsOrigin}/agent.md`, `# ${docsOrigin}/llms.txt`, `# ${docsOrigin}/llms-full.txt`, ""].join("\n"), "text/plain");
     if (path === "/sitemap.xml") return text(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`
-      + DOCS_PAGES.map((p) => `<url><loc>${xml(p.slug === "index" ? `${docsOrigin}/` : `${docsOrigin}/${p.slug}`)}</loc><lastmod>${DOCS_UPDATED}</lastmod></url>`).join("")
+      + DOCS_PAGES.map((p) => `<url><loc>${xml(p.slug === "index" ? `${docsOrigin}/` : `${docsOrigin}/${p.slug}`)}</loc>`
+        + `<lastmod>${DOCS_UPDATED}</lastmod></url>`).join("")
       + `</urlset>\n`, "application/xml");
     // Old links to the docs under /docs keep working on this host.
     if (path === "/docs" || path.startsWith("/docs/")) return Response.redirect(`${docsOrigin}${path.slice(5)}${url.search}`, 308);
