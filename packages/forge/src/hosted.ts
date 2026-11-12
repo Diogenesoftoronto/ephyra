@@ -37,10 +37,10 @@ const oid = (value: unknown): value is string => typeof value === "string" && /^
 const TRAIL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const isCodeberg = (host: string) => host === "codeberg.org" || host.endsWith(".codeberg.org");
 
-/** The branch a trail's proposal lives on. Throws for an id that would not make a safe, single-segment branch name. */
+/** The branch a quest's proposal lives on. Throws for an id that would not make a safe, single-segment branch name. */
 export function proposalBranch(trailId: string, prefix = ""): string {
   if (!TRAIL_ID.test(trailId) || trailId.includes("..") || trailId.endsWith(".lock") || trailId.endsWith("."))
-    throw new Error("invalid trail id for a proposal branch");
+    throw new Error("invalid quest id for a proposal branch");
   return `ephyra/${prefix}${trailId}`;
 }
 
@@ -138,7 +138,7 @@ export class HostedPullAdapter implements ForgeAdapter {
       const message = plan.commitMessage?.trim() || `Ephyra repair ${plan.trailId}`;
       const title = message.split("\n")[0]!.slice(0, 250);
       const body = [
-        message, "", `Ephyra trail: ${plan.trailId}`, `Proof: ${plan.proofDigest}`,
+        message, "", `Ephyra quest: ${plan.trailId}`, `Proof: ${plan.proofDigest}`,
         "", "Opened by Ephyra. Review it like any other change; nothing merges without the forge's own rules.",
       ].join("\n");
       const proposal = await this.findOpen(head) ?? await this.create(head, title, body);
