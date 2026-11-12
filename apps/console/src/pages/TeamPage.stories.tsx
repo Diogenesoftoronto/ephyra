@@ -38,6 +38,16 @@ async function createLink({ canvasElement }: { canvasElement: HTMLElement }) {
 export const Now: StoryObj = {
   render: () => <Fixture tab="now" options={ROSTER} channels={CONNECTION_ACCOUNT_FIXTURE.people} />, parameters: ASKING,
 };
+export const NowWhyAPerson: StoryObj = {
+  ...Now,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Ephyra is asking");
+    const summaries = [...canvasElement.querySelectorAll<HTMLElement>(".space-why summary")];
+    for (const label of ["Checkout returns", "may a discount"])
+      await userEvent.click(summaries.find((el) => el.textContent?.includes(label))!);
+  },
+};
 export const NowNoBridge: StoryObj = { render: () => <Fixture tab="now" options={ROSTER} channels={null} />, parameters: ASKING };
 export const NowNothingWaiting: StoryObj = { render: () => <Fixture tab="now" options={ROSTER} channels={null} />, parameters: { fake: { empty: true } } };
 export const NowAsMember: StoryObj = { render: () => <Fixture tab="now" member />, parameters: ASKING };
