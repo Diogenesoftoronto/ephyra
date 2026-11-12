@@ -62,7 +62,7 @@ export function createCompletion(): RootCommand {
 // In particular, never join words for eval/Invoke-Expression or feed candidates to compgen -W.
 const BASH = `# bash completion for ephyra (Bash 4+ and bash-completion)
 __ephyra_complete() {
-    local cur prev cword out line value prefix='' match
+    local cur prev cword out line value prefix='' match split
     local -a words args replies
     COMPREPLY=()
     _get_comp_words_by_ref -n '=:' cur prev words cword || return
@@ -78,10 +78,21 @@ __ephyra_complete() {
         prefix="\${cur%%=*}="
         match=\${cur#*=}
     fi
+    # _get_comp_words_by_ref rejoined words Readline split at = and :, but Readline still replaces only the text
+    # after the last such break. Drop that already-typed part from each reply, as __ltrim_colon_completions does.
+    split=$cur
+    while [[ -n "$split" ]]; do
+        case \${split: -1} in
+            [=:]) [[ "$COMP_WORDBREAKS" == *"\${split: -1}"* ]] && break ;;
+        esac
+        split=\${split%?}
+    done
     while IFS= read -r line; do
         [[ "$line" == *$'\t'* ]] || return
         value=\${line%%$'\t'*}
-        [[ "$value" == "$match"* ]] && replies+=("$prefix$value")
+        [[ "$value" == "$match"* ]] || continue
+        value=$prefix$value
+        replies+=("\${value#"$split"}")
     done <<< "$out"
     COMPREPLY=("\${replies[@]}")
 }
@@ -117,8 +128,13 @@ compdef _ephyra ephyra
 
 const FISH = `# fish completion for ephyra
 function __ephyra_complete
-    set -l args (commandline -opc)
-    set -l current (commandline -ct)
+    # Command substitution splits on newlines, so read completed words with Fish's tokenizer instead of
+    # \`commandline -opc\`: a quoted multiline argument stays one word. Nothing here is evaluated.
+    set -l before (commandline -pc | string collect)
+    set -l current (commandline -ct | string collect)
+    set -l head (string sub -e (math (string length -- "$before") - (string length -- "$current")) -- "$before" | string collect)
+    set -l args
+    printf '%s' "$head" | read -z --tokenize -a args
     set -l results (ephyra complete -- $args[2..-1] "$current" 2>/dev/null)
     test (count $results) -gt 0; or return
     test "$results[-1]" = ':4'; or return
@@ -193,14 +209,33 @@ export function completionScript(shell: string): string {
 	}
 }
 
+// Stands in for a completed empty word. Shell argv cannot contain NUL, so it never collides with real input.
+const EMPTY = "\0";
+
+/**
+ * Adapt shell words to tab 0.0.22's parser, which only reads completed words to find the command, skip option
+ * values and count positionals. Its parse() pops the trailing current word and then also drops a completed empty
+ * word before it, so `decide T-1 A -m '' ''` would lose the note and offer verdicts at the checkpoint. It also reads a
+ * completed `--name=value` as a flag still waiting for its value. Split that into `--name value` and mark completed
+ * empty words; the current (last) word is passed through untouched, so candidates and filtering are unchanged.
+ */
+export function completionWords(words: readonly string[]): string[] {
+	const current = words.at(-1) ?? "";
+	const completed = words.slice(0, -1).flatMap((word) => {
+		const split = /^(--[^=]+)=(.*)$/s.exec(word);
+		return split ? [split[1]!, split[2]!] : [word];
+	});
+	return [...completed.map((word) => word === "" ? EMPTY : word), current];
+}
+
 /**
  * Print either a shell script or the tab completion protocol. No credentials, repository reads or API calls.
  * Pass arguments after `complete`. Dispatch `complete -- ...` before the CLI consumes global flags.
  */
 export function complete(args: readonly string[]): void {
 	if (args[0] === "--") {
-		// tab consumes its argument array; preserve the caller's copy, including the final empty word.
-		createCompletion().parse(args.slice(1));
+		// tab consumes its argument array; give it a normalized copy, including the final empty word.
+		createCompletion().parse(completionWords(args.slice(1)));
 		return;
 	}
 	if (args.length !== 1 || !COMPLETION_SHELLS.some((shell) => shell === args[0])) throw new CompletionUsageError();

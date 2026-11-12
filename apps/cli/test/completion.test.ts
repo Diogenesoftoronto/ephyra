@@ -1,7 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 import fc from "fast-check";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { complete, completionScript, CompletionUsageError, createCompletion } from "../src/commands/completion";
@@ -91,6 +91,23 @@ test("enum and positional completions track their position past flags and values
 	expect(candidates("decide", "-m", "")).toEqual([]);
 });
 
+test("completed empty words and inline --name=value keep later positionals in place", () => {
+	// tab 0.0.22 alone dropped the completed empty note here and printed only the directive.
+	expect(capture(["--", "decide", "T-1234", "A", "-m", "", ""])).toEqual(["approve\t", "revise\t", "reject\t", ":4"]);
+	expect(candidates("decide", "T-1234", "A", "-m", "note", "")).toEqual(["approve", "revise", "reject"]);
+	expect(candidates("decide", "-m", "", "T-1234", "")).toEqual(["A", "B", "C"]);
+	expect(candidates("decide", "--message=", "T-1234", "")).toEqual(["A", "B", "C"]);
+	expect(candidates("decide", "--message=a note", "T-1234", "A", "")).toEqual(["approve", "revise", "reject"]);
+	expect(candidates("runs", "--status=failed", "--quest", "")).toEqual([]);
+	expect(candidates("runs", "--status=failed", "--")).toEqual(["--json", "--help", "--quest", "--trail", "--status", "--limit"]);
+	expect(candidates("runs", "--status=fa")).toEqual(["failed"]);
+	// Whatever the completed words are, positional counting matches the same words with the note given inline.
+	fc.assert(fc.property(fc.string({ maxLength: 12 }).filter((note) => !note.startsWith("-")), (note) => {
+		expect(candidates("decide", "T-1", "A", "-m", note, "")).toEqual(["approve", "revise", "reject"]);
+		expect(candidates("decide", "-m", note, "T-1", "")).toEqual(["A", "B", "C"]);
+	}));
+});
+
 test("help, documentation and shell choices use the existing catalogs", () => {
 	expect(candidates("help", "")).toEqual(commandNames());
 	expect(candidates("docs", "")).toEqual(["index", ...Object.keys(DOCS_TOPICS)]);
@@ -159,8 +176,13 @@ test.skipIf(!bash)("Bash passes hostile words literally, preserving empty argume
 		const middle = invoke("re", 3);
 		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", "comment", "-m", "re"]);
 		expect(nulWords(middle.stdout.toString())).toEqual(["ready"]);
+		// Readline replaces only the text after the last = in COMP_WORDBREAKS; without that break, the whole word.
 		const equals = invoke("--state=re", 3);
-		expect(nulWords(equals.stdout.toString())).toEqual(["--state=ready"]);
+		expect(nulWords(equals.stdout.toString())).toEqual(["ready"]);
+		const unbroken = Bun.spawnSync([bash!, "--noprofile", "--norc", "-c", `COMP_WORDBREAKS=$' \\t\\n'; ${BASH_DRIVER}`, "test", script, ...words], {
+			env: { ...process.env, TEST_CAPTURE: capture, TEST_CURRENT: "--state=re", TEST_CWORD: "3", TEST_RESPONSE: "ready\tDescription\n:4" },
+		});
+		expect(nulWords(unbroken.stdout.toString())).toEqual(["--state=ready"]);
 		for (const response of ["ready\tLooks like a directive:4", "ready\tDescription\n:0", `ready\tDescription\n:$(touch ${marker})`]) {
 			const invalid = invoke("", words.length - 1, response);
 			expect(invalid.stdout.toString()).toBe("");
@@ -200,3 +222,92 @@ test.skipIf(!fish)("Fish uses actual completion tokenization without evaluating 
 		expect(existsSync(marker)).toBe(false);
 	} finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+const bashCompletion = ["/usr/share/bash-completion/bash_completion", "/etc/bash_completion"].find((path) => existsSync(path));
+const MAIN = join(import.meta.dir, "../src/main.ts");
+
+/** An `ephyra` on PATH that runs this checkout's CLI, so the shells exercise the real completion protocol. */
+async function ephyraOnPath(dir: string): Promise<string> {
+	const bin = join(dir, "bin");
+	await mkdir(bin);
+	await writeFile(join(bin, "ephyra"), `#!/bin/sh\nexec '${process.execPath}' '${MAIN}' "$@"\n`);
+	await chmod(join(bin, "ephyra"), 0o755);
+	return `${bin}:${process.env.PATH}`;
+}
+
+// Interactive Bash in a PTY: real Readline, the default COMP_WORDBREAKS and bash-completion's word helper.
+test.skipIf(!bash || !bashCompletion)("Bash Readline replaces only the text after = when completing --name=value", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ephyra-readline-"));
+	let shell: ReturnType<typeof Bun.spawn> | undefined;
+	try {
+		const PATH = await ephyraOnPath(dir);
+		await writeFile(join(dir, "completion.bash"), completionScript("bash"));
+		await writeFile(join(dir, "rc"), [
+			`source '${bashCompletion}'`, `source '${join(dir, "completion.bash")}'`, "PS1='$ '",
+			// Ctrl+T prints the edited line, so the test reads Readline's buffer rather than screen echo.
+			`bind -x '"\\C-t": printf "\\nLINE<%s>\\n" "$READLINE_LINE"'`, "echo READY",
+		].join("\n"));
+		let screen = "";
+		shell = Bun.spawn([bash!, "--noprofile", "--rcfile", join(dir, "rc"), "-i"], {
+			env: { PATH, HOME: dir, TERM: "dumb" },
+			terminal: { cols: 200, rows: 40, data(_terminal, bytes) { screen += new TextDecoder().decode(bytes); } },
+		});
+		const until = async (pattern: RegExp) => {
+			for (let i = 0; i < 400 && !pattern.test(screen); i++) await Bun.sleep(25);
+			return pattern.exec(screen)?.[1];
+		};
+		const line = async (typed: string) => {
+			const mark = screen.length;
+			shell!.terminal!.write(`${typed}\t`);
+			await Bun.sleep(50);
+			for (let i = 0; i < 400 && !/failed|ready|\x07/.test(screen.slice(mark + typed.length)); i++) await Bun.sleep(25);
+			const before = screen.length;
+			shell!.terminal!.write("\x14");
+			for (let i = 0; i < 400 && !/LINE<.*>/.test(screen.slice(before)); i++) await Bun.sleep(25);
+			shell!.terminal!.write("\x15");
+			return /LINE<(.*)>/.exec(screen.slice(before))?.[1];
+		};
+		expect(await until(/(READY)/)).toBe("READY");
+		expect(await line("ephyra runs --status=fa")).toBe("ephyra runs --status=failed ");
+		expect(await line("ephyra quests --state=rea")).toBe("ephyra quests --state=ready ");
+		expect(await line("ephyra runs --status fa")).toBe("ephyra runs --status failed ");
+	} finally {
+		shell?.kill("SIGKILL");
+		await shell?.exited;
+		await rm(dir, { recursive: true, force: true });
+	}
+}, 30_000);
+
+// Fish's own completion engine, with the generated function calling the real CLI through a recording wrapper.
+const FISH_REAL_DRIVER = [
+	'source $argv[1]',
+	'function ephyra',
+	'    printf "%s\\0" $argv > "$TEST_CAPTURE"',
+	'    command ephyra $argv',
+	'end',
+	'complete -C $argv[2]',
+].join("\n");
+
+test.skipIf(!fish)("Fish keeps quoted multiline and empty arguments as single words", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ephyra-fish-words-"));
+	try {
+		const PATH = await ephyraOnPath(dir);
+		const script = join(dir, "completion.fish");
+		const capture = join(dir, "argv");
+		await writeFile(script, completionScript("fish"));
+		const run = (line: string) => {
+			const result = Bun.spawnSync([fish!, "--no-config", "-c", FISH_REAL_DRIVER, "--", script, line], {
+				env: { PATH, HOME: dir, TEST_CAPTURE: capture },
+			});
+			expect(result.stderr.toString()).toBe("");
+			// Fish sorts candidates itself.
+			return result.stdout.toString().split("\n").filter(Boolean).map((row) => row.split("\t")[0]).sort();
+		};
+		expect(run("ephyra decide -m 'first\nsecond' T-1234 ")).toEqual(["A", "B", "C"]);
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", "decide", "-m", "first\nsecond", "T-1234", ""]);
+		expect(run("ephyra decide T-1234 A -m '' ")).toEqual(["approve", "reject", "revise"]);
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", "decide", "T-1234", "A", "-m", "", ""]);
+		expect(run("ephyra runs --status=fa")).toEqual(["--status=failed"]);
+		expect(nulWords(await readFile(capture, "utf8"))).toEqual(["complete", "--", "runs", "--status=fa"]);
+	} finally { await rm(dir, { recursive: true, force: true }); }
+}, 30_000);
