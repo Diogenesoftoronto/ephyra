@@ -7,3 +7,4 @@ export * from "./radicle";
 export * from "./tangled";
 export * from "./landing";
 export * from "./onboarding";
+export * from "./hosted";

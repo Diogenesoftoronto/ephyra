@@ -76,3 +76,33 @@ Verified: parser properties, exact identity fixtures, SSRF/credential boundaries
 and real local Git branch imports in SHA-1 and SHA-256 repositories. Radicle commands themselves are substituted in tests;
 no live native node, private identity, Tangled PDS/knot, push or landing operation was run. Live native interoperability
 remains **Unverified** and does not upgrade the existing forge adapters' write capabilities.
+
+## Hosted pull requests: GitHub, GitLab and Forgejo
+
+`HostedPullAdapter` lands `pull_request` plans. It pushes the trail's commit to `ephyra/<trailId>` with a conditional push,
+then opens a GitHub or Forgejo pull request or a GitLab merge request against the base branch. `trail_ref` and
+`auto_land` keep `RemoteGitAdapter`'s behavior. `hostedProviderFor(cloneUrl)` maps:
+
+- github.com and GitHub Enterprise to the GitHub API;
+- gitlab.com and named self-hosted GitLab hosts to `/api/v4`, subgroups included;
+- any other HTTPS host to Forgejo/Gitea at `/api/v1`.
+
+Codeberg is refused everywhere, because its terms forbid AI-generated contributions.
+
+| Behavior | How |
+|---|---|
+| Idempotent landing | The operation ledger replays a finished landing; an open proposal for the same head branch is reused. |
+| Ambiguous writes | A timeout or 5xx on create records the key as `reconciliation_required` and throws `ReconciliationRequired`. |
+| Definite refusal | A 4xx is final for that key and opens nothing. |
+| Base moved | Checked before anything is pushed or opened (`BaseMoved`). |
+| Revert | Closes an unmerged proposal. For a merged one, builds a revert commit on the current base with `git merge-tree` and opens a revert proposal; conflicts become `Unverified` for a human. |
+| Events | Polls Ephyra's own proposals (`ephyra/*` heads) for state, reviews, comments and CI, each reported once, with an opaque cursor. Comment bodies are untrusted data. |
+| Token | Read per request, sent only in `Authorization`, never in a URL, error, receipt or push argument. |
+| Transport | HTTPS only; 15 s timeout; 2 MB response cap; same-origin redirects only; 403/429 rate limits become `Unverified` with the reset time. |
+
+Verified by `src/hosted.test.ts` against a real local Git remote and an in-memory fake of each API
+(`src/fixtures/hosted/fake-forge.ts`), plus property tests for cursors and branch names.
+
+Still `Unverified`:
+- the real APIs, until the live test (`EPHYRA_LIVE=1` with `EPHYRA_LIVE_GITHUB_TOKEN` and `EPHYRA_LIVE_GITHUB_REPO`) runs;
+- GitLab approvals beyond the approvals endpoint, and Forgejo review states other than GitHub-compatible ones.
