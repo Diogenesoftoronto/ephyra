@@ -1,3 +1,4 @@
+import { WorkspacePicker } from "../components/WorkspacePicker.tsx";
 import { SoundToggle } from "../components/SoundToggle.tsx";
 import { useEffect, useMemo, useState } from "react";
 import type { AccountSettings, WorkspaceAccess } from "@ephyra/core";
@@ -77,13 +78,7 @@ export function AccountWorkspace(props: Props) {
       body="Your access or the repository may have changed. Choose your own workspace to continue."
       action={<Button onClick={() => choose(settings.workspaceId)}>Open my workspace</Button>} /></div>;
     return <WorkspaceSession key={access.workspaceId} {...props} access={access} team={team} onTeamChanged={teamChanged}
-      switcher={<label className="workspace-picker"><span>Workspace</span>
-        <select aria-label="Workspace" value={selected} onChange={(event) => choose(event.target.value)}>
-          {all.map((item) => <option key={item.workspaceId} value={item.workspaceId}>
-            {item.name} · {item.role === "owner" ? "Your workspace" : item.role === "approver" ? "Approver" : "Viewer"}
-          </option>)}
-        </select>
-      </label>} />;
+      switcher={<WorkspacePicker workspaces={all} selected={selected} onChoose={choose} />} />;
   }}</Load>;
 }
 
