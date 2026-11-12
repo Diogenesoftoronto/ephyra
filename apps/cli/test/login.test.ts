@@ -82,6 +82,38 @@ test("a missing browser opener leaves a usable link and continues polling", asyn
   expect(await loadCredentials(io.env)).not.toBeNull();
 });
 
+test("an opener that never settles cannot hold up an approved login", async () => {
+  let polls = 0;
+  const { io } = await fixture({
+    open: () => new Promise<void>(() => {}),
+    fetch: (async () => { polls++; return Response.json(session); }) as unknown as typeof fetch,
+  });
+  expect((await login("https://console.example", io, 500)).did).toBe(session.did);
+  expect(polls).toBe(1);
+  expect(await loadCredentials(io.env)).not.toBeNull();
+});
+
+test("a rejected asynchronous opener reports the fallback and leaves login usable", async () => {
+  const { io, lines, events } = await fixture({ open: async () => { throw new Error("private launcher detail"); } });
+  await login("https://console.example", io, 500);
+  expect(events.filter(event => event.type === "browser_unavailable")).toHaveLength(1);
+  expect(lines.join("\n")).toContain("Open the link above");
+  expect(lines.join("\n")).not.toContain("private launcher detail");
+});
+
+test("cancellation does not wait for an asynchronous opener", async () => {
+  const controller = new AbortController();
+  const { io } = await fixture({
+    signal: controller.signal,
+    open: () => {
+      queueMicrotask(() => controller.abort());
+      return new Promise<void>(() => {});
+    },
+  });
+  await expect(login("https://console.example", io, 500)).rejects.toBeInstanceOf(LoginCancelledError);
+  expect(await loadCredentials(io.env)).toBeNull();
+});
+
 test("an already cancelled sign-in opens no browser and makes no request", async () => {
   const controller = new AbortController();
   controller.abort(new Error("private caller detail"));

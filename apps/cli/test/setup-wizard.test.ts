@@ -94,6 +94,42 @@ test("browser repository handoff explicitly refreshes workspace; integration han
   expect(h.calls.filter(c => c.action === "start" || c.action === "repository")).toEqual([]);
 });
 
+test("a pending browser opener cannot block either handoff prompt or its cancellation", async () => {
+  for (const handoff of ["repository", "integrations"]) {
+    const h = harness(handoff === "repository" ? ["browser"] : ["saved", "browser"],
+      { ...settings(), workspaceId: "ws-after", repository });
+    let prompted = false;
+    h.options.io.open = () => new Promise<void>(() => {});
+    h.options.ui.confirm = async () => {
+      prompted = true;
+      queueMicrotask(() => h.controller.abort(new CliCancelledError()));
+      await pause(10_000, h.controller.signal);
+      return true;
+    };
+    // Bound failure cleanup without ever settling the opener.
+    const timeout = setTimeout(() => h.controller.abort(new CliCancelledError()), 500);
+    try { await expect(setupWizard(h.options)).rejects.toBeInstanceOf(CliCancelledError); }
+    finally { clearTimeout(timeout); h.controller.abort(); }
+    expect(prompted).toBe(true);
+    expect(h.calls.some(c => c.action === "start" || c.action === "repository")).toBe(false);
+  }
+}, 2_000);
+
+test("browser handoffs retain a usable URL after synchronous or asynchronous launch failure", async () => {
+  for (const asynchronous of [false, true]) {
+    const h = harness(["browser", false]);
+    h.options.io.open = () => {
+      if (asynchronous) return Promise.reject(new Error("private launcher detail"));
+      throw new Error("private launcher detail");
+    };
+    await expect(setupWizard(h.options)).rejects.toBeInstanceOf(CliCancelledError);
+    expect(h.messages.join("\n")).toContain("https://ephyra.example/app/#/onboarding");
+    expect(h.messages.join("\n")).toContain("Open the console link above");
+    expect(h.messages.join("\n")).not.toContain("private launcher detail");
+    expect(h.calls.some(c => c.action === "start" || c.action === "repository")).toBe(false);
+  }
+});
+
 test("a pending setup reconciles only its exact receipt and resumes without prompting or starting again", async () => {
   const h = harness([], { ...settings(), workspaceId: "ws-after", repository });
   h.setRun(run());

@@ -102,9 +102,13 @@ export async function setupWizard(options: WizardOptions): Promise<SetupRun | nu
   const api = options.api ?? new CliSetupClient(origin, creds.token, creds.did, options.io.fetch, signal);
   const receipts = options.receipts ?? setupReceipts(origin, creds.did, options.io.env);
   const consoleUrl = `${origin}/app/#/onboarding`;
-  const openConsole = async () => {
-    try { await options.io.open?.(consoleUrl); }
-    catch { ui.warn("The browser could not be opened. Open the console link above to continue."); }
+  const openConsole = () => {
+    signal.throwIfAborted();
+    const unavailable = () => {
+      if (!signal.aborted) ui.warn("The browser could not be opened. Open the console link above to continue.");
+    };
+    try { void Promise.resolve(options.io.open?.(consoleUrl)).catch(unavailable); }
+    catch { unavailable(); }
   };
   let settings = await ui.work("Reading saved settings…", () => api.settings());
   const pending = await receipts.read();
@@ -130,7 +134,7 @@ export async function setupWizard(options: WizardOptions): Promise<SetupRun | nu
     ]);
     if (choice === "browser") {
       ui.note(consoleUrl, "Connect a repository in the console");
-      await openConsole();
+      openConsole();
       if (!await ui.confirm("Read the saved connection when you're ready?", "Read connection", "Stop here")) throw new CliCancelledError();
       settings = await api.settings(true);
       if (!settings.repository) throw new Error(`No repository is saved yet. Connect one at ${consoleUrl}, then resume the wizard.`);
@@ -179,7 +183,7 @@ export async function setupWizard(options: WizardOptions): Promise<SetupRun | nu
       { value: "browser", label: "Connect integrations in the browser", hint: "PostHog, Sentry, mobile logs, OTLP, knowledge and model access" },
     ]) === "browser") {
       ui.note(consoleUrl, "Connection settings");
-      await openConsole();
+      openConsole();
       if (!await ui.confirm("Read the saved connections when you're ready?", "Read connections", "Stop here")) throw new CliCancelledError();
       const refreshed = await api.settings();
       if (refreshed.workspaceId !== settings.workspaceId)
