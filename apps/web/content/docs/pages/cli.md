@@ -17,7 +17,15 @@ ephyra() { bun "$EPHYRA_MAIN" "$@"; }
 ephyra help
 ```
 
-This is a shell function rather than an alias, so shell completion can call it and the definition still parses where an older `ephyra` alias exists; `unalias` removes such an alias first. To keep it, put the last three lines in your shell profile with the absolute path in place of `$PWD`. In Fish, use `function ephyra; bun /absolute/path/to/ephyra/apps/cli/src/main.ts $argv; end`.
+The function supports shell completion, and `unalias` removes an older alias before defining it. To keep the command in new Bash or Zsh sessions, add this complete block to your shell profile. Replace `/absolute/path/to/ephyra` with your checkout's absolute path:
+
+```sh
+EPHYRA_MAIN="/absolute/path/to/ephyra/apps/cli/src/main.ts"
+unalias ephyra 2>/dev/null
+ephyra() { bun "$EPHYRA_MAIN" "$@"; }
+```
+
+In Fish, use `function ephyra; bun /absolute/path/to/ephyra/apps/cli/src/main.ts $argv; end`.
 
 ## First five minutes
 
