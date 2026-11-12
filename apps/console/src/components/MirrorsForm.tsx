@@ -21,7 +21,8 @@ export function proposalTarget(settings: AccountSettings): { ready: boolean; tex
   if (kind === "git") return { ready: false, text: "This host has no pull request API Ephyra knows, so pull requests park for you." };
   if (!repository.credentialConfigured)
     return { ready: false, text: kind === "github"
-      ? "GitHub pull requests, once you connect with GitHub or save an access token." : `${PROPOSAL[kind]}, once you save an access token that can open them.` };
+      ? "GitHub pull requests, once you connect with GitHub or save an access token."
+      : `${PROPOSAL[kind]}, once you save an access token that can open them.` };
   return { ready: true, text: `${PROPOSAL[kind]}.` };
 }
 

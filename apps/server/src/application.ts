@@ -307,7 +307,8 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   });
   // GitHub App creation (operator) and installation (owner). Both are browser pages, signed in with Not Organic.
   const page = (title: string, body: string) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>${title}</title><style>body{font:16px/1.5 system-ui;max-width:640px;margin:48px auto;padding:0 16px}code,pre{background:#f3f0e8;padding:2px 4px;border-radius:4px;white-space:pre-wrap;word-break:break-all}</style>
+<title>${title}</title><style>body{font:16px/1.5 system-ui;max-width:640px;margin:48px auto;padding:0 16px}
+code,pre{background:#f3f0e8;padding:2px 4px;border-radius:4px;white-space:pre-wrap;word-break:break-all}</style>
 <h1>${title}</h1>${body}`;
   const escape = (text: string) => text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
   const sessionDid = async (c: Context) =>
