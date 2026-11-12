@@ -125,6 +125,23 @@ describe("pricing", () => {
     }
   });
 
+  test("the proposal passes through model cost reductions and separates training consent from retention", async () => {
+    const html = await (await get("/pricing")).text();
+    expect(html).toContain("underlying model cost × (1 + markup percentage)");
+    expect(html).toContain("When the underlying cost falls, your model charge falls with it");
+    expect(html).toContain("Hosting and compute are charged separately");
+    expect(html).toContain("These options are proposed and not available for purchase");
+    expect(html).toContain("explicit, separate opt-in");
+    expect(html).toContain("Without explicit permission, we do not use your content for training");
+    expect(html).toContain("No-training does not mean zero retention");
+    expect(html).toContain(`href="mailto:${OPERATOR.email}">Contact sales</a>`);
+    expect(html).toContain("Availability and terms must be confirmed");
+    const summary = await (await get("/llms.txt")).text();
+    expect(summary).toContain("Markup percentage not yet set");
+    expect(summary).toContain("lower price with explicit training opt-in; higher price without training");
+    expect(summary).toContain("No-training does not mean zero retention");
+  });
+
   test("money keeps every significant decimal and at least two", () => {
     expect([0, 0.1, 0.0609, 1.5, 20, 0.02].map(money)).toEqual(["$0", "$0.10", "$0.0609", "$1.50", "$20", "$0.02"]);
     fc.assert(fc.property(fc.integer({ min: 0, max: 10_000_000 }), (tenThousandths) => {

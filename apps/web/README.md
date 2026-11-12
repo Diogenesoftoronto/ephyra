@@ -140,10 +140,17 @@ Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_OR
 
 `src/pricing.ts` supplies both the pricing page and the machine-readable summary.
 The proposed hosted product uses customer-funded credits for model usage and compute,
-with $150 as a suggested starting balance. Unit rates and the service charge are not
-set. Unknown rates render as unannounced, never zero. No checkout or top-up behavior
+with $150 as a suggested starting balance. Model charges use underlying model cost
+plus a consistent percentage; reductions in underlying cost pass through. Hosting
+and compute are charged separately. Unit rates and the markup percentage are not set. Unknown rates render as unannounced, never zero. No checkout or top-up behavior
 is implied by this copy. Exact model identities remain in operational usage records.
 
 Local route tests cover the proposal status, starting-balance wording and absence of
 obsolete marketed rates. Hosted payments, balance alerts and automatic top-ups remain
 unverified; see `design/04-pricing.md` for the product decisions and open work.
+
+The pricing proposal also describes a lower-price option with explicit training
+opt-in, a higher-price no-training option, and a contact-sales path for zero data
+retention. Price differences are undecided. No-training and retention are separate
+commitments; provider support and scope must be confirmed before promising zero
+retention. This page does not implement consent, training, retention or discounts.
