@@ -71,7 +71,8 @@ test("Connect with GitHub binds a verified installation, and the repository cred
     repository: {
       resolve: async () => ({ url: "https://github.com/acme/app.git",
         forge: { kind: "github" as const, source: "https://github.com/acme/app", cloneUrl: "https://github.com/acme/app.git" } }),
-      prepare: async (input: { url: string; branch: string }) => ({ url: input.url, branch: input.branch, head: "a".repeat(40), verifiedAt: new Date().toISOString() }),
+      prepare: async (input: { url: string; branch: string }) =>
+        ({ url: input.url, branch: input.branch, head: "a".repeat(40), verifiedAt: new Date().toISOString() }),
     } as never });
   const s = await service.saveRepository(DID, { expectedVersion: 0, url: "https://github.com/acme/app", branch: "main" }, "repo-connect-gh1");
   await expect(service.connectGitHubApp(DID, "78", "gh-app-wrong-1")).rejects.toThrow("does not cover");
