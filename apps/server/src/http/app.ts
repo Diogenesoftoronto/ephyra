@@ -1,7 +1,9 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Effect, InboxItem, Trail, TrailEvent } from "@ephyra/core";
 import { auth, type AuthEnv, type SessionResolver } from "./auth.ts";
+import { reportSelfError } from "../self-telemetry.ts";
 
 export class StaleApproval extends Error {}
 /** The state machine refused the event (e.g. claiming a closed trail). */
@@ -77,6 +79,13 @@ export function createApp(
   extra?: (approval: ApprovalPolicy) => Hono<AuthEnv>,
 ): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
+  // Same response as Hono's default; an unexpected error is also reported to self-telemetry when it is configured.
+  app.onError((error, c) => {
+    if (error instanceof HTTPException) return error.getResponse();
+    reportSelfError(error, "http", c.req.routePath);
+    console.error(error);
+    return c.text("Internal Server Error", 500);
+  });
   app.get("/healthz", (c) => c.json({ ok: true }));
   app.use("/v1/*", auth(token, sessions, approval.browserOrigin));
   // Every mutating /v1 route is a human decision or action.

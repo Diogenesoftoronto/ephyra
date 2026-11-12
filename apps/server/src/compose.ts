@@ -188,13 +188,13 @@ function backends(config: Config, usage: UsageRecorder): { extract: ExtractBacke
 }
 
 /** Configured credentials, so run events can scrub them by value as well as by pattern. */
-function knownSecrets(config: Config): string[] {
+export function knownSecrets(config: Config): string[] {
   return [
     config.EPHYRA_API_TOKEN, config.EPHYRA_CONVEX_SECRET, config.EPHYRA_SESSION_KEY, config.TYPESAFE_API_KEY, config.EPHYRA_SYSTEMONE_KEY,
     config.CLOUDFLARE_AI_API_TOKEN, config.EPHYRA_DRAFT_ANTHROPIC_API_KEY, config.EPHYRA_DRAFT_OPENAI_API_KEY, process.env.AMP_API_KEY,
     config.EPHYRA_VOICE_API_KEY, config.EPHYRA_HUMANS_API_KEY,
     config.EPHYRA_TRACTION_TOKEN,
-    config.EPHYRA_RAILWAY_TOKEN,
+    config.EPHYRA_RAILWAY_TOKEN, config.EPHYRA_SELF_OTLP_TOKEN,
   ].filter((v): v is string => typeof v === "string" && v.length >= 8);
 }
 

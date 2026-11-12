@@ -33,6 +33,12 @@ const Config = z.object({
   EPHYRA_HOSTED_RUNNER: z.enum(["none", "railway"]).default("none"),
   EPHYRA_HOSTED_ACCOUNTS: z.string().default(""),
   EPHYRA_RAILWAY_TOKEN: optional,
+  // Self-telemetry: report this server's own unexpected errors as OTLP logs. Point it at a workspace intake
+  // (/otlp/workspaces/<id>/v1/logs, with that workspace's token) and Ephyra watches itself.
+  EPHYRA_SELF_OTLP_ENDPOINT: z.string().url().optional(),
+  EPHYRA_SELF_OTLP_TOKEN: optional,
+  EPHYRA_SELF_SERVICE: z.string().min(1).default("ephyra-server"),
+  EPHYRA_SELF_ENVIRONMENT: z.string().min(1).default("production"),
   EPHYRA_RAILWAY_ENVIRONMENT_ID: optional,
   EPHYRA_RAILWAY_CHECKPOINT: optional,
   EPHYRA_RAILWAY_REGION: optional,
@@ -155,6 +161,8 @@ export function readConfig(env: Record<string, string | undefined>): Config {
     if (url.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
       throw new Error("Remote voice services require HTTPS");
   }
+  if (Boolean(config.EPHYRA_SELF_OTLP_ENDPOINT) !== Boolean(config.EPHYRA_SELF_OTLP_TOKEN))
+    throw new Error("Self-telemetry needs both EPHYRA_SELF_OTLP_ENDPOINT and EPHYRA_SELF_OTLP_TOKEN");
   const hosted = config.EPHYRA_DECIDE === "notorganic" || config.EPHYRA_EXTRACT === "notorganic" || config.EPHYRA_DRAFT === "notorganic"
     || config.EPHYRA_FORECAST === "notorganic"
     || config.EPHYRA_VOICE === "notorganic" || config.EPHYRA_TUTOR === "notorganic";
