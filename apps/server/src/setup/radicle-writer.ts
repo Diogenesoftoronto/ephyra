@@ -63,6 +63,12 @@ export function radicleWriter(config: RadicleWriterConfig, repository: string, b
   let ready: Promise<void> | null = null;
   const prepare = (cwd: string) => ready ??= (async () => {
     await mkdir(config.home, { recursive: true, mode: 0o700 });
+    // The node carries patches to the network. Starting it is idempotent; a node that cannot start leaves patches local.
+    const status = await base(["rad", "node", "status", "--only", "nid"], cwd, env);
+    if (status.code) {
+      const started = await base(["rad", "node", "start"], cwd, env);
+      if (started.code) throw new Unverified("Radicle node could not start");
+    }
     const seeded = await base(["rad", "seed", repository, "--scope", "followed"], cwd, env);
     if (seeded.code) throw new Unverified("Radicle identity could not seed the repository");
     const remote = await base(["git", "remote", "get-url", "rad"], cwd, env);
@@ -76,7 +82,10 @@ export function radicleWriter(config: RadicleWriterConfig, repository: string, b
   return async (argv, cwd) => {
     if (isPatchPush(argv)) {
       await prepare(cwd);
-      return base([...argv.slice(0, 2), "rad", ...argv.slice(3)], cwd, env);
+      const pushed = await base([...argv.slice(0, 2), "rad", ...argv.slice(3)], cwd, env);
+      // Announce so seeds fetch the patch now. Best effort: the node also announces on its own schedule.
+      if (pushed.code === 0) await base(["rad", "sync", repository, "--announce", "--timeout", "30"], cwd, env).catch(() => undefined);
+      return pushed;
     }
     if (isPatchRead(argv, repository)) return base(argv, cwd, env);
     if (argv[0] === "git" && ["show", "rev-parse", "cat-file", "merge-base"].includes(argv[1] ?? "")) return base(argv, cwd);

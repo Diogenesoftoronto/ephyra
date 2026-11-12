@@ -49,6 +49,7 @@ test("the writer seeds once, pushes patches through the rad remote with the iden
   await run(["git", "push", "origin", `${OID}:refs/patches`, "-o", "patch.message=Fix"], "/tmp");
   await run(["git", "push", "origin", `${OID}:refs/patches`], "/tmp");
   expect(calls.filter((c) => c.argv[1] === "seed")).toHaveLength(1);
+  expect(calls.filter((c) => c.argv[1] === "sync" && c.argv.includes("--announce"))).toHaveLength(2);
   expect(calls.find((c) => c.argv[2] === "add")!.argv).toEqual(["git", "remote", "add", "rad", `rad://${RID.slice(4)}/${NID}`]);
   const pushes = calls.filter((c) => c.argv[1] === "push");
   expect(pushes.map((c) => c.argv[2])).toEqual(["rad", "rad"]);
