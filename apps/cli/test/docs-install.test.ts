@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "../../..");
@@ -21,10 +22,13 @@ test.skipIf(!bash)("the documented source install runs in Bash even where an eph
 		"complete -p ephyra",
 		"ephyra complete -- runs --status fa",
 	].join("\n");
-	const result = Bun.spawnSync([bash!, "--noprofile", "--norc", "-c", script], { cwd: ROOT, env: { PATH: process.env.PATH, HOME: ROOT } });
-	expect(result.stderr.toString()).toBe("");
+	const home = mkdtempSync(join(tmpdir(), "ephyra-docs-home-"));
+	let result: ReturnType<typeof Bun.spawnSync>;
+	try { result = Bun.spawnSync([bash!, "--noprofile", "--norc", "-c", script], { cwd: ROOT, env: { PATH: process.env.PATH, HOME: home } }); }
+	finally { rmSync(home, { recursive: true, force: true }); }
+	expect(result.stderr!.toString()).toBe("");
 	expect(result.exitCode).toBe(0);
-	const out = result.stdout.toString();
+	const out = result.stdout!.toString();
 	expect(out).toContain("usage  ephyra <command>");
 	expect(out).toContain("complete -F __ephyra_complete ephyra");
 	expect(out).toContain("failed\t\n:4");
