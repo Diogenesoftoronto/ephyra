@@ -6,6 +6,7 @@ export * from "./injection";
 export * from "./proof";
 export * from "./agent";
 export * from "./feedback";
+export * from "./safety";
 export * from "./arize";
 export * from "./telemetry";
 export { run, parseArgs, markdown } from "./main";

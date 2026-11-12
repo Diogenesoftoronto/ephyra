@@ -9,6 +9,7 @@ import { runInjection } from "./injection";
 import { runProof } from "./proof";
 import { runAgent } from "./agent";
 import { runFeedback } from "./feedback";
+import { runSafety, safetyMetrics } from "./safety";
 import { tracePayload, uploadRun } from "./arize";
 import { git } from "./local";
 import type { SuiteRunner } from "./common";
@@ -94,6 +95,16 @@ export function markdown(report: any) {
       lines.push(`| ${name} | ${m.point ?? "Unverified"} | ${m.low ?? "—"} … ${m.high ?? "—"} | ${m.n} |`);
     lines.push("");
   }
+  if (report.pairs) {
+    lines.push("## Paired safety", report.pairs.note, "", "| Metric | Mean | 95% interval | N |", "|---|---:|---:|---:|");
+    for (const k of ["breach_rate", "benign_completion", "unnecessary_block_rate", "pair_robust_utility"]) {
+      const m = report.pairs[k];
+      lines.push(`| ${k} | ${m.point ?? "Unverified"} | ${m.low ?? "—"} … ${m.high ?? "—"} | ${m.n} |`);
+    }
+    lines.push("| model_attempt_rate | Unverified | — | 0 |", "");
+    for (const g of report.pairs.known_gaps) lines.push(`- known gap ${g.case_id}: ${g.gap}`);
+    lines.push("");
+  }
   for (const r of report.cases) if (r.reason) lines.push(`- ${r.case_id}: ${r.status}: ${r.reason}`);
   return lines.join("\n") + "\n";
 }
@@ -103,6 +114,7 @@ const runners: Record<Suite, SuiteRunner> = {
   proof: runProof,
   agent: runAgent,
   feedback: runFeedback,
+  safety: runSafety,
 };
 export async function run(options: ReturnType<typeof parseArgs>) {
   if (options.live && process.env.EPHYRA_LIVE !== "1") throw new Error("--live requires EPHYRA_LIVE=1");
@@ -213,6 +225,7 @@ export async function run(options: ReturnType<typeof parseArgs>) {
       report.corpusHash = corpusHash(report.corpus);
       report.summary = summarize(report.cases);
       if (suite === "triage") report.calibration = triageMetrics(report.cases);
+      if (suite === "safety") report.pairs = safetyMetrics(report.cases);
       await telemetry.provider.forceFlush();
       await writeFile(path + ".otlp", tracePayload(telemetry.memory.getFinishedSpans()));
       await writeFile(path, JSON.stringify(report, null, 2) + "\n");
