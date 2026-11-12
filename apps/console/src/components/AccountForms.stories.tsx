@@ -99,3 +99,16 @@ export const FailedSave: StoryObj = {
   },
 };
 export const Phone: StoryObj = { ...SavedKey, globals: { viewport: { value: "phone" } } };
+
+export const ReviewModel: StoryObj = {
+  render: () => {
+    const [api] = useState(() => new FakeAccountApi({ initial: CONNECTED_ACCOUNT_FIXTURE }));
+    const [settings, setSettings] = useState(CONNECTED_ACCOUNT_FIXTURE);
+    return (
+      <div style={{ maxWidth: 680 }}>
+        <p className="account-hint">Storybook fixture. No provider is contacted.</p>
+        <ModelAccessForm api={api} settings={settings} onChange={setSettings} loadCatalog={loadAccountCatalogFixture} role="review" />
+      </div>
+    );
+  },
+};

@@ -255,11 +255,15 @@ export function ModelAccessForm({
   onBusyChange,
   loadCatalog,
   secondaryAction,
-}: AccountFormProps) {
+  role = "code",
+}: AccountFormProps & { role?: "code" | "review" }) {
   const providerGroup = useId();
-  const [provider, setProvider] = useState<ModelProvider>(settings.model.provider);
-  const [model, setModel] = useState(settings.model.model);
-  const [baseUrl, setBaseUrl] = useState(settings.model.baseUrl ?? "");
+  // The review slot falls back to "none" in the form; on the server an unset review model means the coding model reviews.
+  const slot: AccountSettings["model"] = role === "code" ? settings.model : settings.roleModels?.review
+    ?? { provider: "none", model: "", baseUrl: null, keyConfigured: false, status: "not_configured", checkedAt: null, detail: null };
+  const [provider, setProvider] = useState<ModelProvider>(slot.provider);
+  const [model, setModel] = useState(slot.model);
+  const [baseUrl, setBaseUrl] = useState(slot.baseUrl ?? "");
   const [apiKey, setApiKey] = useState("");
   const [clearKey, setClearKey] = useState(false);
   const write = useAccountWrite(api, onChange);
@@ -268,9 +272,9 @@ export function ModelAccessForm({
     return () => onBusyChange?.(false);
   }, [write.locked, onBusyChange]);
   useEffect(() => {
-    setProvider(settings.model.provider);
-    setModel(settings.model.model);
-    setBaseUrl(settings.model.baseUrl ?? "");
+    setProvider(slot.provider);
+    setModel(slot.model);
+    setBaseUrl(slot.baseUrl ?? "");
     setApiKey("");
     setClearKey(false);
   }, [settings.version, settings.workspaceId]);
@@ -280,20 +284,20 @@ export function ModelAccessForm({
   const destination = normalizeCatalogBaseUrl(
     provider === "openai" ? defaultBase(provider) : baseUrl || defaultBase(provider),
   );
-  const savedDestination = normalizeCatalogBaseUrl(settings.model.baseUrl || defaultBase(settings.model.provider));
+  const savedDestination = normalizeCatalogBaseUrl(slot.baseUrl || defaultBase(slot.provider));
   const savedKey =
-    provider === settings.model.provider && destination === savedDestination && settings.model.keyConfigured;
+    provider === slot.provider && destination === savedDestination && slot.keyConfigured;
   function chooseProvider(next: ModelProvider) {
     setProvider(next);
     setApiKey("");
     setClearKey(false);
-    setModel(next === settings.model.provider ? settings.model.model : "");
-    setBaseUrl(next === settings.model.provider ? (settings.model.baseUrl ?? "") : "");
+    setModel(next === slot.provider ? slot.model : "");
+    setBaseUrl(next === slot.provider ? (slot.baseUrl ?? "") : "");
   }
   return (
     <form
       className="account-form"
-      aria-label="Model access settings"
+      aria-label={role === "code" ? "Model access settings" : "Review model settings"}
       onSubmit={async (event) => {
         event.preventDefault();
         const input: ModelUpdate = {
@@ -306,9 +310,9 @@ export function ModelAccessForm({
         };
         const next = await write.save(
           input,
-          (value, key) => api.saveModel(value, key),
+          (value, key) => role === "code" ? api.saveModel(value, key) : api.saveRoleModel({ ...value, role }, key),
           provider === "none"
-            ? "Model access can be configured later."
+            ? role === "code" ? "Model access can be configured later." : "Review model removed. The coding model reviews patches."
             : "Model settings saved. See the saved access status below.",
         );
         if (next) {
@@ -337,7 +341,7 @@ export function ModelAccessForm({
                   onChange={() => chooseProvider(value)}
                 />
                 <span>
-                  <strong>{providers[value]}</strong>
+                  <strong>{role === "review" && value === "none" ? "Same as coding model" : providers[value]}</strong>
                 </span>
               </label>
             ))}
@@ -442,26 +446,27 @@ export function ModelAccessForm({
           disabled={write.locked}
           data-account-action="save-model"
         >
-          {onDone ? (provider === "none" ? "Continue without a model" : "Continue") : "Save model access"}
+          {onDone ? (provider === "none" ? "Continue without a model" : "Continue")
+            : role === "code" ? "Save model access" : provider === "none" ? "Use the coding model" : "Save review model"}
         </Button>
         {secondaryAction}
       </div>
-      {settings.model.provider !== "none" && (
+      {slot.provider !== "none" && (
         <div>
           <details className="account-current">
             <summary>
-              Saved connection <Tag>{statusNames[settings.model.status]}</Tag>
+              Saved connection <Tag>{statusNames[slot.status]}</Tag>
             </summary>
             <div className="account-current-details">
               <div className="account-saved">
-                <strong>{providers[settings.model.provider]}</strong>
-                {settings.model.keyConfigured && <span>Key saved</span>}
+                <strong>{providers[slot.provider]}</strong>
+                {slot.keyConfigured && <span>Key saved</span>}
               </div>
-              {settings.model.model && <code>{settings.model.model}</code>}
-              {settings.model.detail && <p className="account-hint">{settings.model.detail}</p>}
+              {slot.model && <code>{slot.model}</code>}
+              {slot.detail && <p className="account-hint">{slot.detail}</p>}
             </div>
           </details>
-          {settings.model.provider === "notorganic" && settings.model.status === "needs_sign_in" && (
+          {slot.provider === "notorganic" && slot.status === "needs_sign_in" && (
             <a href="/auth/login?setup=1">Sign in to allow model access</a>
           )}
         </div>

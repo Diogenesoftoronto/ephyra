@@ -568,6 +568,17 @@ Still `Unverified`:
 - browser errors from the console, which are not reported yet. Bundled frames would not match repository areas
   without source maps.
 
+## Models per role
+
+A workspace's model (`PUT /v1/account/model`) is its **coding** model: research, repro, plan and patch. A separate
+**review** model (`PUT /v1/account/models/role` with `role: "review"`) checks every patch before it is proposed. It has the
+same providers, key checks and sealing as the coding model.
+
+`provider: "none"` removes the review model, and with no review model the coding model reviews its own patches. The proof's
+`bug_review` item and the usage receipt always name the model that actually ran, so a fallback is visible, never silent.
+`roleForStep` in core maps steps to roles. More roles (for example design or a cheap triage model) can be added to
+`AgentRole` and `roleModels` without changing this contract.
+
 ## Forges: pull requests, Radicle patches and mirrors
 
 Design: `design/10-forge-integration.md`. The `pull_request` landing mode opens a reviewable proposal on the workspace's own

@@ -94,6 +94,14 @@ export function SettingsPage({
         className="settings-panel"
       >
         <ModelAccessForm api={api} settings={settings} onChange={onChange} loadCatalog={loadCatalog} />
+        <section className="settings-subsection" aria-labelledby={`${id}-review-model`}>
+          <h3 id={`${id}-review-model`}>Review model</h3>
+          <p className="account-hint">
+            Checks every patch before it is proposed. Choose a different model from the coding one so a second opinion
+            reviews the work. Leave it unset and the coding model reviews its own patches.
+          </p>
+          <ModelAccessForm api={api} settings={settings} onChange={onChange} loadCatalog={loadCatalog} role="review" />
+        </section>
       </section>
       <section
         role="tabpanel"

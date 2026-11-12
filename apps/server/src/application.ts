@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
 import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput,
-  KnowledgeUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer, Unverified, MirrorRemove, MirrorUpdate } from "@ephyra/core";
+  KnowledgeUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer, Unverified, MirrorRemove, MirrorUpdate, RoleModelUpdate } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
 import { readConfig, type Config } from "./config.ts";
 import { auth, type AuthEnv } from "./http/auth.ts";
@@ -168,7 +168,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           EPHYRA_PROOF_TRUST_FILE: config.EPHYRA_PROOF_TRUST_FILE,
         });
         const hosted = opts.workspaceAutomation ? null
-          : await hostedAutomation(config, { did, workspaceId, directory }, () => account.modelFor(did, workspaceId));
+          : await hostedAutomation(config, { did, workspaceId, directory }, (role) => account.modelFor(did, workspaceId, role));
         const automation: ComposeOverrides | undefined = await opts.workspaceAutomation?.({ did, workspaceId, directory }) ?? hosted ?? undefined;
         const knowledgeLedger = config.CONVEX_URL ? undefined : new KnowledgeOperationLedger(join(directory, "knowledge-operations"));
         if (automation?.agent && !automation.runner)
@@ -393,6 +393,12 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     const value = MirrorRemove.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Choose a mirror to remove." }, 400);
     return c.json(await account.removeMirror(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  /** A model for one role (today: review). `provider: "none"` removes it, so the coding model reviews again. */
+  app.put("/v1/account/models/role", async (c) => {
+    const value = RoleModelUpdate.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Choose a role, then check the model, provider URL and key." }, 400);
+    return c.json(await account.saveRoleModel(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
   });
   app.put("/v1/account/model", async (c) => {
     const value = ModelUpdate.safeParse(await c.req.json().catch(() => null));

@@ -63,3 +63,6 @@
     gap: var(--s1);
   }
 }
+
+.settings-subsection { display: grid; gap: var(--s2); margin-top: var(--s6, 2rem); padding-top: var(--s5, 1.5rem); border-top: 1px solid var(--rule); }
+.settings-subsection h3 { margin: 0; font-size: 1rem; }
