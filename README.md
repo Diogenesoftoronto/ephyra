@@ -139,3 +139,11 @@ Inside `devenv shell`, equivalent helpers are `ephyra-check`,
 `ephyra-check-package core`, `ephyra-test ./packages/core`, `ephyra-smoke`,
 and `ephyra-interactions`. `devenv test` installs dependencies and runs the full check.
 Default unit tests use fakes/fixtures; passing them does not verify live integrations.
+
+## Where the code lives
+
+Ephyra is published in three places, kept identical: a plain `git push` from a maintainer's checkout goes to all of them.
+
+- Tangled: https://tangled.org/dio.pds.notorganic.info/ephyra
+- Radicle: `rad:zWqAfh1Dtwr2gByC8Ln3EpW5jxv1` (https://app.radicle.xyz/nodes/iris.radicle.network/rad:zWqAfh1Dtwr2gByC8Ln3EpW5jxv1)
+- GitHub: https://github.com/Diogenesoftoronto/ephyra
