@@ -30,6 +30,7 @@ import { provisionSetup } from "./setup/provisioning.ts";
 import { canonicalJson } from "./audit.ts";
 import { proofToolchain } from "./setup/proof-toolchain.ts";
 import { personalLanding } from "./setup/personal-landing.ts";
+import { radicleWriterConfig } from "./setup/radicle-writer.ts";
 import { accountBootstrapCoverage } from "./setup/account-bootstrap.ts";
 import { createAgentAccess } from "./auth/agent-service.ts";
 import { ConvexAgentStore, MemoryAgentStore, type AgentStore } from "./auth/agent-store.ts";
@@ -83,6 +84,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     },
   });
   const account = accounts;
+  const radicleWriter = radicleWriterConfig(config).config;
   const teams = new Teams(store, config.EPHYRA_SESSION_KEY);
   const agents = createAgentAccess({
     store: opts.agentStore ?? (client ? new ConvexAgentStore(client, config.EPHYRA_CONVEX_SECRET!) : new MemoryAgentStore()),
@@ -189,7 +191,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
           resolveApprover: (principal) => teams.canApprove(did, workspaceId, principal),
           resolveTelemetry: () => account.telemetryFor(did, workspaceId),
           assessBootstrap: (run) => accountBootstrapCoverage(account, did, workspaceId, run),
-          landing: automation?.landing ?? personalLanding({ accounts: account, did, workspace: workspaceId }),
+          landing: automation?.landing ?? personalLanding({ accounts: account, did, workspace: workspaceId, radicle: radicleWriter }),
           questions: { did, workspaceId, model: () => account.modelFor(did, workspaceId),
             connection: () => account.peopleFor(did, workspaceId), box, publicOrigin: config.EPHYRA_PUBLIC_ORIGIN!,
             fetcher: opts.providerFetch },
