@@ -4,6 +4,7 @@ import { Button, Field, Tag } from "../kit.ts";
 import { AccountSaveFeedback, type AccountPageProps } from "./AccountForms.tsx";
 import { useAccountWrite } from "./useAccountWrite.ts";
 import "./ConnectionPanels.css";
+import { TelemetrySources, ProviderLogo } from "./TelemetrySources.tsx";
 
 export const defaultOwner = (did: string): InvestigationContact => ({
   id: "workspace-owner", alias: "Workspace owner", roles: ["maintainer", "operator"], areas: [], did,
@@ -33,8 +34,10 @@ export function ConnectionPanels(props: AccountPageProps) {
   };
   const telemetry = props.settings.telemetry?.workspaceId === props.settings.workspaceId ? props.settings.telemetry : undefined;
   return <div className="connection-panels" key={scope}>
+    <TelemetrySources {...props} onChange={onChange} />
     <details className="account-advanced">
-      <summary>PostHog signals <Tag>{telemetry?.enabled ? telemetry.status === "verified" ? "Connected" : "Enabled" : "Optional"}</Tag></summary>
+      <summary><ProviderLogo file="posthog.svg" /> PostHog signals
+        <Tag>{telemetry?.enabled ? telemetry.status === "verified" ? "Connected" : "Enabled" : "Optional"}</Tag></summary>
       <div className="account-advanced-fields"><TelemetryForm {...props} onChange={onChange} /></div>
     </details>
     <details className="account-advanced">

@@ -1,0 +1,53 @@
+import type { TelemetryProvider } from "@ephyra/core";
+
+export type TelemetryProviderInfo = {
+  id: TelemetryProvider; name: string; logo: string; description: string; origin: string;
+  projectLabel: string; projectHint: string; projectPlaceholder: string;
+  keyLabel: string; keyHint: string; docs: string; queryHint?: string; queryPlaceholder?: string;
+};
+export const TELEMETRY_PROVIDERS: TelemetryProviderInfo[] = [
+  { id: "sentry", name: "Sentry", logo: "sentry.svg", description: "Application errors and mobile crashes",
+    origin: "https://sentry.io", projectLabel: "Organization / project",
+    projectHint: "Copy both slugs from your Sentry project URL.",
+    projectPlaceholder: "my-team/my-app", keyLabel: "Sentry API token",
+    keyHint: "Use a token with read access to this project's events.",
+    docs: "https://docs.sentry.io/api/auth/" },
+  { id: "crashlytics", name: "Firebase Crashlytics", logo: "firebase.svg", description: "iOS and Android crash reports",
+    origin: "https://logging.googleapis.com", projectLabel: "Google Cloud project ID",
+    projectHint: "Enable the Crashlytics export to Cloud Logging in Firebase first.",
+    projectPlaceholder: "my-mobile-app", keyLabel: "Google OAuth access token",
+    keyHint: "Requires access to exported logs. Access tokens expire; reconnect with a fresh token when access expires.",
+    docs: "https://firebase.google.com/docs/crashlytics/cloud-logging-export" },
+  { id: "loki", name: "Grafana Loki", logo: "grafana.svg", description: "Hosted or self-hosted application logs",
+    origin: "", projectLabel: "Service name",
+    projectHint: "Use the service_name label attached to this application’s logs.",
+    projectPlaceholder: "my-app", keyLabel: "Read token or password",
+    keyHint: "For Grafana Cloud, also enter the logs username below. Use a read-only credential.",
+    docs: "https://grafana.com/docs/loki/latest/reference/loki-http-api/",
+    queryHint: "Optional LogQL override. Otherwise Ephyra queries the service_name above.",
+    queryPlaceholder: '{service_name="my-app"}' },
+  { id: "axiom", name: "Axiom", logo: "axiom.ico", description: "Dataset logs and incident context",
+    origin: "https://us-east-1.aws.edge.axiom.co", projectLabel: "Dataset",
+    projectHint: "Choose the dataset containing this application's logs. Use your region's query origin.",
+    projectPlaceholder: "production", keyLabel: "Axiom API token",
+    keyHint: "Use a scoped token with query access to this dataset.",
+    docs: "https://axiom.co/docs/restapi/introduction" },
+  { id: "betterstack", name: "Better Stack", logo: "betterstack.svg", description: "Logs from your telemetry source",
+    origin: "", projectLabel: "Query table",
+    projectHint: "Copy the table shown in Better Stack's “Query with” instructions.",
+    projectPlaceholder: "t123456_source_logs", keyLabel: "Query password",
+    keyHint: "Use your Query API credentials, not an ingestion token.",
+    docs: "https://betterstack.com/docs/logs/query-api/connect-remotely/" },
+  { id: "datadog", name: "Datadog", logo: "datadog.svg", description: "Service logs from your existing stack",
+    origin: "https://api.datadoghq.com", projectLabel: "Service",
+    projectHint: "Use the service name attached to this application's logs. Set the API origin for your Datadog site.",
+    projectPlaceholder: "my-app", keyLabel: "Datadog API key",
+    keyHint: "Pair with an application key that has logs_read_data permission.",
+    docs: "https://docs.datadoghq.com/api/latest/logs/search-logs-get/" },
+  { id: "bugsnag", name: "BugSnag", logo: "bugsnag.png", description: "Web and mobile error reports",
+    origin: "https://api.bugsnag.com", projectLabel: "Project ID",
+    projectHint: "Use the project ID from the BugSnag Data Access API.",
+    projectPlaceholder: "project-id", keyLabel: "Personal auth token",
+    keyHint: "Use a Data Access API token, not your application's notifier API key.",
+    docs: "https://docs.bugsnag.com/api/data-access/" },
+];

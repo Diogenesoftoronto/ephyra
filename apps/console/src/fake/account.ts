@@ -1,5 +1,5 @@
 import type {
-  AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, PeopleUpdate,
+  AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, TelemetrySourceUpdate, PeopleUpdate,
   MirrorUpdate, MirrorRemove, RoleModelUpdate,
 } from "@ephyra/core";
 import { KNOWLEDGE_CATALOG_FIXTURE } from "./knowledge.ts";
@@ -57,7 +57,7 @@ export const CONNECTED_ACCOUNT_FIXTURE: AccountSettings = {
 
 type ReadMethod = "settings" | "knowledge";
 type Method = ReadMethod | "saveRepository" | "saveRoleModel" | "saveMirror" | "removeMirror"
-  | "saveModel" | "saveKnowledge" | "saveTelemetry" | "savePeople" | "onboarding";
+  | "saveModel" | "saveKnowledge" | "saveTelemetrySource" | "saveTelemetry" | "savePeople" | "onboarding";
 export interface FakeAccountOptions {
   initial?: AccountSettings;
   knowledgeCatalog?: KnowledgeCatalog;
@@ -97,6 +97,9 @@ export class FakeAccountApi implements AccountApi {
     if (this.options.uncertainAfterSave?.includes(method)) throw new UnknownWriteOutcome(key);
     return structuredClone(this.value);
   }
+  async telemetryOtlp() { return { workspaceId: this.value.workspaceId, repository: Boolean(this.value.repository),
+    endpoint: "https://telemetry.example.org/v1/logs", token: "fictional-collector-token-not-valid" }; }
+  async detectedTelemetry() { return { providers: [] }; }
   async knowledge(): Promise<KnowledgeCatalog> {
     await this.before("knowledge");
     const enabled = this.value.knowledge?.workspaceId === this.value.workspaceId && this.value.knowledge.enabled;
@@ -176,6 +179,20 @@ export class FakeAccountApi implements AccountApi {
         keyConfigured: input.enabled && !input.clearKey && Boolean(input.apiKey || retained && previous?.keyConfigured),
         status: "saved", checkedAt: null, detail: "Fictional fixture. No PostHog project was contacted or verified.",
       } };
+    });
+  }
+  saveTelemetrySource(input: TelemetrySourceUpdate, key: string) {
+    return this.update("saveTelemetrySource", input.expectedVersion, key, () => {
+      if (input.workspaceId !== this.value.workspaceId) throw new ApiError(409, "Your workspace changed.");
+      const sources = this.value.telemetrySources ?? [];
+      const previous = sources.find((source) => source.id === input.id);
+      const retained = previous?.workspaceId === input.workspaceId && previous.provider === input.provider &&
+        previous.origin === input.origin && previous.project === input.project && previous.query === input.query;
+      const { credentials, clearKey, expectedVersion, ...connection } = input;
+      return { telemetrySources: [...sources.filter((source) => source.id !== input.id), {
+        ...connection, keyConfigured: input.enabled && !clearKey && Boolean(credentials || retained && previous?.keyConfigured),
+        status: "saved", checkedAt: null, detail: "Fictional fixture. No provider was contacted or verified.",
+      }] };
     });
   }
   savePeople(input: PeopleUpdate, key: string) {

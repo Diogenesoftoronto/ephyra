@@ -1,0 +1,60 @@
+[
+  {
+    "slug": "sentry",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sentry.svg",
+    "sha256": "8ba32902ffbac503784607374f57df5e3cbcf57a99d0adff03e735575500adc6"
+  },
+  {
+    "slug": "firebase",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/firebase.svg",
+    "sha256": "3f46d84a41479d7789cc36b82c2b6852e6bbbfd30ebee5b7a3aef7d49758295a"
+  },
+  {
+    "slug": "grafana",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/grafana.svg",
+    "sha256": "e6da4ab998d25d509e27ce8a1f1afcb2d549907569b6fb1e4065890877cffefa"
+  },
+  {
+    "slug": "betterstack",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/betterstack.svg",
+    "sha256": "641d8d3b8c1bfa3a775f41c2da1f9f47b36358256b05b584653bf070099c302c"
+  },
+  {
+    "slug": "datadog",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/datadog.svg",
+    "sha256": "2dae0a9ddf090ec01626d9d0f73b1740a70ad280de92e2c27136bc81151fd1ff"
+  },
+  {
+    "slug": "posthog",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/posthog.svg",
+    "sha256": "5bf868765c8159a0d308d5577c86f2fc2f76d63795182a5a39bc362d5d4329f1"
+  },
+  {
+    "slug": "opentelemetry",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/opentelemetry.svg",
+    "sha256": "1e93836eeedaf02fb985130ed05c4d692c66ff56269f50af8478a219645ee741"
+  },
+  {
+    "slug": "railway",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/railway.svg",
+    "sha256": "1e386a6d03360dd84cd858bc69b3ac9452afc212846a197f7a890898439a7f1d"
+  },
+  {
+    "slug": "axiom",
+    "file": "axiom.ico",
+    "source": "https://axiom.co/favicon.ico",
+    "sha256": "4b172d1e4de6d64ad4f72da8449898f75bd85cc915a413c374c83d4a98738f9e"
+  },
+  {
+    "slug": "embrace",
+    "file": "embrace.png",
+    "source": "https://embrace.io/wp-content/themes/embraceio/library/images/favicon/apple-icon-120x120.png",
+    "sha256": "277b3a7990911e7ec4b14318cc13a2588b411bff8219877c2cbf5280b46a0861"
+  },
+  {
+    "slug": "bugsnag",
+    "file": "bugsnag.png",
+    "source": "https://docs.bugsnag.com/assets/images/favicon2-96.png",
+    "sha256": "d898eee22cef907b39729c43f01414e7bbd7497dde543d6e1c2fef42c4672f54"
+  }
+]

@@ -26,3 +26,11 @@ export const InterruptedSave: StoryObj = { render: () => <Example initial={CONNE
   options={{ uncertainAfterSave: ["saveTelemetry", "savePeople"] }} /> };
 export const Phone: StoryObj = { ...Saved, globals: { viewport: { value: "phone" } } };
 export const Dark: StoryObj = { ...Saved, parameters: { theme: "dark" } };
+
+const SOURCE_FIXTURE: AccountSettings = { ...ACCOUNT_FIXTURE, telemetrySources: [{
+  id: "sentry", provider: "sentry", enabled: true, workspaceId: ACCOUNT_FIXTURE.workspaceId,
+  origin: "https://sentry.io", project: "fictional-team/mobile-app", keyConfigured: true,
+  status: "saved", checkedAt: null, detail: "Fictional fixture. No Sentry project was contacted or verified.",
+}] };
+export const TelemetrySources: StoryObj = { render: () => <Example initial={SOURCE_FIXTURE} /> };
+export const TelemetryInterrupted: StoryObj = { render: () => <Example options={{ uncertainAfterSave: ["saveTelemetrySource"] }} /> };
