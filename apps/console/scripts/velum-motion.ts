@@ -64,12 +64,35 @@ try {
       for (const target of dimensions.targets) assert.ok(target.height >= 44, `${target.label} has a touch target`);
       await page.screenshot({ path: join(out, `${width}-${reducedMotion}.png`), fullPage: false });
       evidence.push({ width, reducedMotion, forecastAnimation: animation, ...dimensions });
+      await page.goto(`${app.url}/app/?demo=1#/loop`);
+      const invoker = page.getByRole("button", { name: /Ask Velum/ }).first();
+      if (await invoker.getAttribute("aria-expanded") !== "true") await invoker.click();
+      const clear = page.getByRole("button", { name: "Clear all", exact: true });
+      if (await clear.isVisible()) await clear.click();
+      await page.getByRole("button", { name: "Refer to something", exact: true }).click();
+      await page.getByRole("button", { name: /^Refer Velum to T-/ }).tap();
+      await page.getByRole("button", { name: "Done", exact: true }).click();
+      await page.locator(".velum-chip__remove").waitFor();
+      const longReference = await page.evaluate(() => {
+        const composer = document.querySelector(".velum-composer")!;
+        const remove = document.querySelector(".velum-chip__remove")!;
+        return {
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          composerOverflow: composer.scrollWidth - composer.clientWidth,
+          removeRight: remove.getBoundingClientRect().right,
+          clientWidth: document.documentElement.clientWidth,
+        };
+      });
+      assert.equal(longReference.overflow, 0, "Help and the reference count fit the phone toolbar");
+      assert.equal(longReference.composerOverflow, 0, "a long quest reference never needs horizontal scrolling");
+      assert.ok(longReference.removeRight <= longReference.clientWidth, "the remove-reference target remains visible");
+      evidence.push({ width, reducedMotion, longReference });
       await context.close();
     }
   }
   await writeFile(join(out, "verified.json"), JSON.stringify({ fixturesOnly: true, evidence }, null, 2));
   console.log(
-    "Touch selection, composer layout, 44px controls and reduced-motion forecast states passed (4 contexts).",
+    "Touch selection, long quest references, 44px controls and reduced-motion forecast states passed (4 contexts).",
   );
 } finally {
   await browser.close();
