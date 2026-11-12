@@ -49,6 +49,13 @@
   /* Desktop: a docked rail. The page column makes room instead of sitting underneath it. */
   .ui-shell:has(~ .velum-panel[data-open]) .ui-main { padding-inline-end: calc(26rem + var(--s5)); }
 }
+/* The loop already has a quest inspector. Stack its columns when a docked companion leaves too little reading room. */
+@media (min-width: 1180px) and (max-width: 1800px) {
+  .ui-shell:has(~ .velum-panel[data-open]) .lp-board { grid-template-columns: minmax(0, 1fr); }
+  .ui-shell:has(~ .velum-panel[data-open]) .lp-board-aside {
+    position: static; max-block-size: none; overflow: visible;
+  }
+}
 .velum-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

@@ -206,3 +206,7 @@
     transition: none;
   }
 }
+@media (max-width: 480px) {
+  .workspace-bar { padding-inline: var(--s2); }
+  .workspace-bar .entry-preferences { display: none; }
+}

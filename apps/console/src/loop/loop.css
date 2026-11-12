@@ -94,6 +94,7 @@
 }
 .lp-fleet [data-group="you"] { background: linear-gradient(transparent 62%, color-mix(in oklch, var(--jelly) 55%, transparent) 62%); }
 .lp-fleet [data-group="stopped"] { color: var(--cherry); }
+.lp-fleet > span:not(:last-child) { margin-inline-end: 0.12em; }
 .lp-fleet i { color: var(--muted); font-style: normal; font-weight: 500; }
 
 .lp-tally { display: flex; gap: var(--s5); margin: 0; }
