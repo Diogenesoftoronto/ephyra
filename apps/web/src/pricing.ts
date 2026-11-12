@@ -1,9 +1,7 @@
-// Ephyra's pricing, as one typed object the /pricing page, llms.txt and tests all read.
-// Self-hosting and model pass-through are facts. The hosted plan is a proposal: `status: "proposed"` and
-// `billingImplemented: false` must stay visible wherever it is shown. design/04-pricing.md explains the numbers.
+// Public pricing proposal shared by /pricing and llms.txt. This is not a billing rate card.
+// Unknown rates stay null; no numeric zero may imply free hosted usage.
 
-/** A priced unit. `display` replaces the dollar figure for pass-through rates such as "Provider cost + 5%". */
-export type Rate = { label: string; usd: number; unit: string; note?: string; display?: string };
+export type Rate = { label: string; usd: number | null; unit: string; note?: string; display?: string };
 export type Plan = {
   id: "self-hosted" | "hosted";
   name: string;
@@ -17,86 +15,70 @@ export type Pricing = {
   checked: string;
   currency: "USD";
   billingImplemented: false;
-  /** [extraction, judgement] */
-  models: [Rate, Rate];
-  example: { signals: number; extractionTokens: number; judgementTokens: number };
-  /** [self-hosted, hosted] */
+  startingBalanceUsd: number;
   plans: [Plan, Plan];
   faq: ReadonlyArray<readonly [string, string]>;
 };
 
 export const pricing: Pricing = {
-  checked: "2026-11-07",
+  checked: "2026-11-12",
   currency: "USD",
   billingImplemented: false,
-  /** Not Organic's operator-set rates for the hosted System One calls Ephyra makes (gateway configuration, checked above). */
-  models: [
-    { label: "Extraction (Clairic, via Not Organic)", usd: 0.10, unit: "per million input tokens" },
-    { label: "Judgement (Jev, via Not Organic)", usd: 0.0609, unit: "per million input tokens", note: "Output tokens are not charged." },
-  ],
-  /** Illustrative triage batch, using the per-signal token assumptions in design/01-product-and-loop.md §5. */
-  example: { signals: 1000, extractionTokens: 2000, judgementTokens: 3000 },
+  startingBalanceUsd: 150,
   plans: [
     {
-      id: "self-hosted", name: "Self-hosted", status: "available", price: "$0",
-      summary: "The whole of Ephyra on your own Railway, devenv or hardware. Open source; licence being chosen.",
+      id: "self-hosted", name: "Self-hosted", status: "available", price: "$0 licence fee",
+      summary: "Run Ephyra on your own infrastructure. You pay for the models and compute you use.",
       includes: [
-        "Unlimited quests, repositories and approvers",
-        "Checkpoints A, B and C, proof, landing and watch",
-        "Radicle, Tangled, plain git and Sapling",
-        "Any decision and extraction model: Not Organic, your own keys, or d1 and Clef on your own GPU",
-        "Any coding agent: Amp, Claude Code or Codex, on your own account",
+        "Unlimited quests, repositories and collaborators",
+        "Investigation, proof, landing and watch",
+        "Connect supported models and coding agents with your own account",
+        "Recorded usage and per-quest budgets",
       ],
     },
     {
-      id: "hosted", name: "Hosted", status: "proposed", price: "Usage, no seats",
-      summary: "We run Ephyra for you, billed from a prepaid Not Organic balance. Proposed; not for sale yet.",
+      id: "hosted", name: "Hosted credits", status: "proposed", price: "Pay for usage",
+      summary: "Prepay for model use and compute. No required monthly subscription, seat fee or per-quest charge. Proposed; not for sale yet.",
       includes: [
-        "Everything in Self-hosted, operated by us",
-        "Unlimited approvers and repositories; no per-seat fee",
-        "Triage at Not Organic model rates with no Ephyra margin",
-        "Triage-only signals (duplicates, muted, abandoned) cost model usage only",
-        "Bring your own agent account at no markup, or use a hosted agent",
-        "$20 of usage to start; free hosted quests for non-commercial open-source projects",
+        "A customer-funded balance, with $150 suggested to start",
+        "Model usage for monitoring, investigation, coding and verification",
+        "Compute for running your application and its checks",
+        "A consistent service charge on model usage; rate to be announced",
       ],
       rates: [
-        { label: "Worked quest", usd: 1.5, unit: "per quest", note: "A quest that runs at least one agent step. Includes 30 sandbox minutes." },
-        { label: "Extra sandbox time", usd: 0.02, unit: "per minute" },
-        { label: "Hosted agent turns", usd: 0, unit: "per turn", display: "Provider cost + 5%",
-          note: "Only when you use our agent account instead of your own." },
+        { label: "Model usage", usd: null, unit: "", display: "Rates to be announced",
+          note: "Usage charges plus the published service charge, without tying the plan to a particular model." },
+        { label: "Compute", usd: null, unit: "", display: "Rates to be announced",
+          note: "Based on the resources and execution time used." },
       ],
     },
   ],
   faq: [
-    ["Why no seats?", "Approvers are the point of Ephyra. Charging for each one would push teams to approve with fewer people."],
-    ["Why charge per worked quest, not per landed fix?",
-      "A per-landing price would reward landing. Ephyra should be just as willing to abandon a quest it cannot prove."],
-    ["What does self-hosting really cost?", "No licence fee, but you pay for your own hosting, models, agent accounts and operations."],
-    ["Is my code used to train models?", "No. The Privacy Policy explains how model providers handle requests."],
-    ["Can I buy the hosted plan?", "Not yet. The hosted numbers are a proposal. Checkout will show the price, seller and terms before anything is charged."],
+    ["Is the $150 starting balance free credit?", "No. It is a suggested customer-funded starting balance, not a welcome grant or a monthly fee."],
+    ["What happens when a quest does not produce a fix?",
+      "The model work and compute it used still count. There is no separate fee for starting a quest or landing a fix."],
+    ["How will I control spending?",
+      "The hosted proposal includes spending limits, balance warnings and optional automatic top-ups within a limit you choose. "
+      + "Those billing controls are not available yet. The current console shows recorded spend and per-quest budgets."],
+    ["How do I understand the cost?",
+      "Usage shows recorded spend, work history and quest budgets. Unknown costs are labelled separately. "
+      + "Published rates and an itemized billing breakdown will explain hosted charges before purchase."],
+    ["What does self-hosting cost?", "There is no Ephyra licence fee. Hosting, model providers and other services you connect charge separately."],
+    ["Can I buy hosted credits?", "Not yet. The structure is a proposal; unit rates and the service charge are still being set. "
+      + "Checkout will show prices, the seller and terms before anything is charged."],
   ],
 };
 
-/** $0, $0.10, $0.0609, $1.50, $20: at least two decimals below a dollar, and as many as the rate has. */
+/** At least two decimals for fractional amounts, preserving the rate's precision. */
 export const money = (usd: number) => `$${usd.toFixed(Math.max(2, (String(usd).split(".")[1] ?? "").length)).replace(/\.00$/, "")}`;
-const priced = (r: Rate) => r.display ?? `${money(r.usd)} ${r.unit}`;
+const priced = (r: Rate) => r.display ?? (r.usd === null ? "Rate to be announced" : `${money(r.usd)} ${r.unit}`);
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-
-/** Triage cost for the example batch at the current model rates, rounded up to the cent. */
-export function exampleTriageUsd(p = pricing): number {
-  const [extraction, judgement] = p.models;
-  const { signals, extractionTokens, judgementTokens } = p.example;
-  const usd = (signals * extractionTokens * extraction.usd + signals * judgementTokens * judgement.usd) / 1e6;
-  // Round up to the cent. The 1e-9 slack absorbs float noise (0.39 * 100 = 39.00000000000001) without
-  // ever showing $0 for a real cost; rounding to whole micro-dollars first did, for sub-micro-dollar totals.
-  return Math.max(0, Math.ceil(usd * 100 - 1e-9)) / 100;
-}
 
 function rateRows(rates: readonly Rate[], plan: string): string {
   return rates.map((r) => {
-    const price = r.display ? `<strong>${esc(r.display)}</strong>` : `<strong>${money(r.usd)}</strong> ${esc(r.unit)}`;
     const note = r.note ? `<br><span class="muted">${esc(r.note)}</span>` : "";
-    return `<tr data-plan="${plan}" data-rate="${esc(r.label)}" data-usd="${r.usd}"><td>${esc(r.label)}</td><td>${price}${note}</td></tr>`;
+    return `<tr data-plan="${plan}" data-rate="${esc(r.label)}" data-usd="${r.usd ?? "unannounced"}">`
+      + `<td>${esc(r.label)}</td><td><strong>${esc(priced(r))}</strong>${note}</td></tr>`;
   }).join("");
 }
 
@@ -108,24 +90,20 @@ export function pricingBody(p = pricing): string {
 <ul>${plan.includes.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>
 ${plan.rates ? `<table><tbody>${rateRows(plan.rates, plan.id)}</tbody></table>` : ""}
 </section>`).join("");
-  const [extraction, judgement] = p.models;
-  const ex = p.example;
-  const total = exampleTriageUsd(p);
   return `<h1>Pricing</h1>
-<p class="lede">Self-hosting is free. The models you choose bill per call. A hosted plan is proposed below; it isn’t for sale yet.</p>
+<p class="lede">Pay for model use and compute. Start with a prepaid balance and spend it as Ephyra works.</p>
+<p>The hosted proposal below is not for sale yet. Self-hosting is available now.</p>
 <div class="plans">${cards}</div>
-<h2 id="models">Hosted models</h2>
-<p>On any plan, hosted judgement and extraction are billed to the Not Organic account the deployment bills, at Not Organic’s rates. \
-Not Organic sets those rates and can change them. The rates below were checked on ${esc(p.checked)}.</p>
-<table><tbody>${rateRows(p.models, "models")}</tbody></table>
-<p>For example, triaging ${ex.signals.toLocaleString("en")} unique signals, at about ${ex.extractionTokens.toLocaleString("en")} extraction tokens \
-and ${ex.judgementTokens.toLocaleString("en")} judgement tokens each, costs about <strong data-example-usd="${total}">${money(total)}</strong> \
-(${money(extraction.usd)} and ${money(judgement.usd)} per million). Duplicate signals are merged before any model call. Your own keys bill you \
-at your provider’s price. Models on your own hardware cost only the hardware.</p>
-<p>The largest cost is usually the coding agent. A quest’s agent turns are billed by Amp, Anthropic or OpenAI to the account you connect.</p>
+<h2 id="models">Understand your usage</h2>
+<p>Model use covers monitoring, investigation, coding and verification. Compute covers the resources used to run your application and its checks. \
+The hosted proposal adds a consistent service charge to model usage; the rate has not been set.</p>
+<p>We suggest ${money(p.startingBalanceUsd)} as an initial customer-funded balance. How long it lasts depends on your workload, \
+check duration and retries. We have not measured a representative number of hours or fixes for that amount.</p>
+<p>The <a href="/docs/budgets">Usage guide</a> explains recorded spend, per-quest budgets and forecasts. \
+Hosted balance warnings, account spending limits and optional automatic top-ups are planned.</p>
 <h2 id="faq">Questions</h2>
 <dl class="faq">${p.faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("")}</dl>
-<p class="muted">Prices are in ${p.currency}, before taxes. Billing is not implemented, and nothing on this page is an offer. \
+<p class="muted">Prices are in ${p.currency}, before taxes. Hosted credit billing is not implemented, and nothing on this page is an offer. \
 See the <a href="/legal/terms#charges">Terms of Service</a>.</p>`;
 }
 
@@ -133,8 +111,10 @@ See the <a href="/legal/terms#charges">Terms of Service</a>.</p>`;
 export function pricingSummary(p = pricing): string[] {
   const [self, hosted] = p.plans;
   return [
-    `- Self-hosted: $0. ${self.summary}`,
-    `- Hosted models (Not Organic, checked ${p.checked}): ${p.models.map((r) => `${r.label} ${priced(r)}`).join("; ")}.`,
-    `- Hosted plan (proposed, not for sale): ${(hosted.rates ?? []).map((r) => `${r.label} ${priced(r)}`).join("; ")}.`,
+    `- Self-hosted: $0 licence fee. ${self.summary}`,
+    `- Hosted plan (proposed, not for sale): prepaid model usage and compute; no required subscription, seat fee or per-quest charge.`,
+    `- Suggested starting balance: ${money(p.startingBalanceUsd)}, customer-funded, not a free grant.`,
+    `- Hosted rates: ${(hosted.rates ?? []).map((r) => `${r.label}: ${priced(r)}`).join("; ")}. Service charge not yet set.`,
+    `- Recorded usage and per-quest budgets are available. Hosted balance warnings and automatic top-ups are planned.`,
   ];
 }

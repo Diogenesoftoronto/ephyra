@@ -62,7 +62,7 @@ const PAGES = [
   { path: "/", title: `${NAME} · ${TAGLINE}`, summary: SUMMARY },
   { path: "/docs", title: `Documentation · ${NAME}`, summary: DOCS_DESCRIPTION },
   { path: "/blog/", title: `${NAME} journal`, summary: "Notes on building self-driving software: quests, proof, jellyware." },
-  { path: "/pricing", title: `Pricing · ${NAME}`, summary: "Self-hosting is free; hosted models bill per call; a usage-based hosted plan is proposed." },
+  { path: "/pricing", title: `Pricing · ${NAME}`, summary: "Self-host at no licence cost, or explore proposed prepaid credits for model usage and compute." },
   { path: "/legal/", title: `Legal · ${NAME}`, summary: "Terms, privacy, acceptable use, service providers and security." },
   ...LEGAL_DOCS.map((d) => ({ path: d.path, title: `${d.title} · ${NAME}`, summary: d.summary })),
 ];

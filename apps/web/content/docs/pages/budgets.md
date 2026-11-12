@@ -39,7 +39,7 @@ Some providers answer a request without saying what it cost. Ephyra records that
 
 ## Spend forecasts
 
-When the operator has configured a Clairic route, **Forecast spend** in Usage requests daily spend estimates for 7, 14 or 30 days. It runs only when you ask and is metered like other model work. With no configured route, the page says **Not configured**.
+When the operator has configured forecasting, **Forecast spend** in Usage requests daily spend estimates for 7, 14 or 30 days. It runs only when you ask and is metered like other model work. With no configured route, the page says **Not configured**.
 
 The history uses 28 complete UTC days. Today's partial day and entries with unknown cost are excluded. The chart labels the forecast separately from recorded spend, reports the exact model identity and shows the provider's daily p10–p90 ranges when available. Those daily ranges are not a probability interval for the whole period. A forecast does not raise a budget or authorise spending.
 

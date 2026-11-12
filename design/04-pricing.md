@@ -1,55 +1,53 @@
 # 04 · Pricing and legal
 
-Decision date: 7 November 2026. Currency: USD. Status: the self-hosted price and the model pass-through are facts. **The hosted plan is a proposal**, not a live checkout, entitlement or contract. The numbers live in one typed object, `apps/web/src/pricing.ts` (`pricing`). Its `status: "proposed"` and `billingImplemented: false` flags must stay visible wherever the numbers are shown. Tests compare the `/pricing` page's `data-*` values with that object.
+Decision date: 12 November 2026. Currency: USD.
 
-## What Macroscope does (checked 7 November 2026)
+## Product decision
 
-Sources: `macroscope.com/pricing.md`, `docs.macroscope.com/legacy-pricing`, `app.macroscope.com/terms` (updated 20 October 2026), `app.macroscope.com/privacy` (updated 4 November 2026), and `macroscope.com/security/llm.txt`.
+Ephyra is a prepaid usage business. Customers fund their own balance; **$150 is a suggested starting balance**, not a free welcome grant, required minimum or monthly fee. There is no required subscription, per-seat fee or per-quest charge.
 
-- **Usage-based, prepaid, no seats.** Each workspace has one balance with auto-refill, a monthly budget, and per-review and per-PR caps. When the balance runs out, work pauses, and skipped commits may not be processed later.
-- **Code review** is $0.05 per KB of diff in the default Balanced mode, with a 10 KB minimum. The other modes cost $0.025 (Budget), $0.06 (Precise) and $0.20 (Ultra) per KB.
-- **Status** is $0.05 per commit.
-- **Agent** is $0.01 per credit: raw model cost plus 5%, with 1,000 free credits per month.
-- **$100 of free usage** for every new workspace, instead of a trial.
-- **Free credits for non-commercial open source.** In exchange, Macroscope's terms (4.1) let it train on those projects' source code.
-- **History.** Macroscope retired its earlier plan, $30 per active developer per month, in March and April 2026. Its stated reason: "Seats are no longer a useful proxy" once agents write the code.
-- **Legal.** The Terms are under California law with binding AAA arbitration and a class-action waiver. Liability is capped at 12 months of fees, and only the customer indemnifies. Customer source code is not used for training except for open-source partners. Macroscope holds SOC 2 Type II. Fifteen or so subprocessors are named on its trust page, mostly model providers.
+The customer buys model use and compute. Public pricing should name those stable categories and explain the service charge without requiring customers to understand the internal architecture or the current model catalog. Exact provider/model identities stay in internal receipts and detailed usage records for reconciliation and evaluation.
 
-## What Ephyra keeps and changes
+The hosted credit product remains a proposal, not an available checkout or entitlement. `apps/web/src/pricing.ts` is the shared source for `/pricing` and `llms.txt`; keep `status: "proposed"` and `billingImplemented: false` visible. Unpublished rates are `null`, never zero.
 
-| Macroscope | Ephyra | Why |
+## Charges
+
+| Category | What it covers | Decision still needed |
 |---|---|---|
-| Usage-based, no seats | Same | Approvers are the product's safety mechanism. A seat price would push teams toward fewer approvers. |
-| Price per KB of diff reviewed | **Price per worked trail** (a trail that runs at least one agent step) | The trail is Ephyra's unit of work. Charging per *landed* fix would reward landing, but Ephyra should abandon an unprovable trail just as readily. |
-| Agent at model cost + 5% | Hosted agent at provider cost + 5%; **your own agent account at no markup** | Most teams already pay for Amp, Claude or Codex. Double-charging them would be the easiest way to lose them. |
-| Model usage inside the per-KB price | Triage at Not Organic's rates with **no Ephyra margin** | Listening has to stay nearly free for Ephyra to watch everything. The route gates spending, not the price of listening. |
-| $100 free | $20 free (proposed) | Pre-alpha, with no hosted operations yet. Raise it once a trail's real cost is measured. |
-| Open source: free credits, code may be trained on | Free hosted trails, **never trained on** | Ephyra trains on nobody's code. |
-| Closed source; hosted only | **Self-hosted is free** and complete | Self-hosting is the core idea. |
-| Arbitration, class waiver, 12-month cap | None of these; Québec law; consumer rights intact | Matches the user's Not Organic terms, and Québec consumer law limits arbitration clauses anyway. |
+| Model usage | Monitoring, investigation, coding, review and verification requests | Metered unit prices and a consistent service charge on model usage |
+| Compute | Resources and execution time for application environments and checks | Resource units, rounding and published rates |
+| Customer-funded balance | Prepaid funds consumed as work runs | Checkout, payment fees, taxes, expiry/refunds and settlement rules |
 
-## Proposed hosted numbers
+A consistent service charge is the current direction. Whether it is a fixed amount per billing unit or a percentage of usage, and its value, remain undecided. Do not publish the earlier 5% as an agreed rate. Do not imply one flat total price for arbitrarily large model requests. Changing the underlying model should not require rewriting the plan names; rate changes still need a clear effective date and auditable rate version.
 
-| Item | Proposed price | Notes |
-|---|---:|---|
-| Worked trail | $1.50 | Includes 30 sandbox minutes. Trails that stop at triage (duplicates, muted, abandoned) pay only model usage. |
-| Extra sandbox time | $0.02/min | |
-| Hosted agent turns | provider cost + 5% | Only when the customer uses our agent account. |
-| Triage models | Not Organic rates | Clairic extraction $0.10 per million input tokens; Jev judgement $0.0609 per million input tokens, output not charged. Read from the Not Organic gateway configuration on 7 November 2026. |
-| Starting usage | $20 | |
-| Open source | free worked trails | For non-commercial projects; limits set per project. |
+Model work and compute still cost money when a quest is abandoned, fails verification or is rolled back. There is no extra reward for landing an unproven fix. Customer-owned provider accounts are billed by those providers; their treatment under the hosted service charge remains to be decided.
 
-**Unit economics (assumptions to check before launch).** Assume a 2 vCPU, 4 GB sandbox for 30 minutes, at Railway list prices of $20 per vCPU-month and $10 per GB-month. That compute costs about $0.06. Most of the $1.50 then covers Convex, storage, the inbox, monitoring, support and payment fees.
+The earlier $1.50 worked-quest fee, 30 included sandbox minutes, $0.02/min overflow, $20 free allowance and free hosted open-source allocation are superseded proposals. They are not launch commitments.
 
-These figures have not been measured. Before launch:
-- measure real trail duration, retries and storage growth;
-- measure the real support time per trail;
-- confirm Not Organic's payment fees;
-- check that 30 included minutes covers most proof runs.
+## Spending controls and cost explanation
 
-If proof runs are long, raise the included minutes rather than the headline price.
+The current console shows recorded spend, costs by work and engine, individual receipts, unknown costs, per-quest budgets and optional on-demand spend forecasts. Forecasts are estimates and do not authorize spending. Model allowances do not by themselves cap cloud compute costs.
 
-**Open decisions for the operator.** The hosted prices, the starting credit, the open-source eligibility rules, the open-source licence (the landing pages say "to be decided"), and whether checkout runs through Not Organic's Paddle merchant of record.
+The intended hosted experience adds:
+
+- one prepaid balance and an itemized view of model usage, compute and service charges;
+- account/workspace spending limits and per-quest limits;
+- warnings before the balance or spending allowance is exhausted;
+- optional automatic top-ups with a customer-set amount and maximum;
+- permission for Ephyra to allocate work within the customer's chosen limits;
+- estimated cost ranges before expensive work, with actual charges and uncertainty afterward.
+
+Account credit billing, automatic top-ups and aggregate monthly spending controls are not established by the current usage page. The pricing page must call these planned until their settlement and enforcement paths are implemented and verified.
+
+## Before publishing rates
+
+Measure a representative set of monitoring-only, short repair, long investigation, verification-heavy and repeated-recovery workloads. Record model costs, compute, storage, idle resources and payment fees separately. Include unsuccessful work. Report a range and workload assumptions rather than promising a number of fixes or compute hours for $150.
+
+Choose the service charge after examining these costs, then publish a versioned rate card. Confirm the wallet provider's reservation/settlement behavior, ambiguous outcomes, concurrent jobs, refunds, top-up idempotency and combined model/compute limits before calling the billing product available.
+
+## Verification status
+
+The public pricing route and machine-readable summary share this proposal. Local tests check that unpublished rates remain unknown, that hosted billing stays marked unavailable, and that the $150 balance is customer-funded. This is copy and contract coverage, not payment, browser, hosted provider or production billing verification.
 
 ## Legal pages
 

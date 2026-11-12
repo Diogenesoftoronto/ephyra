@@ -88,7 +88,7 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
     <div className="page">
       <PageHeader
         title="Usage"
-        lede="Every unit of agent work, what it cost, and what could not be priced."
+        lede="Recorded spend, the work behind it, and how much remains in each quest budget."
         actions={
           <Segmented
             label="Window"

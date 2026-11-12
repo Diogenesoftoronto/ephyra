@@ -135,3 +135,15 @@ Cut D remains an untracked draft; the landing walkthrough and its checks do not 
 ## Opening the application
 
 Cut E and the shared navigation link **Open app** to `/app/`. Set `EPHYRA_API_ORIGIN` to the control-plane server origin; the public site redirects there without forwarding user-supplied destinations. The server image includes the console and offers browser sign-in when Not Organic is configured. The sample quest remains explicitly a demonstration. Without an API origin, `/app/` reports that the deployment is not connected.
+
+## Pricing proposal
+
+`src/pricing.ts` supplies both the pricing page and the machine-readable summary.
+The proposed hosted product uses customer-funded credits for model usage and compute,
+with $150 as a suggested starting balance. Unit rates and the service charge are not
+set. Unknown rates render as unannounced, never zero. No checkout or top-up behavior
+is implied by this copy. Exact model identities remain in operational usage records.
+
+Local route tests cover the proposal status, starting-balance wording and absence of
+obsolete marketed rates. Hosted payments, balance alerts and automatic top-ups remain
+unverified; see `design/04-pricing.md` for the product decisions and open work.

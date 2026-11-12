@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import { join } from "node:path";
 import { LEGAL_DOCS, OPERATOR, REVISED, fill } from "../src/legal.ts";
-import { exampleTriageUsd, money, pricing } from "../src/pricing.ts";
+import { money, pricing } from "../src/pricing.ts";
 import { createSite } from "../src/site.ts";
 
 const ROOT = join(import.meta.dir, "../../../site");
@@ -104,46 +104,25 @@ describe("legal pages", () => {
 });
 
 describe("pricing", () => {
-  test("the page shows every configured rate and keeps the hosted plan marked as proposed", async () => {
+  test("the proposed hosted rates stay unknown rather than looking free or available for sale", async () => {
     const html = await (await get("/pricing")).text();
-    for (const rate of [...pricing.models, ...(pricing.plans[1].rates ?? [])]) {
-      expect(html).toContain(`data-rate="${rate.label}" data-usd="${rate.usd}"`);
+    for (const rate of pricing.plans[1].rates ?? []) {
+      expect(rate.usd).toBeNull();
+      expect(html).toContain(`data-rate="${rate.label}" data-usd="unannounced"`);
     }
     expect(html).toContain('data-plan="hosted" data-status="proposed"');
     expect(html).toContain("Proposed · not for sale");
-    expect(html).toContain("Billing is not implemented");
-    expect(html).toContain(`data-example-usd="${exampleTriageUsd()}"`);
+    expect(html).toContain("Hosted credit billing is not implemented");
     expect(pricing.billingImplemented).toBe(false);
   });
 
-  test("the example triage cost uses the current rates (1,000 signals ≈ $0.39)", () => {
-    expect(exampleTriageUsd()).toBe(0.39);
-  });
-
-  test("the example cost is rounded up to the cent, never down", () => {
-    fc.assert(fc.property(
-      fc.integer({ min: 1, max: 100_000 }), fc.integer({ min: 1, max: 20_000 }), fc.integer({ min: 1, max: 20_000 }),
-      fc.integer({ min: 1, max: 5_000 }), fc.integer({ min: 1, max: 5_000 }),
-      (signals, extractionTokens, judgementTokens, eMicro, jMicro) => {
-        const p = structuredClone(pricing);
-        p.example = { signals, extractionTokens, judgementTokens };
-        p.models[0].usd = eMicro / 1e4;
-        p.models[1].usd = jMicro / 1e4;
-        const exact = (signals * extractionTokens * p.models[0].usd + signals * judgementTokens * p.models[1].usd) / 1e6;
-        const shown = exampleTriageUsd(p);
-        expect(shown + 1e-9).toBeGreaterThanOrEqual(exact);
-        expect(shown).toBeGreaterThan(0); // a real cost is never shown as $0
-        expect(shown).toBeLessThan(exact + 0.01 + 1e-9);
-        expect(Math.round(shown * 100)).toBeCloseTo(shown * 100, 6);
-      }));
-  });
-
-  test("a sub-micro-dollar cost still shows as one cent (fast-check counterexample [1,1,1,6,5])", () => {
-    const p = structuredClone(pricing);
-    p.example = { signals: 1, extractionTokens: 1, judgementTokens: 1 };
-    p.models[0].usd = 6 / 1e4;
-    p.models[1].usd = 5 / 1e4;
-    expect(exampleTriageUsd(p)).toBe(0.01);
+  test("public pricing and machine-readable summary distinguish prepaid funds from a grant", async () => {
+    for (const path of ["/pricing", "/llms.txt"]) {
+      const body = await (await get(path)).text();
+      expect(body).toContain("$150");
+      expect(body).toContain("customer-funded");
+      expect(body).not.toMatch(/Clairic|Jev|System One|Provider cost \+ 5%|\$1\.50|\$20 of usage/);
+    }
   });
 
   test("money keeps every significant decimal and at least two", () => {
