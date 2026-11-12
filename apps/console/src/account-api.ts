@@ -15,6 +15,8 @@ export interface AccountApi {
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
   saveMirror(input: MirrorUpdate, operationKey: string): Promise<AccountSettings>;
   saveRoleModel(input: RoleModelUpdate, operationKey: string): Promise<AccountSettings>;
+  /** Whether this server offers "Connect with GitHub", and its install link. */
+  githubApp(): Promise<{ available: boolean; installUrl: string | null }>;
   removeMirror(input: MirrorRemove, operationKey: string): Promise<AccountSettings>;
   onboarding(input: OnboardingUpdate, operationKey: string): Promise<AccountSettings>;
 }
@@ -79,6 +81,9 @@ export class AccountClient implements AccountApi {
   }
   saveModel(input: ModelUpdate, key: string) {
     return this.request("/model", AccountSettings, input, key);
+  }
+  githubApp() {
+    return this.request("/github-app", z.object({ available: z.boolean(), installUrl: z.string().url().nullable() }));
   }
   saveRoleModel(input: RoleModelUpdate, key: string) {
     return this.request("/models/role", AccountSettings, input, key);

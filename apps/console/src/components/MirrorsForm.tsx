@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AccountSettings, MirrorUpdate } from "@ephyra/core";
 import type { AccountApi } from "../account-api.ts";
 import { Button, Field, Tag } from "../kit.ts";
@@ -20,7 +20,8 @@ export function proposalTarget(settings: AccountSettings): { ready: boolean; tex
   if (kind === "tangled") return { ready: true, text: "Tangled pulls." };
   if (kind === "git") return { ready: false, text: "This host has no pull request API Ephyra knows, so pull requests park for you." };
   if (!repository.credentialConfigured)
-    return { ready: false, text: `${PROPOSAL[kind]}, once you save an access token that can open them.` };
+    return { ready: false, text: kind === "github"
+      ? "GitHub pull requests, once you connect with GitHub or save an access token." : `${PROPOSAL[kind]}, once you save an access token that can open them.` };
   return { ready: true, text: `${PROPOSAL[kind]}.` };
 }
 
@@ -33,12 +34,21 @@ export function MirrorsForm({ api, settings, onChange }: { api: AccountApi; sett
   const write = useAccountWrite(api, onChange);
   const mirrors = settings.mirrors ?? [];
   const target = proposalTarget(settings);
+  const [github, setGithub] = useState<{ available: boolean; installUrl: string | null } | null>(null);
+  useEffect(() => { void api.githubApp().then(setGithub, () => setGithub(null)); }, [api]);
   if (!settings.repository) return null;
+  const onGitHub = settings.repository.forge?.kind === "github";
+  const connected = settings.repository.githubApp;
   return (
     <section className="account-form mirrors" aria-label="Mirrors and pull requests">
       <div className="mirrors__target">
         <h3>Pull requests</h3>
         <p><Tag>{target.ready ? "Ready" : "Not yet"}</Tag> {target.text}</p>
+        {onGitHub && connected && <p className="account-hint">Connected with GitHub through {connected.account}. Tokens last an hour and
+          reach only this repository.</p>}
+        {onGitHub && !connected && github?.available && github.installUrl && (
+          <a className="ui-button ui-button--sm ui-button--primary" href={github.installUrl}>Connect with GitHub</a>
+        )}
       </div>
       <h3>Mirrors</h3>
       <p className="account-hint">

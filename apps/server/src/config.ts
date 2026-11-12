@@ -37,6 +37,10 @@ const Config = z.object({
   // (/otlp/workspaces/<id>/v1/logs, with that workspace's token) and Ephyra watches itself.
   // The deployment's own Radicle identity, used to open patches on Radicle workspaces. Without it they stay read-only.
   EPHYRA_RADICLE_HOME: optional,
+  // "Connect with GitHub": a GitHub App (create it from /github/app/new). All three set = feature on.
+  EPHYRA_GITHUB_APP_ID: optional,
+  EPHYRA_GITHUB_APP_SLUG: optional,
+  EPHYRA_GITHUB_APP_PRIVATE_KEY: optional,
   EPHYRA_RADICLE_PASSPHRASE: optional,
   EPHYRA_SELF_OTLP_ENDPOINT: z.string().url().optional(),
   EPHYRA_SELF_OTLP_TOKEN: optional,

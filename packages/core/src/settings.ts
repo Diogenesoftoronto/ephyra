@@ -14,6 +14,8 @@ export const RepositoryConnection = z.object({
   username: z.string().optional(),
   credentialHost: z.string().optional(),
   forge: ForgeRepositorySource.optional(),
+  /** Additive: a GitHub App installation that mints this repository's tokens. Replaces a pasted token for GitHub. */
+  githubApp: z.object({ installationId: z.string().regex(/^\d{1,15}$/), account: z.string().max(100), connectedAt: z.string() }).optional(),
 });
 export type RepositoryConnection = z.infer<typeof RepositoryConnection>;
 /** A copy of the repository that Ephyra keeps in step after it moves the base branch. Tokens are never part of this. */

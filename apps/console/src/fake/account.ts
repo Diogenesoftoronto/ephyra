@@ -139,6 +139,9 @@ export class FakeAccountApi implements AccountApi {
       };
     });
   }
+  async githubApp() {
+    return { available: false, installUrl: null };
+  }
   saveRoleModel(input: RoleModelUpdate, key: string) {
     return this.update("saveRoleModel", input.expectedVersion, key, () => {
       if (input.provider === "none") return { roleModels: undefined };
