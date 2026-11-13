@@ -1,0 +1,38 @@
+/* Cost per landed quest. Line = the cost (ink-strong, the claim); bars = landings (quiet, the context). */
+.qcost { --qline: oklch(0.5 0.12 160); --qbar: color-mix(in oklab, var(--muted) 22%, transparent); display: grid; gap: var(--s4); min-width: 0; }
+:root[data-theme="dark"] .qcost { --qline: oklch(0.74 0.13 165); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .qcost { --qline: oklch(0.74 0.13 165); } }
+.qcost__head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--s4); }
+.qcost__headline { margin: 0; font: 600 clamp(1.35rem, 3.2vw, 1.9rem) / 1.15 var(--font-display); letter-spacing: -0.01em; }
+.qcost__headline[data-direction="down"] { color: var(--qline); }
+.qcost__headline[data-direction="up"] { color: var(--warn); }
+.qcost__sub { margin: var(--s1) 0 0; color: var(--muted); font-size: var(--fs-small); }
+.qcost__figures { display: flex; gap: var(--s5); margin: 0; }
+.qcost__figures div { display: grid; gap: 2px; }
+.qcost__figures dt { color: var(--muted); font: 400 var(--fs-label) / 1.3 var(--font-mono); }
+.qcost__figures dd { margin: 0; font: 600 1.05rem / 1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.qcost__plot { position: relative; min-width: 0; }
+.qcost svg { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+.qcost svg:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+.qcost__bar { fill: var(--qbar); transition: fill 0.15s; }
+.qcost__bar[data-active] { fill: color-mix(in oklab, var(--muted) 40%, transparent); }
+.qcost__line { fill: none; stroke: var(--qline); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.qcost__dot { fill: var(--qline); stroke: var(--surface); stroke-width: 2; transition: r 0.15s; }
+.qcost__tick { fill: var(--muted); font: 500 11px var(--font-body); font-variant-numeric: tabular-nums; }
+.qcost__cursor { stroke: var(--muted); stroke-dasharray: 2 3; }
+.qcost__tip {
+  position: absolute; top: 0; z-index: 2; width: 190px; display: grid; gap: 2px; padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-popover);
+  font-size: var(--fs-label); pointer-events: none;
+}
+.qcost__legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s2); color: var(--muted); font-size: var(--fs-label); }
+.qcost__sw { display: inline-block; width: 14px; margin-inline-end: var(--s1); vertical-align: middle; border-radius: 2px; }
+.qcost__sw--line { height: 3px; background: var(--qline); }
+.qcost__sw--bar { height: 10px; background: var(--qbar); }
+.qcost__table summary { color: var(--muted); font-size: var(--fs-small); cursor: pointer; }
+.qcost__note { margin: 0; color: var(--muted); font-size: var(--fs-label); max-width: 60ch; }
+@media (max-width: 520px) { .qcost__figures { width: 100%; justify-content: space-between; } }
+.qcost__value {
+  fill: var(--qline); font: 600 12px var(--font-body); font-variant-numeric: tabular-nums;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3px;
+}

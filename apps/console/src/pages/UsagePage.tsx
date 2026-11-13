@@ -13,6 +13,9 @@ import { ForecastPanel } from "../components/ForecastPanel.tsx";
 import { Referable } from "../velum/VelumProvider.tsx";
 import type { UsageForecast } from "@ephyra/core";
 import { TrailBudgets } from "../components/TrailBudgets.tsx";
+import { QuestCost } from "../components/QuestCost.tsx";
+import { SpendOutlook } from "../components/SpendOutlook.tsx";
+import { weeklyCost } from "../lib/quest-cost.ts";
 import { UsageStats } from "../components/UsageStats.tsx";
 import { useNow } from "../lib/clock.tsx";
 import "./UsagePage.css";
@@ -26,13 +29,19 @@ const DAY = 86_400_000;
 export function UsagePage({ scope = "deployment" }: { scope?: string }) {
   const api = useApi();
   const now = useNow(60_000);
-  const [days, setDays] = useState<7 | 14>(7);
+  const [days, setDays] = useState<7 | 14 | 30 | 90>(30);
   const [filters, setFilters] = useState<LedgerFilterValue>(noFilters);
   const range = useMemo(() => {
     const start = Math.floor(now / DAY) * DAY - (days - 1) * DAY;
     return { from: new Date(start).toISOString(), to: new Date(now).toISOString() };
   }, [days, Math.floor(now / DAY)]); // eslint-disable-line react-hooks/exhaustive-deps
   const usage = useAsync(() => api.usage(range), `usage:${range.from}`);
+  /** The headline and the outlook read longer history than the window: twelve weeks of quests and ninety days of spend. */
+  const dayKey = Math.floor(now / DAY);
+  const quests = useAsync(() => api.trails(), `trails:${dayKey}`);
+  const history = useAsync(() => api.usage({
+    from: new Date(dayKey * DAY - 89 * DAY).toISOString(), to: new Date(now).toISOString(),
+  }), `usage-history:${dayKey}`);
   const [forecast, setForecast] = useState<Extract<UsageForecast, { status: "ok" }> | null>(null);
   const today = new Date(now).toISOString().slice(0, 10);
   const span = { from: range.from.slice(0, 10), to: today };
@@ -88,19 +97,29 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
     <div className="page">
       <PageHeader
         title="Usage"
-        lede="Recorded spend, the work behind it, and how much remains in each quest budget."
+        lede="What each landed fix costs, where the money goes, and what's ahead."
         actions={
           <Segmented
             label="Window"
             value={String(days)}
-            onChange={(id) => setDays(id === "14" ? 14 : 7)}
+            onChange={(id) => setDays(Number(id) as 7 | 14 | 30 | 90)}
             options={[
-              { id: "7", label: "7 days" },
-              { id: "14", label: "14 days" },
+              { id: "7", label: "7d" },
+              { id: "14", label: "14d" },
+              { id: "30", label: "30d" },
+              { id: "90", label: "90d" },
             ]}
           />
         }
       />
+      <Referable id="usage:quest-cost" refData={{ kind: "usage", facet: "cumulative", ...span }} label="Cost per landed quest, 12 weeks"
+        href="#/usage">
+        <Card className="usage-hero" title="Cost per landed quest" meta="Last 12 weeks">
+          <Load state={quests.state} retry={quests.reload} skeleton={<Skeleton block />}>
+            {(trails) => <QuestCost weeks={weeklyCost(trails, now, 12)} />}
+          </Load>
+        </Card>
+      </Referable>
       <Load state={usage.state} retry={usage.reload} skeleton={<Skeleton block />}>
         {(u) => (
           <>
@@ -120,6 +139,11 @@ export function UsagePage({ scope = "deployment" }: { scope?: string }) {
                 <ForecastPanel now={now} scope={scope} onForecast={setForecast} />
               </Card>
             </Referable>
+            <Card tone="quiet" title="Spend outlook" meta="Projected from the last 90 days">
+              <Load state={history.state} retry={history.reload} skeleton={<Skeleton lines={3} />}>
+                {(h) => <SpendOutlook days={h.byDay} today={today} />}
+              </Load>
+            </Card>
             <div className="usage-breakdowns">
               <Referable
                 id="usage:drivers"

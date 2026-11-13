@@ -1,0 +1,8 @@
+.outlook { display: grid; gap: var(--s3); min-width: 0; }
+.outlook__figure { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); }
+.outlook__value { display: inline-block; font: 600 clamp(1.6rem, 4vw, 2.2rem) / 1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.outlook__range { color: var(--muted); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.outlook__bar { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2); }
+.outlook__bar span { position: absolute; inset-block: 0; border-radius: 4px; background: color-mix(in oklab, var(--jelly-deep) 30%, transparent); }
+.outlook__bar i { position: absolute; top: -3px; width: 3px; height: 14px; margin-left: -1.5px; border-radius: 2px; background: var(--jelly-deep); }
+.outlook__note { margin: 0; color: var(--muted); font-size: var(--fs-label); max-width: 62ch; }

@@ -653,11 +653,44 @@ const TEMPLATES: Template[] = [
 ];
 
 /** Fourteen UTC days of usage ending at `now`, deterministic and never in the future. */
-export function makeUsage(trails: Trail[], now: number): UsageEntry[] {
+/**
+ * Twelve weeks of finished quests for the cost-per-quest chart: a few land each week and the work gets cheaper over time,
+ * with some dead ends along the way. Fictional, opt-in (`questHistory`), and every landing has a receipt.
+ */
+export function makeQuestHistory(now: number): Trail[] {
+  const base = makeTrails(now)[0]!;
+  const out: Trail[] = [];
+  const areas = ["payments", "search", "auth", "billing", "cart"];
+  for (let w = 11; w >= 0; w--) {
+    const landed = 2 + ((w * 3) % 4);
+    const perQuest = 9_000_000 - (11 - w) * 420_000 + ((w * 7) % 5) * 180_000;
+    for (let k = 0; k < landed + (w % 3 === 0 ? 1 : 0); k++) {
+      const dead = k >= landed;
+      const at = now - (w * 7 + 1 + ((k * 2) % 6)) * DAY - k * HOUR;
+      const n = out.length;
+      out.push({
+        ...base,
+        id: `00000000-0000-4000-8000-${String(900000000000 + n).padStart(12, "0")}`,
+        short: `T-h${String(n).padStart(4, "0")}`,
+        title: dead ? "Fictional dead end: signal could not be reproduced" : "Fictional landed fix",
+        area: areas[n % areas.length]!,
+        state: dead ? "abandoned" : "closed",
+        createdAt: iso(at - 2 * DAY), updatedAt: iso(at),
+        budget: { ...base.budget, spendMicrousdUsed: Math.round(perQuest * (dead ? 0.45 : 0.85 + (k % 3) * 0.12)) },
+        landing: dead ? undefined : { modes: ["trail_ref"], target: "refs/heads/main",
+          receipts: [{ mode: "trail_ref", target: "refs/heads/main", oldOid: null, newOid: sha(0x9000 + n), at: iso(at) }] },
+        checkpoints: { spend: [] },
+      });
+    }
+  }
+  return out;
+}
+
+export function makeUsage(trails: Trail[], now: number, days = 14): UsageEntry[] {
   const out: UsageEntry[] = [];
   const today = Math.floor(now / DAY) * DAY;
   let n = 0;
-  for (let d = 13; d >= 0; d--) {
+  for (let d = days - 1; d >= 0; d--) {
     const dayStart = today - d * DAY;
     const count = 7 + ((d * 5 + 3) % 6) + (d < 7 ? 2 : 0);
     for (let k = 0; k < count; k++) {

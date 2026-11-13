@@ -12,3 +12,8 @@
 .usage-drivers h3:first-child { margin-top: 0; }
 .usage-tables > summary { min-height: 44px; display: flex; align-items: center; font-weight: 600; }
 .usage-tables[open] > summary { margin-bottom: var(--s3); }
+.usage-hero {
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, oklch(0.74 0.13 165) 12%, transparent), transparent 55%),
+    var(--surface);
+}
