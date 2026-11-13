@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { discoverRepository, httpsRepositoryUrl } from "../src/commands/discovery";
 import { repoFacts } from "../src/commands/doctor";
+import { gitValue } from "../src/commands/git-output";
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
@@ -142,32 +143,49 @@ test("HTTPS suggestions preserve repository paths while discarding userinfo, que
 		expect(httpsRepositoryUrl(address)).toBeUndefined();
 });
 
-test("a repository path ending in a space is read as itself, not as a sibling without the space", async () => {
-	const parent = await directory();
-	const sibling = join(parent, "repo");
-	const spaced = join(parent, "repo ");
-	for (const root of [sibling, spaced]) {
-		await mkdir(root);
-		git(root, "init", "--initial-branch=work");
-	}
-	git(sibling, "remote", "add", "origin", "https://git.example/team/sibling.git");
-	await file(sibling, "package.json", JSON.stringify({ dependencies: { vue: "1" } }));
-	git(spaced, "remote", "add", "origin", "https://git.example/team/spaced.git");
-	await file(spaced, "package.json", JSON.stringify({ dependencies: { hono: "1", posthog: "1" } }));
-	await file(spaced, "ephyra/autonomy.md", "# areas\n");
+for (const [label, suffix] of [["a space", " "], ["a carriage return", "\r"], ["CR then space", "\r "]] as const) {
+	test(`a repository path ending in ${label} is read as itself, not as a sibling without it`, async () => {
+		const parent = await directory();
+		const sibling = join(parent, "repo");
+		const actual = join(parent, `repo${suffix}`);
+		for (const root of [sibling, actual]) {
+			await mkdir(root);
+			git(root, "init", "--initial-branch=work");
+		}
+		git(sibling, "remote", "add", "origin", "https://git.example/team/sibling.git");
+		await file(sibling, "package.json", JSON.stringify({ dependencies: { next: "1" } }));
+		await file(sibling, "ephyra/autonomy.md", "# sibling areas\n");
+		git(actual, "remote", "add", "origin", "https://git.example/team/actual.git");
+		await file(actual, "package.json", JSON.stringify({ dependencies: { hono: "1", posthog: "1" } }));
+		await file(actual, "ephyra/thresholds.yaml", "{}\n");
 
-	const found = await discoverRepository(spaced);
-	expect(found.root).toBe(spaced);
-	expect(found.remote).toBe("https://git.example/team/spaced.git");
-	expect(found.frameworks).toEqual(["Hono"]);
-	expect(found.integrations).toEqual(["posthog"]);
-	// Doctor reads templates from the same top-level path.
-	expect(repoFacts(spaced).templates).toContain("autonomy.md");
-	expect(repoFacts(sibling).templates).not.toContain("autonomy.md");
+		const found = await discoverRepository(actual);
+		expect(found.root).toBe(actual);
+		expect(found.remote).toBe("https://git.example/team/actual.git");
+		expect(found.frameworks).toEqual(["Hono"]);
+		expect(found.integrations).toEqual(["posthog"]);
+		// Doctor reads templates from the same top-level path, never the sibling's.
+		expect(repoFacts(actual).templates).toEqual(["thresholds.yaml"]);
+		expect(repoFacts(actual).url).toBe("https://git.example/team/actual.git");
+		expect(repoFacts(sibling).templates).toEqual(["autonomy.md"]);
 
-	// Without the sibling, a trimmed path was unreadable and discovery gave up.
-	await rm(sibling, { recursive: true, force: true });
-	const alone = await discoverRepository(spaced);
-	expect(alone.root).toBe(spaced);
-	expect(alone.frameworks).toEqual(["Hono"]);
+		// Without the sibling, a trimmed path was unreadable and discovery gave up.
+		await rm(sibling, { recursive: true, force: true });
+		const alone = await discoverRepository(actual);
+		expect(alone.root).toBe(actual);
+		expect(alone.frameworks).toEqual(["Hono"]);
+		expect(repoFacts(actual).templates).toEqual(["thresholds.yaml"]);
+	});
+}
+
+test("only git's own line ending is removed from a value", () => {
+	expect(gitValue("/r/repo\r\n", "linux")).toBe("/r/repo\r");
+	expect(gitValue("/r/repo \n", "darwin")).toBe("/r/repo ");
+	expect(gitValue("C:/r/repo\r\n", "win32")).toBe("C:/r/repo");
+	expect(gitValue("C:/r/repo\n", "win32")).toBe("C:/r/repo");
+	expect(gitValue("/r/repo", "linux")).toBe("/r/repo");
+	fc.assert(fc.property(fc.string(), (value) => {
+		expect(gitValue(`${value}\n`, "linux")).toBe(value);
+		expect(gitValue(`${value}\r\n`, "win32")).toBe(value);
+	}));
 });

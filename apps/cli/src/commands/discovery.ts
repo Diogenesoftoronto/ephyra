@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { lstat, open, opendir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
+import { gitValue } from "./git-output";
 
 /** Local hints only. An installed SDK does not prove that its service is connected. */
 export type RepositoryDiscovery = {
@@ -84,8 +85,8 @@ export async function discoverRepository(cwd: string): Promise<RepositoryDiscove
 			const child = Bun.spawnSync(["git", "--no-optional-locks", "-C", cwd, ...args], {
 				stdout: "pipe", stderr: "pipe", timeout: 5_000,
 			});
-			// Only the newline git adds ends the value: a repository path may itself end in spaces.
-			return child.exitCode === 0 ? child.stdout.toString().replace(/\r?\n$/, "") : null;
+			// Only the line ending git adds ends the value: a repository path may itself end in spaces or CR.
+			return child.exitCode === 0 ? gitValue(child.stdout.toString()) : null;
 		} catch { return null; }
 	};
 	const top = git("rev-parse", "--show-toplevel");
