@@ -39,7 +39,7 @@ While a request is in flight the wizard and `doctor` show the CLI's own wait ind
 `@bomb.sh/tab` reads `COMMANDS` and its option/argument metadata to generate completions without auth or network calls:
 
 ```sh
-source <(ephyra complete bash) # Bash 4+ with bash-completion loaded
+source <(ephyra complete bash) # Bash 4+
 source <(ephyra complete zsh)
 ephyra complete fish | source # fish
 ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
@@ -47,7 +47,13 @@ ephyra complete powershell | Out-String | Invoke-Expression # PowerShell 7.3+
 
 Use the line for your shell. Scripts are printed only; the CLI never edits shell profiles. Completion callbacks resolve `ephyra` through PATH or a shell function. During source development, run `unalias ephyra 2>/dev/null` and then define `ephyra() { bun /absolute/path/to/ephyra/apps/cli/src/main.ts "$@"; }` on its own line before sourcing; Bash expands an existing alias inside a function definition on the same line. Completion has a shell protocol and rejects `--json`.
 
-The completion catalog and protocol use Tab; Ephyra's small shell adapters pass literal argument arrays. The Bash adapter replies with only the text Readline replaces after `=` or `:` in `COMP_WORDBREAKS`; the Fish adapter reads completed words with `read --tokenize`, so a quoted multiline argument stays one word; and completed words are normalized before Tab's parser, which otherwise drops a completed empty argument before the current one. Bash (interactive PTY with bash-completion) and Fish are exercised for real in `test/completion.test.ts`; Zsh and PowerShell adapters are **unverified at runtime** here because neither shell is installed. They do not evaluate typed words as shell code. This avoids the `eval` boundary in Tab 0.0.22's generated Bash/Zsh scripts.
+The completion catalog and protocol use Tab, fed from `COMMANDS`. Before Tab parses, words are read with the same option metadata `main()` uses: a valued option's next word (or its `--name=` remainder) is always its value, so notes such as `--message=--oops` or `-m '--json=abc'` never shift later positions, and completed empty words keep their place. Quoting is removed lexically and nothing is evaluated: `$(...)`, backquotes, `${...}` and `$NAME` stay literal text.
+
+- **Bash** passes the raw line before and after the cursor and Readline's word (`$2`); the CLI decodes single, double and `$'...'` quoting and backslash escapes, and replies with exactly the text Readline replaces in the quote context open there. Inside a word, a candidate that already ends with the text after the cursor is not duplicated (`--status=fa|iled` stays `--status=failed`) and no space is added. bash-completion is not needed.
+- **Fish** reads completed words with `read --tokenize` (a quoted multiline argument stays one word) and decodes the current token with `string unescape`; Fish re-quotes what it inserts.
+- **Zsh** removes one level of quoting with `${(Q)...}`; **PowerShell** reads literal AST values.
+
+Bash (real Readline in an interactive PTY, with quoted, inline, mid-word and hostile cases) and Fish (its own completion engine) are exercised for real in `test/completion.test.ts`. Zsh and PowerShell adapters are **unverified at runtime** here because neither shell is installed; their quoted-current-word and mid-word behaviour in particular is untested. Bash limitations: `COMP_POINT` follows Bash's own indexing, history expansion (`!`) is not interpreted, and a reply that would need a raw newline is omitted. This avoids the `eval` boundary in Tab 0.0.22's generated Bash/Zsh scripts.
 
 ## The inbox
 
@@ -85,7 +91,7 @@ Run `bun run --filter @ephyra/cli textbook` for the Textbook Canvas on `http://1
 
 - **Guided CLI offline tests:** account/workspace binding, default-branch choice, mode selection, recorded progress, browser connection refresh, explicit recheck, cancel/detach, unknown-write receipts, private/exclusive receipt storage, bounded discovery with symlink/secret exclusion, token-free login output and completion metadata. Tests use injected transport and temporary repositories; they do not prove hosted setup or provider access.
 - **Guided CLI terminal checks (12 November 2026):** the actual CLI ran in a 120-column PTY against a local HTTP fixture. Repository connection and setup used the expected account/workspace headers, queued/running/blocked progress came from that fixture, Ctrl+C before confirmation made no writes, Ctrl+C after start detached, login cancellation preserved credentials, JSON login kept tokens out of both streams, diagnostics rendered, and `NO_COLOR` emitted no color codes. The browser opener was a local stub; these are terminal checks, not hosted-account evidence.
-- **Shell integration:** real Bash with bash-completion resolved command flags and enum values. Bash and Fish tests preserve hostile words as literal arguments without executing them. Zsh and PowerShell scripts are inspected and generated in tests, but not runtime-verified locally.
+- **Shell integration:** real Bash Readline (PTY) and Fish resolve command flags, enum values, quoted words, flag-like option values and mid-word edits. Bash and Fish tests preserve hostile words as literal text without executing them. Zsh and PowerShell scripts are inspected and generated in tests, but not runtime-verified locally.
 - **Offline tests:** fake-fetch client, reducer and property checks, and template/refspec idempotence in a temporary git repository.
 - **Commands (`test/help.test.ts`):** every entry in the help table is accepted by `main()`, and help needs no network. Against a fake API: each read command calls its route, a decision carries the inbox item's bound, short ids resolve, an answer carries its workspace, revoking an agent is a `DELETE`, 403 and 409 are explained, and a write with no answer is reported as unknown. `doctor` is checked for healthy, absent, degraded and unreachable servers and against a real temporary git repository. `handoff` and `repoFacts` never print a remote's password (property test). The views contain no control or bidi characters with hostile text.
 - **Real server:** `help`, `doctor`, `status`, `quests`, `usage`, `policy`, `setup` and `handoff` were run against a local `apps/server` in memory mode on 11 November 2026.
