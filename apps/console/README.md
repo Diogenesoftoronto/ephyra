@@ -227,6 +227,27 @@ found, **Retry saved change** explicitly resends the same saved intent and key. 
 automatically retries an ambiguous write. Changed checkpoint bindings require an explicit review
 reload before deciding.
 
+## Touch interactions
+
+Common actions are quick with a thumb and use [Motion](https://motion.dev) (`motion@14.8.0`) for springs and drags.
+The decisions behind them live in `src/lib/gesture.ts` and are property-tested.
+
+- **Hold to approve** (`HoldButton`, used by every checkpoint and spend decision): on a touchscreen a fill sweeps
+  across the button while you hold it (650 ms), and lifting early cancels. A tap alone shows "Hold to approve"
+  instead of approving. A mouse click or the keyboard approves at once, so switch and screen-reader users are never
+  asked to hold. Ask for changes and Reject already need a note, so they stay ordinary buttons.
+- **Swipe a team ask** (`SwipeRow`): drag right to open it, or left to show "Why a person?". A swipe never makes a
+  decision, and every action stays available as a link or button. Only touch and pen start a swipe, so mouse text
+  selection keeps working, and vertical scrolling is untouched.
+- **Scrub the autonomy ladder**: drag along it, and the thumb follows your finger with a tick at each step. Lifting
+  your finger chooses the step. It is still a radio group for taps, keys, and screen readers.
+- **Workspace sheet**: on a phone the workspace menu becomes a bottom sheet. Drag it down or tap outside to close.
+- Haptic ticks use the Vibration API where it exists. iOS Safari has none, so it simply stays silent. Reduced
+  motion turns springs into instant changes.
+
+These were checked by driving real touch events in mobile Chromium against the Storybook build. They have not been
+checked on a physical iOS or Android device.
+
 ## Storybook and checks
 
 Every component and screen has a story, including assistant-ui parts, the validated json-render

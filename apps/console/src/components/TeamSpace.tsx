@@ -15,6 +15,7 @@ import {
 } from "../lib/team-space.ts";
 import { guidance, patterns } from "../lib/team-guidance.ts";
 import { ActivityRow } from "./ActivityFeed.tsx";
+import { SwipeRow } from "./SwipeRow.tsx";
 import { PersonIdentity } from "./PersonIdentity.tsx";
 import "./TeamSpace.css";
 
@@ -76,6 +77,13 @@ export function TeamSpace({ teamApi, channels }: {
     return () => { live = false; };
   }, [api, teamApi]);
 
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (key: string, next?: boolean) => setOpen((prev) => {
+    const out = new Set(prev);
+    if (next ?? !out.has(key)) out.add(key); else out.delete(key);
+    return out;
+  });
+
   const view = useMemo(() => {
     if (!data) return null;
     const trails = data.trails === "unavailable" ? [] : data.trails;
@@ -126,7 +134,11 @@ export function TeamSpace({ teamApi, channels }: {
             {view.asks.length === 0
               ? <Empty title="Nobody is holding anything up" body="Questions, checkpoints, and spend requests appear here." />
               : <ul className="space-asks">{view.asks.map((a) => (
-                <li key={a.key} className="space-ask" data-blocking={a.blocking ? "" : undefined}>
+                <li key={a.key} className="space-ask-item">
+                <SwipeRow
+                  right={{ label: KIND[a.kind].act, icon: "→", tone: "go", onCommit: () => { location.hash = `#/inbox/${encodeURIComponent(a.trailId)}`; } }}
+                  left={{ label: open.has(a.key) ? "Hide why" : "Why a person?", icon: "?", tone: "calm", onCommit: () => toggle(a.key) }}>
+                <div className="space-ask" data-blocking={a.blocking ? "" : undefined}>
                   <span className="space-ask__tile" data-kind={a.kind} aria-hidden="true">{a.checkpoint ?? KIND[a.kind].tile}</span>
                   <div className="space-ask__body">
                     <a className="space-ask__title" href={`#/inbox/${encodeURIComponent(a.trailId)}`}>{a.title}</a>
@@ -141,11 +153,13 @@ export function TeamSpace({ teamApi, channels }: {
                   </div>
                   <a className="ui-button ui-button--sm ui-button--secondary" href={`#/inbox/${encodeURIComponent(a.trailId)}`}
                     aria-label={`${KIND[a.kind].act}: ${a.title}`}>{KIND[a.kind].act}</a>
-                  <Why ask={a} g={guidance(a, {
+                  <Why ask={a} open={open.has(a.key)} onToggle={(next) => toggle(a.key, next)} g={guidance(a, {
                     trail: view.byId.get(a.trailId), trails: data.trails === "unavailable" ? [] : data.trails, sketches: data.sketches,
                     bridge: channelStatus(channels).bridge, shadowVerdict: a.shadowVerdict,
                     recipientHasAccount: a.waitingOn.kind === "person" ? true : a.waitingOn.kind === "contact" ? false : undefined,
                   })} />
+                </div>
+                </SwipeRow>
                 </li>))}</ul>}
           </Card>
 
@@ -212,9 +226,11 @@ export function TeamSpace({ teamApi, channels }: {
   );
 }
 
-function Why({ ask, g }: { ask: Ask; g: ReturnType<typeof guidance> }) {
+function Why({ ask, g, open, onToggle }: {
+  ask: Ask; g: ReturnType<typeof guidance>; open: boolean; onToggle: (open: boolean) => void;
+}) {
   return (
-    <details className="space-why">
+    <details className="space-why" open={open} onToggle={(e) => { if (e.currentTarget.open !== open) onToggle(e.currentTarget.open); }}>
       <summary>Why a person?<span className="sr-only"> for {ask.title}</span></summary>
       <div className="space-why__body">
         <ul className="space-why__facts">{g.why.map((w) => <li key={w}>{w}</li>)}</ul>

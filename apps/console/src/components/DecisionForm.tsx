@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Field } from "../kit.ts";
 import type { Verdict } from "../api.ts";
+import { HoldButton } from "./HoldButton.tsx";
 import "./CheckpointCard.css";
 
 /** Busy and failure state around one decision call. The caller shows the failure; the form shows busy. */
@@ -21,7 +22,10 @@ export function useDecision(onDecide?: (verdict: Verdict, note: string) => Promi
   return { busy, error, submit };
 }
 
-/** Approve, ask for changes, or reject, with a note. Revise and reject need a note; approve does not. */
+/**
+ * Approve, ask for changes, or reject, with a note. Revise and reject need a note; approve does not, so on a touchscreen
+ * approve is a press-and-hold instead (a click or the keyboard still acts at once).
+ */
 export function DecisionForm({
   busy,
   disabled,
@@ -47,14 +51,15 @@ export function DecisionForm({
         />
       </Field>
       <div className="cp-actions">
-        <Button
+        <HoldButton
           variant="primary"
           loading={busy === "approve"}
           disabled={disabled || busy !== null}
-          onClick={() => onSubmit("approve", note)}
+          holdLabel={`Hold to ${approveLabel.toLowerCase()}`}
+          onConfirm={() => onSubmit("approve", note)}
         >
           {approveLabel}
-        </Button>
+        </HoldButton>
         <Button
           loading={busy === "revise"}
           disabled={disabled || busy !== null || noNote}

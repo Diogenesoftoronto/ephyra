@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { haptic, sheetShouldClose } from "../lib/gesture.ts";
+import { useMediaQuery } from "../lib/hooks.ts";
 import type { WorkspaceAccess } from "@ephyra/core";
 import "./WorkspacePicker.css";
 
@@ -11,6 +14,10 @@ export function WorkspacePicker({ workspaces, selected, onChoose }: {
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
   const current = workspaces.find(item => item.workspaceId === selected);
+  /** On a phone the menu is a bottom sheet within thumb reach; drag it down or tap outside to close. */
+  const sheet = useMediaQuery("(max-width: 560px) and (pointer: coarse)");
+  const reduced = useReducedMotion();
+  const spring = reduced ? { duration: 0 } : { type: "spring" as const, stiffness: 520, damping: 40 };
   useEffect(() => {
     if (!open) return;
     menu.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
@@ -30,7 +37,22 @@ export function WorkspacePicker({ workspaces, selected, onChoose }: {
       }}>
       <span>{current?.name ?? "Choose workspace"}</span><span aria-hidden="true">⌄</span>
     </button>
-    {open && <div ref={menu} id={id} role="menu" aria-label="Switch workspace" className="workspace-switch__menu"
+    <AnimatePresence>
+    {open && sheet && <motion.div key="scrim" className="workspace-switch__scrim" aria-hidden="true"
+      onPointerDown={() => { setOpen(false); trigger.current?.focus(); }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : 0.18 }} />}
+    {open && <motion.div ref={menu} id={id} role="menu" aria-label="Switch workspace" key="menu"
+      className={sheet ? "workspace-switch__menu workspace-switch__menu--sheet" : "workspace-switch__menu"}
+      initial={sheet ? { y: "100%" } : { opacity: 0, y: -4, scale: 0.98 }}
+      animate={sheet ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+      exit={sheet ? { y: "100%" } : { opacity: 0, y: -4, scale: 0.98 }}
+      transition={sheet ? spring : { duration: reduced ? 0 : 0.14 }}
+      drag={sheet ? "y" : false}
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0.05, bottom: 0.9 }}
+      onDragEnd={(_, info) => {
+        if (sheetShouldClose(info.offset.y, info.velocity.y)) { haptic(6); setOpen(false); trigger.current?.focus(); }
+      }}
       onKeyDown={event => {
         const buttons = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button') ?? []);
         const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -42,15 +64,17 @@ export function WorkspacePicker({ workspaces, selected, onChoose }: {
           buttons[next]?.focus();
         }
       }}>
+      {sheet && <span className="workspace-switch__grip" aria-hidden="true" />}
       {workspaces.map(item => <button key={item.workspaceId} type="button" role="menuitemradio"
         aria-checked={item.workspaceId === selected} onClick={() => {
           setOpen(false); trigger.current?.focus();
-          if (item.workspaceId !== selected) onChoose(item.workspaceId);
+          if (item.workspaceId !== selected) { haptic(8); onChoose(item.workspaceId); }
         }}>
         <span className="workspace-switch__name">{item.name}</span>
         <small>{item.role === "owner" ? "Owner" : item.role === "approver" ? "Approver" : "Viewer"}</small>
         <span aria-hidden="true">{item.workspaceId === selected ? "✓" : ""}</span>
       </button>)}
-    </div>}
+    </motion.div>}
+    </AnimatePresence>
   </div>;
 }
