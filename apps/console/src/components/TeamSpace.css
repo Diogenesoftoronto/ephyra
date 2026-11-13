@@ -21,11 +21,14 @@
 
 /* Asks */
 .space-asks { display: grid; margin: 0; padding: 0; list-style: none; }
+.space-ask-item { border-top: 1px solid var(--line); }
+.space-ask-item:first-child { border-top: 0; }
 .space-ask {
   display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--s3); align-items: center;
-  padding: var(--s3) 0; border-top: 1px solid var(--line);
+  padding: var(--s3) 0;
 }
-.space-ask:first-child { border-top: 0; padding-top: 0; }
+.space-ask-item:first-child .space-ask { padding-top: 0; }
+.space-asks .swipe__face { background: var(--surface); }
 .space-ask__tile {
   display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm);
   background: var(--surface-2); color: var(--muted); font: 600 0.8rem / 1 var(--font-mono);

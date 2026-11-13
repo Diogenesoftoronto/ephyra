@@ -1,0 +1,8 @@
+.hold { position: relative; overflow: hidden; isolation: isolate; -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
+.hold__fill {
+  position: absolute; inset: 0 auto 0 0; z-index: -1; width: 0;
+  background: color-mix(in oklch, currentColor 22%, transparent); pointer-events: none;
+}
+.hold__label { position: relative; }
+.hold--active { transform: scale(0.97); transition: transform 0.2s var(--ease-gel, ease-out); }
+@media (prefers-reduced-motion: reduce) { .hold--active { transform: none; } }

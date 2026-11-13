@@ -1,8 +1,9 @@
 .ladder {
   display: grid;
   gap: var(--s2);
-  justify-items: start;
+  justify-items: stretch;
   min-width: 0;
+  max-width: 34rem;
 }
 .ladder .ui-seg {
   max-width: 100%;
@@ -10,3 +11,21 @@
 .ladder-read {
   margin: 0;
 }
+.ladder-seg { width: 100%; }
+.ladder-track { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
+.ladder-track[data-scrubbing] { cursor: grabbing; }
+/* The thumb carries the "selected" look, so the checked segment itself stays transparent and the thumb can slide. */
+.ladder-track { grid-auto-columns: minmax(0, 1fr); }
+.ladder-track span.opt { position: relative; z-index: 1; padding-inline: 2px; overflow-wrap: anywhere; }
+.ladder-thumb {
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: var(--radius-sm); background: var(--surface);
+  box-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.12), 0 0 0 1px var(--rule);
+  pointer-events: none;
+}
+.ladder-track label { position: relative; }
+.ladder-track input:checked + span.opt { background: transparent; box-shadow: none; }
+.ladder-track label[data-on] span.opt { color: var(--ink); }
+.ladder-track[data-scrubbing] .ladder-thumb { box-shadow: 0 6px 16px oklch(0.3 0.03 60 / 0.18), 0 0 0 1px var(--rule); }
+@media (pointer: coarse) { .ladder-track span.opt { min-height: 44px; } }
+.ladder > .ui-badge { white-space: normal; justify-self: start; max-width: 100%; padding-block: 4px; line-height: 1.35; border-radius: var(--radius-sm); }
