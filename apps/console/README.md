@@ -388,6 +388,19 @@ fixtures and writes measured evidence to `apps/console/artifacts/velum-motion/`.
 
 ## Usage charts and forecast
 
+Usage opens on **cost per landed quest** over the last 12 weeks (`src/lib/quest-cost.ts`, property-tested). The line is
+what one landed fix cost each week, and the bars show how many quests landed. A quest counts as landed only with a landing
+receipt, in the week of its first receipt. Spend on quests that closed or were abandoned without landing is charged to
+that week's landings, so dropping dead ends never makes the number look better. Weeks with no landing leave a gap and are
+never drawn as zero. The headline ("43% cheaper per landed fix") comes from a least-squares fit, and a change within 5%
+reads as holding steady. With landings in fewer than 3 weeks, the page says there isn't enough for a trend yet. The
+spend is each quest's recorded budget spend.
+
+The window covers 7, 14, 30, or 90 days (30 by default). **Spend outlook** projects the next 30 days, quarter, half year,
+or year from the last 90 days of recorded spend. The range runs from the quietest full week's pace to the busiest. It is
+labelled a projection from your own ledger, kept apart from the model forecast, and leaves unpriced entries out (and
+says how many). The model forecast stays limited to 30 days by the core contract.
+
 Usage shows spending pace (bars for each day's recorded spend plus a running-total line, today marked as partial), what
 drove cost (persona and engine, largest first; unknown-cost counts stay visible; selecting a row filters the ledger),
 and outcomes and price coverage. Each chart has a keyboard cursor, a tooltip and a table view. The breakdown tables

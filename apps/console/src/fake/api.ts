@@ -50,7 +50,7 @@ import {
   makeEvents,
   makeInbox,
   makeTrails,
-  makeUsage,
+  makeQuestHistory, makeUsage,
   ME,
   STORY_NOW,
 } from "./fixtures.ts";
@@ -86,6 +86,8 @@ export type FakeOptions = {
   forecast?: ForecastMode;
   /** Velum conversation fixture behaviour. Default "unavailable". */
   conversation?: ConversationMode;
+  /** Add twelve weeks of fictional finished quests and ninety days of usage, for the cost-per-quest trend. */
+  questHistory?: boolean;
   /** Profiles: "fixture" serves labelled fictional identities; "unavailable" answers as if Not Organic is down. */
   profiles?: "fixture" | "unavailable" | "hang";
 };
@@ -192,7 +194,8 @@ export class FakeApi implements ConsoleApi {
     const empty = options.empty === true;
     this.trailItems = empty ? [] : makeTrails(this.now);
     this.inboxItems = empty ? [] : makeInbox(this.trailItems, this.now);
-    this.usageRows = empty ? [] : makeUsage(this.trailItems, this.now);
+    this.usageRows = empty ? [] : makeUsage(this.trailItems, this.now, options.questHistory ? 90 : 14);
+    if (!empty && options.questHistory) this.trailItems.push(...makeQuestHistory(this.now));
     this.docList = empty ? [] : makeDocs();
     this.runBundles = empty ? [] : makeRuns(this.trailItems, this.now);
     for (const t of this.trailItems) this.events.set(t.id, makeEvents(t, this.now));
