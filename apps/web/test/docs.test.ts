@@ -266,10 +266,21 @@ test("arbitrary query strings and paths cannot inject markup or change a page", 
     expect(await response.text()).toBe(expected);
   }), { numRuns: 30 });
   await fc.assert(fc.asyncProperty(fc.stringMatching(/^[a-zA-Z0-9<>"'%._-]{1,40}$/), async name => {
-    const response = await get(`/docs/${encodeURIComponent(name)}`);
-    if (!slugs.includes(name) && !slugs.includes(name.replace(/\.md$/, ""))) {
-      expect([404, 308]).toContain(response.status);
-      expect(await response.text()).not.toContain(name.includes("<") ? name : "\u0000");
-    }
+    // A bare '..' is normalized to the homepage by Request; exports such as agent.md are valid routes too.
+    // Keep the hostile input, but place it in a guaranteed-unknown segment before asserting a missing page.
+    const response = await get(`/docs/${encodeURIComponent("__unknown__" + name)}`);
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain(name.includes("<") ? name : "\u0000");
   }), { numRuns: 60 });
+});
+
+test("dot segments reach their normalized route before documentation routing", async () => {
+  for (const [path, canonical] of [["/docs/..", "/"], ["/docs/%2e%2e", "/"], ["/docs/.", "/docs/"]] as const) {
+    expect(new URL(new Request(origin + path).url).pathname).toBe(canonical);
+    const response = await get(path);
+    const expected = await get(canonical);
+    expect(response.status).toBe(expected.status);
+    expect(response.headers.get("location")).toBe(expected.headers.get("location"));
+    expect(await response.text()).toBe(await expected.text());
+  }
 });
