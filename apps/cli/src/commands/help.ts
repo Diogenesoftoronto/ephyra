@@ -151,7 +151,7 @@ export const COMMANDS: readonly CommandHelp[] = [
 		summary: "Print the shell completion script",
 		detail:
 			"Load this script in your shell to complete commands and options. This command only prints; it does not edit your shell configuration. " +
-			"Bash needs version 4 or later and bash-completion. The shell calls `ephyra complete -- ...` for suggestions; no sign-in or network is needed.",
+			"Bash needs version 4 or later. The shell calls `ephyra complete -- ...` for suggestions; no sign-in or network is needed.",
 		examples: [
 			"source <(ephyra complete bash)",
 			"source <(ephyra complete zsh)",
