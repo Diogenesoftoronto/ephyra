@@ -6,6 +6,7 @@ import type { SetupRun } from "@ephyra/core";
 import type { Client } from "../client";
 import { docsBase, docsUrl } from "../docs";
 import type { Credentials } from "../login";
+import { gitValue } from "./git-output";
 import type { Check } from "./views";
 
 export type RepoFacts = {
@@ -41,8 +42,8 @@ export function repoFacts(cwd: string, remote = "origin"): RepoFacts {
 				stdout: "pipe",
 				stderr: "pipe",
 			});
-			// Strip only git's terminating newline; a repository path may end in spaces.
-			return r.exitCode === 0 ? r.stdout.toString().replace(/\r?\n$/, "") : null;
+			// Strip only git's terminating line ending; a repository path may end in spaces or CR.
+			return r.exitCode === 0 ? gitValue(r.stdout.toString()) : null;
 		} catch {
 			return null;
 		}
