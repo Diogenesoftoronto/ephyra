@@ -1,13 +1,13 @@
 import { repositoryBranding, type RepositoryLogoUpdate } from "@ephyra/core";
-import { useRef, useState } from "react";
-import { Button, Field } from "../kit.ts";
+import { useEffect, useState } from "react";
+import { Button, Field, FilePicker } from "../kit.ts";
 import { AccountSaveFeedback, type AccountPageProps } from "./AccountForms.tsx";
 import { RepositoryMark } from "./RepositoryMark.tsx";
 import { useAccountWrite } from "./useAccountWrite.ts";
 
+const logoTypes = ["image/png", "image/jpeg", "image/webp"];
+
 async function resizeLogo(file: File): Promise<string> {
-  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2_000_000)
-    throw new Error("Choose a PNG, JPEG or WebP image under 2 MB.");
   const bitmap = await createImageBitmap(file);
   try {
     const canvas = document.createElement("canvas");
@@ -30,25 +30,33 @@ export function RepositoryLogoForm({ api, settings, onChange }: AccountPageProps
   const [scope, setScope] = useState<RepositoryLogoUpdate["scope"]>("repository");
   const [error, setError] = useState<string>();
   const [reading, setReading] = useState(false);
-  const [file, setFile] = useState<File>();
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [selection, setSelection] = useState<{ file: File; preview: string }>();
+  const preview = selection?.preview;
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const write = useAccountWrite(api, onChange);
   const target = repositoryBranding(address)[scope];
   const saved = target ? settings.repositoryLogos?.[target] : undefined;
   const locked = reading || write.locked;
 
+  function selectFile(file: File | undefined) {
+    setError(undefined);
+    if (file && (!logoTypes.includes(file.type) || file.size > 2_000_000)) {
+      setSelection(undefined);
+      setError("Choose a PNG, JPEG or WebP image up to 2 MB.");
+      return;
+    }
+    setSelection(file ? { file, preview: URL.createObjectURL(file) } : undefined);
+  }
+
   async function save(remove = false) {
-    if (!target || locked || (!remove && !file)) return;
+    if (!target || locked || (!remove && !selection)) return;
     setError(undefined);
     setReading(true);
     try {
-      const image = remove ? null : await resizeLogo(file!);
+      const image = remove ? null : await resizeLogo(selection!.file);
       const next = await write.save({ expectedVersion: settings.version, address: address.trim(), scope, image },
         (input, key) => api.saveRepositoryLogo(input, key), remove ? "Logo removed." : "Logo saved.");
-      if (next) {
-        setFile(undefined);
-        if (fileInput.current) fileInput.current.value = "";
-      }
+      if (next) setSelection(undefined);
     } catch {
       setError("Choose a readable PNG, JPEG or WebP image under 2 MB.");
     } finally {
@@ -73,15 +81,16 @@ export function RepositoryLogoForm({ api, settings, onChange }: AccountPageProps
         {address.trim() && !target && <p className="account-hint" role="status">Enter a repository address for the selected logo target.</p>}
         {saved && <div className="account-saved"><RepositoryMark name="Logo" sources={[saved]} /> <span>Saved logo</span></div>}
         <Field label="Logo image" hint="PNG, JPEG or WebP, up to 2 MB." error={error}>
-          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => {
-            setError(undefined);
-            setFile(event.target.files?.[0]);
-          }} />
+          <FilePicker accept={logoTypes.join(",")} disabled={locked} file={selection?.file} onFile={selectFile}
+            preview={preview ? <img key={preview} src={preview} alt="" onError={() => {
+              setSelection(undefined);
+              setError("This image could not be opened. Choose another file.");
+            }} /> : undefined} />
         </Field>
       </fieldset>
       <AccountSaveFeedback state={write.state} onRefresh={() => void write.refresh()} />
       <div className="account-actions">
-        <Button type="submit" disabled={!target || !file || locked} loading={reading || write.busy}>Save logo</Button>
+        <Button type="submit" disabled={!target || !selection || locked} loading={reading || write.busy}>Save logo</Button>
         {saved && <Button type="button" variant="ghost" disabled={locked} onClick={() => void save(true)}>Remove logo</Button>}
       </div>
     </form>
