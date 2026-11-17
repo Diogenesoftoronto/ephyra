@@ -129,7 +129,7 @@ export function RepositoryForm({ api, settings, onChange, onDone, onBusyChange, 
         </div>
       )}
       <fieldset className="account-fields" disabled={write.locked}>
-        <RepositoryPicker value={url} disabled={write.locked} onSource={setPlaceholder} onSelect={choice => {
+        <RepositoryPicker value={url} logos={settings.repositoryLogos} disabled={write.locked} onSource={setPlaceholder} onSelect={choice => {
           setUrl(choice.url); setBranch(choice.branch); setUrlError(undefined);
           setToken(""); setCredentialHost(""); setClearToken(false);
         }} />

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { haptic, sheetShouldClose } from "../lib/gesture.ts";
 import { useMediaQuery } from "../lib/hooks.ts";
 import type { WorkspaceAccess } from "@ephyra/core";
+import { RepositoryMark } from "./RepositoryMark.tsx";
 import "./WorkspacePicker.css";
 
 export function WorkspacePicker({ workspaces, selected, onChoose }: {
@@ -35,7 +36,8 @@ export function WorkspacePicker({ workspaces, selected, onChoose }: {
       onClick={() => setOpen(!open)} onKeyDown={event => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setOpen(true); }
       }}>
-      <span>{current?.name ?? "Choose workspace"}</span><span aria-hidden="true">⌄</span>
+      {current && <RepositoryMark key={current.workspaceId} name={current.name} sources={current.logoSources} />}
+      <span className="workspace-switch__label">{current?.name ?? "Choose workspace"}</span><span aria-hidden="true">⌄</span>
     </button>
     <AnimatePresence>
     {open && sheet && <motion.div key="scrim" className="workspace-switch__scrim" aria-hidden="true"
@@ -70,6 +72,7 @@ export function WorkspacePicker({ workspaces, selected, onChoose }: {
           setOpen(false); trigger.current?.focus();
           if (item.workspaceId !== selected) { haptic(8); onChoose(item.workspaceId); }
         }}>
+        <RepositoryMark name={item.name} sources={item.logoSources} />
         <span className="workspace-switch__name">{item.name}</span>
         <small>{item.role === "owner" ? "Owner" : item.role === "approver" ? "Approver" : "Viewer"}</small>
         <span aria-hidden="true">{item.workspaceId === selected ? "✓" : ""}</span>

@@ -78,7 +78,10 @@ export function AccountWorkspace(props: Props) {
       body="Your access or the repository may have changed. Choose your own workspace to continue."
       action={<Button onClick={() => choose(settings.workspaceId)}>Open my workspace</Button>} /></div>;
     return <WorkspaceSession key={access.workspaceId} {...props} access={access} team={team} onTeamChanged={teamChanged}
-      switcher={<WorkspacePicker workspaces={all} selected={selected} onChoose={choose} />} />;
+      onChange={next => {
+        props.onChange(next);
+        if (JSON.stringify(next.repositoryLogos) !== JSON.stringify(settings.repositoryLogos)) workspaces.reload();
+      }} switcher={<WorkspacePicker workspaces={all} selected={selected} onChoose={choose} />} />;
   }}</Load>;
 }
 

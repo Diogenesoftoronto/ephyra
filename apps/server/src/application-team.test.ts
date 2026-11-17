@@ -18,7 +18,7 @@ const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
 
 
-async function fixture() {
+async function fixture(files: Record<string, string> = {}) {
   const root = await mkdtemp(join(tmpdir(), "ephyra-team-http-"));
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const identity = { approved: true, product: "ephyra", did: ALICE };
@@ -32,7 +32,7 @@ async function fixture() {
     NOTORGANIC_ISSUER: "https://api.notorganic.test", NOTORGANIC_AUTHORIZATION_URL: "https://id.notorganic.test/authorize",
     NOTORGANIC_PRODUCT: "ephyra", EPHYRA_DRAFT: "fake",
   }), {
-    startJobs: false, accountStore: store, notOrganicFetch: issuer.fetcher, repository: offlineRepository(source),
+    startJobs: false, accountStore: store, notOrganicFetch: issuer.fetcher, repository: offlineRepository(source, files),
     providerFetch: async (url) => {
       providerCalls.push(url);
       return Response.json(url.endsWith("/models") ? { data: [{ id: "team-model" }] } : {
@@ -82,6 +82,37 @@ async function fixture() {
   };
   return { server, store, request, settings, invite, cookies, providerCalls };
 }
+
+test("picker detects a connected repository logo and shares owner overrides with workspace members", async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><circle cx="24" cy="24" r="18"/></svg>';
+  const f = await fixture({ "logo.svg": svg });
+  const detected = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAOklEQVR42u3OQQ0AAAgEoAtiQe0fwBbOBxsB"
+    + "SNe8EiEhISEhISEhISEhISEhISEhISEhISGhOwvr0md56nvNKwAAAABJRU5ErkJggg==";
+  const picker = async (did: string) => WorkspaceAccess.array().parse(await (await f.request(did, "/v1/account/workspaces")).json());
+  const owner = await f.settings(ALICE);
+  expect((await picker(ALICE))[0]?.logoSources).toEqual([detected]);
+  const address = "https://forge.example/team/project";
+  const put = (did: string, body: unknown, key?: string) => f.request(did, "/v1/account/repository/logo", { method: "PUT", body, key });
+  const bad = await put(ALICE, { expectedVersion: owner.version, address, scope: "repository", image: "https://forge.example/logo.png" });
+  expect(bad.status).toBe(400);
+  const organization = await put(ALICE, { expectedVersion: owner.version, address: "https://forge.example/team/another",
+    scope: "organization", image: png });
+  expect(organization.status).toBe(200);
+  expect((await picker(ALICE))[0]?.logoSources).toEqual([detected, png]);
+  const update = { expectedVersion: owner.version + 1, address, scope: "repository", image: png };
+  expect((await put(ALICE, update, "logo-save-replay")).status).toBe(200);
+  expect((await put(ALICE, update, "logo-save-replay")).status).toBe(200);
+  expect((await f.settings(ALICE)).version).toBe(owner.version + 2);
+  expect((await picker(CAROL)).some(item => item.ownerDid === ALICE)).toBe(false);
+  await f.invite(BOB, "viewer");
+  expect((await picker(BOB)).find(item => item.ownerDid === ALICE)?.logoSources).toEqual([png, detected]);
+  const remove = { ...update, expectedVersion: (await f.settings(ALICE)).version, image: null };
+  expect((await f.request(BOB, "/v1/account/repository/logo", { method: "PUT", workspace: owner.workspaceId, body: remove })).status).toBe(409);
+  expect((await put(ALICE, remove)).status).toBe(200);
+  expect((await picker(BOB)).find(item => item.ownerDid === ALICE)?.logoSources).toEqual([detected, png]);
+  expect((await f.settings(ALICE)).workspaceId).toBe(owner.workspaceId);
+});
 
 describe("signed-in shared workspace authority", () => {
   test("Viewer sees recorded owner content but cannot approve, edit, spend, run setup or impersonate the owner", async () => {

@@ -4,9 +4,12 @@ import { join } from "node:path";
 import {
   AccountSettings,
   IsoTime,
+  MAX_REPOSITORY_LOGOS,
+  repositoryBranding,
   Unverified,
   type ModelUpdate,
   type RepositoryUpdate,
+  type RepositoryLogoUpdate,
   type OnboardingUpdate,
   type KnowledgeUpdate,
   type KnowledgeCatalog,
@@ -527,6 +530,21 @@ export class Accounts {
       };
       if (token) record.repoToken = await this.options.box.seal(token);
       else delete record.repoToken;
+      return record;
+    });
+  }
+  async saveRepositoryLogo(did: string, input: RepositoryLogoUpdate, key: string) {
+    const target = repositoryBranding(input.address)[input.scope];
+    if (!target) throw new AccountError(400, "Enter a repository address that identifies the selected logo target.");
+    return this.change(did, key, "repository-logo", input, async (record) => {
+      const logos = { ...record.settings.repositoryLogos };
+      if (input.image === null) delete logos[target];
+      else {
+        if (!logos[target] && Object.keys(logos).length >= MAX_REPOSITORY_LOGOS)
+          throw new AccountError(422, `Remove a saved logo before adding another. The limit is ${MAX_REPOSITORY_LOGOS}.`);
+        logos[target] = input.image;
+      }
+      record.settings.repositoryLogos = logos;
       return record;
     });
   }

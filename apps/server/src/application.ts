@@ -1,10 +1,11 @@
 import type { Context } from "hono";
 import { browserSessionToken } from "./auth/browser-session.ts";
 import { Hono } from "hono";
+import { repositoryLogoDetector } from "./setup/repository-logo.ts";
 import { bodyLimit } from "hono/body-limit";
 import { mkdir, access } from "node:fs/promises";
 import { join } from "node:path";
-import { RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput,
+import { RepositoryLogoUpdate, RepositoryUpdate, ModelUpdate, OnboardingUpdate, TeamInviteInput, TeamRevokeInput, TeamAcceptInput,
   KnowledgeUpdate, TelemetrySourceUpdate, TelemetryUpdate, PeopleUpdate, InvestigationAnswer,
   Unverified, MirrorRemove, MirrorUpdate, RoleModelUpdate } from "@ephyra/core";
 import { compose, type Composed, type ComposeOverrides } from "./compose.ts";
@@ -92,6 +93,7 @@ export async function composeApplication(config: Config, opts: ApplicationOption
   const account = accounts;
   const radicleWriter = radicleWriterConfig(config).config;
   const teams = new Teams(store, config.EPHYRA_SESSION_KEY);
+  const detectRepositoryLogo = repositoryLogoDetector(workspace => account.directory(workspace));
   const agents = createAgentAccess({
     store: opts.agentStore ?? (client ? new ConvexAgentStore(client, config.EPHYRA_CONVEX_SECRET!) : new MemoryAgentStore()),
     origin: config.EPHYRA_PUBLIC_ORIGIN!, signingSecret: config.EPHYRA_SESSION_KEY, signIn,
@@ -382,7 +384,7 @@ EPHYRA_GITHUB_APP_PRIVATE_KEY=${escape(created.privateKey.replace(/\n/g, "\\n"))
       endpoint: `${config.EPHYRA_PUBLIC_ORIGIN}/otlp/workspaces/${workspaceId}/v1/logs`,
       token: workspaceIngestToken(config.EPHYRA_SESSION_KEY!, workspaceId) });
   });
-  app.get("/v1/account/workspaces", async (c) => c.json(await teams.workspaces(c.get("principal"))));
+  app.get("/v1/account/workspaces", async (c) => c.json(await teams.workspaces(c.get("principal"), detectRepositoryLogo)));
   app.get("/v1/account/team", async (c) => c.json(await teams.team(c.get("principal"), c.req.header("X-Ephyra-Workspace"))));
   app.post("/v1/account/team/invitations", async (c) => {
     const value = TeamInviteInput.safeParse(await c.req.json().catch(() => null));
@@ -455,6 +457,11 @@ EPHYRA_GITHUB_APP_PRIVATE_KEY=${escape(created.privateKey.replace(/\n/g, "\\n"))
     const value = RepositoryUpdate.safeParse(await c.req.json().catch(() => null));
     if (!value.success) return c.json({ error: "Check the repository URL, branch and credentials." }, 400);
     return c.json(await account.saveRepository(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
+  });
+  app.put("/v1/account/repository/logo", async (c) => {
+    const value = RepositoryLogoUpdate.safeParse(await c.req.json().catch(() => null));
+    if (!value.success) return c.json({ error: "Check the logo image and repository address." }, 400);
+    return c.json(await account.saveRepositoryLogo(c.get("principal"), value.data, c.req.header("Idempotency-Key") ?? ""));
   });
   app.put("/v1/account/mirrors", async (c) => {
     const value = MirrorUpdate.safeParse(await c.req.json().catch(() => null));

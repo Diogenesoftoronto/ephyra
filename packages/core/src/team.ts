@@ -14,6 +14,7 @@ export const TeamState = z.object({
 export type TeamState = z.infer<typeof TeamState>;
 export const WorkspaceAccess = z.object({
   workspaceId: z.string(), ownerDid: z.string(), name: z.string(), role: z.enum(["owner", "viewer", "approver"]),
+  logoSources: z.array(z.string().max(13_000)).max(9).optional(),
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 export const TeamInvitationPreview = z.object({ workspace: WorkspaceAccess, expiresAt: z.string() });
