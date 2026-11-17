@@ -1,7 +1,8 @@
 import type {
   AccountSettings, KnowledgeCatalog, KnowledgeUpdate, ModelUpdate, OnboardingUpdate, RepositoryUpdate, TelemetryUpdate, TelemetrySourceUpdate, PeopleUpdate,
-  MirrorUpdate, MirrorRemove, RoleModelUpdate,
+  MirrorUpdate, MirrorRemove, RoleModelUpdate, RepositoryLogoUpdate,
 } from "@ephyra/core";
+import { repositoryBranding } from "@ephyra/core";
 import { KNOWLEDGE_CATALOG_FIXTURE } from "./knowledge.ts";
 import type { AccountApi } from "../account-api.ts";
 import { ApiError, UnknownWriteOutcome } from "../api.ts";
@@ -56,7 +57,7 @@ export const CONNECTED_ACCOUNT_FIXTURE: AccountSettings = {
 };
 
 type ReadMethod = "settings" | "knowledge";
-type Method = ReadMethod | "saveRepository" | "saveRoleModel" | "saveMirror" | "removeMirror"
+type Method = ReadMethod | "saveRepository" | "saveRepositoryLogo" | "saveRoleModel" | "saveMirror" | "removeMirror"
   | "saveModel" | "saveKnowledge" | "saveTelemetrySource" | "saveTelemetry" | "savePeople" | "onboarding";
 export interface FakeAccountOptions {
   initial?: AccountSettings;
@@ -119,6 +120,16 @@ export class FakeAccountApi implements AccountApi {
         workspaceId: input.workspaceId, enabled: input.enabled, sources: structuredClone(input.sources),
         updatedAt: "2026-11-08T12:00:00.000Z",
       } };
+    });
+  }
+  saveRepositoryLogo(input: RepositoryLogoUpdate, key: string) {
+    return this.update("saveRepositoryLogo", input.expectedVersion, key, () => {
+      const target = repositoryBranding(input.address)[input.scope];
+      if (!target) throw new ApiError(400, "Enter a repository address for the selected logo target.");
+      const repositoryLogos = { ...this.value.repositoryLogos };
+      if (input.image === null) delete repositoryLogos[target];
+      else repositoryLogos[target] = input.image;
+      return { repositoryLogos };
     });
   }
   saveRepository(input: RepositoryUpdate, key: string) {

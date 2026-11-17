@@ -1,6 +1,7 @@
 import {
   AccountSettings, KnowledgeCatalog, type KnowledgeUpdate, type RepositoryUpdate, type ModelUpdate, type OnboardingUpdate,
   type TelemetryUpdate, type TelemetrySourceUpdate, TelemetryProvider, type PeopleUpdate, type MirrorUpdate, type MirrorRemove, type RoleModelUpdate,
+  type RepositoryLogoUpdate,
 } from "@ephyra/core";
 import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
@@ -15,6 +16,7 @@ export interface AccountApi {
   saveTelemetrySource(input: TelemetrySourceUpdate, operationKey: string): Promise<AccountSettings>;
   savePeople(input: PeopleUpdate, operationKey: string): Promise<AccountSettings>;
   saveRepository(input: RepositoryUpdate, operationKey: string): Promise<AccountSettings>;
+  saveRepositoryLogo(input: RepositoryLogoUpdate, operationKey: string): Promise<AccountSettings>;
   saveModel(input: ModelUpdate, operationKey: string): Promise<AccountSettings>;
   saveMirror(input: MirrorUpdate, operationKey: string): Promise<AccountSettings>;
   saveRoleModel(input: RoleModelUpdate, operationKey: string): Promise<AccountSettings>;
@@ -92,6 +94,9 @@ export class AccountClient implements AccountApi {
   }
   saveRepository(input: RepositoryUpdate, key: string) {
     return this.request("/repository", AccountSettings, input, key);
+  }
+  saveRepositoryLogo(input: RepositoryLogoUpdate, key: string) {
+    return this.request("/repository/logo", AccountSettings, input, key);
   }
   saveModel(input: ModelUpdate, key: string) {
     return this.request("/model", AccountSettings, input, key);

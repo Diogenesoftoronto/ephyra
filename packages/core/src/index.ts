@@ -14,6 +14,7 @@ export * from "./policy-activation.ts";
 export * from "./voice.ts";
 export * from "./tutor.ts";
 export * from "./settings.ts";
+export * from "./repository-branding.ts";
 export * from "./setup.ts";
 export * from "./team.ts";
 export * from "./bootstrap.ts";

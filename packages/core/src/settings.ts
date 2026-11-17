@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TelemetrySourceConnection } from "./telemetry-providers.ts";
 import { KnowledgeConnection } from "./knowledge.ts";
 import { ForgeRepositorySource, PeopleConnection, TelemetryConnection } from "./connections.ts";
+import { RepositoryLogos } from "./repository-branding.ts";
 
 /** Public account setup contracts. Saved credentials are never part of a response. */
 export const ModelProvider = z.enum(["none", "notorganic", "openai", "anthropic", "compatible"]);
@@ -62,6 +63,7 @@ export const AccountSettings = z.object({
   automation: z.object({ provider: z.enum(["none", "railway", "custom"]), configured: z.boolean(), detail: z.string() }).optional(),
   /** Additive (design/10): copies kept in step after a landing moves the base branch. At most five. */
   mirrors: z.array(MirrorConnection).max(5).optional(),
+  repositoryLogos: RepositoryLogos.optional(),
   /** Additive: models for roles other than coding. Absent means the coding model does that job too. */
   roleModels: z.object({ review: ModelConnection.optional() }).strict().optional(),
 });

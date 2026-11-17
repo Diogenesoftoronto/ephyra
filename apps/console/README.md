@@ -61,6 +61,10 @@ recorded preparation steps and blockers. **Explore first** saves setup for later
 Settings is available in the navigation (under **More** on phones). Hosted Not Organic access and optional personal keys
 are separate choices; private Git credentials and compatible API endpoints live in expandable advanced controls.
 Settings groups Repository, Model access, Connections and Account into a text tab row at every screen size.
+Under **Settings → Repository → Repository and organization logos**, upload or remove a PNG, JPEG or WebP override.
+For an organization, use the address of any repository in its namespace. The pickers try the repository override,
+then a detected repository logo, the organization override, a GitHub owner avatar if available, and finally an initial.
+The workspace picker looks for common `logo.svg`, `logo.png` and `logo.webp` paths in the connected commit.
 Arrow keys and Home/End move between sections. Switching sections retains unsaved form inputs in memory;
 leaving Settings, reloading, or accepting updated saved settings resets them. Setup uses one open reading column over a
 full-page material, with three compact steps and optional connections collapsed. Saved model connection details expand from their status row.

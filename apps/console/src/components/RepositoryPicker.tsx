@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Field } from "../kit.ts";
+import { repositoryLogoSources, type RepositoryLogos } from "@ephyra/core";
+import { RepositoryMark } from "./RepositoryMark.tsx";
 import { detectRepositorySource, listGitHubRepositories, REPOSITORY_SOURCES, type RepositoryChoice, type RepositorySource } from "../lib/repository-picker.ts";
 import "./RepositoryPicker.css";
 
-export function RepositoryPicker({ value, disabled, onSelect, onSource }: {
+export function RepositoryPicker({ value, disabled, onSelect, onSource, logos }: {
   value: string; disabled: boolean; onSelect: (repository: RepositoryChoice) => void; onSource: (placeholder: string) => void;
+  logos?: RepositoryLogos;
 }) {
   const [source, setSource] = useState<RepositorySource>(detectRepositorySource(value) ?? "github");
   const [owner, setOwner] = useState("");
@@ -73,8 +76,11 @@ export function RepositoryPicker({ value, disabled, onSelect, onSource }: {
         {repos.map(repo => <li key={repo.url}><button type="button" disabled={disabled} onClick={() => {
           onSelect(repo); setMessage(`${repo.name} selected. Connect it below to verify access.`);
         }} aria-pressed={value === repo.url}>
-          <strong>{repo.name}</strong><span>{repo.description || repo.branch}</span>
-          {value === repo.url && <span className="repository-selected">Selected ✓</span>}
+          <RepositoryMark name={repo.name.split("/").at(-1) ?? repo.name} sources={repositoryLogoSources(repo.url, logos)} />
+          <span className="repository-result-text">
+            <strong>{repo.name}</strong><span>{repo.description || repo.branch}</span>
+            {value === repo.url && <span className="repository-selected">Selected ✓</span>}
+          </span>
         </button></li>)}
       </ul>}
       {more && <Button size="sm" disabled={busy || disabled} onClick={() => void search(page + 1)}>Load more repositories</Button>}

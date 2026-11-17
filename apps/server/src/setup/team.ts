@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import {
-  TeamInvitation, type TeamState, type TeamInviteInput, type TeamInviteResult,
+  TeamInvitation, repositoryLogoSources, type TeamState, type TeamInviteInput, type TeamInviteResult,
   type TeamRevokeInput, type WorkspaceAccess, type TeamInvitationPreview,
 } from "@ephyra/core";
 import { canonicalJson } from "../audit.ts";
@@ -54,15 +54,23 @@ export class Teams {
     if (workspaceId) this.bound(record, workspaceId);
     return this.state(record);
   }
-  async workspaces(did: string): Promise<WorkspaceAccess[]> {
+  async workspaces(did: string, detectLogo?: (record: AccountRecord) => Promise<string | undefined>): Promise<WorkspaceAccess[]> {
+    const access = async (record: AccountRecord, role: WorkspaceAccess["role"]): Promise<WorkspaceAccess> => {
+      const result = this.access(record, role);
+      const repository = record.settings.repository;
+      if (!detectLogo || !repository) return result;
+      const logoSources = repositoryLogoSources(repository.forge?.source ?? repository.url,
+        record.settings.repositoryLogos, repository.url, await detectLogo(record));
+      return logoSources.length ? { ...result, logoSources } : result;
+    };
     const personal = await this.current(did);
-    const result = [this.access(personal, "owner")];
+    const result = [access(personal, "owner")];
     for (const record of await this.store.list()) {
       if (record.settings.did === did) continue;
       const member = this.invitations(record).find((item) => item.acceptedBy === did && !item.revokedAt);
-      if (member) result.push(this.access(record, member.role));
+      if (member) result.push(access(record, member.role));
     }
-    return result;
+    return Promise.all(result);
   }
   /** No role, owner identity or previously cached membership supplied by a caller is trusted. */
   async shared(did: string, workspaceId: string): Promise<SharedWorkspace | null> {
