@@ -26,7 +26,9 @@ export const OrganizationUpload: StoryObj = {
     paint.fillRect(8, 8, 32, 32);
     const blob = await new Promise<Blob | null>(resolve => image.toBlob(resolve, "image/png"));
     if (!blob) throw new Error("Could not create the fixture logo.");
-    await userEvent.upload(canvas.getByLabelText("Logo image"), new File([blob], "fixture.png", { type: "image/png" }));
+    const fileInput = canvasElement.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(fileInput, new File([blob], "fixture.png", { type: "image/png" }));
+    await expect(canvas.getByText("fixture.png")).toBeVisible();
     await userEvent.click(canvas.getByRole("button", { name: "Save logo" }));
     await expect(await canvas.findByText("Logo saved.")).toBeVisible();
   },

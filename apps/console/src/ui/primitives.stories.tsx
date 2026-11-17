@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { AUTONOMY_LEVELS, PERSONAS, type AutonomyLevel } from "@ephyra/core";
+import { FilePicker } from "./FilePicker.tsx";
 import {
   Avatar,
   Badge,
@@ -40,6 +41,16 @@ export const Buttons: S = {
     </div>
   ),
 };
+
+function FilePickerExample() {
+  const [file, setFile] = useState<File>();
+  return <Field label="Attachment" hint="Choose a text file.">
+    <FilePicker accept="text/plain" file={file} onFile={setFile} />
+  </Field>;
+}
+
+export const FileUpload: S = { render: () => <FilePickerExample /> };
+
 export const Badges: S = {
   render: () => (
     <div style={row}>

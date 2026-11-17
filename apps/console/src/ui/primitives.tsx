@@ -10,6 +10,7 @@ import {
   type ButtonHTMLAttributes,
   type CSSProperties,
   type ReactNode,
+  type Ref,
 } from "react";
 import type { PersonaId } from "@ephyra/core";
 import { Icon, type IconName } from "./icons.tsx";
@@ -334,6 +335,7 @@ export function Button({
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md";
   loading?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
