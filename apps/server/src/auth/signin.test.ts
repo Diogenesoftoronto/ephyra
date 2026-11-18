@@ -4,6 +4,7 @@ import { AUTONOMY_TEMPLATE } from "@ephyra/policy";
 import { describe, expect, test } from "bun:test";
 import { b64url, sha256b64url } from "./crypto.ts";
 import { compose } from "../compose.ts";
+import { composeApplication } from "../application.ts";
 import { readConfig } from "../config.ts";
 import { fakeNotOrganic } from "./notorganic.fixture.ts";
 import { sessionCookieName } from "./browser-session.ts";
@@ -27,7 +28,7 @@ async function server(fake: ReturnType<typeof fakeNotOrganic>, extra: Record<str
 }
 
 /** Drive a browser through /auth/login → portal → /auth/callback. Returns the callback response. */
-async function browserLogin(app: Awaited<ReturnType<typeof server>>["app"], fake: ReturnType<typeof fakeNotOrganic>, query = "") {
+async function browserLogin(app: Pick<Awaited<ReturnType<typeof server>>["app"], "request">, fake: ReturnType<typeof fakeNotOrganic>, query = "") {
   const login = await app.request(`/auth/login${query}`);
   expect(login.status).toBe(302);
   const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
@@ -38,6 +39,24 @@ async function browserLogin(app: Awaited<ReturnType<typeof server>>["app"], fake
 describe("sign in with Not Organic", () => {
   const browserCookie = (response: Response) => response.headers.getSetCookie()
     .find((cookie) => cookie.startsWith(`${sessionCookieName(ORIGIN)}=`))!;
+
+  test("wallet reads use the signed-in account and never accept a browser-selected identity", async () => {
+    const fake = fakeNotOrganic({ approved: true, product: "ephyra", wallet: { availableMicros: 2500000, welcomeCredit: { awaitingEmailConfirmation: true } } });
+    const { app, close } = await composeApplication(readConfig({
+      EPHYRA_API_TOKEN: SERVICE, EPHYRA_DATA_DIR: `/tmp/ephyra-wallet-${crypto.randomUUID()}`,
+      EPHYRA_PUBLIC_ORIGIN: ORIGIN, EPHYRA_SESSION_KEY: Buffer.alloc(32, 7).toString("base64"),
+      NOTORGANIC_ISSUER: ISSUER, NOTORGANIC_AUTHORIZATION_URL: AUTHORIZE,
+    }), { startJobs: false, notOrganicFetch: fake.fetcher });
+    try {
+      expect((await app.request("/v1/account/wallet")).status).toBe(401);
+      expect((await app.request("/v1/account/wallet", { headers: { Authorization: `Bearer ${SERVICE}`, "X-Ephyra-Principal": DID } })).status).toBe(403);
+      const cookie = browserCookie(await browserLogin(app, fake)).split(";")[0]!;
+      const response = await app.request("/v1/account/wallet", { headers: { cookie, "X-Ephyra-Account": OTHER } });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(await response.json()).toEqual({ availableMicros: 2500000, welcomeCredit: { awaitingEmailConfirmation: true } });
+    } finally { await close(); }
+  });
 
   test("browser sign-in returns to the app with a protected cookie and resolves the account without a pasted token", async () => {
     const fake = fakeNotOrganic({ approved: true, product: "ephyra" });

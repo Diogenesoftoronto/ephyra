@@ -31,3 +31,7 @@ test("Traction configuration requires a complete explicit origin, secret and pro
   }
   expect(() => readConfig({ ...base, EPHYRA_TRACTION_PROJECTS: "project-a,,project-b" })).toThrow("allowlist");
 });
+
+test("Ephyra sessions default to their own product for account tracking and welcome credit", () => {
+  expect(readConfig(base).NOTORGANIC_PRODUCT).toBe("ephyra");
+});

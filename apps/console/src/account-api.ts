@@ -6,7 +6,16 @@ import {
 import { z } from "zod";
 import { ApiError, UnknownWriteOutcome } from "./api.ts";
 
+export const AccountWallet = z.object({
+  availableMicros: z.number().int().nonnegative(),
+  debtMicros: z.number().int().nonnegative().optional(),
+  hostedInferenceBlocked: z.boolean().optional(),
+  welcomeCredit: z.object({ awaitingEmailConfirmation: z.boolean().optional() }).optional(),
+});
+export type AccountWallet = z.infer<typeof AccountWallet>;
+
 export interface AccountApi {
+  wallet?(): Promise<AccountWallet>;
   settings(): Promise<AccountSettings>;
   knowledge(): Promise<KnowledgeCatalog>;
   detectedTelemetry(): Promise<{ providers: TelemetryProvider[] }>;
@@ -65,6 +74,9 @@ export class AccountClient implements AccountApi {
       if (operationKey) throw new UnknownWriteOutcome(operationKey);
       throw new Error("Account settings could not be read.");
     }
+  }
+  wallet() {
+    return this.request("/wallet", AccountWallet);
   }
   settings() {
     return this.request("", AccountSettings);

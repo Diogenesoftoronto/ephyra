@@ -24,6 +24,7 @@ async function verifyProof(proof: string, method: string, url: string, accessTok
 export function fakeNotOrganic(opts: {
   approved: boolean; product: string; did?: string;
   honorRequestedScopes?: boolean;
+  wallet?: Record<string, unknown>;
   knowledge?: (path: string, body: Record<string, unknown>, did: string) => Response;
 }) {
   const codes = new Map<string, { challenge: string; clientId: string; redirect: string; scope: string }>();
@@ -63,6 +64,7 @@ export function fakeNotOrganic(opts: {
     const a = access.get(auth);
     if (!a || (await verifyProof(headers.get("dpop")!, init?.method ?? "GET", input, auth)) !== a.jkt) return json({ error: { code: "unauthorized" } }, 401);
     if (url.pathname === "/v1/account") return json({ account: { did: a.did, handle: "approver.test" } });
+    if (url.pathname === "/v1/wallet" && opts.wallet) return json(opts.wallet);
     if (url.pathname.startsWith("/v1/knowledge/") && opts.knowledge) return opts.knowledge(url.pathname, body, a.did);
     if (url.pathname === "/v1/judgement") {
       const answers = Object.fromEntries(Object.keys(body.questions).map((k) => [k, { type: "noul", noul: 0.9 }]));
