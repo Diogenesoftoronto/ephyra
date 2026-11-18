@@ -1,0 +1,47 @@
+/* Evidence sources and machine checkpoint records as lists inside the quest's review section. */
+.rr { display: grid; gap: var(--s2); padding-top: var(--s2); min-width: 0; }
+.rr-bar { display: flex; justify-content: flex-end; }
+.rr-lead,
+.rr-inline,
+.rr-hit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  margin: 0;
+}
+.rr-lead,
+.rr-note,
+.rr-hit-meta { color: var(--muted); font-size: var(--fs-small); }
+.rr-note { margin: 0; }
+.rr-rows,
+.rr-hits { display: grid; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.rr-row { border-top: 1px solid var(--rule); min-width: 0; }
+.rr-row-head {
+  display: grid;
+  grid-template-columns: minmax(5rem, 9rem) 6.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  min-height: 44px;
+  padding: var(--s1) 0;
+}
+summary.rr-row-head { cursor: pointer; }
+summary.rr-row-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rr-name { font-weight: 650; overflow-wrap: anywhere; }
+.rr-row-head > .ui-badge { justify-self: start; }
+.rr-says { color: var(--muted); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.rr-hits { gap: var(--s3); padding: var(--s2) 0 var(--s3); }
+.rr-row .rr-hits { padding-inline-start: var(--s4); }
+.rr-hit { display: grid; gap: 2px; min-width: 0; }
+.rr-hit-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); margin: 0; overflow-wrap: anywhere; }
+.rr-source { min-width: 3.5rem; color: var(--muted); font-size: var(--fs-small); }
+.rr-score { margin-inline-start: auto; color: var(--muted); font-size: var(--fs-small); }
+.rr-snippet { margin: 0; color: var(--muted); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.rr-uri { overflow-wrap: anywhere; }
+.rr-answer { display: grid; gap: 2px; }
+.rr-answer p { margin: 0; }
+@container (max-width: 30rem) {
+  .rr-row-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .rr-says { grid-column: 1 / -1; }
+}
+.rr { container-type: inline-size; }

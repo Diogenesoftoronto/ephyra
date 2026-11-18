@@ -1,10 +1,12 @@
-import { InvestigationQuestion, type ProofBundle } from "@ephyra/core";
+import { InvestigationQuestion, isEvidenceSourcePath, type ProofBundle } from "@ephyra/core";
 import { Badge, Card, Hash } from "../kit.ts";
 import type { TrailDetail } from "../api.ts";
 import { ReadAloudButton } from "../voice/Voice.tsx";
 import { Referable } from "../velum/VelumProvider.tsx";
 import type { ReactNode } from "react";
 import { QuestionRecord } from "./InvestigationQuestions.tsx";
+import { CheckpointDocument, readsAsBrief } from "./CheckpointDocument.tsx";
+import { DecisionRecord, EvidenceCoverage, decisionHeadline, evidenceHeadline } from "./ReviewRecords.tsx";
 
 /** A quest document Velum can be referred to, bound to the revision under review. Unavailable documents are not referable. */
 function ArtefactFrame({ trail, path, available, children }: { trail?: { id: string; rev: number }; path: string; available: boolean; children: ReactNode }) {
@@ -36,19 +38,25 @@ export function ReviewEvidence({
   /** With the quest id and revision, each document can be referred to Velum at that revision. */
   trail?: { id: string; rev: number };
 }) {
+  const sources = (artefacts ?? []).filter((a) => isEvidenceSourcePath(a.path));
   return (
     <section className="stack" aria-label="Review evidence">
-      {(artefacts ?? []).map((a) => a.path === "questions/latest.json" ? <RecordedQuestion key={a.path} content={a.content} />
-        : a.path.startsWith("decisions/") || a.path === "evidence/index.json" ? (
+      {(artefacts ?? []).filter((a) => !isEvidenceSourcePath(a.path)).map((a) => a.path === "questions/latest.json"
+        ? <RecordedQuestion key={a.path} content={a.content} />
+        : a.path === "evidence/index.json" ? (
         <details key={a.path} className="review-proof-item">
-          <summary>
-            {a.path === "evidence/index.json" ? "Research source coverage"
-              : `Machine checkpoint ${a.path.match(/latest-([ABC])/)?.[1] ?? "decision"}`}
-          </summary>
-          <pre className="review-document">{a.content}</pre>
+          <summary>{a.content ? evidenceHeadline(a.content, sources) : "Research source coverage"}</summary>
+          {a.content ? <EvidenceCoverage index={a.content} records={sources} /> : <pre className="review-document">{a.content}</pre>}
+        </details>
+      ) : a.path.startsWith("decisions/") ? (
+        <details key={a.path} className="review-proof-item">
+          <summary>{decisionHeadline(a.path, a.content)}</summary>
+          {a.content ? <DecisionRecord content={a.content} /> : <pre className="review-document">{a.content}</pre>}
         </details>
       ) : (
         <ArtefactFrame key={a.path} trail={trail} path={a.path} available={a.content !== null}>
+        {a.content !== null && readsAsBrief(a.path) ? <CheckpointDocument path={a.path} content={a.content}
+          meta={<ReadAloudButton text={a.content} label={a.path} />} /> : (
         <Card tone="quiet" title={a.path} meta={a.content ? <ReadAloudButton text={a.content} label={a.path} /> : undefined}>
           {a.content === null ? (
             <p className="muted">
@@ -57,7 +65,7 @@ export function ReviewEvidence({
           ) : (
             <pre className="review-document">{a.content}</pre>
           )}
-        </Card>
+        </Card>)}
         </ArtefactFrame>
       ))}
       {proof && (
