@@ -18,7 +18,12 @@ export function AccountCredits({ api }: { api: AccountApi }) {
   return <section className="settings-subsection" aria-label="AI credits and paid plans">
     <h3>AI credits and paid plans</h3>
     <p>Confirm your email in Not Organic to unlock your one-time Ephyra welcome credit.</p>
-    {wallet ? <p>Available for Ephyra: <strong>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(wallet.availableMicros / 1_000_000)}</strong></p> : <p role="status">{status}</p>}
+    {wallet ? (
+      <p>
+        Available for Ephyra:{" "}
+        <strong>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(wallet.availableMicros / 1_000_000)}</strong>
+      </p>
+    ) : <p role="status">{status}</p>}
     {wallet?.welcomeCredit?.awaitingEmailConfirmation && <p>Welcome credit is waiting for email confirmation.</p>}
     {(wallet?.hostedInferenceBlocked || (wallet?.debtMicros ?? 0) > 0) && <p>AI use is paused while your account has an outstanding amount.</p>}
     <div className="account-actions"><button className="ui-button" type="button" onClick={() => setRevision(value => value + 1)}>Refresh credit</button><a className="ui-button" href="https://id.notorganic.info/">Manage Not Organic account</a></div>
