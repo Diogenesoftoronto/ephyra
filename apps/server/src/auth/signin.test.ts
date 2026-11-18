@@ -41,7 +41,9 @@ describe("sign in with Not Organic", () => {
     .find((cookie) => cookie.startsWith(`${sessionCookieName(ORIGIN)}=`))!;
 
   test("wallet reads use the signed-in account and never accept a browser-selected identity", async () => {
-    const fake = fakeNotOrganic({ approved: true, product: "ephyra", wallet: { availableMicros: 2500000, welcomeCredit: { awaitingEmailConfirmation: true } } });
+    const fake = fakeNotOrganic({
+      approved: true, product: "ephyra", wallet: { availableMicros: 2_500_000, welcomeCredit: { awaitingEmailConfirmation: true } },
+    });
     const { app, close } = await composeApplication(readConfig({
       EPHYRA_API_TOKEN: SERVICE, EPHYRA_DATA_DIR: `/tmp/ephyra-wallet-${crypto.randomUUID()}`,
       EPHYRA_PUBLIC_ORIGIN: ORIGIN, EPHYRA_SESSION_KEY: Buffer.alloc(32, 7).toString("base64"),
