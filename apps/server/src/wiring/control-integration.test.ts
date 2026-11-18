@@ -336,6 +336,25 @@ test("activating a higher risk policy reclassifies the exact diff and rejects th
   expect((await f.application.ctx.trails.get(t.id))!.state).toBe("proving");
 });
 
+test("the trail detail carries the per-source evidence records the index names, and nothing else it names", async () => {
+  const f = await runtime();
+  const port = httpPort(f.ctx, { append: async (input) => new MemoryAudit().append(input) });
+  const prefix = "evidence/research/0001/0123456789abcdef";
+  const record = (source: string, status: string) => JSON.stringify({ source, status, hits: [], omittedHits: 0, reason: "fixture" });
+  const manifest = JSON.stringify({ schema: 1, query: "q", configuredSources: 2, queriedSources: 2, omittedSources: 0,
+    records: [`${prefix}/source-00.json`, `${prefix}/source-01.json`, "trail.json", `${prefix}/source-09.json`, `${prefix}/index.json`] });
+  expect(await f.engine().attach(f.t.id, {
+    "evidence/index.json": manifest, [`${prefix}/index.json`]: manifest,
+    [`${prefix}/source-00.json`]: record("otel", "available"), [`${prefix}/source-01.json`]: record("git", "unavailable"),
+  })).toBe(true);
+  const artefacts = (await port.trail(f.t.id))!.artefacts!;
+  const sources = artefacts.filter((file) => file.path.startsWith("evidence/research/"));
+  // The listed record that is not in the journal is left out, and so is every path that is not a source record.
+  expect(sources.map((file) => file.path)).toEqual([`${prefix}/source-00.json`, `${prefix}/source-01.json`]);
+  expect(sources.map((file) => JSON.parse(file.content!).status)).toEqual(["available", "unavailable"]);
+  expect(artefacts.some((file) => file.path === "trail.json")).toBe(false);
+});
+
 test("each attempt's plan is in the journal while the agent is still working, and the trail detail lists plans and effects", async () => {
   const seen: string[][] = [];
   let plans: () => Promise<string[]> = async () => [];
