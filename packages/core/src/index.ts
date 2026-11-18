@@ -23,3 +23,5 @@ export * from "./connections.ts";
 export * from "./velum.ts";
 
 export * from "./telemetry-providers.ts";
+export * from "./brief.ts";
+export * from "./review-records.ts";

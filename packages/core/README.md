@@ -146,3 +146,21 @@ connections. `AccountSettings.telemetrySources` is optional and additive; the or
 PostHog contract is unchanged. Public connections contain no credentials. Update
 credentials are write-only and permit either an API key or Google service-account JSON.
 Schema and property tests verify parsing; provider access is outside core.
+
+### Checkpoint document briefs (core changes)
+
+`readBrief(markdown, path)` is a new, additive export (`brief.ts`). It reads an agent-written `hypothesis.md` or
+`plan.md` into labelled parts so the console, the CLI and the landing page show the same compact sheet instead of the
+raw file. It is pure and changes no existing shape. A property test verifies that every word of the document appears
+in the reading, in order; a part's `kind` is a guess from its label and is used for tone only. It does not judge
+whether a document is complete or correct, and it never adds text the document does not contain apart from a label for
+the unheaded opening part, which is marked `named: false`.
+
+### Review record readings (core changes)
+
+`readEvidenceIndex`, `readEvidenceSource`, `readDecisionRecord` and their helpers are new, additive exports
+(`review-records.ts`). They read the journal's `evidence/index.json`, the per-source records it names and
+`decisions/latest-<checkpoint>.json` into plain views for the console and the CLI. They change no existing shape and
+return null for text they do not recognize, so the caller shows the file. Tests verify that statuses, reasons and
+counts are the record's own, that fetched hit content is never carried into a view, and that no input makes a reader
+throw. The readers do not check that a record is authentic or complete; they only display what the journal holds.
