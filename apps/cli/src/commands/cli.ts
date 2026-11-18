@@ -12,6 +12,7 @@ import { doctor, handoffBrief, repoFacts } from "./doctor";
 import { complete } from "./completion";
 import { canPrompt, clackUi, loginPresentation, withCliSignal } from "./interactive";
 import { setupWizard } from "./setup-wizard";
+import { policyCommand } from "../policy/commands";
 import {
 	COMMANDS,
 	commandHelpView,
@@ -445,12 +446,15 @@ export async function main(args: string[]) {
 		if (!json) return paint(usageView(summary, cols));
 		result = summary;
 	} else if (cmd === "policy") {
-		const [active, docs] = await Promise.all([
-			c.policyActive(),
-			c.policyDocs(),
-		]);
-		if (!json) return paint(policyView(active, docs, cols));
-		result = { active, documents: docs };
+		return policyCommand(c, args, {
+			json,
+			cols,
+			paint,
+			emit,
+			usage: (message) => (message ? new UsageError(`${message}\n${usageError(help)}`) : usage()),
+			receipt: (active, docs) => policyView(active, docs, cols),
+			interactive: canPrompt(json),
+		});
 	} else if (cmd === "setup") {
 		const run = await c.setup();
 		if (!json) return paint(setupView(run, Math.min(cols, 110)));

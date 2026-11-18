@@ -24,6 +24,8 @@ export type AutonomyPolicy = {
   areas: Area[];
   fallback: Area;
   warnings: string[];
+  /** The text above the first `## ` heading (a title, an introduction), kept as written so a re-render does not lose it. */
+  preamble?: string;
 };
 export function parseAutonomy(md: string): AutonomyPolicy {
   const fallback: Area = {
@@ -49,9 +51,13 @@ export function parseAutonomy(md: string): AutonomyPolicy {
   };
   let section = "";
   let area: Area | undefined;
+  let headed = false;
+  let preamble = "";
   const lines = md.split(/(?<=\n)/);
   lines.forEach((raw, index) => {
     const line = raw.replace(/\r?\n$/, "");
+    if (!headed && !/^##\s/.test(line)) preamble += raw;
+    else headed = true;
     const heading = /^##\s+(defaults|area:\s*(.+))\s*$/.exec(line);
     if (heading) {
       section = heading[1]!.startsWith("area:") ? "area" : "defaults";
@@ -178,6 +184,7 @@ export function parseAutonomy(md: string): AutonomyPolicy {
       }
     }
   });
+  if (preamble.trim()) policy.preamble = preamble.endsWith("\n") ? preamble : `${preamble}\n`;
   return policy;
 }
 
@@ -186,7 +193,7 @@ export function renderAutonomy(policy: AutonomyPolicy): string {
   const checkpoints = (values: Partial<Record<Checkpoint, "advisory" | "blocking">>) =>
     (["A", "B", "C"] as const).filter((key) => values[key]).map((key) => `${key}=${values[key]}`).join(" ");
   const d = policy.defaults;
-  let result = `## defaults\nmode: ${d.mode}\ncheckpoints: ${checkpoints(d.checkpoints)}\n`;
+  let result = `${policy.preamble ?? ""}## defaults\nmode: ${d.mode}\ncheckpoints: ${checkpoints(d.checkpoints)}\n`;
   result += `landing: ${d.landing.join(", ")}\nwatch: ${d.watch}\ndecide: ${d.decide}\n`;
   for (const area of policy.areas) {
     result += `## area: ${area.name}\n`;

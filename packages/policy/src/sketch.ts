@@ -108,8 +108,10 @@ export function sketchesOf(policy: AutonomyPolicy): AreaSketch[] {
 
 /**
  * Apply an edited application map to a policy. The sketches are the complete set of mapped areas: a mapped area that is missing is
- * removed. An area that stays keeps what the map does not carry (its `ui` globs, `decide` backend and unmapped settings); areas whose
- * names the map cannot carry are left alone. Returns the new policy and plain-language notes on what changed meaning.
+ * removed. An area whose level did not change keeps its own settings exactly as written (mode, checkpoints, landing, watch), so
+ * changing one area never rewrites how another lands; only what the map edited (paths, risk, user-facing, intent, budget) is replaced.
+ * An area whose level changed is rewritten from the level table and keeps what the map does not carry (`ui` globs, `decide`).
+ * Areas whose names the map cannot carry are left alone. Returns the new policy and plain-language notes on what changed meaning.
  */
 export function applySketches(policy: AutonomyPolicy, sketches: AreaSketch[]): { policy: AutonomyPolicy; notes: string[] } {
   const notes: string[] = [];
@@ -118,9 +120,27 @@ export function applySketches(policy: AutonomyPolicy, sketches: AreaSketch[]): {
   for (const sketch of sketches) {
     if (names.has(sketch.name)) throw new Error(`area ${sketch.name} appears twice`);
     names.add(sketch.name);
-    notes.push(...sketchIssues(sketch).notes);
-    const made = sketchToArea(sketch, policy.defaults);
+    const issues = sketchIssues(sketch);
+    if (issues.errors.length) throw new Error(issues.errors.join("; "));
     const old = policy.areas.find((a) => a.name === sketch.name);
+    const was = old ? areaToSketch(old, policy.defaults) : undefined;
+    // Same level as written, and no new reason (a move to critical) to bring an auto-landing area down.
+    if (old && was && sketch.level === was.level && (sketch.risk === was.risk || effectiveLevel(sketch) === sketch.level)) {
+      const budget = sketch.studyBudgetUsd === was.studyBudgetUsd ? old.voxq_budget_usd
+        : sketch.studyBudgetUsd === undefined ? undefined : `${sketch.studyBudgetUsd}/month`;
+      const { voxq_budget_usd: _dropped, ...rest } = old;
+      next.push({
+        ...rest,
+        paths: sketch.paths.map((p) => p.trim()),
+        risk: sketch.risk,
+        user_facing: sketch.userFacing,
+        ...(budget !== undefined ? { voxq_budget_usd: budget } : {}),
+        prose: sketch.intent === was.intent ? old.prose : intentToProse(sketch.intent),
+      });
+      continue;
+    }
+    notes.push(...issues.notes);
+    const made = sketchToArea(sketch, policy.defaults);
     next.push(old ? { ...made, ui: old.ui, ...(old.decide !== undefined ? { decide: old.decide } : {}) } : made);
   }
   for (const old of policy.areas) {

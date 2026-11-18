@@ -17,6 +17,7 @@ Run `bun run src/main.ts` or install the workspace binary as `ephyra`. Sign in w
 - **`handoff`** prints a brief for a coding agent: the server, the remote (credentials removed), the branch, what `doctor` found and the documentation links. It never contains a token. `--copy` uses `pbcopy`, `wl-copy`, `xclip` or `xsel`.
 - **`docs [topic]`** prints the address of the page for a topic or command. `EPHYRA_DOCS_URL` points it at another copy of the docs. `apps/web/test/docs.test.ts` checks the topic list against the published pages.
 - **`decide`** reads the inbox first and sends the waiting item's `bound`, so a quest that moved on is refused as stale. With nothing waiting at that checkpoint it sends no bound and the server decides.
+- **`policy`** prints the autonomy policy as a map (`src/policy/board.ts`): one line per area with risk, a five-pip level and paths. `policy edit` drives the same map with keys and shows, for the selected area, the settings the parser really reads (which checkpoints wait for a person, landing, watch); `e` or `policy edit --raw` opens the document in `$VISUAL`/`$EDITOR`. `policy set|add|rm` change one area from flags. Every change is applied locally with `@ephyra/policy`'s `applySketches` for the preview and saved to a server draft; `diff`, `publish`, `activate` and `discard` are separate steps. A save or publish the server did not answer is reported as unknown, never as done.
 - Every `<quest>` argument accepts the short id (`T-1a2b`).
 - `--json` prints the raw API shape. `init --remote origin` creates shadow-mode templates and configures git refspecs; `--force` replaces templates. Comment and kill require `-m` text.
 
@@ -95,6 +96,7 @@ Run `bun run --filter @ephyra/cli textbook` for the Textbook Canvas on `http://1
 - **Offline tests:** fake-fetch client, reducer and property checks, and template/refspec idempotence in a temporary git repository.
 - **Commands (`test/help.test.ts`):** every entry in the help table is accepted by `main()`, and help needs no network. Against a fake API: each read command calls its route, a decision carries the inbox item's bound, short ids resolve, an answer carries its workspace, revoking an agent is a `DELETE`, 403 and 409 are explained, and a write with no answer is reported as unknown. `doctor` is checked for healthy, absent, degraded and unreachable servers and against a real temporary git repository. `handoff` and `repoFacts` never print a remote's password (property test). The views contain no control or bidi characters with hostile text.
 - **Real server:** `help`, `doctor`, `status`, `quests`, `usage`, `policy`, `setup` and `handoff` were run against a local `apps/server` in memory mode on 11 November 2026.
+- **Policy board (`test/policy.test.ts`, 17 November 2026):** the map lines, every board key, refusal of Auto-land on a critical area, and a property test that any run of keys leaves a document that parses without warnings in a frame of exactly the screen size. Against a fake API: `set`/`add`/`rm` continue one draft, `publish` and `activate` send the expected commit and digest, a 403 or 409 is said as a refusal, and an unanswered save is reported as unknown. The board was also driven in a 104×26 PTY against a local HTTP stand-in that renders the map with `@ephyra/policy`: move, change level and risk, edit in `$EDITOR`, save and publish reached it as one `POST /v1/drafts`, one `PUT …/content` and one `POST …/publish`.
 - **Snapshot:** 80×24 text.
 - **Property tests:** every screen line is exactly the terminal's width at sizes from 40×10 to 160×60, even with hostile text (bidi overrides, escape codes, wide and combining characters).
 - **Quest story:** derived from events. A proof for an older revision never shows as the current proof, and any state with any prefix of events lands on a valid stage.
@@ -106,6 +108,7 @@ Built on Bun 1.4.4, OpenTUI 0.5.17 and Textbook 0.2.0.
 
 ## Unverified
 
+- The policy commands have not been run against a real `apps/server`: drafts, publishing to a policy ref and activation were exercised only against fakes that mirror the routes.
 - Hosted wizard setup and real browser login/provider consent. Integration credentials still use the console; local discovery is bounded and may miss deeply nested or unsupported frameworks.
 - A real deployment with real quests: the terminal test used the example data.
 - The new inbox keys (`g`, `G`, `R`, `u`, `d`) in a real terminal: they are covered by the reducer and view tests only.

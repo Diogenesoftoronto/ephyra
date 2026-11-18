@@ -4,6 +4,11 @@
   justify-items: stretch;
   min-width: 0;
   max-width: 34rem;
+  container-type: inline-size;
+}
+/* Five labels in a phone-width row: tighten the type so "Research" and "Auto-land" stay whole instead of breaking mid-word. */
+@container (max-width: 23rem) {
+  .ladder-track span.opt { font-size: 0.7rem; letter-spacing: -0.015em; padding-inline: 0; }
 }
 .ladder .ui-seg {
   max-width: 100%;

@@ -40,7 +40,8 @@ cases.push({
     await p.getByRole("button", { name: "Save", exact: true }).click();
     await visible(p, "Saved");
     await p.getByRole("radio", { name: "Map", exact: true }).check();
-    const area = p.locator(".area-card").first();
+    const area = p.locator(".area-row").first();
+    await area.locator("button.area-row-head").click();
     const intent = area.getByLabel("What this part of the app is", { exact: true });
     await intent.fill(`${await intent.inputValue()} Browser-checked intent.`);
     assert.ok(await p.getByRole("button", { name: "Publish…", exact: true }).isDisabled());
@@ -54,10 +55,7 @@ cases.push({
     await form.getByLabel("Area name", { exact: true }).fill("billing-review");
     await form.getByRole("button", { name: "Apply to draft", exact: true }).click();
     await form.getByText("Applied to the draft", { exact: true }).waitFor();
-    await p
-      .locator(".area-card")
-      .filter({ has: p.getByRole("heading", { name: "billing-review", exact: true }) })
-      .waitFor();
+    await p.locator('.area-row[data-area="billing-review"]').waitFor();
     await p.getByLabel("Message Velum", { exact: true }).fill("Add an area for billing.");
     await p.getByRole("button", { name: "Send", exact: true }).click();
     const proposal = p.locator(".proposal").last();
@@ -76,6 +74,75 @@ cases.push({
     assert.ok(await p.getByLabel("Message Velum", { exact: true }).isDisabled());
   },
 });
+
+for (const width of [1280, 375])
+  cases.push({
+    name: `policy-board-${width}`,
+    width,
+    run: async (p) => {
+      // An open draft owns the document: the board is read-only and points at the draft.
+      await story(p, "screens-workspacepage--default");
+      await p.getByRole("button", { name: "Continue the draft", exact: true }).waitFor();
+      assert.equal(await p.getByRole("button", { name: "Add an area", exact: true }).count(), 0);
+      const readonly = p.locator(".area-row").first().locator("button.area-row-head");
+      await readonly.click();
+      assert.equal(await readonly.getAttribute("aria-expanded"), "true");
+      assert.equal(await p.locator(".area-detail textarea").count(), 0, "a locked board has no fields");
+      await noOverflow(p);
+
+      await story(p, "screens-workspacepage--editable");
+      await p.getByRole("button", { name: "Add an area", exact: true }).waitFor();
+      const rows = p.locator(".area-row");
+      const heads = p.locator("button.area-row-head");
+      assert.ok((await rows.count()) > 1, "the fixture has several areas");
+      for (const box of await heads.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height)))
+        assert.ok(box >= 44 && box <= (width > 700 ? 48 : 110), `row height ${box}`);
+      await p.getByRole("img", { name: /^Autonomy: .+, [1-5] of 5$/ }).first().waitFor();
+      await heads.nth(0).click();
+      await heads.nth(1).click();
+      assert.equal(await p.locator(".area-detail").count(), 1, "one row open at a time");
+      assert.equal(await heads.nth(0).getAttribute("aria-expanded"), "false");
+      const open = rows.nth(1);
+      const before = await open.getByRole("radio", { checked: true }).first().getAttribute("value");
+      const target = before === "watch" ? "research" : "watch";
+      await open.locator(`.ladder-track label:has(input[value="${target}"])`).click();
+      await open.getByText("changed", { exact: true }).waitFor();
+      const bar = p.getByRole("group", { name: "Unpublished edits", exact: true });
+      await bar.getByText("1 change", { exact: true }).waitFor();
+      assert.ok(await p.getByRole("radio", { name: "Raw", exact: true }).isDisabled(), "unsaved map edits block the switch");
+      await noOverflow(p);
+      await shot(p, `policy-board-${width}-editing`);
+      await bar.getByRole("button", { name: "Discard", exact: true }).click();
+      assert.equal(await bar.count(), 0);
+
+      await p.getByRole("radio", { name: "Raw", exact: true }).check();
+      const editor = p.locator(".editor-text");
+      assert.ok((await editor.inputValue()).includes("## area:"), "raw shows the published autonomy.md");
+      await p.getByText("No edits", { exact: true }).waitFor();
+      await editor.fill(`${await editor.inputValue()}\n<!-- raw edit -->\n`);
+      assert.ok(await p.getByRole("radio", { name: "Map", exact: true }).isDisabled(), "unsaved raw edits block the switch");
+      await p.getByRole("button", { name: "Revert", exact: true }).click();
+      await p.getByRole("radio", { name: "Map", exact: true }).check();
+
+      await heads.nth(1).click();
+      await rows.nth(1).locator(`.ladder-track label:has(input[value="${target}"])`).click();
+      await p.getByRole("button", { name: "Review and publish", exact: true }).click();
+      await p.waitForFunction(() => /^#\/workspace\/d-\d+$/.test(location.hash));
+
+      // Unknown outcome: the edits stay, nothing is called saved, and the draft is offered for checking.
+      await story(p, "screens-workspacepage--save-outcome-unknown");
+      await p.getByRole("button", { name: "Add an area", exact: true }).waitFor();
+      await heads.nth(0).click();
+      const first = rows.nth(0);
+      const was = await first.getByRole("radio", { checked: true }).first().getAttribute("value");
+      await first.locator(`.ladder-track label:has(input[value="${was === "watch" ? "research" : "watch"}"])`).click();
+      await p.getByRole("button", { name: "Review and publish", exact: true }).click();
+      await p.getByText("We could not confirm that change.", { exact: true }).waitFor();
+      await p.getByRole("link", { name: "Open the draft to check", exact: true }).waitFor();
+      await p.getByRole("group", { name: "Unpublished edits", exact: true }).getByText("1 change", { exact: true }).waitFor();
+      assert.equal(await p.evaluate(() => location.hash), "", "an unconfirmed save does not navigate");
+    },
+  });
 
 cases.push({
   name: "usage",

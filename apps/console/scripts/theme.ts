@@ -119,7 +119,7 @@ try {
           return {
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             toolbarLeft: repo.left, setupLeft: setup.left, headingLeft: heading.left,
-            cards: cards.map(el => ({ padding: getComputedStyle(el).padding, quiet: el.classList.contains("ui-card--quiet") && !el.classList.contains("area-card"), right: el.getBoundingClientRect().right })),
+            cards: cards.map(el => ({ padding: getComputedStyle(el).padding, quiet: el.classList.contains("ui-card--quiet"), right: el.getBoundingClientRect().right })),
           };
         });
         assert.equal(dimensions.overflow, 0, route + " fits the viewport");

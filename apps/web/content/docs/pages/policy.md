@@ -60,9 +60,36 @@ When policy changes, unfinished work it affects is invalidated, along with any a
 
 If a save or activation has an uncertain outcome, refresh and read its recorded status before repeating it. An operation key identifies the original action, so repeating it is safe once you have looked.
 
+## Editing policy in the terminal
+
+`ephyra policy` prints the same map, one line per area:
+
+```text
+    area          risk      autonomy         paths
+    site          low       ●●●●● Auto-land  site/**, apps/web/**
+    server        high      ●●●●○ Patch      apps/server/**
+    self-control  critical  ●●○○○ Research   autonomy.md +37
+```
+
+`ephyra policy edit` opens it as a board. Move with `j` and `k`, step an area down or up the ladder with `←` and `→` (or jump with `1` to `5`), cycle risk with `r`, edit paths with `p` and the description with `i`. Under the list, the selected area shows what its settings really are: which of A, B and C wait for a person, how it lands and how long it is watched. `s` saves to a draft and `P` publishes it. `e` opens the raw document in `$EDITOR` at any point, with your map edits already in it.
+
+From a script, change one area at a time:
+
+```sh
+ephyra policy set checkout --level propose
+ephyra policy add docs --paths 'docs/**' --risk low --level auto
+ephyra policy diff        # what the draft changes
+ephyra policy publish     # approvers only
+ephyra policy activate    # puts it into effect
+```
+
+Every one of these writes to the same draft the console uses, so you can start in one and finish in the other. Nothing is in effect until it is activated.
+
+Changing one area leaves the others exactly as they were written. An area whose level you move is rewritten from the level table below; an area you only re-describe, re-path or re-risk keeps its own landing, watch and checkpoint settings. The title and introduction above the first heading are kept; comments between sections are not.
+
 ## The file behind the map
 
-The map is a view of `autonomy.md`, which you can also edit directly, in the console or in your repository:
+The map is a view of `autonomy.md`, which you can also edit directly: in the console's Raw view, with `ephyra policy edit --raw`, or in your repository:
 
 ```md
 # Autonomy policy

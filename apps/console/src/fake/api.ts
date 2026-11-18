@@ -78,6 +78,8 @@ export type FakeOptions = {
   empty?: boolean;
   /** Seed an open autonomy.md draft that already holds a conversation with Velum. */
   seedConversation?: boolean;
+  /** When false, the seeded autonomy.md draft is already discarded, so the workspace has no open draft of the policy. */
+  autonomyDraftOpen?: boolean;
   /** Pause between live run events. Infinity holds the stream where it is (for stable screenshots). Default 1200. */
   streamIntervalMs?: number;
   questions?: InvestigationQuestion[];
@@ -798,6 +800,7 @@ export class FakeApi implements ConsoleApi {
       main.messages.push(this.velumReply(main, "Add an area for billing."));
       main.updatedAt = new Date(this.now - 36 * 60_000).toISOString();
     }
+    if (this.options.autonomyDraftOpen === false) main.status = "discarded";
     this.draftMap.set(main.id, main);
     const published = emptyDraft("d-2", thresholds, this.now, "did:web:sam.example");
     published.status = "published";

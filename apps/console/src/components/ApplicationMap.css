@@ -1,17 +1,26 @@
-/* `.map-grid` owns the grid itself; there is no shared grid utility, so the gap must live here. */
+/* The board is its own container: rows fold by the width they are given (a phone, or the narrow draft column). */
 .map {
   display: grid;
-  gap: var(--s5);
+  gap: var(--s3);
   justify-items: start;
   min-width: 0;
   width: 100%;
+  container: policy-board / inline-size;
 }
-.map-grid {
+.map-summary {
+  margin: 0;
+  font-size: var(--fs-small);
+}
+.map-rows {
   display: grid;
   width: 100%;
-  gap: var(--s4);
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  align-items: stretch;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.map-rows > * + * {
+  border-top: 1px solid var(--rule);
 }
 .map-add {
   display: flex;
@@ -19,3 +28,17 @@
   gap: var(--s2);
   align-items: end;
 }
+/* A row is short, so the Velum action sits inside it, clear of the chevron, instead of hanging over the row above. */
+.map-rows > .velum-ref > .velum-ref-action {
+  inset-block-start: 8px;
+  inset-inline-end: 2.5rem;
+}
+.map-rows > .velum-ref::after {
+  inset: 0;
+  border-radius: var(--radius-sm);
+}
+@media (pointer: coarse) {
+  .map-rows > .velum-ref > .velum-ref-action { inset-block-start: 0; }
+}
+/* Compared with the policy in effect, every row keeps room for its "changed" badge so the columns stay in line. */
+.map[data-compare] { --area-change-col: 5.25rem; }

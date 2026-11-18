@@ -47,7 +47,7 @@ export function sketchesFor(kind: PolicyDocKind, content: string): AreaSketch[] 
 export type RenderedSketches = { content: string; notes: string[] } | { error: string };
 /**
  * Renders an edited application map into the document: the sketches are the complete set of mapped areas, applied to the current text.
- * What the map does not carry (comments, text outside areas, the parser's fallback) is not kept, and the notes say so.
+ * The text above the first heading is kept. What else the map does not carry (comments, other text outside areas, the parser's fallback) is not, and the notes say so.
  */
 export function renderSketches(kind: PolicyDocKind, current: string, sketches: AreaSketch[]): RenderedSketches {
   if (kind !== "autonomy") return { error: "the application map only applies to the autonomy document" };
@@ -55,7 +55,7 @@ export function renderSketches(kind: PolicyDocKind, current: string, sketches: A
     const { policy, notes } = applySketches(parseAutonomy(current), sketches);
     const content = renderAutonomy(policy);
     const rewritten = current.trim() === content.trim() ? []
-      : ["the document was re-rendered from the application map; comments and text outside areas are not kept"];
+      : ["the document was re-rendered from the application map; the title and introduction are kept, comments and other text outside areas are not"];
     return { content, notes: [...notes, ...rewritten] };
   } catch (error) {
     return { error: String(error instanceof Error ? error.message : error).slice(0, 300) };

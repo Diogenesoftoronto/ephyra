@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
 import { AUTONOMY_LEVELS, AreaSketch, type AutonomyLevel } from "@ephyra/core";
 import {
-  AUTONOMY_TEMPLATE, applySketches, areaToSketch, parseAutonomy, renderAutonomy, sketchToArea, sketchesOf, sketchIssues, effectiveLevel, intentToProse,
+  AUTONOMY_TEMPLATE, applySketches, areaToSketch, parseAutonomy, renderAutonomy, sketchToArea, sketchesOf, sketchIssues, effectiveLevel, intentToProse, levelOf,
 } from "./index.ts";
 
 const defaults = parseAutonomy(AUTONOMY_TEMPLATE).defaults;
@@ -83,5 +83,49 @@ describe("application map", () => {
     const added = applySketches(policy, [...before, { name: "docs", intent: "Docs site.", paths: ["docs/**"], risk: "low", level: "auto", userFacing: true }]);
     expect(added.policy.areas.at(-1)).toMatchObject({ name: "docs", watch: "1h" });
     expect(() => applySketches(policy, [before[0]!, before[0]!])).toThrow("twice");
+  });
+
+  test("an area whose level did not change keeps its own settings; only the edited area is rewritten", () => {
+    const policy = parseAutonomy([
+      "## defaults", "mode: enforce", "checkpoints: A=advisory B=advisory C=advisory", "landing: trail_ref", "watch: 2h", "",
+      "## area: server", "paths: apps/server/**", "risk: high", "user_facing: true", "landing: pull_request", "watch: 6h", "A named human approves C.", "",
+      "## area: site", "paths: site/**", "risk: low", "user_facing: true", "landing: auto_land", "watch: 1h", "The public site.", "",
+    ].join("\n"));
+    const before = sketchesOf(policy);
+    const same = applySketches(policy, before);
+    expect(same.notes).toEqual([]);
+    expect(same.policy.areas).toEqual(policy.areas);
+    // Moving site down the ladder rewrites site and leaves server's pull_request landing and 6h watch alone.
+    const edited = before.map((s) => (s.name === "site" ? { ...s, level: "propose" as const } : s));
+    const { policy: next } = applySketches(policy, edited);
+    expect(next.areas[0]).toEqual(policy.areas[0]!);
+    expect(next.areas[1]).toMatchObject({ landing: ["trail_ref"], overrides: { A: "advisory", B: "blocking", C: "blocking" } });
+    // Editing risk, paths or intent at the same level keeps the settings and replaces only those fields.
+    const api = { risk: "medium" as const, paths: ["apps/api/**"], intent: "The API." };
+    const moved = applySketches(policy, before.map((s) => (s.name === "server" ? { ...s, ...api } : s)));
+    expect(moved.policy.areas[0]).toMatchObject({ risk: "medium", paths: ["apps/api/**"], prose: "The API.\n", landing: ["pull_request"], watch: "6h" });
+    // An auto-landing area that becomes critical is still brought down to Patch, and the note says so.
+    const critical = applySketches(policy, before.map((s) => (s.name === "site" ? { ...s, risk: "critical" as const } : s)));
+    expect(critical.notes[0]).toContain("never auto-land");
+    expect(levelOf(critical.policy.areas[1]!, critical.policy.defaults)).toBe("patch");
+  });
+
+  test("applySketches is the identity on any policy the map can read", () => {
+    fc.assert(fc.property(fc.uniqueArray(sketchArb, { selector: (s) => s.name, maxLength: 4 }), (list) => {
+      const policy = { ...parseAutonomy(""), defaults, areas: list.map((s) => sketchToArea(s, defaults)) };
+      expect(applySketches(policy, sketchesOf(policy)).policy.areas).toEqual(policy.areas);
+    }));
+  });
+
+  test("the title and introduction above the first heading survive a map edit", () => {
+    const text = "# Autonomy policy\n\nOur policy, in our words.\n\n## defaults\nmode: enforce\n\n"
+      + "## area: site\npaths: site/**\nrisk: low\nuser_facing: true\nThe site.\n";
+    const policy = parseAutonomy(text);
+    expect(policy.preamble).toBe("# Autonomy policy\n\nOur policy, in our words.\n\n");
+    const { policy: next } = applySketches(policy, sketchesOf(policy).map((s) => ({ ...s, level: "patch" as const })));
+    const rendered = renderAutonomy(next);
+    expect(rendered).toStartWith("# Autonomy policy\n\nOur policy, in our words.\n");
+    expect(parseAutonomy(rendered)).toEqual({ ...next, warnings: [] });
+    expect(parseAutonomy(renderAutonomy(parseAutonomy("## defaults\nmode: shadow\n"))).preamble).toBeUndefined();
   });
 });

@@ -113,7 +113,12 @@ These change a quest. They need a signed-in **approver**; a read-only account or
 | Command | What it does |
 |---|---|
 | `ephyra status` | Server health, store mode and release revision. |
-| `ephyra policy` | The policy in effect: the active receipt, and each document with its warnings. |
+| `ephyra policy` | The policy in effect as a map: one line per area with its risk, level and paths, then the active receipt and each document's warnings. |
+| `ephyra policy edit` | The same map as a board you drive with keys. `--raw` opens `autonomy.md` in `$EDITOR` instead. |
+| `ephyra policy set <area> [--level …] [--risk …] [--paths …] [--about …] [--user-facing\|--internal]` | Change one area from a script. `add <area>` and `rm <area>` do what they say. |
+| `ephyra policy raw [--draft]` | Print the document itself, ready to pipe into a file. |
+| `ephyra policy diff` | What the open draft changes, as a map and as text. |
+| `ephyra policy publish`, `activate`, `discard` | Publish the draft, put the publication into effect, or drop the draft. Approvers only. |
 | `ephyra agents` · `ephyra agents revoke <id>` | Coding agents you approved, and how to end one's access. |
 | `ephyra ops` | Worker ownership, dead jobs and effects that need reconciliation. |
 | `ephyra open [quest]` | Open the web console, at a quest if you name one. |
