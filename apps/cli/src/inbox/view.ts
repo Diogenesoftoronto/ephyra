@@ -2,12 +2,16 @@
 // snapshot tests and the landing page's walkthrough all render this one function's output.
 // Colour is state: mint is a signal (a bug, something waiting on you), amber is work that holds, cherry is an
 // undo or a failure. Everything agent- or human-written goes through text.ts before it reaches a line.
-import type {
-	InboxItem,
-	ProofBundle,
-	ProofItem,
-	Trail,
-	TrailEvent,
+import {
+	evidenceSourceSummary,
+	readBrief,
+	readEvidenceIndex,
+	readEvidenceSource,
+	type InboxItem,
+	type ProofBundle,
+	type ProofItem,
+	type Trail,
+	type TrailEvent,
 } from "@ephyra/core";
 import { docsBase } from "../docs";
 import {
@@ -20,6 +24,7 @@ import {
 } from "./reducer";
 import {
 	GATE_AT,
+	GATE_NAME,
 	MODE,
 	STAGES,
 	duration,
@@ -135,11 +140,7 @@ function box(
 
 function glyph(item: InboxItem): Seg {
 	if (item.kind === "checkpoint")
-		return g(
-			item.checkpoint ?? "?",
-			item.blocking ? "mint" : "muted",
-			item.blocking,
-		);
+		return g("◆", item.blocking ? "mint" : "muted", item.blocking);
 	if (item.kind === "spend") return g("$", "mint", true);
 	if (item.kind === "parked") return g("‖", "mint", true);
 	return g("!", "mint", true);
@@ -218,7 +219,9 @@ export function rail(
 	const gates: Line = [];
 	let col = 0;
 	for (const k of ["A", "B", "C"] as const) {
-		const at = GATE_AT[k] * 3;
+		// Each name sits under its stage on the rail, kept one column clear of the name before it.
+		const name = GATE_NAME[k];
+		const at = Math.max(col ? col + 1 : 0, GATE_AT[k] * 3 - Math.floor(name.length / 2));
 		gates.push(g(" ".repeat(at - col)));
 		const decided = story.decisions[k];
 		const tone: Tone =
@@ -229,8 +232,8 @@ export function rail(
 					: decided
 						? "cherry"
 						: "dim";
-		gates.push(g(k, tone, story.gate === k));
-		col = at + 1;
+		gates.push(g(name, tone, story.gate === k));
+		col = at + name.length;
 	}
 	return [top, gates, label];
 }
@@ -345,6 +348,58 @@ function fileBlock(
 	if (file.status === "error")
 		return [head, [g(`couldn't read it: ${oneLine(file.message)}`, "cherry")]];
 	return [head, ...markdown(file.text, w, name)];
+}
+
+/**
+ * A checkpoint document as a sheet of labelled parts: the cause, the evidence, the steps, the files. `raw` shows the
+ * file as it was written instead. `hint` names the key that switches between the two.
+ */
+function briefBlock(
+	name: string,
+	file: FileEntry | undefined,
+	w: number,
+	raw = false,
+	hint = false,
+): Line[] {
+	if (file?.status !== "ready") return fileBlock(name, file, w);
+	const brief = readBrief(file.text, name);
+	if (raw || !brief.parts.length) {
+		const [head, ...rest] = fileBlock(name, file, w);
+		const note = hint && brief.parts.length ? [g("  as written · f for the brief", "dim")] : [];
+		return [[...head!, ...note], ...rest];
+	}
+	const out: Line[] = [
+		[g(name, "strong", true), ...(hint ? [g("  f shows the file", "dim")] : [])],
+	];
+	const labels = brief.parts.map((p) => p.label.toLowerCase());
+	// On a narrow pane a label takes its own line, so the text keeps the width.
+	const lw = w < 56 ? 0 : Math.min(14, Math.max(...labels.map((l) => l.length)) + 2);
+	brief.parts.forEach((part, i) => {
+		const body: Line[] = [];
+		for (const b of part.blocks) {
+			if (b.type === "code") {
+				body.push(...b.text.split("\n").flatMap((l) => para(`  ${l}`, w - lw - (lw ? 0 : 2), "muted")));
+				continue;
+			}
+			const mark = b.type === "item" ? `${"  ".repeat(b.depth)}${b.marker} ` : "";
+			const lines = wrap(b.text.replace(/`/g, ""), w - (lw || 2) - mark.length);
+			lines.forEach((t, j) =>
+				body.push([...(mark ? [g(j ? " ".repeat(mark.length) : mark, "muted")] : []), g(t)]),
+			);
+		}
+		const label = labels[i]!;
+		if (!lw) {
+			out.push([g(label, "muted")], ...body.map((l) => [g("  "), ...l]));
+			return;
+		}
+		// A label wider than the gutter sits on its own line above its text.
+		const wide = label.length > lw - 1;
+		if (wide || !body.length) out.push([g(label, "muted")]);
+		body.forEach((l, j) =>
+			out.push([g(j || wide ? " ".repeat(lw) : label.padEnd(lw), "muted"), ...l]),
+		);
+	});
+	return out;
 }
 
 // ───── Proof ─────
@@ -513,15 +568,13 @@ function proofRows(bundle: ProofBundle, w: number): Line[] {
 function meta(item: InboxItem): Line {
 	const kind =
 		item.kind === "checkpoint"
-			? g(`checkpoint ${item.checkpoint}`, item.blocking ? "mint" : "strong", true)
+			? g("you decide", item.blocking ? "mint" : "strong", true)
 			: item.kind === "spend"
 				? g("spend", "mint", true)
 				: g(item.kind, "mint", true);
 	const what =
 		item.kind === "checkpoint"
-			? ({ A: "hypothesis", B: "plan", C: "proof" } as const)[
-					item.checkpoint ?? "A"
-				]
+			? `the ${GATE_NAME[item.checkpoint ?? "A"]}`
 			: undefined;
 	const parts = [
 		what,
@@ -644,6 +697,7 @@ function trailBody(
 	artefact: FileEntry | undefined,
 	summary: string,
 	w: number,
+	raw = false,
 ): Line[] {
 	const out: Line[] = [];
 	const t = story.triage;
@@ -651,7 +705,7 @@ function trailBody(
 	const landed = landingLines(story, trail, w);
 	if (ask === "trail" && story.landings.length) out.push(...landed, []);
 	if (ask === "checkpoint" && checkpoint === "A") {
-		out.push(...fileBlock("hypothesis.md", artefact, w), []);
+		out.push(...briefBlock("hypothesis.md", artefact, w, raw, true), []);
 	}
 	if (ask === "checkpoint" && checkpoint === "B") {
 		if (story.repro)
@@ -664,7 +718,7 @@ function trailBody(
 					w - 2,
 				).map((l, i) => [i ? g("  ") : ok(story.repro!.ok), ...l]),
 			);
-		out.push([], ...fileBlock("plan.md", artefact, w), []);
+		out.push([], ...briefBlock("plan.md", artefact, w, raw, true), []);
 	}
 	if (
 		(ask === "checkpoint" && checkpoint === "C") ||
@@ -752,8 +806,8 @@ function trailBody(
 		);
 		out.push(
 			...fact(
-				"evidence",
-				`${story.occurrences} signal${story.occurrences === 1 ? "" : "s"} · e explains`,
+				"signals",
+				`${story.occurrences} linked · e explains`,
 				w,
 			),
 			[],
@@ -813,6 +867,7 @@ function detailLines(
 			entry.artefact,
 			item.artefact.summary,
 			w,
+			state.raw,
 		),
 	);
 	out.push(
@@ -865,6 +920,49 @@ function evidenceLines(
 		}
 		return out;
 	}
+	const index = readEvidenceIndex(file.text);
+	if (index?.kind === "coverage") {
+		const sources = entry?.status === "ready" ? entry.sources : undefined;
+		out.push(
+			...para(
+				`${index.queried} of ${index.configured} configured sources queried`
+					+ (index.omitted ? ` · ${index.omitted} over the limit, not queried` : ""),
+				w,
+				"muted",
+			),
+			...fact("query", oneLine(index.query), w),
+			[],
+		);
+		if (!sources) return [...out, [g("loading the source records…", "muted")]];
+		for (const path of index.records) {
+			const record = sources[path];
+			const source = record?.status === "ready" ? readEvidenceSource(record.text) : null;
+			if (!source) {
+				// A record that could not be read is not a source with no matches. Say which it is.
+				const why = !record || record.status === "missing" ? "not in the journal"
+					: record.status === "error" ? `couldn't read it: ${oneLine(record.message)}` : "not in a form this pane can read";
+				out.push(...fact(tail(path, 14), `record ${why}`, w).map((l) => l.map((x, j) => (j ? { ...x, tone: "cherry" as Tone } : x))));
+				continue;
+			}
+			const tone: Tone = source.status === "unavailable" ? "cherry" : source.status === "available" ? "fg" : "muted";
+			const name = oneLine(source.source);
+			const lw = Math.max(8, Math.min(14, name.length)) + 1;
+			wrap(`${source.status} · ${oneLine(evidenceSourceSummary(source))}`, w - lw).forEach((t, i) =>
+				out.push([g(i ? " ".repeat(lw) : trunc(name, lw - 1).padEnd(lw), "strong", !i), g(t, tone)]),
+			);
+			for (const h of source.hits) {
+				const score = h.score === undefined ? "" : ` ${h.score.toFixed(2)}`;
+				out.push(spread([g(" ".repeat(lw)), g(oneLine(h.title))], [g(score, "muted")], w));
+				if (h.snippet)
+					for (const t of wrap(oneLine(h.snippet), w - lw).slice(0, 2)) out.push([g(" ".repeat(lw)), g(t, "muted")]);
+				if (h.status === "unavailable")
+					for (const t of wrap(`content not fetched${h.reason ? `: ${oneLine(h.reason)}` : ""}`, w - lw))
+						out.push([g(" ".repeat(lw)), g(t, "cherry")]);
+			}
+		}
+		if (index.limitation) out.push([], ...para(oneLine(index.limitation), w, "dim"));
+		return out;
+	}
 	let hits:
 		| {
 				source?: unknown;
@@ -905,7 +1003,7 @@ function evidenceLines(
 export const KEYS: [string, string][] = [
 	["j k", "move between items"],
 	["g G", "jump to the first or the last item"],
-	["a", "approve the checkpoint or the spend; at C, this lands it"],
+	["a", "approve the checkpoint or the spend; approving the landing lands it"],
 	["r", "send it back with a note"],
 	["x", "kill the quest, with a reason"],
 	["c", "comment; everyone on the quest sees it"],
@@ -915,6 +1013,7 @@ export const KEYS: [string, string][] = [
 	["o", "open the landing or the agent's thread"],
 	["l", "land a ready quest whose proof is approved"],
 	["e", "explain: the evidence behind it"],
+	["f", "show the hypothesis or the plan as the file was written, and back"],
 	["J K", "scroll this pane"],
 	["R", "refresh from the server now (it also refreshes every 30 s)"],
 	["d", "show the documentation page for what is selected"],
@@ -950,7 +1049,7 @@ function helpLines(w: number): Line[] {
 export const TIPS: readonly string[] = [
 	"Read before you approve: e opens the evidence a checkpoint rests on, and J/K scroll it. An approval says you read this revision.",
 	"Colour is state. Mint is waiting on you, amber is work that holds, cherry is a failure or an undo.",
-	"Approving checkpoint C is what lands the quest. l is only for a ready quest whose proof was approved earlier.",
+	"Approving the landing is what lands the quest. l is only for a ready quest whose proof was approved earlier.",
 	"A note with r goes to the agent, which works on it and comes back to the same checkpoint. x ends the quest for good.",
 	"Everything here is also a command: ephyra show, decide, runs, usage. Add --json to script it, or run ephyra help.",
 	"Nothing waiting does not mean nothing is happening. ephyra quests lists every quest; ephyra activity shows the agents at work.",
@@ -1000,6 +1099,7 @@ const HINTS: [string, string][] = [
 	["r", "revise"],
 	["l", "land"],
 	["e", "explain"],
+	["f", "file"],
 	["o", "open"],
 	["t", "take"],
 	["c", "comment"],
@@ -1031,7 +1131,9 @@ function hints(state: InboxState, w: number): Line {
 				? "approve and land"
 				: k === "p" && item?.state === "parked"
 					? "resume"
-					: label;
+					: k === "f" && state.raw
+						? "brief"
+						: label;
 		const cost = k.length + 1 + lab.length + 2;
 		if (used + cost > w - reserve) break;
 		const waiting = k === "a" && item?.blocking;
@@ -1216,7 +1318,7 @@ export function trailView(
 	]);
 	out.push([], ...railLines(rail(story), w), []);
 	if (files.hypothesis && files.hypothesis.status !== "missing")
-		out.push(...fileBlock("hypothesis.md", files.hypothesis, w), []);
+		out.push(...briefBlock("hypothesis.md", files.hypothesis, w), []);
 	if (story.repro && !story.proof)
 		out.push(
 			...fact(
@@ -1229,7 +1331,7 @@ export function trailView(
 			[],
 		);
 	if (files.plan && files.plan.status !== "missing")
-		out.push(...fileBlock("plan.md", files.plan, w), []);
+		out.push(...briefBlock("plan.md", files.plan, w), []);
 	out.push(...trailBody(story, trail, "trail", undefined, undefined, "", w));
 	out.push(...activityLines(story.activity, w, 8));
 	return out.map((l) => row(l, w));

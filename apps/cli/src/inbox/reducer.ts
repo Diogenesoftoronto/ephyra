@@ -22,6 +22,8 @@ export type DetailEntry =
 			artefact?: FileEntry;
 			/** evidence/index.json, loaded the first time `e` is pressed. */
 			evidence?: FileEntry;
+			/** The per-source records the evidence index names, by path, loaded after the index. */
+			sources?: Record<string, FileEntry>;
 	  };
 
 /** What the right-hand pane shows: the item, its evidence (`e`), or the keys (`?`). */
@@ -38,6 +40,8 @@ export type InboxState = {
 	pane?: Pane;
 	/** Lines the right-hand pane is scrolled down by. The view clamps it to the content. */
 	scroll?: number;
+	/** True shows a checkpoint's document as the file was written, instead of its labelled parts (`f`). */
+	raw?: boolean;
 	/** False hides the one-line tips under the panes (EPHYRA_TIPS=0). */
 	tips?: boolean;
 };
@@ -164,6 +168,8 @@ export function inboxReducer(
 				},
 			},
 		};
+	if (key === "f" && readsDocument(item))
+		return { state: { ...state, raw: !state.raw, pane: "detail", scroll: 0 } };
 	if (key === "e")
 		return {
 			state: {
@@ -192,6 +198,10 @@ export function inboxReducer(
 	return action ? { state, command: { action, item } } : { state };
 }
 
+/** A hypothesis or a plan is waiting: the detail pane shows a document, which `f` switches to the file as written. */
+const readsDocument = (item: InboxItem): boolean =>
+	item.kind === "checkpoint" && (item.checkpoint === "A" || item.checkpoint === "B");
+
 /** Which keys do something for this item right now. The hint bar dims the rest. */
 export function availableKeys(item: InboxItem | undefined): Set<string> {
 	const keys = new Set(["j", "k", "g", "G", "d", "R", "?", "q"]);
@@ -201,6 +211,7 @@ export function availableKeys(item: InboxItem | undefined): Set<string> {
 	keys.add(item.state === "handed_off" ? "u" : "t");
 	if (item.kind === "checkpoint" || item.kind === "spend") keys.add("a");
 	if (item.kind === "checkpoint") keys.add("r");
+	if (readsDocument(item)) keys.add("f");
 	// At checkpoint C, approving is what lands the trail; `l` is for a ready trail whose C is already approved.
 	if (item.state === "ready" && item.kind !== "checkpoint") keys.add("l");
 	if (item.landingUrl) keys.add("o");

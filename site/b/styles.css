@@ -269,7 +269,22 @@ kbd { display: inline-grid; place-items: center; min-width: 1.7em; padding: .05e
 .ring-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
 .ring-tabs button { font: inherit; font-size: .92rem; font-weight: 600; padding: .5em .95em; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
 .ring-tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.policy { margin: 0; padding: 1.1rem 1.2rem; border-radius: 14px; background: var(--screen); color: oklch(0.9 0.02 85); font-size: .84rem; line-height: 1.6; white-space: pre-wrap; min-height: 13.5rem; }
+.policy { margin: 0; padding: 1.1rem 1.2rem; border-radius: 14px; background: var(--screen); color: oklch(0.9 0.02 85); font-size: .9rem; line-height: 1.5; min-height: 13.5rem; display: grid; gap: .7rem; align-content: start; }
+.policy p { margin: 0; }
+.policy-level { display: flex; align-items: center; gap: .6rem; font-size: 1.05rem; }
+.policy .pips { display: inline-flex; gap: 3px; }
+.policy .pips i { width: .55rem; height: .55rem; border-radius: 50%; border: 1.5px solid oklch(0.7 0.03 80 / .7); box-sizing: border-box; }
+.policy .pips i.on { background: oklch(0.8 0.14 72); border-color: oklch(0.8 0.14 72); }
+.policy-who { display: grid; gap: .4rem; }
+.policy .stops { display: inline-flex; flex-wrap: wrap; align-items: center; }
+.policy .stop { display: inline-flex; align-items: center; gap: .35rem; color: oklch(0.7 0.03 80); white-space: nowrap; }
+.policy .stop::before { content: ""; width: .6rem; height: .6rem; border-radius: 50%; border: 1.5px solid currentColor; box-sizing: border-box; }
+.policy .stop + .stop::after { content: ""; order: -1; width: 1.1rem; height: 1.5px; margin: 0 .35rem; background: oklch(0.7 0.03 80 / .6); }
+.policy .stop.yours { color: oklch(0.96 0.02 85); }
+.policy .stop.yours::before { background: oklch(0.78 0.11 178); border-color: oklch(0.78 0.11 178); }
+.policy details { border-top: 1px solid oklch(1 0 0 / .1); padding-top: .5rem; }
+.policy summary { cursor: pointer; color: oklch(0.7 0.03 80); font-size: .84rem; }
+.policy pre { margin: .5rem 0 0; font-size: .84rem; line-height: 1.6; white-space: pre-wrap; }
 .policy .k { color: oklch(0.8 0.14 72); }
 .policy .c { color: oklch(0.7 0.03 80); }
 .rings-wrap { position: relative; }

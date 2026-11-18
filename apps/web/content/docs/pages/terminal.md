@@ -37,7 +37,8 @@ The bottom line lists only the keys that do something for the selected item. The
 | `p` | Park it, or resume it |
 | `l` | Land a ready quest whose proof is already approved |
 | `o` | Open the landing or the agent's thread in your browser |
-| `e` | Explain: the evidence behind the item. Press again to go back |
+| `e` | Explain: the evidence behind the item, one row per source with its status and hits. Press again to go back |
+| `f` | At checkpoints A and B, show the hypothesis or the plan as the file was written. Press again for the brief |
 | `J` `K` | Scroll the right pane |
 | `R` | Refresh from the server now |
 | `d` | Show the address of the documentation page for what is selected |
@@ -54,7 +55,7 @@ While you write a note, only `enter` (send) and `esc` (cancel) apply.
 
 **A decision is bound to what was on screen.** When you press `a`, the inbox sends the revision, commit and proof it was showing. If the quest changed underneath you, the server refuses it, the item returns to the list, and you get `Stale decision; refresh before retrying`.
 
-**Approving C lands the quest.** The hint reads `a approve and land` at checkpoint C for that reason. `l` is for the other case: a quest that is ready and whose proof was approved earlier.
+**Approving the landing lands the quest.** The screen names each checkpoint by what you decide there: the cause (A), the plan (B) and the landing (C). The hint reads `a approve and land` at the landing for that reason. `l` is for the other case: a quest that is ready and whose proof was approved earlier.
 
 **Read-only is a clear refusal.** If your account cannot approve here, the key tells you so (`Read-only here…`) instead of reporting an unknown outcome.
 

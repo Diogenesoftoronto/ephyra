@@ -1,9 +1,12 @@
 // A guided graphical presentation of the exact fixture used by the terminal walkthrough.
 // Every result comes from the exported trail/events. The buttons navigate the sample; they never call the server.
+import { briefHtml } from './brief.js?v=20261117-briefs';
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[c]);
 const code = (value) => `<code>${escape(value)}</code>`;
+// What a person decides at each checkpoint, in words. The letters stay in the journal and the policy file.
+const GATE_NAME = { A: 'Cause', B: 'Plan', C: 'Landing' };
 const pill = (text, tone = '') => `<span class="g-pill ${tone}">${escape(text)}</span>`;
 const action = (text, step, primary = false) =>
   `<button type="button" class="g-button${primary ? ' primary' : ''}" data-preview-go="${step}">${escape(text)}</button>`;
@@ -21,7 +24,7 @@ const documentBody = (text) => text.replace(/^# [^\n]+\n?/, '').trim().split(/\n
 
 function rail(id) {
   const selected = { triaged: 0, hypothesis: 1, explain: 1, revise: 1, plan: 2, proof: 3, watching: 4, set: 5, rollback: 4 }[id];
-  return `<ol class="g-rail" aria-label="Quest progress">${['Signal', 'A · Cause', 'B · Plan', 'C · Proof', 'Landed', 'Set'].map((label, i) =>
+  return `<ol class="g-rail" aria-label="Quest progress">${['Signal', 'Cause', 'Plan', 'Proof', 'Landed', 'Set'].map((label, i) =>
     `<li class="${i === selected ? 'current' : i < selected ? 'done' : ''}"><span>${i < selected ? '✓' : i === selected ? '●' : '○'}</span>${label}</li>`).join('')}</ol>`;
 }
 
@@ -73,7 +76,7 @@ function inspectActivity(events) {
   return heading('Activity', 'Every decision, in order.', pill(`${events.length} events`))
     + `<ol class="g-activity">${events.map((entry) => {
       const label = entry.type === 'checkpoint_decided'
-        ? `Checkpoint ${entry.data.checkpoint}: ${entry.data.decision.verdict}` : labels[entry.type] ?? entry.type.replaceAll('_', ' ');
+        ? `${GATE_NAME[entry.data.checkpoint] ?? 'Checkpoint'}: ${entry.data.decision.verdict}` : labels[entry.type] ?? entry.type.replaceAll('_', ' ');
       return `<li><time datetime="${escape(entry.at)}">${clock(entry.at)}</time><div><h5>${escape(label)}</h5><p>${escape(entry.actor.kind)} · ${escape(entry.actor.id)}</p>${entry.type === 'human_comment' ? `<blockquote>${escape(entry.data.text)}</blockquote>` : ''}
         <details><summary>Inspect event</summary><pre>${escape(JSON.stringify(entry.data, null, 2))}</pre></details></div></li>`;
     }).join('')}</ol>`;
@@ -152,7 +155,7 @@ function landing(events, settled) {
   const result = event(events, 'watch_completed');
   return heading(settled ? 'Watch complete' : 'Landing receipt', settled ? 'The fix has set.' : 'Landed. Now watching.', pill(settled ? 'Closed' : 'Watching', 'accepted'))
     + `<div class="g-receipt"><span class="g-receipt-icon" aria-hidden="true">✓</span><div><h5>${escape(receipt?.externalId ?? 'Landing')}</h5><p>${code(receipt?.target)}</p><p class="g-muted">Commit ${code(receipt?.newOid?.slice(0, 7))}</p></div></div>`
-    + `<ol class="g-watch"><li class="done"><span class="g-watch-dot"></span><div><b>Fix landed</b><p>${receipt ? clock(receipt.at) : ''} · approval recorded at C</p></div></li>
+    + `<ol class="g-watch"><li class="done"><span class="g-watch-dot"></span><div><b>Fix landed</b><p>${receipt ? clock(receipt.at) : ''} · landing approved</p></div></li>
       <li class="${settled ? 'done' : 'current'}"><span class="g-watch-dot"></span><div><b>${watch ? watch.windowS / 3600 : ''}-hour production watch</b><p>${escape(watch?.routes.join(', '))}</p></div></li>
       <li class="${settled ? 'done' : ''}"><span class="g-watch-dot"></span><div><b>${result ? `Watch ${escape(result.outcome)}` : 'Close after a clean watch'}</b><p>${settled ? 'The quest is closed. Its repro protects against regression.' : 'The quest stays open while production is being watched.'}</p></div></li></ol>`;
 }
@@ -166,7 +169,7 @@ export function renderConsole(id, data, { reader = false, tool = id === 'explain
   // A snapshot for another trail must never leak its local discussion into this one.
   if (room && room.trailId !== trail.id) room = null;
   const cp = { hypothesis: 'A', explain: 'A', revise: 'A', plan: 'B', proof: 'C' }[id];
-  const waiting = cp ? pill(`${cp} · Waiting on you`, 'waiting') : pill(id === 'rollback' ? 'Reopened' : trail.state, id === 'rollback' ? 'undo' : 'accepted');
+  const waiting = cp ? pill('Waiting on you', 'waiting') : pill(id === 'rollback' ? 'Reopened' : trail.state, id === 'rollback' ? 'undo' : 'accepted');
   let content = '', actions = '';
   if (id === 'triaged') {
     const triage = event(events, 'triage_completed')?.result;
@@ -177,23 +180,23 @@ export function renderConsole(id, data, { reader = false, tool = id === 'explain
       + `<p class="g-engine">Decision backend <code>${escape(triage.backends.decide)}</code></p>`;
     actions = action('Read the hypothesis →', 'hypothesis', true);
   } else if (id === 'hypothesis' || id === 'explain') {
-    content = heading('Checkpoint A', 'Is this the right cause?', pill('hypothesis.md'))
-      + `<div class="g-document">${documentBody(data.gui.hypothesis)}</div>`;
+    content = heading('You decide · the cause', 'Is this the right cause?', pill('hypothesis.md'))
+      + briefHtml(data.gui.hypothesis, 'hypothesis.md');
     actions = action('Approve hypothesis', 'plan', true) + action('See evidence', 'explain') + action('Ask for changes', 'revise');
   } else if (id === 'revise') {
-    content = heading('Checkpoint A', 'Send it back with a note.')
+    content = heading('You decide · the cause', 'Send it back with a note.')
       + `<blockquote class="g-excerpt">${words(data.gui.hypothesis.split('\n')[1])}</blockquote>`
       + `<div class="g-note"><label>Revision note<textarea rows="3" readonly>check the coupon path too</textarea></label><p>No code is written until someone approves the cause.</p></div>`;
     actions = action('Preview the plan →', 'plan', true) + action('Back to hypothesis', 'hypothesis');
   } else if (id === 'plan') {
     const repro = event(events, 'repro_completed');
-    content = heading('Checkpoint B', 'Reproduced. Here’s the plan.', pill('plan.md'))
+    content = heading('You decide · the plan', 'Reproduced. Here’s the plan.', pill('plan.md'))
       + `<div class="g-repro-note"><span class="g-bad">Fails on main</span>${code(repro?.probe)}</div>`
-      + `<div class="g-document">${documentBody(data.gui.plan)}</div>`;
+      + briefHtml(data.gui.plan, 'plan.md');
     actions = action('Approve plan', 'proof', true);
   } else if (id === 'proof') {
     const proof = event(events, 'proof_completed')?.bundle;
-    content = heading('Checkpoint C', 'Proof, before landing.', pill(`Revision ${trail.rev}`)) + proofRows(proof);
+    content = heading('You decide · the landing', 'Proof, before landing.', pill(`Revision ${trail.rev}`)) + proofRows(proof);
     actions = action('Approve and land', 'watching', true) + action('Review the plan', 'plan');
   } else if (id === 'watching' || id === 'set') {
     content = landing(events, id === 'set');

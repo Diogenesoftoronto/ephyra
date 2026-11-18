@@ -3,12 +3,12 @@
 exports[`80x24 rendering 1`] = `
 " ephyra · inbox                                          1 waiting · 1 blocking 
 ┌─ waiting ──────────────────┐ ┌─ T-123 ───────────────────────────────────────┐
-│▌T-123  A  cart       sev 2 │ │Crash                                          │
-│▌Crash                      │ │checkpoint A · hypothesis · blocking · risk low│
+│▌T-123  ◆  cart       sev 2 │ │Crash                                          │
+│▌Crash                      │ │you decide · the cause · blocking · risk low   │
 │                            │ │sev 2 · cart                                   │
 │                            │ │                                               │
 │                            │ │●──●──◉──○──○──○──○──○──○                      │
-│                            │ │      A     B     C                            │
+│                            │ │    cause plan landing                         │
 │                            │ │hypothesis · waiting on you                    │
 │                            │ │                                               │
 │                            │ │loading the quest…                             │
@@ -24,5 +24,5 @@ exports[`80x24 rendering 1`] = `
 │                            │ │                                               │
 └────────────────────────────┘ └───────────────────────────────────────────────┘
  tip e shows the evidence behind this hypothesis · r sends it back with a note  
- a approve  r revise  e explain  t take  c comment  p park  x kill  ? keys      "
+ a approve  r revise  e explain  f file  t take  c comment  p park  ? keys      "
 `;

@@ -26,6 +26,8 @@ export const STAGES = [
 ] as const;
 export type Stage = (typeof STAGES)[number];
 export const GATE_AT: Record<"A" | "B" | "C", number> = { A: 2, B: 4, C: 6 };
+/** What a person decides at each checkpoint. The screen says this; the letters stay in the journal and the policy file. */
+export const GATE_NAME: Record<"A" | "B" | "C", string> = { A: "cause", B: "plan", C: "landing" };
 
 /** Where each live state sits on the stages. Halted states are placed by how far their events got. */
 const AT: Partial<Record<Trail["state"], number>> = {
@@ -134,7 +136,7 @@ export function describe(e: TrailEvent): { text: string; tone: Mood } {
 			const d = e.data.decision;
 			const tail = `${d.shadow ? " (shadow)" : ""}${d.note ? `: ${d.note}` : ""}`;
 			return {
-				text: `${e.data.checkpoint} ${VERB[d.verdict]}${tail}`,
+				text: `${GATE_NAME[e.data.checkpoint]} ${VERB[d.verdict]}${tail}`,
 				tone: d.verdict === "approve" ? "ok" : "warn",
 			};
 		}

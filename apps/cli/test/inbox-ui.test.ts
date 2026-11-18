@@ -150,7 +150,8 @@ const loaded = (
 
 test("checkpoint A shows the hypothesis, the triage and the rail", () => {
 	const text = renderInbox(loaded(DEMO_ITEMS.A, "hypothesis"), 120, 40);
-	expect(text).toContain("checkpoint A");
+	expect(text).toContain("you decide · the cause · blocking");
+	expect(text).not.toMatch(/checkpoint [ABC]\b/);
 	expect(text).toContain("sumLineItems");
 	expect(text).toContain("judgement-jev/jev-1.14");
 	expect(text).toContain("waiting on you");
@@ -165,6 +166,33 @@ test("checkpoint B shows the repro and the plan; C shows the proof", () => {
 	expect(c).toContain("412 passed");
 	expect(c).toContain("6 regression");
 	expect(c).toContain("exported types unchanged");
+});
+
+test("a hypothesis and a plan are laid out as labelled parts, and f shows the file as written", () => {
+	const a = loaded(DEMO_ITEMS.A, "hypothesis");
+	const brief = renderInbox(a, 120, 40);
+	expect(brief).toContain("hypothesis.md  f shows the file");
+	expect(brief).toMatch(/cause +sumLineItems rounds each line/);
+	expect(brief).toMatch(/evidence +• 37 failures since 14:02/);
+	expect(brief).toMatch(/next +Reproduce with three lines/);
+	// The document's own headings became the labels, so they are not repeated as headings.
+	expect(brief).not.toMatch(/│Evidence +│/);
+	const raw = inboxReducer(a, "f").state;
+	expect(raw.raw).toBe(true);
+	const file = renderInbox(raw, 120, 40);
+	expect(file).toContain("hypothesis.md  as written · f for the brief");
+	expect(file).toMatch(/│Evidence +│/);
+	expect(file).not.toMatch(/cause +sumLineItems/);
+	expect(inboxReducer(raw, "f").state.raw).toBe(false);
+	const plan = renderInbox(loaded(DEMO_ITEMS.B, "plan"), 120, 40);
+	expect(plan).toMatch(/steps +1\. Keep line totals in integer micro-cents/);
+	expect(plan).toMatch(/touches +services\/checkout\/src\/total\.ts, total\.test\.ts/);
+	expect(plan).toMatch(/not touching +the payments adapter\./);
+	// At checkpoint C there is no document to switch, so f does nothing.
+	const c = loaded(DEMO_ITEMS.C, "proof");
+	expect(inboxReducer(c, "f").state).toBe(c);
+	// On a narrow screen each label takes its own line.
+	expect(renderInbox(a, 44, 40)).toMatch(/│cause +│\n│  sumLineItems rounds/);
 });
 
 test("e explains with the evidence index; ? lists the keys", () => {
@@ -264,7 +292,7 @@ test("quest and quests views", () => {
 
 // ───── The app, end to end, against a fake API ─────
 
-function fakeApi(opts: { fail?: boolean } = {}) {
+function fakeApi(opts: { fail?: boolean; files?: Record<string, string> } = {}) {
 	const calls: string[] = [];
 	const fetcher = (async (url: string | URL, init?: RequestInit) => {
 		const u = new URL(String(url));
@@ -273,7 +301,7 @@ function fakeApi(opts: { fail?: boolean } = {}) {
 		if (u.pathname === "/v1/inbox")
 			return Response.json([DEMO_ITEMS.A, ...DEMO_OTHERS]);
 		if (u.pathname.endsWith("/file")) {
-			const text = DEMO_FILES[u.searchParams.get("path") ?? ""];
+			const text = { ...DEMO_FILES, ...opts.files }[u.searchParams.get("path") ?? ""];
 			return text ? new Response(text) : new Response(null, { status: 404 });
 		}
 		if (u.pathname.startsWith("/v1/trails/")) {
@@ -324,6 +352,41 @@ test("loadDetail fetches the quest, then the checkpoint's file, once per revisio
 	expect(renderInbox(state, 120, 40)).toContain(
 		"TotalMismatch in sumLineItems",
 	);
+});
+
+test("e lists each source the server's evidence index names, with what its record says", async () => {
+	const prefix = "evidence/research/0001/0123456789abcdef";
+	const record = (source: string, status: string, more: object = {}) =>
+		JSON.stringify({ source, status, hits: [], omittedHits: 0, ...more });
+	const hit = { status: "available", reference: { source: "otel", id: "e1", revision: null, uri: null },
+		title: "TotalMismatch in sumLineItems", snippet: "charged 4199 ≠ cart 4198", score: 0.97 };
+	const { client, calls } = fakeApi({ files: {
+		"evidence/index.json": JSON.stringify({ query: "TotalMismatch", configuredSources: 4, queriedSources: 3, omittedSources: 0,
+			records: [0, 1, 2, 3].map((i) => `${prefix}/source-0${i}.json`), limitation: "Available means readable evidence." }),
+		[`${prefix}/source-00.json`]: record("otel", "partial", { omittedHits: 2,
+			hits: [hit, { ...hit, title: "Slow span", status: "unavailable", reason: "unsupported content" }] }),
+		[`${prefix}/source-01.json`]: record("entire", "unavailable", { reason: "The evidence source did not finish within its read deadline." }),
+		[`${prefix}/source-02.json`]: "{}",
+	} });
+	let state: InboxState = { items: await client.inbox(), selected: 0 };
+	const load = () => loadDetail(client, () => state, (s) => (state = s));
+	await load();
+	state = inboxReducer(state, "e").state;
+	await load();
+	const text = renderInbox(state, 130, 44);
+	expect(text).toContain("3 of 4 configured sources queried");
+	expect(text).toMatch(/otel +partial · 2 hits · 1 could not be fetched · 2 more not recorded/);
+	expect(text).toMatch(/TotalMismatch in sumLineItems +0\.97/);
+	expect(text).toContain("content not fetched: unsupported content");
+	expect(text).toMatch(/entire +unavailable · The evidence source did not finish within its read/);
+	// A record that can't be read, or isn't there, is reported as that, not as a source with no matches.
+	expect(text).toMatch(/source-02\.json +record not in a form this pane can read/);
+	expect(text).toMatch(/source-03\.json +record not in the journal/);
+	expect(text).not.toContain("No matches");
+	expect(text).not.toContain("configuredSources");
+	const before = calls.length;
+	await load();
+	expect(calls.length).toBe(before); // the index and its records are fetched once
 });
 
 test("a failing API shows an error in the pane, never a response body", async () => {

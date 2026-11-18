@@ -434,12 +434,29 @@ paths: apps/site/**
 risk: low
 voxq_budget_usd: 60/month   # signed by a named human
 Loose edge. Auto-land to main with a 1h watch. Roll back on any new error fingerprint. Copy changes carry a persona study; ask real people only about the signup path.`];
+  // Each area as a readout: how far the loop goes and where a person decides, with the file it comes from underneath.
+  // `level` counts the five levels (watch, research, propose, patch, auto-land); `yours` marks the checkpoints the
+  // file gives to a person. Both restate the file's own sentences.
+  const readouts = [
+    { name: "Patch", level: 4, yours: [0, 0, 1], says: "You approve the landing, by name. Every patch brings a traffic-replay proof." },
+    { name: "Patch", level: 4, yours: [0, 0, 1],
+      says: "You approve the landing, unless the change is under 40 lines, touches no exported types and the regression probes pass." },
+    { name: "Auto-land", level: 5, yours: [0, 0, 0], says: "Nobody approves. It lands on its own and is watched for 1h." },
+  ];
+  const readout = (i) => {
+    const r = readouts[i];
+    const pips = Array.from({ length: 5 }, (_, n) => `<i${n < r.level ? ' class="on"' : ""}></i>`).join("");
+    const stops = ["cause", "plan", "landing"].map((s, n) => `<span class="stop${r.yours[n] ? " yours" : ""}">${s}</span>`).join("");
+    return `<p class="policy-level"><span class="pips" aria-hidden="true">${pips}</span><b>${r.name}</b></p>`
+      + `<p class="policy-who"><span class="stops" aria-hidden="true">${stops}</span><span>${esc(r.says)}</span></p>`
+      + `<details><summary>The file</summary><pre class="code">${hl(policies[i])}</pre></details>`;
+  };
   let active = 0;
   const select = (i, focus) => {
     active = i;
     tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
     panel.setAttribute("aria-labelledby", tabs[i].id);
-    panel.innerHTML = hl(policies[i]);
+    panel.innerHTML = readout(i);
     paths.forEach((p, k) => p.classList.toggle("active", k === i));
     bump[i].a.v += 90; bump[i].ang = -Math.PI / 2;
     if (focus) tabs[i].focus();

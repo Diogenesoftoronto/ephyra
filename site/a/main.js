@@ -195,8 +195,8 @@ class Spring {
   const captions = [
     'A production error arrives as a signal.',
     'Two more signals share the root cause. They merge into one.',
-    'The trail gathers evidence and travels: hypothesis at A, plan at B.',
-    'Proof passes at C. The wobble decays. It sets, and goes on watch.',
+    'The trail gathers evidence and travels: a person approves the cause, then the plan.',
+    'Proof passes and a person approves the landing. The wobble decays. It sets, and goes on watch.',
   ];
   // springs
   const spDrop = drops.map(() => new Spring(0, 'wobbly'));
