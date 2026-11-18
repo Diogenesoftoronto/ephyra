@@ -225,6 +225,16 @@ workflow decisions until that owner releases it; other approvers can still comme
 stop or start agent processes. Active-agent takeover, online presence and collaborative editing are
 not implemented. A failed proof ends a held review before ordinary repair work resumes.
 
+`hypothesis.md` and `plan.md` render through `CheckpointDocument`: a Brief of labelled parts read by `readBrief`
+(`@ephyra/core`), with a File switch for the Markdown as written. Other documents and an empty document stay as
+their file. Component tests cover order, escaping and the long-part fold; the Brief/File switch was checked once in the
+walkthrough build at 1440 and 390 px and is not covered by a checked-in browser script.
+
+`evidence/index.json` and `decisions/latest-*.json` render through `ReviewRecords.tsx`: sources with their status
+and hits, and the machine checkpoint's outcome and answers, each with a File view. Component tests cover the
+statuses, the not-loaded case and escaping. The List/File switch was clicked once in a dev build at 1000 and 390 px;
+no checked-in browser script covers it, and it has not been viewed against a live server's records.
+
 Comments, claims and releases carry durable operation keys. If a reply is lost, **Check delivery**
 reads the journal receipt. A recorded change is confirmed without another write. If no receipt is
 found, **Retry saved change** explicitly resends the same saved intent and key. The console never
