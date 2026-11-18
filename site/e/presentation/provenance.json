@@ -5,63 +5,63 @@
   "data": "Fictional sample accounts, runs and proof. Not a production repair.",
   "screens": {
     "overview": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=overview",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=overview",
       "viewport": [
         1440,
         850
       ]
     },
     "onboarding": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=onboarding",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=onboarding",
       "viewport": [
         1440,
         850
       ]
     },
     "runs": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=runs",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=runs",
       "viewport": [
         1440,
         850
       ]
     },
     "workspace": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=workspace",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=workspace",
       "viewport": [
         1440,
         850
       ]
     },
     "personas": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=personas",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=personas",
       "viewport": [
         1440,
         850
       ]
     },
     "team": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=team",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=team",
       "viewport": [
         1440,
         850
       ]
     },
     "proof": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=proof",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=proof",
       "viewport": [
         1440,
         850
       ]
     },
     "onboarding-mobile": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=onboarding",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=onboarding",
       "viewport": [
         390,
         844
       ]
     },
     "team-mobile": {
-      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261108-quests&scene=team",
+      "url": "https://ephyra.quest/e/app/walkthrough.html?v=20261117-briefs&scene=team",
       "viewport": [
         390,
         844

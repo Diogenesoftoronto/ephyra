@@ -233,9 +233,9 @@ describe("static site", () => {
     expect(html).not.toContain('data-console-app=');
     expect(html).not.toContain("attacker.test");
     expect(html).not.toContain("private=discard");
-    expect(html).toContain('src="tour.js?v=20261108-quests"');
-    expect(html).toContain('href="tour.css?v=20261108-quests"');
-    expect(html).toContain('href="product-tour.css?v=20261108-quests"');
+    expect(html).toContain('src="tour.js?v=20261117-briefs"');
+    expect(html).toContain('href="tour.css?v=20261117-briefs"');
+    expect(html).toContain('href="product-tour.css?v=20261117-briefs"');
     expect(response.headers.get("cache-control")).toBe("no-cache");
     const secondary = await get(h, "/a/");
     expect(secondary.headers.get("cache-control")).toBe("no-cache");

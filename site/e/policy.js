@@ -74,33 +74,40 @@ export function lineHtml(line, fresh) {
   return fresh ? `<span class="md-new">${html}</span>` : html;
 }
 
+/** The board's markup for a policy, complete as written: it reads correctly before any script runs and without one. */
 function boardHtml(policy) {
   const rows = policy.areas.map((area, i) => {
-    const steps = LEVELS.map((l) =>
-      `<label class="pb-step"><input type="radio" name="pb-level-${esc(area.name)}" value="${l.id}"${l.id === area.level ? " checked" : ""}><span>${l.label}</span></label>`).join("");
-    const stops = GATES.map((g) => `<span class="pb-stop" data-gate="${g}">${STOPS[g][0].toUpperCase()}${STOPS[g].slice(1)}</span>`).join("");
+    const at = LEVELS.findIndex((l) => l.id === area.level), level = LEVELS[at];
+    const steps = LEVELS.map((l, n) =>
+      `<label class="pb-step${n < at ? " below" : ""}"><input type="radio" name="pb-level-${esc(area.name)}" value="${l.id}"${n === at ? " checked" : ""}><span>${l.label}</span></label>`).join("");
+    const stops = GATES.map((g) =>
+      `<span class="pb-stop${level.checkpoints[g] === "blocking" ? " yours" : ""}" data-gate="${g}">${STOPS[g][0].toUpperCase()}${STOPS[g].slice(1)}</span>`).join("");
+    const pips = LEVELS.map((_, n) => `<i${n <= at ? ' class="on"' : ""}></i>`).join("");
     return `<div class="pb-area" data-area="${esc(area.name)}">
       <button type="button" class="pb-row" aria-expanded="${i === 0}" aria-controls="pb-detail-${esc(area.name)}">
         <span class="pb-name">${esc(area.name)}</span>
         <span class="pb-risk">${esc(area.risk)} risk</span>
-        <span class="pb-level"><span class="pb-pips" aria-hidden="true">${"<i></i>".repeat(LEVELS.length)}</span><span class="pb-level-name"></span></span>
+        <span class="pb-level"><span class="pb-pips" aria-hidden="true">${pips}</span><span class="pb-level-name">${esc(level.label)}</span></span>
         <span class="pb-paths">${esc(area.paths.join(", "))}</span>
       </button>
       <div class="pb-detail" id="pb-detail-${esc(area.name)}"${i === 0 ? "" : " hidden"}>
         <fieldset class="pb-ladder"><legend>How far Ephyra goes in ${esc(area.name)}</legend><div class="pb-steps">${steps}</div></fieldset>
-        <p class="pb-means" aria-live="polite"></p>
-        <p class="pb-who"><span class="pb-stops" aria-hidden="true">${stops}</span><span class="pb-you" aria-live="polite"></span></p>
+        <p class="pb-means" aria-live="polite">${esc(level.means)}</p>
+        <p class="pb-who"><span class="pb-stops" aria-hidden="true">${stops}</span><span class="pb-you" aria-live="polite">${esc(approves(level, AUTO_WATCH[area.risk]))}</span></p>
       </div>
     </div>`;
   }).join("");
   return rows;
 }
 
+/** The sample board as it ships inside index.html. apps/web/test/policy-board.test.js holds the page to this. */
+export const staticBoard = () => `<div class="pb-map">${boardHtml(SAMPLE)}</div>`;
+
 /** What each view is, in a line. The page shows one policy three ways: the app, the terminal and the file they both write. */
 export const VIEWS = [
   { id: "map", label: "App", note: "The Workspace page in the app. Pick a level; your changes go through a draft you publish." },
   { id: "term", label: "Terminal", note: "The same board in your terminal. `ephyra policy edit` drives it with keys; `set` changes one area from a script." },
-  { id: "raw", label: "File", note: "The file both of them write. Edit it by hand whenever you would rather." },
+  { id: "raw", label: "File", note: "The file both of them write. Edit it by hand whenever you would rather. In it, A is the cause, B the plan and C the landing." },
 ];
 
 /**
@@ -140,10 +147,14 @@ function mount(figure) {
   const policy = structuredClone(SAMPLE);
   let lastLines = renderPolicy(policy).split("\n");
 
-  const map = document.createElement("div");
+  // The page ships the board and keeps the file in a disclosure, so both read without a script. Here the file moves
+  // out of the disclosure and becomes one of the three views.
+  const disclosure = pre.closest("details");
+  if (disclosure) disclosure.replaceWith(pre);
+  const map = figure.querySelector(".pb-map") ?? document.createElement("div");
   map.className = "pb-map";
   map.innerHTML = boardHtml(policy);
-  figure.insertBefore(map, pre);
+  if (!map.parentNode) figure.insertBefore(map, pre);
   const term = document.createElement("div");
   term.className = "pb-term";
   term.setAttribute("role", "img");

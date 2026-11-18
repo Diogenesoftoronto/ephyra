@@ -1,3 +1,4 @@
+import { readEvidenceIndex } from "@ephyra/core";
 import { ApiError, Client } from "../client";
 import {
 	detailKey,
@@ -132,8 +133,24 @@ export async function loadDetail(
 	}
 	const now = get();
 	const entry = now.details?.[key];
-	if (now.pane === "evidence" && entry?.status === "ready" && !entry.evidence)
+	if (now.pane === "evidence" && entry?.status === "ready" && !entry.evidence) {
 		await fetchFile("evidence", item.evidenceIndex ?? "evidence/index.json");
+		// The server's index only names each source's record. Read the ones it names, so the pane can list what each
+		// source returned. A record that can't be read is shown as such, never as an empty source.
+		const loaded = get().details?.[key];
+		const index = loaded?.status === "ready" && loaded.evidence?.status === "ready" ? readEvidenceIndex(loaded.evidence.text) : null;
+		if (index?.kind !== "coverage") return;
+		const sources: Record<string, FileEntry> = {};
+		await Promise.all(index.records.slice(0, 8).map(async (path) => {
+			try {
+				const text = await client.file(item.trailId, path);
+				sources[path] = text === null ? { status: "missing" } : { status: "ready", text };
+			} catch (error) {
+				sources[path] = { status: "error", message: say(error) };
+			}
+		}));
+		put((e) => (e?.status === "ready" ? { ...e, sources } : e));
+	}
 }
 
 /** Forget details for items that left the inbox, so a long session doesn't grow without bound. */

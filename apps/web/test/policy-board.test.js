@@ -3,7 +3,7 @@
 // LEVEL_SETTINGS, AUTO_WATCH and renderAutonomy when written. If packages/policy changes the table, change both.
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { AUTO_WATCH, LEVELS, SAMPLE, VIEWS, approves, areaLines, lineHtml, renderPolicy, terminalLines } from "../../../site/e/policy.js";
+import { AUTO_WATCH, LEVELS, SAMPLE, VIEWS, approves, areaLines, lineHtml, renderPolicy, staticBoard, terminalLines } from "../../../site/e/policy.js";
 
 const html = await Bun.file(join(import.meta.dir, "../../../site/e/index.html")).text();
 const unescape = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -69,4 +69,20 @@ test("the terminal view prints the policy in the CLI's layout and names the comm
   expect(after).toStartWith("$ ephyra policy set docs --level patch\n");
   expect(after).toContain("  ~ docs      low       ●●●●○ Patch      docs/**, **/*.md");
   expect(after).toContain("  docs  ○ cause ── ○ plan ── ● landing\n  You approve the landing.");
+});
+
+test("the page ships the board itself, so it reads without a script and the file never shows first", () => {
+  // Regenerate the markup in index.html from staticBoard() after changing the sample policy or the board's markup.
+  expect(html).toContain(staticBoard());
+  const board = html.indexOf('<div class="pb-map">'), file = html.indexOf('<details class="pb-raw">');
+  expect(board).toBeGreaterThan(0);
+  expect(file).toBeGreaterThan(board);
+  expect(html.slice(file, html.indexOf("</details>", file))).toContain("## area: checkout");
+  // The shipped board states who decides in words, with nothing left for a script to fill in.
+  expect(staticBoard()).toContain('<span class="pb-level-name">Research</span>');
+  expect(staticBoard()).toContain("You approve the cause, the plan and the landing.");
+  expect(staticBoard()).not.toMatch(/<span class="pb-(level-name|you)"[^>]*><\/span>/);
+  // Checkpoints are named by what is decided. The letters appear only in the file's own syntax.
+  expect(html).not.toContain('class="gates"');
+  expect(html).not.toMatch(/checkpoint [ABC]\b/);
 });

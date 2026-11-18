@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="styles.css?v=20261108-quests">
-<link rel="stylesheet" href="tour.css?v=20261108-quests">
-<link rel="stylesheet" href="console.css?v=20261108-quests">
-<link rel="stylesheet" href="product-tour.css?v=20261108-quests">
-  <link rel="stylesheet" href="jellyware.css?v=20261108-quests">
+<link rel="stylesheet" href="styles.css?v=20261117-briefs">
+<link rel="stylesheet" href="tour.css?v=20261117-briefs">
+<link rel="stylesheet" href="console.css?v=20261117-briefs">
+<link rel="stylesheet" href="product-tour.css?v=20261117-briefs">
+  <link rel="stylesheet" href="jellyware.css?v=20261117-briefs">
 <link rel="preload" as="image" href="img/medusa.webp" type="image/webp">
 <link rel="preload" as="image" href="img/polyp.webp" type="image/webp">
 <link rel="preload" as="image" href="img/cyst.webp" type="image/webp">
@@ -139,9 +139,9 @@
       </li>
       <li class="step" data-step="hypothesis" data-gate="A">
         <span class="bead" aria-hidden="true" data-gate="A"></span>
-        <p class="step-n"><b>02</b> checkpoint A</p>
+        <p class="step-n"><b>02</b> you decide · the cause</p>
         <h3>Is this the right cause?</h3>
-        <p>The agent writes down what it thinks is wrong, and why. You read a page, not a diff. In checkout, policy says a person agrees before any code is written: press <kbd>a</kbd>.</p>
+        <p>The agent writes down what it thinks is wrong, and why. You read it as a short brief: the cause, the evidence and what comes next. <kbd>f</kbd> shows the file it wrote. In checkout, policy says a person agrees before any code is written: press <kbd>a</kbd>.</p>
       </li>
       <li class="step" data-step="explain">
         <span class="bead" aria-hidden="true"></span>
@@ -151,19 +151,19 @@
       </li>
       <li class="step" data-step="revise">
         <span class="bead" aria-hidden="true"></span>
-        <p class="step-n"><b>04</b> checkpoint A</p>
+        <p class="step-n"><b>04</b> you decide · the cause</p>
         <h3>Or push back</h3>
         <p>Press <kbd>r</kbd> and write a note. The agent gets it with the quest and tries again. Here, nothing is built until someone approves.</p>
       </li>
       <li class="step" data-step="plan" data-gate="B">
         <span class="bead" aria-hidden="true" data-gate="B"></span>
-        <p class="step-n"><b>05</b> checkpoint B</p>
+        <p class="step-n"><b>05</b> you decide · the plan</p>
         <h3>Reproduced, and a plan</h3>
-        <p>It reproduced the bug with a probe that fails on main, then planned the smallest fix. Comments stay on the quest, where the agent and the next reviewer see them.</p>
+        <p>It reproduced the bug with a probe that fails on main, then planned the smallest fix. The plan reads as numbered steps and the files it touches. Comments stay on the quest, where the agent and the next reviewer see them.</p>
       </li>
       <li class="step" data-step="proof" data-gate="C">
         <span class="bead" aria-hidden="true" data-gate="C"></span>
-        <p class="step-n"><b>06</b> checkpoint C</p>
+        <p class="step-n"><b>06</b> you decide · the landing</p>
         <h3>Proof, before you look</h3>
         <p>The fix arrives with its evidence. The probe passes now, so do 412 tests and six regression probes, replayed traffic shows nothing unexplained, and the diff is two files. Approving lands it.</p>
       </li>
@@ -197,7 +197,33 @@
   </div>
   <div class="policy-grid">
     <figure class="file">
-      <figcaption><b>ephyra/autonomy.md</b><span class="gates" aria-label="Checkpoints"><span><b>A</b> cause</span><span><b>B</b> plan</span><span><b>C</b> proof and landing</span></span></figcaption>
+      <figcaption><b>ephyra/autonomy.md</b></figcaption>
+<div class="pb-map"><div class="pb-area" data-area="checkout">
+      <button type="button" class="pb-row" aria-expanded="true" aria-controls="pb-detail-checkout">
+        <span class="pb-name">checkout</span>
+        <span class="pb-risk">medium risk</span>
+        <span class="pb-level"><span class="pb-pips" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span class="pb-level-name">Research</span></span>
+        <span class="pb-paths">services/checkout/**</span>
+      </button>
+      <div class="pb-detail" id="pb-detail-checkout">
+        <fieldset class="pb-ladder"><legend>How far Ephyra goes in checkout</legend><div class="pb-steps"><label class="pb-step below"><input type="radio" name="pb-level-checkout" value="watch"><span>Watch</span></label><label class="pb-step"><input type="radio" name="pb-level-checkout" value="research" checked><span>Research</span></label><label class="pb-step"><input type="radio" name="pb-level-checkout" value="propose"><span>Propose</span></label><label class="pb-step"><input type="radio" name="pb-level-checkout" value="patch"><span>Patch</span></label><label class="pb-step"><input type="radio" name="pb-level-checkout" value="auto"><span>Auto-land</span></label></div></fieldset>
+        <p class="pb-means" aria-live="polite">Gather evidence and write a hypothesis. Nothing is changed.</p>
+        <p class="pb-who"><span class="pb-stops" aria-hidden="true"><span class="pb-stop yours" data-gate="A">Cause</span><span class="pb-stop yours" data-gate="B">Plan</span><span class="pb-stop yours" data-gate="C">Landing</span></span><span class="pb-you" aria-live="polite">You approve the cause, the plan and the landing.</span></p>
+      </div>
+    </div><div class="pb-area" data-area="docs">
+      <button type="button" class="pb-row" aria-expanded="false" aria-controls="pb-detail-docs">
+        <span class="pb-name">docs</span>
+        <span class="pb-risk">low risk</span>
+        <span class="pb-level"><span class="pb-pips" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="pb-level-name">Auto-land</span></span>
+        <span class="pb-paths">docs/**, **/*.md</span>
+      </button>
+      <div class="pb-detail" id="pb-detail-docs" hidden>
+        <fieldset class="pb-ladder"><legend>How far Ephyra goes in docs</legend><div class="pb-steps"><label class="pb-step below"><input type="radio" name="pb-level-docs" value="watch"><span>Watch</span></label><label class="pb-step below"><input type="radio" name="pb-level-docs" value="research"><span>Research</span></label><label class="pb-step below"><input type="radio" name="pb-level-docs" value="propose"><span>Propose</span></label><label class="pb-step below"><input type="radio" name="pb-level-docs" value="patch"><span>Patch</span></label><label class="pb-step"><input type="radio" name="pb-level-docs" value="auto" checked><span>Auto-land</span></label></div></fieldset>
+        <p class="pb-means" aria-live="polite">Land proven small fixes alone, watch them, roll back on regression.</p>
+        <p class="pb-who"><span class="pb-stops" aria-hidden="true"><span class="pb-stop" data-gate="A">Cause</span><span class="pb-stop" data-gate="B">Plan</span><span class="pb-stop" data-gate="C">Landing</span></span><span class="pb-you" aria-live="polite">Nothing waits for you. Each fix is watched for 1h and rolled back if it regresses.</span></p>
+      </div>
+    </div></div>
+<details class="pb-raw"><summary>Read it as the file</summary>
 <pre>## defaults
 mode: shadow
 checkpoints: A=blocking B=blocking C=blocking
@@ -222,11 +248,12 @@ checkpoints: A=advisory B=advisory C=advisory
 landing: trail_ref, auto_land
 watch: 1h
 </pre>
+</details>
     </figure>
     <div class="keys">
       <h3>The inbox, by key</h3>
       <dl class="primary-keys">
-        <dt><kbd>a</kbd></dt><dd>approve the checkpoint; at C, this lands it</dd>
+        <dt><kbd>a</kbd></dt><dd>approve the checkpoint; approving the landing lands it</dd>
         <dt><kbd>r</kbd></dt><dd>send it back with a note</dd>
         <dt><kbd>e</kbd></dt><dd>explain: the evidence behind it</dd>
         <dt><kbd>t</kbd></dt><dd>claim a checkpoint review; release it before deciding</dd>
@@ -271,8 +298,8 @@ watch: 1h
   <p>“Jellyware” is <a href="https://ampcode.com/podcast/season-02/episode-02" rel="noopener">Amp’s word</a>.</p>
 </footer>
 
-<script src="main.js?v=20261108-quests" defer></script>
-<script src="policy.js?v=20261108-quests" type="module"></script>
-<script src="tour.js?v=20261108-quests" type="module"></script>
+<script src="main.js?v=20261117-briefs" defer></script>
+<script src="policy.js?v=20261117-briefs" type="module"></script>
+<script src="tour.js?v=20261117-briefs" type="module"></script>
 </body>
 </html>

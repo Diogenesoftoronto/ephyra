@@ -36,6 +36,10 @@ Select a quest to see what it is waiting for. When it needs you, one primary act
 
 The list of decisions waiting on a person, and for each one the thing you are asked to judge: the hypothesis at checkpoint A, the reproduction and plan at B, the diff and proof bundle at C, or a spend request. It shows the revision, commit and proof your decision will be bound to.
 
+The hypothesis and the plan open as a **Brief**: one labelled row per part of the document, such as the cause, the evidence, the steps and the files touched. **File** shows the Markdown as the agent wrote it. Both are read-only; send the checkpoint back with a note to have the document changed.
+
+Below them, **Research sources** lists every source that was read for the quest with its status, its hits and, for an unavailable source, the reason. **Machine checkpoint** rows show what the decision model recorded: the outcome, the exact model, each answer with its confidence, and the revision it was bound to. A record that stopped without a decision says so. Each has a **File** view with the JSON as recorded.
+
 If your account is read-only, or the quest changed after the page loaded, the decision buttons are unavailable and the page says why. [How to judge a checkpoint](./reviewing) covers what to look for.
 
 The inbox also holds setup questions: what your application should do, and which connections are missing. Answering those early gives every later quest better context.

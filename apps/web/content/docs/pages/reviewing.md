@@ -9,12 +9,15 @@ The hard part of supervising an agent is not pressing approve. It is knowing, in
 
 - **You are approving a specific revision.** The inbox shows the revision, commit and proof your answer is bound to. If the quest moves on first, your answer is refused and you look again.
 - **Read the evidence, not just the summary.** The summary was written by the same agent whose work you are checking. In the console open the evidence; in the terminal press `e`.
+- **Evidence is listed by source.** Each source Ephyra was configured to read gets a row: `available`, `partial`, `empty` or `unavailable`, with its hits underneath and the reason when it could not be read. A source record that did not load is reported as not loaded, not as empty.
 - **"Unavailable" is not "passed".** A source or check Ephyra could not reach is listed as missing. Decide whether you can judge without it.
 - **Sending it back is normal.** `revise` with a note returns the quest one stage and the agent works on what you wrote. It costs budget, not trust.
 
 ## A · Is this the right cause?
 
 You see `hypothesis.md`: what the agent thinks is wrong and why, with the triage that started the quest.
+
+The app and the terminal show it as a short brief instead of the raw file: one labelled row per part of the document (the cause, the evidence, what comes next), in the document's order and under the document's own headings. Nothing is summarized or left out. To read the Markdown exactly as the agent wrote it, choose **File** in the app, press `f` in `ephyra inbox`, or run `ephyra file <quest> hypothesis.md`. The brief is for reading only: to change the document, send the checkpoint back with a note.
 
 Ask:
 
@@ -27,7 +30,7 @@ Approve when you would be content for someone to spend an hour on this cause. Se
 
 ## B · Does the test fail for the right reason?
 
-You see the failing reproduction and `plan.md`.
+You see the failing reproduction and `plan.md`, laid out the same way: its numbered steps, then the files it says it touches and leaves alone. **File**, `f` and `ephyra file <quest> plan.md` show the file as written.
 
 This is the checkpoint people skim and should not. A reproduction that fails for the *wrong* reason will happily pass after a patch that fixes nothing.
 

@@ -1,6 +1,6 @@
-import { renderConsole, setupConsoleSelector } from "./console.js?v=20261108-quests";
-import { createDemoRoom } from "./multiplayer.js?v=20261108-quests";
-import { showProductScreen, readProductScreen } from "./product-tour.js?v=20261108-quests";
+import { renderConsole, setupConsoleSelector } from "./console.js?v=20261117-briefs";
+import { createDemoRoom } from "./multiplayer.js?v=20261117-briefs";
+import { showProductScreen, readProductScreen } from "./product-tour.js?v=20261117-briefs";
 
 // Ephyra · cut E, below the hero: one example trail, start to finish, in the real terminal inbox.
 // The screens come from walkthrough.json, which apps/cli/scripts/walkthrough.ts renders with the inbox's own view,
@@ -39,11 +39,11 @@ import { showProductScreen, readProductScreen } from "./product-tour.js?v=202611
 
   // What each step is about: the rows from `from` to `to` (matched against the pane's text, or the whole row).
   const FOCUS = {
-    triaged: { from: /^triage /, to: /^evidence / },
-    hypothesis: { from: /^hypothesis\.md/, to: /^Reproduce with/ },
+    triaged: { from: /^triage /, to: /^signals / },
+    hypothesis: { from: /^hypothesis\.md/, to: /^next/ },
     explain: { from: /^explain /, to: /^entire / },
     revise: { from: /^ revise T-/, to: /^ revise T-/, whole: true },
-    plan: { from: /^✓ repro/, to: /^Not touching/ },
+    plan: { from: /^✓ repro/, to: /^not touching/ },
     proof: { from: /^proof  rev/, to: /^✓ review/ },
     watching: { from: /^landed /, to: /^watch / },
     set: { from: /^landed /, to: /^set / },
@@ -422,7 +422,7 @@ import { showProductScreen, readProductScreen } from "./product-tour.js?v=202611
   // Keep the exact moment when changing interfaces. The navigation and story are shared.
   const originalCopy = new Map(steps.map((step) => [step.dataset.step, step.querySelector("p:last-child").innerHTML]));
   const guiCopy = {
-    hypothesis: "The agent writes down what it thinks is wrong, and why. You read a page, not a diff. In checkout, policy waits for a person to approve the cause before code is written.",
+    hypothesis: "The agent writes down what it thinks is wrong, and why. You read it as a short brief: the cause, the evidence and what comes next, with the file one click away. In checkout, policy waits for a person to approve the cause before code is written.",
     explain: "Open the evidence behind the hypothesis: the error stream, the commit that started it, past quests, and the agent session that wrote that commit.",
     revise: "Ask for changes and leave a note. The agent gets it with the quest and tries again. Here, nothing is built until someone approves.",
   };
@@ -488,7 +488,7 @@ import { showProductScreen, readProductScreen } from "./product-tour.js?v=202611
     field.focus({ preventScroll: true });
   });
 
-  fetch("walkthrough.json?v=20261108-quests", { credentials: "omit" })
+  fetch("walkthrough.json?v=20261117-briefs", { credentials: "omit" })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((d) => {
       data = d;

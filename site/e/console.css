@@ -86,6 +86,17 @@
 .g-document p + p { margin-top: .5rem; }
 .g-document ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .9rem; }
 .g-document ol + p { margin-top: 1rem; color: var(--muted); font-size: .8rem; }
+.g-brief { margin: 0; display: grid; max-width: 72ch; font-size: .92rem; container-type: inline-size; }
+.g-brief > div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .25rem 1rem; padding: .8rem 0; border-top: 1px solid var(--tour-line); }
+.g-brief > div:first-child { padding-top: 0; border-top: 0; }
+.g-brief dt { display: flex; align-items: baseline; gap: .45rem; color: var(--muted); font-size: .8rem; font-weight: 600; line-height: 1.75; }
+.g-brief dt span { padding: 0 .4rem; border: 1px solid var(--tour-line); border-radius: 999px; font: 500 .68rem/1.5 var(--mono); }
+.g-brief dd { margin: 0; display: grid; gap: .45rem; min-width: 0; line-height: 1.55; overflow-wrap: anywhere; }
+.g-brief [data-kind="claim"] dd { font-size: 1.05rem; }
+.g-brief-item { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); }
+.g-brief-item > span:first-child { color: var(--muted); }
+.g-brief pre, .g-file-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 .8rem/1.6 var(--mono); }
+@container (max-width: 28rem) { .g-brief > div { grid-template-columns: minmax(0, 1fr); } }
 .g-evidence { display: grid; }
 .g-evidence article { display: grid; grid-template-columns: 3.5rem 1fr; gap: .8rem; padding: .9rem 0; border-top: 1px solid var(--tour-line); }
 .g-evidence article:first-child { padding-top: 0; border-top: 0; }

@@ -93,7 +93,8 @@ kbd {
   font: 700 .72rem/1 var(--mono); color: var(--jelly-deep);
   transition: background-color .3s, border-color .3s, color .3s, transform .3s var(--ease-out);
 }
-.step[data-gate] .bead::after { content: attr(data-gate); }
+/* A step where a person decides carries a filled dot, the same mark the policy board uses. */
+.step[data-gate] .bead::after { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
 .step[data-undo] .bead { border-color: color-mix(in oklab, var(--cherry) 70%, transparent); }
 
 /* With the live terminal, steps take turns: the one in view is sharp, the rest wait, like the stanza above. */
@@ -296,7 +297,9 @@ body:has(.screen-dialog[open]) { overflow: hidden; }
 .pb-stop.yours { color: var(--t-strong); }
 .pb-stop.yours::before { border-color: var(--t-mint); background: var(--t-mint); }
 .pb-you { color: var(--t-fg); text-wrap: pretty; }
-.file[data-view="map"] .gates { display: none; }
+/* Without a script the file sits in a disclosure under the board. policy.js lifts it out into its own view. */
+.pb-raw { border-top: 1px solid oklch(1 0 0 / .07); }
+.pb-raw summary { padding: .7rem 1rem; color: var(--t-muted); font-family: var(--font-body); font-size: .8rem; cursor: pointer; }
 .pb-note { margin: 0 1rem; padding: .6rem 0 .75rem; border-top: 1px solid oklch(1 0 0 / .07); color: var(--t-muted); font-size: .78rem; line-height: 1.35; text-wrap: pretty; }
 .pb-note code { font: 500 .95em var(--mono); color: var(--t-fg); }
 .pb-term {
@@ -311,7 +314,6 @@ body:has(.screen-dialog[open]) { overflow: hidden; }
 .pb-term .t-amber { color: var(--t-amber, oklch(0.78 0.15 70)); }
 .pb-term .t-wrap { white-space: pre-wrap; }
 @container (max-width: 30rem) { .pb-term .t-paths { display: none; } }
-.file[data-view="term"] .gates { display: none; }
 @media (prefers-reduced-motion: reduce) { .pb-name::before, .pb-step span { transition: none; } }
 .keys { margin: 0; padding: .3rem 1.1rem 1rem; border-radius: 12px; background: var(--tour-panel); border: 1px solid var(--tour-line); }
 .keys h3 { margin: .8rem 0 .5rem; font-family: var(--font-display); font-weight: 680; font-stretch: 90%; font-size: 1.15rem; }
@@ -341,9 +343,6 @@ body:has(.screen-dialog[open]) { overflow: hidden; }
 .tour.live .step[data-step="watching"].is-on .bead, .tour.live .step[data-step="set"].is-on .bead { background: var(--jelly); border-color: var(--jelly); color: var(--on-jelly); }
 .tour.live .step[data-undo].is-on .bead { background: var(--cherry); border-color: var(--cherry); color: var(--bg); }
 .tour.live .step:focus-within { opacity: 1; }
-.gates { display: flex; flex-wrap: wrap; gap: .5rem 1rem; font-family: var(--font-body); }
-.gates span { white-space: nowrap; }
-.gates b { color: var(--t-mint); }
 .all-keys { border-top: 1px solid var(--tour-line); margin-top: 1rem; padding-top: .25rem; }
 .all-keys summary { padding: .75rem 0; font-size: .95rem; font-weight: 600; cursor: pointer; }
 .all-keys[open] summary { margin-bottom: .25rem; }
