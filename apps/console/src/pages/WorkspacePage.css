@@ -6,3 +6,36 @@
 .ws-ask .ui-field {
   width: 100%;
 }
+/* The Map / Raw switch sits in the card header; its legend is for screen readers only. */
+.ws-view {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.ws-view .ui-seg legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ws-view .ui-seg .track { min-width: 9rem; }
+.ws-note { margin: 0; }
+.ws-locked,
+.ws-changes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.ws-locked > p { margin: 0; flex: 1 1 16rem; min-width: 0; }
+.ws-locked > span { flex: 1 1 16rem; min-width: 0; }
+.ws-changes { border-color: var(--jelly-deep); }
+.ws-changes > .muted { flex: 1 1 auto; }

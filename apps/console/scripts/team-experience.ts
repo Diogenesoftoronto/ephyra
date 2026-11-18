@@ -103,7 +103,7 @@ try {
     await guest.locator("[data-loop-page]").waitFor();
     assert.equal(await guest.getByRole("combobox", { name: "Workspace", exact: true }).inputValue(), personal.workspaceId);
     await guest.goto(`${origin}/app/#/workspace`);
-    const edit = guest.getByRole("button", { name: "Edit the map", exact: true });
+    const edit = guest.getByRole("button", { name: "Edit as draft", exact: true }).first();
     await edit.waitFor();
     assert.equal(await edit.isEnabled(), role === "approver", "role governs visible editing actions");
     const status = await guest.evaluate(async (workspaceId) => (await fetch("/v1/drafts", {

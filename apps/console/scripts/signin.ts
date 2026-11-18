@@ -240,7 +240,7 @@ try {
     await page.goto(`${origin}/app/#/usage`);
     await page.getByRole("heading", { name: "Usage", exact: true }).waitFor();
     await page.goto(`${origin}/app/#/workspace`);
-    await page.getByRole("button", { name: "Edit the map", exact: true }).click();
+    await page.getByRole("button", { name: "Edit as draft", exact: true }).first().click();
     await page.waitForURL(/#\/workspace\/.+/);
     const savedSetup = await page.evaluate(async () => (await fetch("/v1/setup")).json());
     assert.equal(savedSetup.id, setupId, "the durable setup run survives browser reload and sign-in");
@@ -294,7 +294,7 @@ try {
   await page.getByRole("button", { name: "Explore first", exact: true }).click();
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
   await page.goto(`${origin}/app/#/workspace`);
-  const edit = page.getByRole("button", { name: "Edit the map", exact: true });
+  const edit = page.getByRole("button", { name: "Edit as draft", exact: true }).first();
   await edit.waitFor();
   assert.ok(await edit.isEnabled(), "each account can edit its own workspace");
   assert.deepEqual(

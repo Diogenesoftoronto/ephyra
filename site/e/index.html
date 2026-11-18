@@ -86,7 +86,7 @@
     <button type="button" data-product-scene="overview" aria-pressed="true" data-description="See what needs your attention, which agents are working, and what the current quests have cost.">Overview</button>
     <button type="button" data-product-scene="onboarding" aria-pressed="false" data-description="Start with your repository. Choose self-driving or supervised setup, then connect the knowledge and signals your agents need.">Getting started</button>
     <button type="button" data-product-scene="runs" aria-pressed="false" data-description="Open a run to read its conversation, inspect tool calls and visual results, or follow an available runner link.">Agent runs</button>
-    <button type="button" data-product-scene="workspace" aria-pressed="false" data-description="Keep intent, autonomy and application knowledge in reviewable documents. Draft changes with Velum before publishing them.">Workspace</button>
+    <button type="button" data-product-scene="workspace" aria-pressed="false" data-description="Set how far Ephyra goes in each part of your app from a compact map, or edit the documents behind it. Draft changes with Velum before publishing them.">Workspace</button>
     <button type="button" data-product-scene="personas" aria-pressed="false" data-description="Meet the six roles, inspect their recorded engines and activity, and say hello to each companion.">Personas</button>
     <button type="button" data-product-scene="team" aria-pressed="false" data-description="Invite a viewer or an approver with a single-use link or QR code. Team access and review decisions remain explicit.">Your team</button>
   </div>
@@ -192,36 +192,36 @@
 <section class="policy" id="policy" aria-labelledby="policy-title">
   <div class="policy-head">
     <h2 id="policy-title">You decide where it asks</h2>
-    <p class="lede">One Markdown file in your repo says where a person decides, how a fix lands and how long it&rsquo;s watched.</p>
-    <p class="lede">Checkout asks at A, B and C. Docs can land on their own once you enable that area. This example starts in shadow mode: every quest still waits for you.</p>
+    <p class="lede">One Markdown file in your repo says where a person decides, how a fix lands and how long it&rsquo;s watched. You don&rsquo;t have to write it by hand: set each area&rsquo;s level in the app or the terminal, and they write the file for you.</p>
+    <p class="lede">Here, a person approves the cause, the plan and the landing in checkout, and docs land on their own. Everything else follows the defaults: shadow mode, where Ephyra notices and reports.</p>
   </div>
   <div class="policy-grid">
     <figure class="file">
       <figcaption><b>ephyra/autonomy.md</b><span class="gates" aria-label="Checkpoints"><span><b>A</b> cause</span><span><b>B</b> plan</span><span><b>C</b> proof and landing</span></span></figcaption>
-<pre># Autonomy policy
-
-## defaults
+<pre>## defaults
 mode: shadow
-checkpoints: A=advisory B=advisory C=blocking
+checkpoints: A=blocking B=blocking C=blocking
 landing: trail_ref
 watch: 2h
-
+decide: judgement
 ## area: checkout
 paths: services/checkout/**
 risk: medium
+user_facing: true
+mode: enforce
 checkpoints: A=blocking B=blocking C=blocking
-landing: radicle_patch
-watch: 2h
-
+landing: trail_ref
 Money moves here. A person reads the
 hypothesis and the plan before any code.
-
 ## area: docs
 paths: docs/**, **/*.md
 risk: low
+user_facing: false
+mode: enforce
 checkpoints: A=advisory B=advisory C=advisory
-landing: auto_land
-watch: 1h</pre>
+landing: trail_ref, auto_land
+watch: 1h
+</pre>
     </figure>
     <div class="keys">
       <h3>The inbox, by key</h3>
@@ -272,6 +272,7 @@ watch: 1h</pre>
 </footer>
 
 <script src="main.js?v=20261108-quests" defer></script>
+<script src="policy.js?v=20261108-quests" type="module"></script>
 <script src="tour.js?v=20261108-quests" type="module"></script>
 </body>
 </html>

@@ -402,8 +402,9 @@ import { showProductScreen, readProductScreen } from "./product-tour.js?v=202611
 
   function policy() {
     const file = document.querySelector(".file pre");
-    if (file && data.autonomy) {
-      file.innerHTML = data.autonomy.split("\n").map((line) => {
+    // The policy board (policy.js) writes the file from its own selections; only colour the static text when it is absent.
+    if (file && !file.closest("[data-board]")) {
+      file.innerHTML = file.textContent.split("\n").map((line) => {
         if (/^#/.test(line)) return `<span class="md-h">${esc(line)}</span>`;
         const kv = /^([a-z_]+):(\s*)(.*)$/.exec(line);
         if (kv) return `<span class="md-k">${esc(kv[1])}:</span>${kv[2]}<span class="md-v">${esc(kv[3])}</span>`;

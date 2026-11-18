@@ -2,11 +2,11 @@
 
 Pure rules for autonomy, backend thresholds, triage, proof, and post-landing watch. The package performs no I/O. Tests cover parser errors and overrides, the triage decision table, proof matrix, and watch boundaries. Candidate lists and signal kind must be supplied to triage; absent information takes a conservative path. Callers must enforce `autoLandAllowed` and critical forge-only landing, and provide actual human decisions and evidence. Integrations and production behavior are Unverified.
 
-`renderAutonomy` renders defaults and areas; the parser’s fixed fallback and line-numbered warnings are not serialized. Area prose is normalized to a trailing newline.
+`renderAutonomy` renders the preamble (the text above the first `## ` heading, kept as written), then defaults and areas; comments between sections, the parser’s fixed fallback and line-numbered warnings are not serialized. Area prose is normalized to a trailing newline.
 
 ## The application map (`sketch.ts`)
 
-`sketchToArea(sketch, defaults)` and `areaToSketch(area, defaults?)` map an `AreaSketch` (plain-language intent, paths, risk, user-facing, and one of five autonomy levels) to and from a parsed autonomy `Area`. `applySketches(policy, sketches)` applies an edited map to a policy (the sketches are the complete set of mapped areas; `ui` globs and `decide` of areas that stay are kept; areas whose names the map cannot carry are untouched) and `sketchesOf(policy)` reads the map back. Every checkpoint is written explicitly, so an area reads the same under any defaults.
+`sketchToArea(sketch, defaults)` and `areaToSketch(area, defaults?)` map an `AreaSketch` (plain-language intent, paths, risk, user-facing, and one of five autonomy levels) to and from a parsed autonomy `Area`. `applySketches(policy, sketches)` applies an edited map to a policy (the sketches are the complete set of mapped areas; an area whose level did not change keeps its own `mode`, checkpoints, `landing` and `watch` exactly as written, and only its paths, risk, user-facing flag, intent and budget are replaced; an area whose level changed is rewritten from the table below and keeps its `ui` globs and `decide`; areas whose names the map cannot carry are untouched) and `sketchesOf(policy)` reads the map back. When a level is applied, every checkpoint is written explicitly, so that area reads the same under any defaults.
 
 | Level | `mode` | A / B / C | `landing` | `watch` |
 |---|---|---|---|---|

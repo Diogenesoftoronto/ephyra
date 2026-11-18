@@ -1,6 +1,7 @@
 import {
 	shortId,
 	type ActivityItem,
+	type AreaSketch,
 	type AgentRun,
 	type AgentRunEvent,
 	type InboxItem,
@@ -17,7 +18,9 @@ const EXPLAIN: Record<number, string> = {
 	401: "Not signed in, or the session expired: run `ephyra login <server-url>`",
 	403: "Read-only here: changing quests needs a signed-in approver (`ephyra whoami`)",
 	404: "Not found: check the id with `ephyra quests`",
+	400: "The server refused the request as invalid",
 	409: "Stale decision; refresh before retrying",
+	422: "The server cannot do that as it is configured",
 	501: "This server does not support that yet",
 	503: "The server is unavailable: `ephyra status` shows its health",
 };
@@ -38,6 +41,20 @@ export type AgentAccess = {
 };
 export type Me = { principal: string; kind: string; approver: boolean };
 export type PolicyDocSummary = { path: string; kind: string; digest: string; warnings: string[] };
+/** A policy document as the server holds it. `sketches` (the application map) comes with the autonomy document when it parses. */
+export type PolicyDocument = PolicyDocSummary & { content: string; sketches?: AreaSketch[] };
+/** A draft of one policy document. Edits go here; publishing writes it and activating puts it into effect. */
+export type PolicyDraft = {
+	id: string;
+	path: string;
+	baseDigest: string;
+	content: string;
+	warnings: string[];
+	status: "open" | "published" | "discarded";
+	updatedAt: string;
+	published?: { ref: string; commit: string; by: string; at: string };
+	sketches?: AreaSketch[];
+};
 export type Detail = { trail: Trail; events: TrailEvent[] };
 export class Client {
 	constructor(
@@ -49,7 +66,7 @@ export class Client {
 	async request<T>(
 		path: string,
 		body?: unknown,
-		extra: { method?: "DELETE"; headers?: Record<string, string> } = {},
+		extra: { method?: "DELETE" | "PUT"; headers?: Record<string, string> } = {},
 	): Promise<T> {
 		const headers: Record<string, string> = {
 			Authorization: `Bearer ${this.token}`,
@@ -176,7 +193,39 @@ export class Client {
 		return this.request<PolicyActivationReceipt | null>("/v1/policy/active");
 	}
 	policyDocs() {
-		return this.request<PolicyDocSummary[]>("/v1/docs");
+		return this.request<PolicyDocument[]>("/v1/docs");
+	}
+	policyDoc(path: string) {
+		return this.request<PolicyDocument>(`/v1/docs/${path.split("/").map(encodeURIComponent).join("/")}`);
+	}
+	drafts(status?: PolicyDraft["status"]) {
+		return this.request<PolicyDraft[]>(`/v1/drafts${status ? `?status=${status}` : ""}`);
+	}
+	createDraft(path: string) {
+		return this.request<PolicyDraft>("/v1/drafts", { path });
+	}
+	/** Save the application map into a draft. The server renders it into the document. */
+	setDraftSketches(draft: PolicyDraft, sketches: AreaSketch[]) {
+		return this.request<PolicyDraft>(
+			`/v1/drafts/${encodeURIComponent(draft.id)}/sketches`,
+			{ sketches, baseDigest: draft.baseDigest },
+			{ method: "PUT" },
+		);
+	}
+	/** Save the raw document text into a draft. */
+	setDraftContent(draft: PolicyDraft, content: string) {
+		return this.request<PolicyDraft>(
+			`/v1/drafts/${encodeURIComponent(draft.id)}/content`,
+			{ content, baseDigest: draft.baseDigest },
+			{ method: "PUT" },
+		);
+	}
+	draftAction(id: string, action: "publish" | "discard") {
+		return this.request<PolicyDraft>(`/v1/drafts/${encodeURIComponent(id)}/${action}`, {});
+	}
+	/** Put a published draft into effect. The server refuses when what was reviewed is no longer what would be activated. */
+	activateDraft(id: string, expected: { expectedCommit: string; expectedDigest: string; expectedActive: string | null }) {
+		return this.request<PolicyActivationReceipt>(`/v1/drafts/${encodeURIComponent(id)}/activate`, expected);
 	}
 	setup() {
 		return this.request<SetupRun | null>("/v1/setup");

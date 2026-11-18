@@ -364,9 +364,34 @@ export const COMMANDS: readonly CommandHelp[] = [
 	{
 		name: "policy",
 		group: "Operate",
-		usage: "ephyra policy",
+		usage: "ephyra policy [show|edit|set|add|rm|raw|diff|publish|activate|discard] [area]",
+		arguments: [{ name: "action", values: ["show", "edit", "set", "add", "rm", "raw", "diff", "publish", "activate", "discard"] }, { name: "area" }],
+		options: [
+			{ flags: ["--level"], description: "How far Ephyra may go alone in the area", value: "level", values: ["watch", "research", "propose", "patch", "auto"] },
+			{ flags: ["--risk"], description: "How risky the area is", value: "risk", values: ["low", "medium", "high", "critical"] },
+			{ flags: ["--paths"], description: "Comma separated globs the area covers", value: "globs" },
+			{ flags: ["--about"], description: "What this part of the application is, in a sentence", value: "text" },
+			{ flags: ["--user-facing"], description: "People use this area directly" },
+			{ flags: ["--internal"], description: "People do not use this area directly" },
+			{ flags: ["--raw"], description: "With edit: open the document itself in $EDITOR" },
+			{ flags: ["--draft"], description: "With raw: print the open draft instead of the policy in effect" },
+		],
 		summary:
-			"The policy in effect: the active receipt and each document's warnings",
+			"See and change what Ephyra may do, area by area, or edit the raw document",
+		detail:
+			"With no action it prints the policy in effect as a map: one line per area with its risk, a five-step autonomy level and its paths, "
+			+ "then the active receipt and each document's warnings. `edit` opens the same map as a board you drive with keys; "
+			+ "`edit --raw` opens autonomy.md in $EDITOR. `set`, `add` and `rm` change one area from a script. "
+			+ "Every change is saved to a draft: `diff` shows it, `publish` publishes it, `activate` puts it into effect and `discard` drops it. "
+			+ "Publishing and activating need a signed-in approver.",
+		examples: [
+			"ephyra policy",
+			"ephyra policy edit",
+			"ephyra policy set checkout --level propose",
+			"ephyra policy add docs --paths 'docs/**' --risk low --level auto",
+			"ephyra policy edit --raw",
+			"ephyra policy raw > autonomy.md",
+		],
 		docs: "policy",
 	},
 	{

@@ -15,6 +15,8 @@ export function DraftEditor({
   readOnly,
   onSave,
   onDirtyChange,
+  saveLabel = "Save",
+  cleanLabel = "Saved",
 }: {
   path: string;
   content: string;
@@ -22,6 +24,10 @@ export function DraftEditor({
   readOnly?: boolean;
   onSave: (text: string) => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
+  /** What saving does here, when it is more than saving this draft. */
+  saveLabel?: string;
+  /** Shown while the text equals `content`. Only call it "Saved" where `content` is a saved draft. */
+  cleanLabel?: string;
 }) {
   const [text, setText] = useState(content);
   const [busy, setBusy] = useState(false);
@@ -64,11 +70,11 @@ export function DraftEditor({
         {dirty ? (
           <Badge tone="warn">Unsaved edits: the warnings below are for the saved text</Badge>
         ) : (
-          <Badge tone="ok">Saved</Badge>
+          <Badge tone={cleanLabel === "Saved" ? "ok" : "neutral"}>{cleanLabel}</Badge>
         )}
         {!readOnly && (
           <Button variant="primary" loading={busy} disabled={!dirty} onClick={() => void save()}>
-            Save
+            {saveLabel}
           </Button>
         )}
         {dirty && (
