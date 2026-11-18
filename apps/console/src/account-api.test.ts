@@ -120,3 +120,20 @@ test("collector credentials are fetched only by an explicit authenticated accoun
   expect(calls[0]!.init.cache).toBe("no-store");
   expect(calls[0]!.init.credentials).toBe("same-origin");
 });
+
+
+test("wallet reads retain verified account transport and reject missing or invalid balances", async () => {
+  let value: unknown = { availableMicros: 2500000 };
+  const client = new AccountClient("https://console.example", "session", (async (url: URL, init: RequestInit) => {
+    expect(url.pathname).toBe("/v1/account/wallet");
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("same-origin");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer session");
+    return Response.json(value);
+  }) as typeof fetch);
+  expect((await client.wallet()).availableMicros).toBe(2500000);
+  for (const invalid of [{}, { availableMicros: -1 }, { availableMicros: "2500000" }]) {
+    value = invalid;
+    await expect(client.wallet()).rejects.toThrow("Account settings could not be read");
+  }
+});

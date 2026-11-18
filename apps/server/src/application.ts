@@ -258,6 +258,11 @@ export async function composeApplication(config: Config, opts: ApplicationOption
     const shared = (await teams.workspaces(did)).filter((w) => w.role !== "owner").map((w) => w.ownerDid);
     return [did, ...shared, ...own.invitations.filter((i) => i.acceptedBy && !i.revokedAt).map((i) => i.acceptedBy!)];
   }
+  app.get("/v1/account/wallet", async (c) => {
+    if (c.get("principalKind") !== "human") return c.json({ error: "Sign in with Not Organic to see your credits." }, 403);
+    c.header("Cache-Control", "no-store");
+    return c.json(await signIn.wallet(c.get("principal")));
+  });
   app.get("/v1/profile", async (c) => {
     if (c.get("principalKind") !== "human") return c.json({ error: "Sign in with Not Organic to see your profile." }, 403);
     c.header("Cache-Control", "no-store");

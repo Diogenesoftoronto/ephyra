@@ -1,3 +1,4 @@
+import { AccountCredits } from "../components/AccountCredits.tsx";
 import { useId, useState } from "react";
 import { PageHeader, Button } from "../kit.ts";
 import { ModelAccessForm, RepositoryForm, type AccountPageProps } from "../components/AccountForms.tsx";
@@ -150,6 +151,7 @@ export function SettingsPage({
             </dd>
           </div>
         </dl>
+        {section === "account" && <AccountCredits api={api} />}
         {onDisconnect && (
           <div className="account-actions">
             <Button variant="ghost" onClick={onDisconnect} disabled={disconnectLabel === "Signing out…"}>

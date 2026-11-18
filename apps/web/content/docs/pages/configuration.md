@@ -38,7 +38,7 @@ Secrets are read from the environment and never logged, written to a journal, co
 | `EPHYRA_APPROVER_DIDS` | empty | Comma-separated Not Organic DIDs that may approve. |
 | `NOTORGANIC_ISSUER` | `https://api.notorganic.info` | Identity provider API. |
 | `NOTORGANIC_AUTHORIZATION_URL` | `https://id.notorganic.info/authorize` | Where sign-in sends the browser. |
-| `NOTORGANIC_PRODUCT` | `notorganic` | The product this origin is registered under. |
+| `NOTORGANIC_PRODUCT` | `ephyra` | The product this origin is registered under. |
 | `EPHYRA_BILLING_DID` | first approver | The account hosted model calls are billed to. |
 
 ## Models

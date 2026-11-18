@@ -267,10 +267,16 @@ server stops accepting trail changes from the service token.
 - `EPHYRA_DECIDE=notorganic` / `EPHYRA_EXTRACT=notorganic` run triage on Not Organic judgement and extraction,
   paid from `EPHYRA_BILLING_DID` (default: the first approver), using that account's sign-in session.
 
-**Registration.** Not Organic only signs users into approved client origins. Ephyra's origin is in the gateway's
-`PUBLIC_CLIENT_PRODUCT_CATALOG` on the notorganic-provider Railway project, mapped to product `notorganic`, so tokens
-carry `product: "notorganic"` (set `NOTORGANIC_PRODUCT` to match). A dedicated `ephyra` product id would need a
-release of notorganic-provider (`PRODUCT_IDS` in `packages/contracts/src/catalog.ts`).
+**Registration.** Not Organic only signs users into approved client origins. Register the exact public origin under
+product `ephyra` in the provider's first-party/public-client catalog. `NOTORGANIC_PRODUCT` defaults to `ephyra` and
+must match the product returned by the provider. Deployments migrating from `notorganic` must update any explicit
+environment override and reconnect existing sessions; older grants retain their original product attribution.
+
+The Settings account tab reads `GET /v1/account/wallet` with the signed-in person's server-held Not Organic session.
+Missing or malformed balances remain unavailable. The provider owns email validation, one-time welcome credit,
+and durable credit accounting. Confirmed-email welcome credit depends on the provider's deployed Ephyra grant policy.
+Additional credit and paid-plan requests go to Not Organic's hosted waitlist with `product=ephyra`; joining does not
+charge or start a subscription. These links are available in Settings even when the wallet service is unavailable.
 
 ## Voice
 

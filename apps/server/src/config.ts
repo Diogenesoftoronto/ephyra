@@ -26,7 +26,7 @@ const Config = z.object({
   NOTORGANIC_ISSUER: z.string().url().default("https://api.notorganic.info"),
   NOTORGANIC_AUTHORIZATION_URL: z.string().url().default("https://id.notorganic.info/authorize"),
   /** Product id the gateway binds Ephyra's client origin to. */
-  NOTORGANIC_PRODUCT: z.string().default("notorganic"),
+  NOTORGANIC_PRODUCT: z.string().default("ephyra"),
   /** Whose wallet pays for hosted models (defaults to the first approver). */
   EPHYRA_BILLING_DID: optional,
   // Hosted execution is granted to explicit account DIDs by the operator; model/repository keys stay account-owned.

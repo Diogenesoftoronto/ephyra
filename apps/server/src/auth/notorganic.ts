@@ -199,6 +199,11 @@ export class NotOrganicSignIn {
     const creds = await this.credentialsFor(did);
     return this.get("/v1/account", creds.token, creds.keys, creds.publicJwk);
   }
+  /** The account authority's product-scoped wallet; caller identity comes from the verified session. */
+  async wallet(did: string): Promise<Record<string, unknown>> {
+    const creds = await this.credentialsFor(did);
+    return this.get("/v1/wallet", creds.token, creds.keys, creds.publicJwk);
+  }
   /** Fetches a validated avatar blob from the account's PDS. No credentials are sent. */
   async fetchPublic(url: string, signal?: AbortSignal): Promise<Response> {
     return this.fetcher(url, { redirect: "error", ...(signal ? { signal } : {}) } as RequestInit);

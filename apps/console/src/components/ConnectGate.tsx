@@ -48,10 +48,10 @@ export function ConnectGate({
       {signIn && (
         <section className="connect-account" aria-label="Account sign-in">
           <div className="stack">
-            <p>Sign in or create an account with Not Organic.</p>
+            <p>Sign in or create an account with Not Organic. Confirm your email to unlock your one-time Ephyra welcome credit.</p>
             <div>
               <a className="ui-button ui-button--primary" href="/auth/login">
-              <img src="/app/brand/notorganic.png" width="24" height="24" alt="" /> Sign in with Not Organic <span aria-hidden="true">→</span>
+              <img src="/app/brand/notorganic.png" width="24" height="24" alt="" /> Sign up or sign in with Not Organic <span aria-hidden="true">→</span>
               </a>
             </div>
             <p className="muted">{invitation ? "You’ll see your invitation’s access level before joining."
