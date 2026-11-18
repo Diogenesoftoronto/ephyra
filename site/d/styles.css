@@ -1,0 +1,255 @@
+/* Ephyra · cut D "Rack focus"
+   One stanza, pinned. Scroll pulls focus down it a line at a time and racks the lens between specimens.
+   Without JS, or with reduced motion, the page is the stanza fully in focus, which is also where the reel ends.
+   Tokens match cut A. Dark theme is applied twice: for system preference (unless forced light) and when forced. */
+
+:root {
+  --bg: oklch(0.975 0.012 85);
+  --surface-2: oklch(0.915 0.026 80);
+  --ink: oklch(0.24 0.03 60);
+  --muted: oklch(0.45 0.03 65);
+  --jelly: oklch(0.74 0.162 68);
+  --jelly-deep: oklch(0.52 0.135 52);
+  --glow: oklch(0.55 0.11 180);
+  --cherry: oklch(0.56 0.19 24);
+  --line: oklch(0.24 0.03 60 / 0.16);
+  --on-jelly: oklch(0.2 0.03 60);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .6) inset, 0 8px 24px -16px oklch(0.52 0.135 52 / .45);
+  --halo: oklch(0.86 0.11 78 / .7);
+  --lens-shadow: 0 0 0 1px oklch(1 0 0 / .7), 0 2px 0 1px oklch(0.52 0.135 52 / .18), 0 36px 80px -34px oklch(0.35 0.08 55 / .6);
+
+  --font-display: "Anybody", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
+
+  --gutter: clamp(1.25rem, 4vw, 3rem);
+  --head-h: 4rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --fs-head: clamp(2.3rem, min(5.4vw, 8.4svh), 4.75rem);
+  --fs-line: clamp(1.15rem, min(2.1vw, 3.5svh), 2rem);
+  --fs-close: clamp(1.25rem, min(2.4vw, 4svh), 2.3rem);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.165 0.022 250);
+    --surface-2: oklch(0.255 0.028 246);
+    --ink: oklch(0.95 0.015 85);
+    --muted: oklch(0.74 0.025 80);
+    --jelly-deep: oklch(0.80 0.15 72);
+    --glow: oklch(0.86 0.13 178);
+    --cherry: oklch(0.72 0.17 24);
+    --line: oklch(0.95 0.015 85 / 0.14);
+    --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+    --halo: oklch(0.6 0.14 66 / .3);
+    --lens-shadow: 0 0 0 1px oklch(1 0 0 / .1), 0 40px 90px -40px oklch(0.74 0.162 68 / .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.165 0.022 250);
+  --surface-2: oklch(0.255 0.028 246);
+  --ink: oklch(0.95 0.015 85);
+  --muted: oklch(0.74 0.025 80);
+  --jelly-deep: oklch(0.80 0.15 72);
+  --glow: oklch(0.86 0.13 178);
+  --cherry: oklch(0.72 0.17 24);
+  --line: oklch(0.95 0.015 85 / 0.14);
+  --shadow-gel: 0 1px 0 oklch(1 0 0 / .12) inset, 0 12px 32px -18px oklch(0.74 0.162 68 / .5);
+  --halo: oklch(0.6 0.14 66 / .3);
+  --lens-shadow: 0 0 0 1px oklch(1 0 0 / .1), 0 40px 90px -40px oklch(0.74 0.162 68 / .5);
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html.js { scroll-snap-type: y proximity; }
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-x: clip;
+}
+img, video, svg { display: block; max-width: 100%; }
+h1, p { margin: 0; }
+a { color: inherit; text-decoration-color: var(--jelly); text-decoration-thickness: 2px; text-underline-offset: .2em; }
+a:hover { text-decoration-color: var(--jelly-deep); }
+:focus-visible { outline: 2px solid var(--jelly); outline-offset: 3px; border-radius: 6px; }
+
+/* ---------- header: logo and one link ---------- */
+.bar {
+  position: fixed; inset: 0 0 auto; z-index: 20;
+  height: calc(var(--head-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--gutter) 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  background: linear-gradient(var(--bg) 40%, transparent);
+}
+.logo {
+  display: inline-flex; align-items: center; gap: .55rem;
+  font-family: var(--font-display); font-weight: 680; font-stretch: 90%; font-size: 1.35rem; letter-spacing: -.01em;
+  text-decoration: none;
+}
+.logo img { width: 28px; height: 28px; }
+.bar-link { font-size: .95rem; font-weight: 600; padding: .5rem 0; }
+
+/* ---------- reel: a tall scroll track with the stage pinned inside it ---------- */
+.reel { position: relative; --step: 80svh; overflow-x: clip; }   /* clip, not hidden: it keeps the stage sticky */
+.js .reel { height: calc(100svh + (var(--n) - 1) * var(--step)); }
+
+.stage {
+  --d: min(68svh, 40vw, 40rem);    /* lens diameter */
+  --ring-gap: 22px;
+  position: relative;
+  min-height: 100svh;
+  max-width: 96rem; margin: 0 auto;
+  padding: calc(var(--head-h) + env(safe-area-inset-top) + 2svh) var(--gutter) 5svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--d);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: clamp(2rem, 6vw, 7rem);
+  align-items: center;
+}
+.js .stage { position: sticky; top: 0; height: 100svh; }
+
+/* The copy column is a window. When the stanza is taller than it, JS glides the stanza so the focus stays in view. */
+.copy { position: relative; align-self: stretch; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.js .copy { overflow: hidden; margin-inline: calc(var(--gutter) * -.75); padding-inline: calc(var(--gutter) * .75); }   /* room for blur to bleed */
+.copy.overflows {
+  justify-content: flex-start;
+  /* JS grows each fade only while there is text hidden past that edge */
+  -webkit-mask-image: linear-gradient(transparent, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bot, 2.5rem)), transparent);
+  mask-image: linear-gradient(transparent, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bot, 2.5rem)), transparent);
+}
+.stanza { position: relative; flex: none; max-width: 40rem; padding: .25em 0; }
+.copy.overflows .stanza { padding: .25rem 0 1.25rem; }
+.ph { display: inline-block; }   /* lines break between phrases, never mid-phrase */
+
+/* ---------- the stanza ---------- */
+.ln {
+  margin-top: .55em;
+  font-family: var(--font-display); font-weight: 560; font-stretch: 92%;
+  font-size: var(--fs-line); line-height: 1.1; letter-spacing: -.006em;
+  text-wrap: balance;
+}
+.ln-head {
+  margin: 0 0 .32em;
+  font-size: var(--fs-head); font-weight: 790; font-stretch: 84%;
+  line-height: .94; letter-spacing: -.016em;
+}
+.ln-close { margin-top: .85em; font-size: var(--fs-close); font-weight: 650; }
+.js .ln { cursor: pointer; will-change: filter, opacity; }
+.js .ln.is-focus { cursor: auto; }
+
+/* Color is state, and only state: mint is a signal, amber is work that holds, cherry is an undo. */
+.mint { color: var(--glow); }
+.amber { color: var(--jelly-deep); }
+.cherry { color: var(--cherry); }
+
+.cta { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1.5rem; }
+.btn {
+  display: inline-flex; align-items: center; min-height: 48px; padding: .7rem 1.35rem;
+  border-radius: 999px; background: var(--jelly); color: var(--on-jelly);
+  font-weight: 600; text-decoration: none; box-shadow: var(--shadow-gel);
+  transition: transform 150ms var(--ease-out);
+}
+.btn:hover { transform: translateY(-1px); }
+.status { color: var(--muted); font-size: .95rem; }
+.cta:focus-within { opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+
+/* ---------- the lens ---------- */
+.lens { position: relative; width: var(--d); aspect-ratio: 1; justify-self: center; }
+.lens::before {                     /* the lightbox under the specimen */
+  content: ""; position: absolute; inset: -40%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--halo), transparent 72%);
+  opacity: calc(.7 + .3 * var(--set, 1));
+  pointer-events: none;
+}
+.glass { position: absolute; inset: 0; border-radius: 50%; background: var(--surface-2); box-shadow: var(--lens-shadow); }
+/* A mask, not border-radius or clip-path: Chromium turns both into a rounded-rect clip that composited video ignores. */
+.clip {
+  position: absolute; inset: 0; overflow: hidden; isolation: isolate;
+  -webkit-mask-image: radial-gradient(closest-side, #000 calc(100% - 1px), transparent);
+  mask-image: radial-gradient(closest-side, #000 calc(100% - 1px), transparent);
+}
+.optics { position: absolute; inset: -7%; }     /* oversized so the focus pull's blur never shows a hard edge */
+.js .optics { will-change: filter, transform; }
+.slide { position: absolute; inset: 0; opacity: 0; background: var(--soft) 50% 50% / cover no-repeat; }
+.slide[data-k="0"] { opacity: 1; background-position: 72% 50%; }
+.slide img, .slide video { width: 100%; height: 100%; object-fit: cover; }
+.slide video { object-position: 78% 50%; }
+.slide.duo { display: grid; grid-template-columns: 1fr 1fr; }
+.slide.duo > span { position: relative; overflow: hidden; background: var(--soft) 50% 50% / cover no-repeat; }
+.slide.duo::after {                /* the split between the two outcomes */
+  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; translate: -50% 0;
+  background: var(--bg);
+}
+.shine {                           /* glass: a soft highlight and a darker rim */
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(90% 70% at 30% 14%, oklch(1 0 0 / .14), transparent 45%),
+    radial-gradient(closest-side, transparent 84%, oklch(0.1 0.02 250 / .32));
+}
+
+.ring {
+  position: absolute; left: calc(var(--ring-gap) * -1); top: calc(var(--ring-gap) * -1);
+  width: calc(100% + 2 * var(--ring-gap)); height: calc(100% + 2 * var(--ring-gap)); max-width: none;
+  overflow: visible; pointer-events: none;
+}
+.ring .track { fill: none; stroke: var(--line); stroke-width: .25; }
+.ring .arc {
+  fill: none; stroke: var(--jelly); stroke-width: .45; stroke-linecap: round;
+  stroke-dasharray: 100; stroke-dashoffset: 0;
+  transform: rotate(-90deg); transform-origin: 50% 50%;
+}
+.ring .bead { fill: var(--bg); stroke: var(--line); stroke-width: .3; transition: fill 200ms; }
+.ring .bead.on, html:not(.js) .ring .bead { fill: var(--jelly); stroke: none; }
+.ring .bead.mint.on, html:not(.js) .ring .bead.mint { fill: var(--glow); }
+.ring .bead.cherry.on, html:not(.js) .ring .bead.cherry { fill: var(--cherry); }
+
+/* ---------- scroll cue (no words) ---------- */
+.cue { display: none; }
+.js .cue {
+  display: block; position: absolute; left: 50%; bottom: max(.75rem, 2.5svh); width: 24px; height: 24px;
+  margin-left: -12px; color: var(--muted);
+  animation: bob 2.4s var(--ease-out) infinite;
+}
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+/* ---------- snap points, one per stop ---------- */
+.snaps { display: none; }
+.js .snaps { display: block; position: absolute; inset: 0; pointer-events: none; }
+.snaps i { position: absolute; left: 0; top: calc(var(--k) * var(--step)); width: 1px; height: 1px; scroll-snap-align: start; }
+
+.foot { padding: 2.5rem var(--gutter) 3rem; color: var(--muted); font-size: .9rem; text-align: center; }
+
+/* ---------- narrow or portrait: lens on top, stanza below ---------- */
+@media (max-width: 47.5rem), (max-aspect-ratio: 5/6) {
+  .stage {
+    --d: min(62vw, 32svh);
+    --ring-gap: 14px;
+    --fs-head: clamp(2.3rem, 7vw, 3.6rem);
+    --fs-line: clamp(1.15rem, 3vw, 1.6rem);
+    --fs-close: clamp(1.25rem, 3.4vw, 1.85rem);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, max-content);   /* the stanza's row shrinks to what's left, so it can glide */
+    align-content: center;
+    row-gap: clamp(1.25rem, 4svh, 2.5rem);
+    align-items: stretch;
+    padding-top: calc(var(--head-h) + env(safe-area-inset-top) + 2.5svh);
+  }
+  .lens { grid-row: 1; }
+  .copy { grid-row: 2; }
+  html:not(.js) .copy { justify-content: flex-start; }
+  .stanza { max-width: 34rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}
