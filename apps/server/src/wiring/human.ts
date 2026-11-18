@@ -1,5 +1,5 @@
 // Humans at the checkpoints: inbox items, decisions bound to a revision, actions, and the audit trail.
-import type { Decision, InboxItem, Trail, TrailEvent } from "@ephyra/core";
+import { readEvidenceIndex, type Decision, type InboxItem, type Trail, type TrailEvent } from "@ephyra/core";
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { InvalidTransition, StaleApproval, type DecisionInput, type HttpPort } from "../http/app.ts";
@@ -10,6 +10,8 @@ import { RECOVERY_INDEX_PATH, recoveryIndexPaths } from "./recovery.ts";
 
 /** Recovery plans returned with a trail: the newest ones, enough for every attempt of a long quest's current work. */
 const MAX_PLANS = 16;
+/** Per-source evidence records returned with a trail. Research reads at most eight sources for one query. */
+const MAX_SOURCE_RECORDS = 8;
 
 export type AuditSink = { append(input: AuditInput): Promise<AuditEvent> };
 
@@ -120,6 +122,14 @@ export function httpPort(ctx: ServerContext, audit: AuditSink): HttpPort {
         const bytes = before?.trail.rev === trail.rev ? await ctx.journal.readFile(trail.id, path) : null;
         return { path, content: bytes && bytes.length <= 500_000 ? new TextDecoder().decode(bytes) : null };
       }));
+      // The evidence index only names each source's record. Send the records it names, so a reviewer sees what was
+      // read and what was unavailable. The paths come from the journal's own manifest and must match its layout.
+      const index = artefacts.find((a) => a.path === "evidence/index.json")?.content;
+      const coverage = index ? readEvidenceIndex(index) : null;
+      for (const path of coverage?.kind === "coverage" ? coverage.records.slice(0, MAX_SOURCE_RECORDS) : []) {
+        const bytes = await ctx.journal.readFile(trail.id, path);
+        if (bytes && bytes.length <= 100_000) artefacts.push({ path, content: new TextDecoder().decode(bytes) });
+      }
       const after = await ctx.journal.read(trail.id);
       // A moved journal cannot supply the text for the reviewed revision. The caller can reload.
       if (before?.head !== after?.head) for (const a of artefacts) a.content = null;
