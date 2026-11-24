@@ -1,0 +1,79 @@
+{
+ "version": 1,
+ "bucket": "ephyra-media",
+ "objects": "objects/",
+ "files": {
+  "site/assets/img/hero-ephyra.png": {
+   "oid": "8bcba9794bbd9e07c55a1128e605c564a1c0a63c",
+   "size": 660133
+  },
+  "site/assets/motion/dedupe-merge.gif": {
+   "oid": "e7c866404ec5b3b650b23738f09369166be8460d",
+   "size": 353969
+  },
+  "site/assets/motion/dedupe-merge.mp4": {
+   "oid": "4d90cc677fc218688092cfa67e845aa91264316a",
+   "size": 261330
+  },
+  "site/assets/motion/dedupe-merge.webm": {
+   "oid": "63988ee1128463104e7e9bf046ba857d184917e5",
+   "size": 108233
+  },
+  "site/assets/motion/inbox-approve.gif": {
+   "oid": "10010f69e6c827fdafdc005bdee614173ff13df6",
+   "size": 202930
+  },
+  "site/assets/motion/inbox-approve.mp4": {
+   "oid": "18bca505abb93ff75d883db69deb823813108b5e",
+   "size": 230461
+  },
+  "site/assets/motion/inbox-approve.webm": {
+   "oid": "4a961adcb99a9b36e571f79b8e8af932ae612e1f",
+   "size": 129965
+  },
+  "site/assets/motion/set-vs-rollback.gif": {
+   "oid": "b687348f04ecb37a8f7cf34154999c900b27ff93",
+   "size": 827933
+  },
+  "site/assets/motion/set-vs-rollback.mp4": {
+   "oid": "8b1168aca457ff3541049807a1923d3c7a72e255",
+   "size": 534099
+  },
+  "site/assets/motion/set-vs-rollback.webm": {
+   "oid": "421f6a91531a7e79e115811073ec878e5869856a",
+   "size": 167889
+  },
+  "site/assets/motion/smartlog-stack.mp4": {
+   "oid": "7119a0d88e4c05d5e9e643127d6e603195de8710",
+   "size": 176110
+  },
+  "site/assets/motion/smartlog-stack.webm": {
+   "oid": "45f0fe76f71eaa027f28e3d756741de5523dd55a",
+   "size": 122680
+  },
+  "site/assets/motion/trail-loop.gif": {
+   "oid": "6235a0f3cdf46f339919cfc4f1bbcb2eb4b58248",
+   "size": 400010
+  },
+  "site/assets/motion/trail-loop.mp4": {
+   "oid": "8a7d18ca7cd60e5f08db2e599a72cbf6fb88127c",
+   "size": 349110
+  },
+  "site/assets/motion/trail-loop.webm": {
+   "oid": "f68e6873313b4cdc95a82632167c7da4e228d61e",
+   "size": 131900
+  },
+  "site/assets/og/og.png": {
+   "oid": "19a25b9c53458a5d61604e7fd51eff7b6d792058",
+   "size": 313643
+  },
+  "site/assets/video/hero-loop.mp4": {
+   "oid": "15313326ddf39ca3cfb9735942d1e12d90dbbbf5",
+   "size": 511569
+  },
+  "site/assets/video/hero-loop.webm": {
+   "oid": "ecb277a6847905bedab8b434db31e7213d59ca96",
+   "size": 323274
+  }
+ }
+}

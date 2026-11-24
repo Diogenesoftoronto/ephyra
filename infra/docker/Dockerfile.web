@@ -10,6 +10,7 @@ COPY site/index.html site/main.js site/styles.css site/
 COPY site/assets site/assets
 COPY site/b site/b
 COPY site/c site/c
+COPY --from=media /m/site ./site
 ENV NODE_ENV=production PORT=3000 EPHYRA_SITE_ROOT=/app/site
 USER bun
 EXPOSE 3000
