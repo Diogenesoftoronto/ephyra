@@ -14,3 +14,24 @@ site/_sources/
 # per-lane git worktrees used during parallel builds
 .lanes/
 .railway/node_modules/
+
+# >>> ephyra-media: paths stored in the ephyra-media bucket (managed by scripts/media.ts)
+/site/assets/img/hero-ephyra.png
+/site/assets/motion/dedupe-merge.gif
+/site/assets/motion/dedupe-merge.mp4
+/site/assets/motion/dedupe-merge.webm
+/site/assets/motion/inbox-approve.gif
+/site/assets/motion/inbox-approve.mp4
+/site/assets/motion/inbox-approve.webm
+/site/assets/motion/set-vs-rollback.gif
+/site/assets/motion/set-vs-rollback.mp4
+/site/assets/motion/set-vs-rollback.webm
+/site/assets/motion/smartlog-stack.mp4
+/site/assets/motion/smartlog-stack.webm
+/site/assets/motion/trail-loop.gif
+/site/assets/motion/trail-loop.mp4
+/site/assets/motion/trail-loop.webm
+/site/assets/og/og.png
+/site/assets/video/hero-loop.mp4
+/site/assets/video/hero-loop.webm
+# <<< ephyra-media
