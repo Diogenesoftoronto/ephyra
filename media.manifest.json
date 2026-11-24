@@ -1,0 +1,171 @@
+{
+ "version": 1,
+ "bucket": "ephyra-media",
+ "objects": "objects/",
+ "files": {
+  "apps/console/public/personas/bell.gif": {
+   "oid": "45951e09896badc6d1dbc011b030fb940278d895",
+   "size": 559217
+  },
+  "apps/console/public/personas/bell.mp4": {
+   "oid": "edc3ce0c38b65fe5bd351130c0213a496ab847e4",
+   "size": 182387
+  },
+  "apps/console/public/personas/bell.webm": {
+   "oid": "2f714ea8c9b96f492542ed4454071f8751d2fea9",
+   "size": 108548
+  },
+  "apps/console/public/personas/lappet.gif": {
+   "oid": "c148585af4c21394a7aee2b94c4639b9bad5db7f",
+   "size": 481676
+  },
+  "apps/console/public/personas/lappet.mp4": {
+   "oid": "9caed289facb2f64fe08ab6d34f1360983402ba8",
+   "size": 145768
+  },
+  "apps/console/public/personas/lappet.webm": {
+   "oid": "349afd4af7ce924aa7f6b2b529251033c4937a15",
+   "size": 60610
+  },
+  "apps/console/public/personas/nema.gif": {
+   "oid": "1369730fd77f4050dc79cda9b9ec10cd68ab27ea",
+   "size": 399043
+  },
+  "apps/console/public/personas/nema.mp4": {
+   "oid": "0a57f596590c23f6b58c00ef1b9ca2d46d8b61c3",
+   "size": 113002
+  },
+  "apps/console/public/personas/nema.webm": {
+   "oid": "b98f14bb414fdc029557ceb7c9d57b07c4f73675",
+   "size": 58137
+  },
+  "apps/console/public/personas/rho.gif": {
+   "oid": "894b82928e33a07f8eae49d12e56ef935154a8aa",
+   "size": 432547
+  },
+  "apps/console/public/personas/rho.mp4": {
+   "oid": "fe2001ede2ced5ffea7dc3d97808a711ca5e2cbe",
+   "size": 145376
+  },
+  "apps/console/public/personas/rho.webm": {
+   "oid": "4b942eddde530e24b764f71596c0e6f995166ff9",
+   "size": 104303
+  },
+  "apps/console/public/personas/turri.gif": {
+   "oid": "2b7accc7bea79d8c644c72c270655e4c8401f1d8",
+   "size": 386085
+  },
+  "apps/console/public/personas/turri.mp4": {
+   "oid": "c697b7f30cff0fb2cba59e3fdb8b47f9aaecbb29",
+   "size": 137199
+  },
+  "apps/console/public/personas/turri.webm": {
+   "oid": "cbdb16e552ef31f50a4d0ce38f8ad7745edd4da4",
+   "size": 81209
+  },
+  "apps/console/public/personas/velum-typing.gif": {
+   "oid": "9d601e908fe05ffc7ac28a35f709b06b201e0d00",
+   "size": 548564
+  },
+  "apps/console/public/personas/velum-typing.mp4": {
+   "oid": "0f37db5ffbac32977a45d6c6a2f015169156465c",
+   "size": 278054
+  },
+  "apps/console/public/personas/velum-typing.webm": {
+   "oid": "b812dff6b3b243366d5c6ac3c60697b4b1f6eb9c",
+   "size": 204104
+  },
+  "apps/console/public/personas/velum.gif": {
+   "oid": "61cebab4bc8cacd09f7fb3b0b26dfec3bbfe0e0c",
+   "size": 396047
+  },
+  "apps/console/public/personas/velum.mp4": {
+   "oid": "f1ef5a5e55982d1602d0130af456b03b732351ad",
+   "size": 117304
+  },
+  "apps/console/public/personas/velum.webm": {
+   "oid": "aa8cd03a26c5cd6c251286e708f062395b4706b6",
+   "size": 53352
+  },
+  "output/jellyware-exploration/g1-05.webp": {
+   "oid": "fcbf6fbccef8da02185412de6cbd83963eac4051",
+   "size": 215780
+  },
+  "output/jellyware-exploration/g1-10.webp": {
+   "oid": "ffb18e6cfa47679e88fb547c517f74745dd81c16",
+   "size": 236018
+  },
+  "site/assets/img/hero-ephyra.png": {
+   "oid": "8bcba9794bbd9e07c55a1128e605c564a1c0a63c",
+   "size": 660133
+  },
+  "site/assets/motion/dedupe-merge.gif": {
+   "oid": "e7c866404ec5b3b650b23738f09369166be8460d",
+   "size": 353969
+  },
+  "site/assets/motion/dedupe-merge.mp4": {
+   "oid": "4d90cc677fc218688092cfa67e845aa91264316a",
+   "size": 261330
+  },
+  "site/assets/motion/dedupe-merge.webm": {
+   "oid": "63988ee1128463104e7e9bf046ba857d184917e5",
+   "size": 108233
+  },
+  "site/assets/motion/inbox-approve.gif": {
+   "oid": "10010f69e6c827fdafdc005bdee614173ff13df6",
+   "size": 202930
+  },
+  "site/assets/motion/inbox-approve.mp4": {
+   "oid": "18bca505abb93ff75d883db69deb823813108b5e",
+   "size": 230461
+  },
+  "site/assets/motion/inbox-approve.webm": {
+   "oid": "4a961adcb99a9b36e571f79b8e8af932ae612e1f",
+   "size": 129965
+  },
+  "site/assets/motion/set-vs-rollback.gif": {
+   "oid": "b687348f04ecb37a8f7cf34154999c900b27ff93",
+   "size": 827933
+  },
+  "site/assets/motion/set-vs-rollback.mp4": {
+   "oid": "8b1168aca457ff3541049807a1923d3c7a72e255",
+   "size": 534099
+  },
+  "site/assets/motion/set-vs-rollback.webm": {
+   "oid": "421f6a91531a7e79e115811073ec878e5869856a",
+   "size": 167889
+  },
+  "site/assets/motion/smartlog-stack.mp4": {
+   "oid": "7119a0d88e4c05d5e9e643127d6e603195de8710",
+   "size": 176110
+  },
+  "site/assets/motion/smartlog-stack.webm": {
+   "oid": "45f0fe76f71eaa027f28e3d756741de5523dd55a",
+   "size": 122680
+  },
+  "site/assets/motion/trail-loop.gif": {
+   "oid": "6235a0f3cdf46f339919cfc4f1bbcb2eb4b58248",
+   "size": 400010
+  },
+  "site/assets/motion/trail-loop.mp4": {
+   "oid": "8a7d18ca7cd60e5f08db2e599a72cbf6fb88127c",
+   "size": 349110
+  },
+  "site/assets/motion/trail-loop.webm": {
+   "oid": "f68e6873313b4cdc95a82632167c7da4e228d61e",
+   "size": 131900
+  },
+  "site/assets/og/og.png": {
+   "oid": "8f9e6b2947855f61fa8e6cb07c452539dbaa2896",
+   "size": 299724
+  },
+  "site/assets/video/hero-loop.mp4": {
+   "oid": "15313326ddf39ca3cfb9735942d1e12d90dbbbf5",
+   "size": 511569
+  },
+  "site/assets/video/hero-loop.webm": {
+   "oid": "ecb277a6847905bedab8b434db31e7213d59ca96",
+   "size": 323274
+  }
+ }
+}

@@ -2,3 +2,27 @@ dist/
 storybook-static/
 artifacts/
 .screens/
+
+# >>> ephyra-media: paths stored in the ephyra-media bucket (managed by scripts/media.ts)
+/public/personas/bell.gif
+/public/personas/bell.mp4
+/public/personas/bell.webm
+/public/personas/lappet.gif
+/public/personas/lappet.mp4
+/public/personas/lappet.webm
+/public/personas/nema.gif
+/public/personas/nema.mp4
+/public/personas/nema.webm
+/public/personas/rho.gif
+/public/personas/rho.mp4
+/public/personas/rho.webm
+/public/personas/turri.gif
+/public/personas/turri.mp4
+/public/personas/turri.webm
+/public/personas/velum-typing.gif
+/public/personas/velum-typing.mp4
+/public/personas/velum-typing.webm
+/public/personas/velum.gif
+/public/personas/velum.mp4
+/public/personas/velum.webm
+# <<< ephyra-media
