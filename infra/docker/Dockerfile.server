@@ -1,4 +1,13 @@
 # Ephyra control plane (apps/server) on Bun. Build context: repository root.
+FROM oven/bun:1.4.4-alpine AS media
+WORKDIR /m
+COPY media.manifest.json ./
+COPY scripts/media.ts ./scripts/media.ts
+ARG EPHYRA_MEDIA_ENDPOINT
+ARG EPHYRA_MEDIA_BUCKET
+ARG EPHYRA_MEDIA_ACCESS_KEY_ID
+ARG EPHYRA_MEDIA_SECRET_ACCESS_KEY
+RUN bun scripts/media.ts pull apps/console/public/
 FROM oven/bun:1.4.4-alpine AS deps
 WORKDIR /app
 COPY package.json tsconfig.base.json ephyra-release.json ./
@@ -6,6 +15,7 @@ COPY package.json tsconfig.base.json ephyra-release.json ./
 COPY infra/docker/server.bun.lock ./bun.lock
 COPY packages/ packages/
 COPY apps/ apps/
+COPY --from=media /m/apps/console/public ./apps/console/public
 RUN bun install --frozen-lockfile --production
 
 FROM deps AS console-build
