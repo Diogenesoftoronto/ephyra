@@ -11,6 +11,7 @@ COPY site/e site/e
 COPY site/a site/a
 COPY site/b site/b
 COPY site/c site/c
+COPY --from=media /m/site ./site
 ENV NODE_ENV=production PORT=3000 EPHYRA_SITE_ROOT=/app/site
 USER bun
 EXPOSE 3000
