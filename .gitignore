@@ -20,3 +20,43 @@ site/_sources/
 # Rebuildable standalone presentation exports
 /output/ephyra-presentation.html
 /output/ephyra-presentation-preview.html
+
+# >>> ephyra-media: paths stored in the ephyra-media bucket (managed by scripts/media.ts)
+/design/brand/sources/ephyra-specimen-v1.png
+/output/ui-review/velum-companion-v2.png
+/site/assets/img/hero-ephyra.png
+/site/assets/motion/dedupe-merge.gif
+/site/assets/motion/dedupe-merge.mp4
+/site/assets/motion/dedupe-merge.webm
+/site/assets/motion/inbox-approve.gif
+/site/assets/motion/inbox-approve.mp4
+/site/assets/motion/inbox-approve.webm
+/site/assets/motion/set-vs-rollback.gif
+/site/assets/motion/set-vs-rollback.mp4
+/site/assets/motion/set-vs-rollback.webm
+/site/assets/motion/smartlog-stack.mp4
+/site/assets/motion/smartlog-stack.webm
+/site/assets/motion/trail-loop.gif
+/site/assets/motion/trail-loop.mp4
+/site/assets/motion/trail-loop.webm
+/site/assets/og/og.png
+/site/assets/video/hero-loop.mp4
+/site/assets/video/hero-loop.webm
+/site/e/presentation/media/bell.webm
+/site/e/presentation/media/connected.mp3
+/site/e/presentation/media/invitation.mp3
+/site/e/presentation/media/lappet.webm
+/site/e/presentation/media/nema.webm
+/site/e/presentation/media/onboarding-mobile.png
+/site/e/presentation/media/onboarding.png
+/site/e/presentation/media/overview.png
+/site/e/presentation/media/personas.png
+/site/e/presentation/media/rho.webm
+/site/e/presentation/media/runs.png
+/site/e/presentation/media/signin-mobile.png
+/site/e/presentation/media/team.png
+/site/e/presentation/media/touch.mp3
+/site/e/presentation/media/turri.webm
+/site/e/presentation/media/velum.webm
+/site/e/presentation/media/workspace.png
+# <<< ephyra-media

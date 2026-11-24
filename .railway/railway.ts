@@ -32,6 +32,11 @@ export default defineRailway(() => {
       // PUBLIC_CLIENT_PRODUCT_CATALOG (product "notorganic").
       EPHYRA_PUBLIC_ORIGIN: "https://console.ephyra.quest",
       EPHYRA_SESSION_KEY: preserve(),
+      // Media bucket credentials, passed to the Dockerfile media stage as build args.
+      EPHYRA_MEDIA_ENDPOINT: preserve(),
+      EPHYRA_MEDIA_BUCKET: preserve(),
+      EPHYRA_MEDIA_ACCESS_KEY_ID: preserve(),
+      EPHYRA_MEDIA_SECRET_ACCESS_KEY: preserve(),
       NOTORGANIC_PRODUCT: "notorganic",
       // dio.pds.notorganic.info and interleave.love (the owner's identities in Not Organic's admin list).
       EPHYRA_APPROVER_DIDS: "did:plc:45dp424mncijxohc4ba2eiyz,did:plc:vmbmkls2n72cmi66y7igy2ew",
@@ -63,6 +68,11 @@ export default defineRailway(() => {
       EPHYRA_BLOG_PUBLICATION_URI: "at://did:plc:soeyznq6axxxa7tarbdxccun/site.standard.publication/self",
       EPHYRA_API_ORIGIN: "https://console.ephyra.quest",
       EPHYRA_DOCS_ORIGIN: "https://docs.ephyra.quest",
+      // Media bucket credentials, passed to the Dockerfile media stage as build args.
+      EPHYRA_MEDIA_ENDPOINT: preserve(),
+      EPHYRA_MEDIA_BUCKET: preserve(),
+      EPHYRA_MEDIA_ACCESS_KEY_ID: preserve(),
+      EPHYRA_MEDIA_SECRET_ACCESS_KEY: preserve(),
     },
   });
 
