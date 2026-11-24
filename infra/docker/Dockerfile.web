@@ -1,11 +1,21 @@
 # Ephyra public site (apps/web): landing cuts, journal, pricing, legal, SEO files. Build context: repository root.
 # Cut E is the home page; A, B and C stay reachable. Only published cuts are copied; site/_sources and work-in-progress cuts never enter the image.
+FROM oven/bun:1.4.4-alpine AS media
+WORKDIR /m
+COPY media.manifest.json ./
+COPY scripts/media.ts ./scripts/media.ts
+ARG EPHYRA_MEDIA_ENDPOINT
+ARG EPHYRA_MEDIA_BUCKET
+ARG EPHYRA_MEDIA_ACCESS_KEY_ID
+ARG EPHYRA_MEDIA_SECRET_ACCESS_KEY
+RUN bun scripts/media.ts pull apps/console/public/ site/assets/ site/e/
 FROM oven/bun:1.4.4-alpine AS walkthrough-build
 WORKDIR /app
 COPY package.json tsconfig.base.json ./
 COPY infra/docker/server.bun.lock ./bun.lock
 COPY packages/ packages/
 COPY apps/ apps/
+COPY --from=media /m/apps/console/public ./apps/console/public
 RUN bun install --frozen-lockfile
 RUN bun run --filter @ephyra/console build:walkthrough
 
@@ -20,6 +30,7 @@ COPY site/e site/e
 COPY site/a site/a
 COPY site/b site/b
 COPY site/c site/c
+COPY --from=media /m/site ./site
 COPY --from=walkthrough-build /app/apps/console/dist-walkthrough site/e/app
 ENV NODE_ENV=production PORT=3000 EPHYRA_SITE_ROOT=/app/site
 USER bun

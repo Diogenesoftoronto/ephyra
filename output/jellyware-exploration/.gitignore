@@ -3,3 +3,8 @@
 generation-*.json
 # Generated with absolute local asset paths for the inline preview tool.
 gallery.html
+
+# >>> ephyra-media: paths stored in the ephyra-media bucket (managed by scripts/media.ts)
+/g1-05.webp
+/g1-10.webp
+# <<< ephyra-media
